@@ -1,0 +1,27 @@
+{
+  "story_structure": {
+    "hook": "Officer encounters suspect at 2AM traffic stop",
+    "beats": [
+      {"timestamp": "0:00-0:30", "beat": "hook", "description": "Bodycam activates, officer approaches vehicle"},
+      {"timestamp": "0:30-2:00", "beat": "context", "description": "Dispatch call details, location established"},
+      {"timestamp": "2:00-5:00", "beat": "rising_action", "description": "Driver becomes uncooperative"},
+      {"timestamp": "5:00-7:00", "beat": "climax", "description": "Pursuit begins"},
+      {"timestamp": "7:00-9:00", "beat": "aftermath", "description": "Suspect apprehended, charges filed"}
+    ],
+    "emotional_arc": "tension_build"
+  },
+  "knowledge_graph": {
+    "entities": [
+      {"name": "Officer Johnson", "role": "police_officer", "department": "Austin PD"},
+      {"name": "Suspect", "role": "driver", "charges": ["evading arrest", "DUI"]}
+    ],
+    "location": {"city": "Austin", "state": "Texas", "setting": "highway"},
+    "conflicts": ["authority_vs_resistance", "law_enforcement_procedure"],
+    "context_needed_for_target_audience": [
+      "US traffic stop procedures differ from Taiwan",
+      "DUI legal consequences in Texas",
+      "Bodycam mandate policies in US police departments"
+    ]
+  },
+  "clip_timestamps": [[0, 30], [120, 135], [300, 315], [420, 435]]
+}
