@@ -1,10 +1,6 @@
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from pipeline.stages.compose import ComposeStage, build_composition_plan
-from pipeline.stages.base import PipelineContext
 
 
 def test_build_composition_plan():
@@ -52,18 +48,17 @@ async def test_compose_builds_ffmpeg_commands(sample_context):
     assert stage.name == "compose"
 
     # Mock run_ffmpeg to avoid needing real ffmpeg
-    with patch("pipeline.stages.compose.run_ffmpeg") as mock_ffmpeg:
+    with (
+        patch("pipeline.stages.compose.run_ffmpeg") as mock_ffmpeg,
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch.object(stage, "_compose_video") as mock_compose,
+    ):
         mock_ffmpeg.return_value = MagicMock(returncode=0)
+        final_path = sample_context.work_dir / "compose" / "final_zh-TW.mp4"
+        final_path.parent.mkdir(parents=True, exist_ok=True)
+        final_path.write_bytes(b"fake final video")
+        mock_compose.return_value = final_path
 
-        # Also mock check_ffmpeg_available
-        with patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True):
-            # We need to mock _compose_video since FFmpeg won't actually run
-            with patch.object(stage, "_compose_video") as mock_compose:
-                final_path = sample_context.work_dir / "compose" / "final_zh-TW.mp4"
-                final_path.parent.mkdir(parents=True, exist_ok=True)
-                final_path.write_bytes(b"fake final video")
-                mock_compose.return_value = final_path
-
-                ctx = await stage.run(sample_context)
+        ctx = await stage.run(sample_context)
 
     assert ctx.final_video_path is not None

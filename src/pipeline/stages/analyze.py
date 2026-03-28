@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import structlog
 
@@ -29,16 +28,19 @@ def build_analysis_prompt(transcript: str) -> str:
    - climax: peak tension
    - aftermath: resolution, consequences
 
-2. **Knowledge graph**: Extract entities, relationships, conflicts, and context that a non-US audience would need explained.
+2. **Knowledge graph**: Extract entities, relationships, conflicts,
+   and context that a non-US audience would need explained.
 
-3. **Clip timestamps**: Suggest 4-8 short segments (5-15 seconds each) that would work as visual reference clips in a ported video. Focus on high-visual-impact moments.
+3. **Clip timestamps**: Suggest 4-8 short segments (5-15 seconds each)
+   as visual reference clips. Focus on high-visual-impact moments.
 
 Return ONLY valid JSON in this exact format:
 {{
   "story_structure": {{
     "hook": "one-line description of the hook",
     "beats": [
-      {{"timestamp": "M:SS-M:SS", "beat": "hook|context|rising_action|climax|aftermath", "description": "what happens"}}
+      {{"timestamp": "M:SS-M:SS", "beat": "hook|context|rising_action|climax|aftermath",
+        "description": "what happens"}}
     ],
     "emotional_arc": "tension_build|mystery_reveal|justice_served|survival|tragedy"
   }},

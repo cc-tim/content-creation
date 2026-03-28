@@ -1,10 +1,6 @@
-from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from pipeline.stages.tts import TtsStage, extract_narration_segments
-from pipeline.stages.base import PipelineContext
 
 
 def test_extract_narration_segments():

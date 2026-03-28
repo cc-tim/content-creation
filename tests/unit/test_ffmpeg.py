@@ -1,8 +1,7 @@
 from pipeline.utils.ffmpeg import (
-    build_extract_clip_cmd,
     build_burn_subtitles_cmd,
     build_concat_cmd,
-    check_ffmpeg_available,
+    build_extract_clip_cmd,
 )
 
 

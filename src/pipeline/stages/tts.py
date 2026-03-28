@@ -80,7 +80,7 @@ class TtsStage(PipelineStage):
 
         for i, text in enumerate(segments):
             seg_path = audio_dir / f"segment_{i:03d}.mp3"
-            timing = await generate_edge_tts(text, voice, seg_path)
+            await generate_edge_tts(text, voice, seg_path)
 
             # Estimate duration from file size (~16kB/sec for edge-tts mp3)
             file_size = seg_path.stat().st_size

@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -9,7 +9,6 @@ from pipeline.stages.scriptwrite import (
     build_scriptwrite_prompt,
     parse_script_markers,
 )
-from pipeline.stages.base import PipelineContext
 
 
 @pytest.fixture

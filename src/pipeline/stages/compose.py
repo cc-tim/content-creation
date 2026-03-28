@@ -8,11 +8,11 @@ import structlog
 from pipeline.stages.base import PipelineContext, PipelineStage
 from pipeline.stages.scriptwrite import parse_script_markers
 from pipeline.utils.ffmpeg import (
-    build_extract_clip_cmd,
     build_burn_subtitles_cmd,
     build_concat_cmd,
-    run_ffmpeg,
+    build_extract_clip_cmd,
     check_ffmpeg_available,
+    run_ffmpeg,
 )
 
 logger = structlog.get_logger()

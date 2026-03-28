@@ -1,5 +1,6 @@
 from pathlib import Path
-from pipeline.utils.srt import parse_srt, write_srt, SrtEntry
+
+from pipeline.utils.srt import SrtEntry, parse_srt, write_srt
 
 
 def test_parse_srt():

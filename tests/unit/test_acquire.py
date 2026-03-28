@@ -5,7 +5,6 @@ from unittest.mock import patch
 import pytest
 
 from pipeline.stages.acquire import AcquireStage
-from pipeline.stages.base import PipelineContext
 
 
 @pytest.fixture
@@ -29,7 +28,8 @@ async def test_acquire_downloads_video_and_transcript(sample_context, transcript
 
         mock_dl.side_effect = fake_download
         mock_tr.return_value = (
-            "On the night of March 15th, Officer Johnson responded to a disturbance call in downtown Austin, Texas.",
+            "On the night of March 15th, Officer Johnson responded"
+            " to a disturbance call in downtown Austin, Texas.",
             transcript_fixture,
         )
 
@@ -55,7 +55,7 @@ async def test_acquire_creates_source_directory(sample_context, transcript_fixtu
         mock_dl.side_effect = fake_download
         mock_tr.return_value = ("transcript text", [])
 
-        ctx = await stage.run(sample_context)
+        await stage.run(sample_context)
 
     source_dir = sample_context.work_dir / "source"
     assert source_dir.exists()

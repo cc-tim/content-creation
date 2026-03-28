@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 
 import structlog
 import typer
 
 from pipeline.config import PipelineConfig
-from pipeline.models import Locale
 from pipeline.orchestrator import Orchestrator
 from pipeline.stages.acquire import AcquireStage
 from pipeline.stages.analyze import AnalyzeStage
@@ -70,9 +68,9 @@ def produce(
         result = asyncio.run(orch.run(ctx, start_from=start_from))
 
         if result.success and not skip_review:
-            typer.echo(f"\n--- HUMAN REVIEW GATE ---")
+            typer.echo("\n--- HUMAN REVIEW GATE ---")
             typer.echo(f"Script ready for review: {result.ctx.script_path}")
-            typer.echo(f"Edit the script, then resume with:")
+            typer.echo("Edit the script, then resume with:")
             typer.echo(f"  uv run pipeline produce --url \"{url}\" --locale {locale} "
                        f"--project-id {project_id} --start-from tts")
             return

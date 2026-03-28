@@ -1,9 +1,6 @@
-from pathlib import Path
-from unittest.mock import AsyncMock, patch
 
-import pytest
 
-from pipeline.orchestrator import Orchestrator, StageResult
+from pipeline.orchestrator import Orchestrator
 from pipeline.stages.base import PipelineContext, PipelineStage
 
 
@@ -43,6 +40,6 @@ async def test_orchestrator_stops_on_failure(sample_context):
 
 async def test_orchestrator_saves_context_after_each_stage(sample_context):
     orch = Orchestrator(stages=[FakePassStage()])
-    result = await orch.run(sample_context)
+    await orch.run(sample_context)
     context_file = sample_context.work_dir / "context.json"
     assert context_file.exists()
