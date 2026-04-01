@@ -102,7 +102,7 @@ class ComposeStage(PipelineStage):
         if clip_paths:
             filelist = compose_dir / "clips.txt"
             filelist.write_text(
-                "\n".join(f"file '{p}'" for p in clip_paths),
+                "\n".join(f"file '{p.resolve()}'" for p in clip_paths),
                 encoding="utf-8",
             )
             clips_video = compose_dir / "clips_concat.mp4"

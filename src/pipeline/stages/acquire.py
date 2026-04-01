@@ -35,7 +35,12 @@ def extract_transcript(url: str) -> tuple[str, list[dict]]:
     video_id = _extract_video_id(url)
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
-        transcript_data = YouTubeTranscriptApi.get_transcript(video_id, languages=["en"])
+        api = YouTubeTranscriptApi()
+        transcript = api.fetch(video_id, languages=["en"])
+        transcript_data = [
+            {"text": entry.text, "start": entry.start, "duration": entry.duration}
+            for entry in transcript
+        ]
         full_text = " ".join(entry["text"] for entry in transcript_data)
         return full_text, transcript_data
     except Exception as e:

@@ -4,10 +4,11 @@ from pydantic_settings import BaseSettings
 
 
 class PipelineConfig(BaseSettings):
-    model_config = {"env_prefix": "PIPELINE_"}
+    model_config = {"env_prefix": "PIPELINE_", "env_file": ".env", "env_file_encoding": "utf-8"}
 
     # API keys
     ANTHROPIC_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""
     YOUTUBE_API_KEY: str = ""
     GOOGLE_CLOUD_TTS_KEY: str = ""
 

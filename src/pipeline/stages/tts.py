@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -16,9 +17,18 @@ logger = structlog.get_logger()
 def extract_narration_segments(script: str) -> list[str]:
     """Extract plain narration text from a script with markers."""
     segments: list[str] = []
+    # Match all marker formats including extended ones like [HOOK - 0:00-0:30]
     marker_pattern = re.compile(
-        r"^\[(HOOK|CONTEXT|RISING|CLIMAX|AFTERMATH|ANALYSIS|"
-        r"CLIP:[^\]]+|OVERLAY:[^\]]+|PAUSE:\d+s)\]$"
+        r"^\["
+        r"(HOOK|CONTEXT|RISING|CLIMAX|AFTERMATH|ANALYSIS|RISING ACTION)"
+        r"(\s*-\s*[^\]]+)?"  # optional timestamp suffix like " - 0:00-0:30"
+        r"\]$"
+        r"|"
+        r"^\[CLIP:[^\]]+\]$"
+        r"|"
+        r"^\[OVERLAY:[^\]]+\]$"
+        r"|"
+        r"^\[PAUSE:\d+s\]$"
     )
 
     for line in script.split("\n"):
@@ -82,9 +92,8 @@ class TtsStage(PipelineStage):
             seg_path = audio_dir / f"segment_{i:03d}.mp3"
             await generate_edge_tts(text, voice, seg_path)
 
-            # Estimate duration from file size (~16kB/sec for edge-tts mp3)
-            file_size = seg_path.stat().st_size
-            est_duration_ms = max(int(file_size / 16 * 1000), 1000)
+            # Get actual duration via ffprobe
+            est_duration_ms = _get_audio_duration_ms(seg_path)
 
             segment_timings.append({
                 "index": i,
@@ -119,6 +128,27 @@ class TtsStage(PipelineStage):
 
         logger.info("tts.complete", segments=len(segments), path=str(narration_path))
         return ctx
+
+
+def _get_audio_duration_ms(path: Path) -> int:
+    """Get audio duration in milliseconds using ffprobe."""
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe", "-v", "quiet",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return int(float(result.stdout.strip()) * 1000)
+    except Exception:
+        # Fallback: estimate from file size (~16kB/sec for edge-tts mp3)
+        file_size = path.stat().st_size
+        return max(int(file_size / 16 * 1000), 1000)
 
 
 def _concatenate_audio(paths: list[Path], output: Path) -> None:

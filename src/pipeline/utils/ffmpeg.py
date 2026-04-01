@@ -35,9 +35,10 @@ def build_burn_subtitles_cmd(
     font_size: int = 24,
 ) -> list[str]:
     """Build ffmpeg command to burn subtitles into video."""
+    # Escape special chars for FFmpeg filter syntax: \ : [ ] ; , '
+    escaped_sub_path = subtitle_path.replace("\\", "\\\\").replace(":", "\\:")
     style = f"FontName={font_name},FontSize={font_size}"
-    # No quotes around style — subprocess.run passes args directly, not via shell
-    subtitle_filter = f"subtitles={subtitle_path}:force_style={style}"
+    subtitle_filter = f"subtitles={escaped_sub_path}:force_style='{style}'"
     return [
         "ffmpeg", "-y",
         "-i", input_path,

@@ -37,34 +37,39 @@ def produce(
     work_dir = config.OUTPUT_DIR / "projects" / str(project_id)
     work_dir.mkdir(parents=True, exist_ok=True)
 
-    ctx = PipelineContext(
-        project_id=project_id,
-        source_url=url,
-        locale=locale,
-        work_dir=work_dir,
-    )
+    # Load existing context if resuming, otherwise create new
+    context_file = work_dir / "context.json"
+    if start_from and context_file.exists():
+        ctx = PipelineContext.load(context_file)
+    else:
+        ctx = PipelineContext(
+            project_id=project_id,
+            source_url=url,
+            locale=locale,
+            work_dir=work_dir,
+        )
 
-    # Phase 1: acquire → analyze → scriptwrite
-    pre_review_stages = [
+    # All stages in order
+    all_stages = [
         AcquireStage(),
         AnalyzeStage(),
         ScriptwriteStage(),
-    ]
-
-    # Phase 2: tts → compose (after human review)
-    post_review_stages = [
         TtsStage(),
         ComposeStage(),
     ]
 
-    # Run phase 1 (or resume from a specific stage)
-    if start_from and start_from in ("tts", "compose"):
-        # Resuming after review — load existing context
-        ctx = PipelineContext.load(work_dir / "context.json")
-        orch = Orchestrator(stages=post_review_stages)
+    # Phase 1: acquire → analyze → scriptwrite
+    pre_review = {"acquire", "analyze", "scriptwrite"}
+    post_review = {"tts", "compose"}
+
+    if start_from and start_from in post_review:
+        # Resuming after review
+        stages = [s for s in all_stages if s.name in post_review]
+        orch = Orchestrator(stages=stages)
         result = asyncio.run(orch.run(ctx, start_from=start_from))
     else:
-        orch = Orchestrator(stages=pre_review_stages)
+        stages = [s for s in all_stages if s.name in pre_review]
+        orch = Orchestrator(stages=stages)
         result = asyncio.run(orch.run(ctx, start_from=start_from))
 
         if result.success and not skip_review:
@@ -77,7 +82,8 @@ def produce(
 
         if result.success and skip_review:
             # Continue directly to phase 2
-            orch = Orchestrator(stages=post_review_stages)
+            phase2 = [s for s in all_stages if s.name in post_review]
+            orch = Orchestrator(stages=phase2)
             result = asyncio.run(orch.run(result.ctx))
 
     if result.success:
