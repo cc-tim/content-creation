@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +43,22 @@ def build_composition_plan(script: str) -> list[dict[str, Any]]:
             plan.append({"type": "pause", "seconds": marker["seconds"]})
 
     return plan
+
+
+def _get_duration_sec(path: Path) -> float:
+    """Get media duration in seconds via ffprobe."""
+    result = subprocess.run(
+        [
+            "ffprobe", "-v", "quiet",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return float(result.stdout.strip())
 
 
 def _timestamp_to_seconds(ts: str) -> float:
@@ -111,27 +128,25 @@ class ComposeStage(PipelineStage):
         else:
             base_video = ctx.video_path
 
-        # Step 3: Replace audio with narration
-        narration_video = compose_dir / "with_narration.mp4"
+        # Step 3: Get narration duration to trim video to match
+        narration_duration = _get_duration_sec(ctx.narration_path)
+
+        # Step 4: Combine — replace audio, trim video to narration length, burn subtitles
+        # Do it in one pass to avoid re-encoding twice
+        final_path = compose_dir / f"final_{ctx.locale}.mp4"
+        escaped_sub = str(ctx.subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
+        subtitle_style = "FontName=Noto Sans CJK TC,FontSize=24"
         run_ffmpeg([
             "ffmpeg", "-y",
             "-i", str(base_video),
             "-i", str(ctx.narration_path),
-            "-c:v", "copy",
+            "-t", str(narration_duration),
             "-map", "0:v:0",
             "-map", "1:a:0",
-            "-shortest",
-            str(narration_video),
-        ])
-
-        # Step 4: Burn subtitles
-        final_path = compose_dir / f"final_{ctx.locale}.mp4"
-        cmd = build_burn_subtitles_cmd(
-            str(narration_video),
-            str(ctx.subtitle_path),
+            "-vf", f"subtitles={escaped_sub}:force_style='{subtitle_style}'",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "23",
+            "-c:a", "aac", "-b:a", "128k",
             str(final_path),
-            font_name="Noto Sans CJK TC",
-        )
-        run_ffmpeg(cmd)
+        ])
 
         return final_path
