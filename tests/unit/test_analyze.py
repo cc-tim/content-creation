@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from pipeline.knowledge import Knowledge
 from pipeline.stages.analyze import AnalyzeStage, build_analysis_prompt
 
 
@@ -14,13 +15,18 @@ def analysis_fixture() -> dict:
 
 
 def test_build_analysis_prompt():
-    prompt = build_analysis_prompt("This is a transcript about a traffic stop in Austin.")
+    prompt = build_analysis_prompt(
+        "This is a transcript.",
+        "https://youtube.com/watch?v=test",
+        "Test Video",
+    )
     assert "transcript" in prompt.lower()
-    assert "story_structure" in prompt or "story structure" in prompt.lower()
-    assert "knowledge_graph" in prompt or "knowledge graph" in prompt.lower()
+    assert "facts" in prompt.lower()
+    assert "entities" in prompt.lower()
+    assert "timeline" in prompt.lower()
 
 
-async def test_analyze_extracts_structure(sample_context, analysis_fixture):
+async def test_analyze_outputs_knowledge_json(sample_context, analysis_fixture):
     sample_context.transcript_text = "Officer Johnson responded to a call..."
     stage = AnalyzeStage()
     assert stage.name == "analyze"
@@ -35,9 +41,14 @@ async def test_analyze_extracts_structure(sample_context, analysis_fixture):
 
         ctx = await stage.run(sample_context)
 
+    # Layer 1 output
+    assert ctx.knowledge_path is not None
+    assert ctx.knowledge_path.exists()
+    knowledge = Knowledge.load(ctx.knowledge_path)
+    assert len(knowledge.facts) == 3
+    assert len(knowledge.entities) == 2
+    assert knowledge.facts[0].id == "f1"
+
+    # Backwards compat
     assert ctx.story_structure is not None
-    assert "beats" in ctx.story_structure
     assert ctx.knowledge_graph is not None
-    assert "entities" in ctx.knowledge_graph
-    assert ctx.clip_timestamps is not None
-    assert len(ctx.clip_timestamps) > 0

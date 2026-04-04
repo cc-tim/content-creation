@@ -27,6 +27,7 @@ class PipelineContext:
     story_structure: dict[str, Any] | None = None
     knowledge_graph: dict[str, Any] | None = None
     clip_timestamps: list[tuple[float, float]] | None = None
+    knowledge_path: Path | None = None
 
     # Stage 3: Scriptwrite
     script_path: Path | None = None
@@ -58,7 +59,7 @@ class PipelineContext:
         path_fields = {
             "work_dir", "video_path", "transcript_path",
             "script_path", "narration_path", "subtitle_path",
-            "final_video_path",
+            "final_video_path", "knowledge_path",
         }
         cleaned = {}
         for k, v in data.items():

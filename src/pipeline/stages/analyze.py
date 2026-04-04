@@ -5,6 +5,7 @@ import json
 import structlog
 
 from pipeline.config import PipelineConfig
+from pipeline.knowledge import Knowledge, KnowledgeMeta
 from pipeline.stages.base import PipelineContext, PipelineStage
 
 logger = structlog.get_logger()
@@ -17,41 +18,37 @@ def get_anthropic_client():
     return anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 
 
-def build_analysis_prompt(transcript: str) -> str:
-    """Build the Claude prompt for story analysis."""
-    return f"""Analyze this video transcript and extract two things:
+def build_analysis_prompt(transcript: str, source_url: str, title: str) -> str:
+    """Build the Claude prompt for knowledge extraction."""
+    return f"""Analyze this video transcript and extract structured knowledge.
 
-1. **Story structure**: Identify the narrative beats with approximate timestamps.
-   - hook: the most dramatic/attention-grabbing moment
-   - context: setting, people, background
-   - rising_action: escalation of events
-   - climax: peak tension
-   - aftermath: resolution, consequences
+Extract:
+1. **Facts**: Individual factual statements with timestamps. Each gets a unique ID (f1, f2, ...).
+   Tag each fact with relevant topics (e.g. "crime", "chase", "legal", "geography").
+2. **Entities**: People, organizations, locations mentioned. Each gets a unique ID (e1, e2, ...).
+3. **Timeline**: Key events in chronological order, referencing fact IDs.
+4. **Context bridges**: Cultural context a non-US audience would need explained.
 
-2. **Knowledge graph**: Extract entities, relationships, conflicts,
-   and context that a non-US audience would need explained.
-
-3. **Clip timestamps**: Suggest 4-8 short segments (5-15 seconds each)
-   as visual reference clips. Focus on high-visual-impact moments.
-
-Return ONLY valid JSON in this exact format:
+Return ONLY valid JSON:
 {{
-  "story_structure": {{
-    "hook": "one-line description of the hook",
-    "beats": [
-      {{"timestamp": "M:SS-M:SS", "beat": "hook|context|rising_action|climax|aftermath",
-        "description": "what happens"}}
-    ],
-    "emotional_arc": "tension_build|mystery_reveal|justice_served|survival|tragedy"
-  }},
-  "knowledge_graph": {{
-    "entities": [{{"name": "...", "role": "...", "details": "..."}}],
-    "location": {{"city": "...", "state": "...", "setting": "..."}},
-    "conflicts": ["..."],
-    "context_needed_for_target_audience": ["..."]
-  }},
-  "clip_timestamps": [[start_sec, end_sec], ...]
+  "facts": [
+    {{"id": "f1", "text": "factual statement", "timestamp": "M:SS",
+      "source": "transcript", "verified": false,
+      "tags": ["tag1", "tag2"]}}
+  ],
+  "entities": [
+    {{"id": "e1", "name": "Name", "role": "role description", "details": ""}}
+  ],
+  "timeline": [
+    {{"time": "M:SS", "event": "what happened", "facts": ["f1"]}}
+  ],
+  "context_bridges": [
+    "Cultural context statement"
+  ]
 }}
+
+SOURCE: {source_url}
+TITLE: {title}
 
 TRANSCRIPT:
 {transcript}"""
@@ -70,7 +67,11 @@ class AnalyzeStage(PipelineStage):
 
         client = get_anthropic_client()
         config = PipelineConfig()
-        prompt = build_analysis_prompt(ctx.transcript_text)
+        prompt = build_analysis_prompt(
+            ctx.transcript_text,
+            ctx.source_url,
+            getattr(ctx, "source_title", "Untitled"),
+        )
 
         response = client.messages.create(
             model=config.CLAUDE_MODEL,
@@ -79,25 +80,48 @@ class AnalyzeStage(PipelineStage):
         )
 
         raw_text = response.content[0].text
-        # Strip markdown code fences if present
         if raw_text.startswith("```"):
             raw_text = raw_text.split("\n", 1)[1].rsplit("```", 1)[0]
 
         result = json.loads(raw_text)
 
-        ctx.story_structure = result["story_structure"]
-        ctx.knowledge_graph = result["knowledge_graph"]
-        ctx.clip_timestamps = [tuple(ts) for ts in result["clip_timestamps"]]
+        # Build Knowledge object
+        knowledge = Knowledge.from_dict({
+            "meta": {
+                "source_type": "youtube",
+                "source_url": ctx.source_url,
+                "title": getattr(ctx, "source_title", "Untitled"),
+                "locale": ctx.locale,
+                "created_at": "",
+                "updated_at": "",
+            },
+            **result,
+        })
 
-        # Save analysis to work_dir
-        analysis_dir = ctx.work_dir / "analysis"
-        analysis_dir.mkdir(parents=True, exist_ok=True)
-        (analysis_dir / "structure.json").write_text(
-            json.dumps(ctx.story_structure, indent=2, ensure_ascii=False)
-        )
-        (analysis_dir / "knowledge_graph.json").write_text(
-            json.dumps(ctx.knowledge_graph, indent=2, ensure_ascii=False)
-        )
+        # Save knowledge.json
+        knowledge_path = ctx.work_dir / "knowledge.json"
+        knowledge.save(knowledge_path)
+        ctx.knowledge_path = knowledge_path
 
-        logger.info("analyze.complete", beats=len(ctx.story_structure.get("beats", [])))
+        # Backwards compat: populate old fields for existing compose stage
+        ctx.story_structure = {
+            "beats": [
+                {"timestamp": t.time, "beat": "event", "description": t.event}
+                for t in knowledge.timeline
+            ],
+        }
+        ctx.knowledge_graph = {
+            "entities": [
+                {"name": e.name, "role": e.role, "details": e.details}
+                for e in knowledge.entities
+            ],
+            "context_needed_for_target_audience": knowledge.context_bridges,
+        }
+        ctx.clip_timestamps = []
+
+        logger.info(
+            "analyze.complete",
+            facts=len(knowledge.facts),
+            entities=len(knowledge.entities),
+        )
         return ctx
