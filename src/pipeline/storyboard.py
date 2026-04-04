@@ -1,0 +1,118 @@
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+
+@dataclass
+class Scene:
+    id: str
+    section: str  # hook | context | rising | climax | aftermath | analysis | content | punchline
+    narration: str
+    narration_est_sec: float
+    facts_ref: list[str] = field(default_factory=list)
+    visual: dict[str, Any] = field(default_factory=dict)
+    overlay: dict[str, Any] | None = None
+    pause_after_sec: float = 0
+
+
+@dataclass
+class Storyboard:
+    """Layer 2: Scene-by-scene directing. Regenerable, A/B testable."""
+
+    version: int = 1
+    format: str = "standard"  # standard | short
+    target_duration_sec: int = 720
+    aspect_ratio: str = "16:9"  # 16:9 | 9:16
+    scenes: list[Scene] = field(default_factory=list)
+
+    # --- Serialization ---
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "version": self.version,
+            "format": self.format,
+            "target_duration_sec": self.target_duration_sec,
+            "aspect_ratio": self.aspect_ratio,
+            "scenes": [
+                {
+                    "id": s.id,
+                    "section": s.section,
+                    "narration": s.narration,
+                    "narration_est_sec": s.narration_est_sec,
+                    "facts_ref": s.facts_ref,
+                    "visual": s.visual,
+                    "overlay": s.overlay,
+                    "pause_after_sec": s.pause_after_sec,
+                }
+                for s in self.scenes
+            ],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Storyboard:
+        scenes = [Scene(**s) for s in data.get("scenes", [])]
+        return cls(
+            version=data.get("version", 1),
+            format=data.get("format", "standard"),
+            target_duration_sec=data.get("target_duration_sec", 720),
+            aspect_ratio=data.get("aspect_ratio", "16:9"),
+            scenes=scenes,
+        )
+
+    def save(self, path: Path) -> None:
+        path.write_text(
+            json.dumps(self.to_dict(), indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+    @classmethod
+    def load(cls, path: Path) -> Storyboard:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return cls.from_dict(data)
+
+    # --- Script Derivation ---
+
+    def derive_script(self) -> str:
+        """Produce clean narration text for TTS.
+
+        Concatenates scene narration with section markers that TTS
+        can filter out. This replaces the old script.md format.
+        """
+        lines: list[str] = []
+        for scene in self.scenes:
+            # Section marker (TTS filters these out)
+            lines.append(f"[{scene.section.upper()}]")
+            lines.append("")
+            # Narration text
+            lines.append(scene.narration)
+            lines.append("")
+            # Pause marker if needed
+            if scene.pause_after_sec > 0:
+                lines.append(f"[PAUSE:{int(scene.pause_after_sec)}s]")
+                lines.append("")
+        return "\n".join(lines)
+
+    # --- Scene Management ---
+
+    def get_scene(self, scene_id: str) -> Scene | None:
+        for s in self.scenes:
+            if s.id == scene_id:
+                return s
+        return None
+
+    def swap_visual(self, scene_id: str, new_visual: dict[str, Any]) -> bool:
+        """Swap the visual type for a scene. Returns True if found."""
+        scene = self.get_scene(scene_id)
+        if scene is None:
+            return False
+        scene.visual = new_visual
+        return True
+
+    def estimated_duration_sec(self) -> float:
+        """Sum of narration estimates + pauses."""
+        return sum(
+            s.narration_est_sec + s.pause_after_sec for s in self.scenes
+        )
