@@ -113,6 +113,96 @@ KNOWLEDGE BASE:
 {knowledge_json}"""
 
 
+async def generate_shorts_storyboards(
+    knowledge: Knowledge,
+    locale: str,
+    count: int = 3,
+    tone: str = "educational",
+) -> list[Storyboard]:
+    """Score facts for standalone interest and generate N short storyboards."""
+    client = get_anthropic_client()
+    config = PipelineConfig()
+
+    # Ask Claude to select top facts and generate shorts
+    facts_json = json.dumps(
+        [{"id": f.id, "text": f.text, "tags": f.tags} for f in knowledge.facts],
+        indent=2,
+        ensure_ascii=False,
+    )
+    locale_instruction = LOCALE_INSTRUCTIONS.get(locale, LOCALE_INSTRUCTIONS["zh-TW"])
+
+    prompt = f"""From the facts below, select the {count} most interesting standalone facts for YouTube Shorts.
+
+Selection criteria:
+- Standalone interest: understandable without context?
+- Surprise factor: counterintuitive > obvious
+- Visual potential: can we show something compelling?
+- Brevity: explainable in 15 seconds?
+
+For each selected fact, generate a short storyboard (30-60 seconds, 2-4 scenes).
+
+LOCALE: {locale}
+LANGUAGE: {locale_instruction}
+TONE: {tone}
+
+Structure per Short: hook (surprising statement) → content (explain) → punchline (witty closer)
+
+VISUAL TYPES:
+- clip: {{"type": "clip", "source": "primary", "start_sec": N, "end_sec": N}}
+- text_card: {{"type": "text_card", "text": "...", "background": "#1a1a2e"}}
+- generated_image: {{"type": "generated_image", "prompt": "...", "style": "cinematic"}}
+- slide: {{"type": "slide", "title": "...", "bullets": ["..."]}}
+
+Return ONLY valid JSON:
+{{
+  "shorts": [
+    {{
+      "fact_id": "f1",
+      "scenes": [
+        {{
+          "id": "s1",
+          "section": "hook|content|punchline",
+          "narration": "text in target locale",
+          "narration_est_sec": 5,
+          "facts_ref": ["f1"],
+          "visual": {{"type": "...", ...}},
+          "overlay": null,
+          "pause_after_sec": 0
+        }}
+      ]
+    }}
+  ]
+}}
+
+FACTS:
+{facts_json}"""
+
+    response = client.messages.create(
+        model=config.CLAUDE_MODEL,
+        max_tokens=8192,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    raw_text = response.content[0].text
+    if raw_text.startswith("```"):
+        raw_text = raw_text.split("\n", 1)[1].rsplit("```", 1)[0]
+
+    result = json.loads(raw_text)
+
+    storyboards: list[Storyboard] = []
+    for short_data in result["shorts"]:
+        sb = Storyboard.from_dict({
+            "version": 1,
+            "format": "short",
+            "target_duration_sec": 60,
+            "aspect_ratio": "9:16",
+            "scenes": short_data["scenes"],
+        })
+        storyboards.append(sb)
+
+    return storyboards
+
+
 class DirectStage(PipelineStage):
     """Generates storyboard (Layer 2) from knowledge (Layer 1).
     Replaces the old scriptwrite stage.

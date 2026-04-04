@@ -116,5 +116,40 @@ def acquire(
         raise typer.Exit(code=1)
 
 
+@app.command()
+def shorts(
+    project_id: int = typer.Option(..., "--project-id", help="Project with existing knowledge.json"),
+    count: int = typer.Option(3, "--count", help="Number of Shorts to generate"),
+    locale: str = typer.Option("zh-TW", "--locale", help="Target locale"),
+    tone: str = typer.Option("educational", "--tone", help="Tone: dramatic, educational, humorous"),
+) -> None:
+    """Generate Short storyboards from existing knowledge base."""
+    config = PipelineConfig()
+    work_dir = config.OUTPUT_DIR / "projects" / str(project_id)
+    knowledge_path = work_dir / "knowledge.json"
+
+    if not knowledge_path.exists():
+        typer.echo(f"No knowledge.json found at {knowledge_path}")
+        typer.echo("Run 'pipeline produce' first to create the knowledge base.")
+        raise typer.Exit(code=1)
+
+    from pipeline.knowledge import Knowledge
+    from pipeline.stages.direct import generate_shorts_storyboards
+
+    knowledge = Knowledge.load(knowledge_path)
+    typer.echo(f"Loaded {len(knowledge.facts)} facts from knowledge base")
+
+    storyboards = asyncio.run(
+        generate_shorts_storyboards(knowledge, locale, count, tone)
+    )
+
+    for i, sb in enumerate(storyboards, 1):
+        path = work_dir / f"storyboard_short_{i:02d}.json"
+        sb.save(path)
+        typer.echo(f"Short #{i}: {path} ({len(sb.scenes)} scenes, ~{sb.estimated_duration_sec():.0f}s)")
+
+    typer.echo(f"\nGenerated {len(storyboards)} Short storyboards.")
+
+
 if __name__ == "__main__":
     app()

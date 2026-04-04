@@ -8,6 +8,8 @@ from pipeline.knowledge import Knowledge
 from pipeline.stages.direct import DirectStage, build_direct_prompt
 from pipeline.storyboard import Storyboard
 
+# generate_shorts_storyboards is imported inside the test to avoid top-level import issues
+
 
 @pytest.fixture
 def direct_fixture() -> dict:
@@ -75,3 +77,60 @@ async def test_direct_outputs_storyboard(sample_context, direct_fixture):
 
     # Backwards compat
     assert ctx.story_structure is not None
+
+
+async def test_generate_shorts_storyboards(sample_knowledge):
+    mock_response_data = {
+        "shorts": [
+            {
+                "fact_id": "f1",
+                "scenes": [
+                    {"id": "s1", "section": "hook", "narration": "你知道嗎？",
+                     "narration_est_sec": 3, "facts_ref": ["f1"],
+                     "visual": {"type": "text_card", "text": "冷知識", "background": "#1a1a2e"},
+                     "overlay": None, "pause_after_sec": 0},
+                    {"id": "s2", "section": "content", "narration": "解釋內容。",
+                     "narration_est_sec": 12, "facts_ref": ["f1"],
+                     "visual": {"type": "generated_image", "prompt": "robbery scene", "style": "cinematic"},
+                     "overlay": None, "pause_after_sec": 0},
+                    {"id": "s3", "section": "punchline", "narration": "追蹤看更多！",
+                     "narration_est_sec": 3, "facts_ref": ["f1"],
+                     "visual": {"type": "text_card", "text": "追蹤", "background": "#1a1a2e"},
+                     "overlay": None, "pause_after_sec": 0},
+                ]
+            },
+            {
+                "fact_id": "f2",
+                "scenes": [
+                    {"id": "s1", "section": "hook", "narration": "時速160公里！",
+                     "narration_est_sec": 3, "facts_ref": ["f2"],
+                     "visual": {"type": "clip", "source": "primary", "start_sec": 90, "end_sec": 100},
+                     "overlay": None, "pause_after_sec": 0},
+                    {"id": "s2", "section": "punchline", "narration": "按讚訂閱！",
+                     "narration_est_sec": 3, "facts_ref": ["f2"],
+                     "visual": {"type": "text_card", "text": "訂閱", "background": "#1a1a2e"},
+                     "overlay": None, "pause_after_sec": 0},
+                ]
+            }
+        ]
+    }
+
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text=json.dumps(mock_response_data))]
+
+    with patch("pipeline.stages.direct.get_anthropic_client") as mock_client_fn:
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_response
+        mock_client_fn.return_value = mock_client
+
+        from pipeline.stages.direct import generate_shorts_storyboards
+        storyboards = await generate_shorts_storyboards(
+            sample_knowledge, "zh-TW", count=2
+        )
+
+    assert len(storyboards) == 2
+    assert storyboards[0].format == "short"
+    assert storyboards[0].aspect_ratio == "9:16"
+    assert len(storyboards[0].scenes) == 3
+    assert storyboards[0].scenes[0].section == "hook"
+    assert len(storyboards[1].scenes) == 2
