@@ -29,7 +29,8 @@ class PipelineContext:
     clip_timestamps: list[tuple[float, float]] | None = None
     knowledge_path: Path | None = None
 
-    # Stage 3: Scriptwrite
+    # Stage 3: Direct (storyboard generation)
+    storyboard_path: Path | None = None
     script_path: Path | None = None
 
     # Stage 4: TTS
@@ -59,7 +60,7 @@ class PipelineContext:
         path_fields = {
             "work_dir", "video_path", "transcript_path",
             "script_path", "narration_path", "subtitle_path",
-            "final_video_path", "knowledge_path",
+            "final_video_path", "knowledge_path", "storyboard_path",
         }
         cleaned = {}
         for k, v in data.items():

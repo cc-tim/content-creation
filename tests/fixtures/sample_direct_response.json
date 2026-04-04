@@ -1,0 +1,44 @@
+{
+  "scenes": [
+    {
+      "id": "s1",
+      "section": "hook",
+      "narration": "時速超過160公里！兩名武裝搶劫嫌犯在芝加哥狂飆！",
+      "narration_est_sec": 5,
+      "facts_ref": ["f1", "f2"],
+      "visual": {"type": "clip", "source": "primary", "start_sec": 300, "end_sec": 315},
+      "overlay": null,
+      "pause_after_sec": 2
+    },
+    {
+      "id": "s2",
+      "section": "context",
+      "narration": "這起事件發生在美國芝加哥，兩名嫌犯涉及武裝搶劫後駕車逃逸。",
+      "narration_est_sec": 8,
+      "facts_ref": ["f1"],
+      "visual": {"type": "map", "query": "Chicago, Illinois", "style": "satellite"},
+      "overlay": {"type": "title", "text": "芝加哥驚魂追捕"},
+      "pause_after_sec": 0
+    },
+    {
+      "id": "s3",
+      "section": "rising",
+      "narration": "嫌犯車輛在車流中蛇行穿梭，時速超過160公里。",
+      "narration_est_sec": 7,
+      "facts_ref": ["f2"],
+      "visual": {"type": "clip", "source": "primary", "start_sec": 90, "end_sec": 105},
+      "overlay": {"type": "text", "text": "時速超過160公里"},
+      "pause_after_sec": 0
+    },
+    {
+      "id": "s4",
+      "section": "climax",
+      "narration": "差點撞上校車！這是整起事件最危險的時刻。",
+      "narration_est_sec": 6,
+      "facts_ref": ["f3"],
+      "visual": {"type": "clip", "source": "primary", "start_sec": 1200, "end_sec": 1215},
+      "overlay": null,
+      "pause_after_sec": 3
+    }
+  ]
+}
