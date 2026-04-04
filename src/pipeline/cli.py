@@ -11,7 +11,7 @@ from pipeline.stages.acquire import AcquireStage
 from pipeline.stages.analyze import AnalyzeStage
 from pipeline.stages.base import PipelineContext
 from pipeline.stages.compose import ComposeStage
-from pipeline.stages.scriptwrite import ScriptwriteStage
+from pipeline.stages.direct import DirectStage
 from pipeline.stages.tts import TtsStage
 
 logger = structlog.get_logger()
@@ -24,12 +24,11 @@ def produce(
     locale: str = typer.Option("zh-TW", "--locale", help="Target locale (zh-TW, ja, es-MX)"),
     start_from: str | None = typer.Option(None, "--start-from", help="Resume from stage"),
     project_id: int = typer.Option(0, "--project-id", help="Project ID (0 = auto)"),
-    skip_review: bool = typer.Option(False, "--skip-review", help="Skip human script review gate"),
+    skip_review: bool = typer.Option(False, "--skip-review", help="Skip human review gate"),
 ) -> None:
     """Run the full production pipeline for a single video."""
     config = PipelineConfig()
 
-    # Create project directory
     if project_id == 0:
         import time
         project_id = int(time.time())
@@ -37,7 +36,6 @@ def produce(
     work_dir = config.OUTPUT_DIR / "projects" / str(project_id)
     work_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load existing context if resuming, otherwise create new
     context_file = work_dir / "context.json"
     if start_from and context_file.exists():
         ctx = PipelineContext.load(context_file)
@@ -49,21 +47,18 @@ def produce(
             work_dir=work_dir,
         )
 
-    # All stages in order
     all_stages = [
         AcquireStage(),
         AnalyzeStage(),
-        ScriptwriteStage(),
+        DirectStage(),
         TtsStage(),
         ComposeStage(),
     ]
 
-    # Phase 1: acquire → analyze → scriptwrite
-    pre_review = {"acquire", "analyze", "scriptwrite"}
+    pre_review = {"acquire", "analyze", "direct"}
     post_review = {"tts", "compose"}
 
     if start_from and start_from in post_review:
-        # Resuming after review
         stages = [s for s in all_stages if s.name in post_review]
         orch = Orchestrator(stages=stages)
         result = asyncio.run(orch.run(ctx, start_from=start_from))
@@ -74,14 +69,15 @@ def produce(
 
         if result.success and not skip_review:
             typer.echo("\n--- HUMAN REVIEW GATE ---")
-            typer.echo(f"Script ready for review: {result.ctx.script_path}")
-            typer.echo("Edit the script, then resume with:")
+            typer.echo(f"Knowledge: {result.ctx.knowledge_path}")
+            typer.echo(f"Storyboard: {result.ctx.storyboard_path}")
+            typer.echo(f"Script: {result.ctx.script_path}")
+            typer.echo("Review these files, then resume with:")
             typer.echo(f"  uv run pipeline produce --url \"{url}\" --locale {locale} "
                        f"--project-id {project_id} --start-from tts")
             return
 
         if result.success and skip_review:
-            # Continue directly to phase 2
             phase2 = [s for s in all_stages if s.name in post_review]
             orch = Orchestrator(stages=phase2)
             result = asyncio.run(orch.run(result.ctx))
