@@ -1,7 +1,8 @@
-import pytest
 from pathlib import Path
 
-from pipeline.knowledge import Knowledge, Fact, KnowledgeMeta
+import pytest
+
+from pipeline.knowledge import Knowledge
 
 
 @pytest.fixture

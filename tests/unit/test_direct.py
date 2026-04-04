@@ -91,7 +91,11 @@ async def test_generate_shorts_storyboards(sample_knowledge):
                      "overlay": None, "pause_after_sec": 0},
                     {"id": "s2", "section": "content", "narration": "解釋內容。",
                      "narration_est_sec": 12, "facts_ref": ["f1"],
-                     "visual": {"type": "generated_image", "prompt": "robbery scene", "style": "cinematic"},
+                     "visual": {
+                         "type": "generated_image",
+                         "prompt": "robbery scene",
+                         "style": "cinematic",
+                     },
                      "overlay": None, "pause_after_sec": 0},
                     {"id": "s3", "section": "punchline", "narration": "追蹤看更多！",
                      "narration_est_sec": 3, "facts_ref": ["f1"],
@@ -104,7 +108,12 @@ async def test_generate_shorts_storyboards(sample_knowledge):
                 "scenes": [
                     {"id": "s1", "section": "hook", "narration": "時速160公里！",
                      "narration_est_sec": 3, "facts_ref": ["f2"],
-                     "visual": {"type": "clip", "source": "primary", "start_sec": 90, "end_sec": 100},
+                     "visual": {
+                         "type": "clip",
+                         "source": "primary",
+                         "start_sec": 90,
+                         "end_sec": 100,
+                     },
                      "overlay": None, "pause_after_sec": 0},
                     {"id": "s2", "section": "punchline", "narration": "按讚訂閱！",
                      "narration_est_sec": 3, "facts_ref": ["f2"],

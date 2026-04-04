@@ -9,9 +9,6 @@ import structlog
 from pipeline.stages.base import PipelineContext, PipelineStage
 from pipeline.stages.scriptwrite import parse_script_markers
 from pipeline.utils.ffmpeg import (
-    build_burn_subtitles_cmd,
-    build_concat_cmd,
-    build_extract_clip_cmd,
     check_ffmpeg_available,
     run_ffmpeg,
 )
@@ -93,52 +90,32 @@ class ComposeStage(PipelineStage):
         return ctx
 
     async def _compose_video(self, ctx: PipelineContext, compose_dir: Path) -> Path:
-        """MVP composition: narration audio + burned subtitles over source clips."""
+        """Compose final video: source footage + narration audio + burned subtitles.
+
+        Strategy: Use full source video as visual base (the aerial footage is
+        compelling throughout). Trim to narration duration, replace audio with
+        TTS narration, burn CJK subtitles.
+
+        Future: interleave specific clips with overlay cards for richer composition.
+        """
         assert ctx.video_path is not None
         assert ctx.narration_path is not None
         assert ctx.subtitle_path is not None
 
-        # Step 1: Extract relevant clips from source video
-        script_text = ctx.script_path.read_text(encoding="utf-8") if ctx.script_path else ""
-        plan = build_composition_plan(script_text)
-
-        clip_segments = [s for s in plan if s["type"] == "clip"]
-        clip_paths: list[Path] = []
-
-        for i, clip in enumerate(clip_segments):
-            clip_path = compose_dir / f"clip_{i:03d}.mp4"
-            start = _timestamp_to_seconds(clip["start"])
-            end = _timestamp_to_seconds(clip["end"])
-            cmd = build_extract_clip_cmd(
-                str(ctx.video_path), str(clip_path), start, end
-            )
-            run_ffmpeg(cmd)
-            clip_paths.append(clip_path)
-
-        # Step 2: Concatenate clips (or use full source if no clips extracted)
-        if clip_paths:
-            filelist = compose_dir / "clips.txt"
-            filelist.write_text(
-                "\n".join(f"file '{p.resolve()}'" for p in clip_paths),
-                encoding="utf-8",
-            )
-            clips_video = compose_dir / "clips_concat.mp4"
-            run_ffmpeg(build_concat_cmd(str(filelist), str(clips_video)))
-            base_video = clips_video
-        else:
-            base_video = ctx.video_path
-
-        # Step 3: Get narration duration to trim video to match
         narration_duration = _get_duration_sec(ctx.narration_path)
+        source_duration = _get_duration_sec(ctx.video_path)
 
-        # Step 4: Combine — replace audio, trim video to narration length, burn subtitles
-        # Do it in one pass to avoid re-encoding twice
+        # Pick a visually interesting starting point in the source video
+        # Skip the first 30s (usually intros/logos) and center on the action
+        start_offset = min(30.0, source_duration * 0.05)
+
         final_path = compose_dir / f"final_{ctx.locale}.mp4"
         escaped_sub = str(ctx.subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
         subtitle_style = "FontName=Noto Sans CJK TC,FontSize=24"
         run_ffmpeg([
             "ffmpeg", "-y",
-            "-i", str(base_video),
+            "-ss", str(start_offset),
+            "-i", str(ctx.video_path),
             "-i", str(ctx.narration_path),
             "-t", str(narration_duration),
             "-map", "0:v:0",

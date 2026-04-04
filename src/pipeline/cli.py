@@ -118,7 +118,9 @@ def acquire(
 
 @app.command()
 def shorts(
-    project_id: int = typer.Option(..., "--project-id", help="Project with existing knowledge.json"),
+    project_id: int = typer.Option(
+        ..., "--project-id", help="Project with existing knowledge.json"
+    ),
     count: int = typer.Option(3, "--count", help="Number of Shorts to generate"),
     locale: str = typer.Option("zh-TW", "--locale", help="Target locale"),
     tone: str = typer.Option("educational", "--tone", help="Tone: dramatic, educational, humorous"),
@@ -146,7 +148,8 @@ def shorts(
     for i, sb in enumerate(storyboards, 1):
         path = work_dir / f"storyboard_short_{i:02d}.json"
         sb.save(path)
-        typer.echo(f"Short #{i}: {path} ({len(sb.scenes)} scenes, ~{sb.estimated_duration_sec():.0f}s)")
+        est = sb.estimated_duration_sec()
+        typer.echo(f"Short #{i}: {path} ({len(sb.scenes)} scenes, ~{est:.0f}s)")
 
     typer.echo(f"\nGenerated {len(storyboards)} Short storyboards.")
 

@@ -5,7 +5,7 @@ import json
 import structlog
 
 from pipeline.config import PipelineConfig
-from pipeline.knowledge import Knowledge, KnowledgeMeta
+from pipeline.knowledge import Knowledge
 from pipeline.stages.base import PipelineContext, PipelineStage
 
 logger = structlog.get_logger()

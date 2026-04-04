@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
 import structlog
 
@@ -66,7 +65,8 @@ Use 15-25 scenes. Target 12 minutes total."""
             "namecard for introductions, text_card for key facts, generated_image for mood."
         )
 
-    return f"""You are a video director. Create a scene-by-scene storyboard from the knowledge below.
+    return f"""You are a video director. Create a scene-by-scene storyboard \
+from the knowledge below.
 This is NOT a translation — it is a cultural adaptation creating ORIGINAL content.
 
 LOCALE: {locale}
@@ -131,7 +131,8 @@ async def generate_shorts_storyboards(
     )
     locale_instruction = LOCALE_INSTRUCTIONS.get(locale, LOCALE_INSTRUCTIONS["zh-TW"])
 
-    prompt = f"""From the facts below, select the {count} most interesting standalone facts for YouTube Shorts.
+    prompt = f"""From the facts below, select the {count} most interesting \
+standalone facts for YouTube Shorts.
 
 Selection criteria:
 - Standalone interest: understandable without context?

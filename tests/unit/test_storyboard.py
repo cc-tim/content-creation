@@ -1,7 +1,6 @@
-import json
 from pathlib import Path
 
-from pipeline.storyboard import Storyboard, Scene
+from pipeline.storyboard import Scene, Storyboard
 
 
 def test_storyboard_load_from_fixture():
@@ -55,7 +54,12 @@ def test_swap_visual():
                   visual={"type": "clip", "source": "primary", "start_sec": 0, "end_sec": 15}),
         ]
     )
-    result = sb.swap_visual("s1", {"type": "generated_image", "prompt": "chase scene", "style": "cinematic"})
+    new_visual = {
+        "type": "generated_image",
+        "prompt": "chase scene",
+        "style": "cinematic",
+    }
+    result = sb.swap_visual("s1", new_visual)
     assert result is True
     assert sb.scenes[0].visual["type"] == "generated_image"
 
