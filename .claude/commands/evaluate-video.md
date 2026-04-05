@@ -38,9 +38,10 @@ Try youtube-transcript-api first (faster, lighter):
 ```bash
 python3 -c "
 from youtube_transcript_api import YouTubeTranscriptApi
-transcript = YouTubeTranscriptApi.get_transcript('<VIDEO_ID>', languages=['en'])
+api = YouTubeTranscriptApi()
+transcript = api.fetch('<VIDEO_ID>', languages=['en'])
 for entry in transcript:
-    print(entry['text'])
+    print(entry.text)
 "
 ```
 
@@ -147,3 +148,4 @@ Format the output as:
 - Clean up any temp files after evaluation.
 - If transcript is unavailable (no subs, no auto-subs), note this as a WARN — the video can still be ported using Whisper, but it adds processing time.
 - Be honest in the verdict. A SKIP saves more time than a bad port.
+- If verdict is PORT, suggest: "Run `/produce <URL>` to start the full pipeline."
