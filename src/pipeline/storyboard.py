@@ -113,6 +113,4 @@ class Storyboard:
 
     def estimated_duration_sec(self) -> float:
         """Sum of narration estimates + pauses."""
-        return sum(
-            s.narration_est_sec + s.pause_after_sec for s in self.scenes
-        )
+        return sum(s.narration_est_sec + s.pause_after_sec for s in self.scenes)

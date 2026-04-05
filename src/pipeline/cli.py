@@ -31,6 +31,7 @@ def produce(
 
     if project_id == 0:
         import time
+
         project_id = int(time.time())
 
     work_dir = config.OUTPUT_DIR / "projects" / str(project_id)
@@ -73,8 +74,10 @@ def produce(
             typer.echo(f"Storyboard: {result.ctx.storyboard_path}")
             typer.echo(f"Script: {result.ctx.script_path}")
             typer.echo("Review these files, then resume with:")
-            typer.echo(f"  uv run pipeline produce --url \"{url}\" --locale {locale} "
-                       f"--project-id {project_id} --start-from tts")
+            typer.echo(
+                f'  uv run pipeline produce --url "{url}" --locale {locale} '
+                f"--project-id {project_id} --start-from tts"
+            )
             return
 
         if result.success and skip_review:
@@ -96,6 +99,7 @@ def acquire(
     """Download video and extract transcript only."""
     config = PipelineConfig()
     import time
+
     project_id = int(time.time())
     work_dir = config.OUTPUT_DIR / "projects" / str(project_id)
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -141,9 +145,7 @@ def shorts(
     knowledge = Knowledge.load(knowledge_path)
     typer.echo(f"Loaded {len(knowledge.facts)} facts from knowledge base")
 
-    storyboards = asyncio.run(
-        generate_shorts_storyboards(knowledge, locale, count, tone)
-    )
+    storyboards = asyncio.run(generate_shorts_storyboards(knowledge, locale, count, tone))
 
     for i, sb in enumerate(storyboards, 1):
         path = work_dir / f"storyboard_short_{i:02d}.json"

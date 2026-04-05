@@ -58,9 +58,15 @@ class PipelineContext:
     def from_dict(cls, data: dict[str, Any]) -> PipelineContext:
         """Deserialize from dict. Converts path strings back to Path, lists back to tuples."""
         path_fields = {
-            "work_dir", "video_path", "transcript_path",
-            "script_path", "narration_path", "subtitle_path",
-            "final_video_path", "knowledge_path", "storyboard_path",
+            "work_dir",
+            "video_path",
+            "transcript_path",
+            "script_path",
+            "narration_path",
+            "subtitle_path",
+            "final_video_path",
+            "knowledge_path",
+            "storyboard_path",
         }
         cleaned = {}
         for k, v in data.items():

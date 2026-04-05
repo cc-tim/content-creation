@@ -122,7 +122,9 @@ class ScriptwriteStage(PipelineStage):
         config = PipelineConfig()
 
         prompt = build_scriptwrite_prompt(
-            ctx.story_structure, ctx.knowledge_graph, ctx.locale,
+            ctx.story_structure,
+            ctx.knowledge_graph,
+            ctx.locale,
         )
 
         response = client.messages.create(

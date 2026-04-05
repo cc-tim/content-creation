@@ -14,8 +14,11 @@ def test_render_slide_with_title_and_bullets(tmp_path):
                 "title": "權力金字塔",
                 "bullets": ["中央委員會", "政治局", "常委會"],
             },
-            duration_sec=12.0, width=1280, height=720,
-            work_dir=tmp_path, scene_id="s1",
+            duration_sec=12.0,
+            width=1280,
+            height=720,
+            work_dir=tmp_path,
+            scene_id="s1",
         )
 
     cmd_str = " ".join(mock_ff.call_args[0][0])
@@ -31,8 +34,11 @@ def test_render_slide_empty(tmp_path):
 
         render_slide(
             visual={"type": "slide"},
-            duration_sec=5.0, width=1280, height=720,
-            work_dir=tmp_path, scene_id="s2",
+            duration_sec=5.0,
+            width=1280,
+            height=720,
+            work_dir=tmp_path,
+            scene_id="s2",
         )
 
     # Should still produce a valid command with null filter

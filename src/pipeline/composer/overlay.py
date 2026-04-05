@@ -62,12 +62,23 @@ def apply_overlay(
             f":shadowcolor=black:shadowx=1:shadowy=1"
         )
 
-    run_ffmpeg([
-        "ffmpeg", "-y",
-        "-i", str(visual_path),
-        "-vf", vf,
-        "-c:v", "libx264", "-preset", "medium", "-crf", "23",
-        "-c:a", "copy",
-        str(output_path),
-    ])
+    run_ffmpeg(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(visual_path),
+            "-vf",
+            vf,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-crf",
+            "23",
+            "-c:a",
+            "copy",
+            str(output_path),
+        ]
+    )
     return output_path

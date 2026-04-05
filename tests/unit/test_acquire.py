@@ -21,6 +21,7 @@ async def test_acquire_downloads_video_and_transcript(sample_context, transcript
         patch("pipeline.stages.acquire.download_video") as mock_dl,
         patch("pipeline.stages.acquire.extract_transcript") as mock_tr,
     ):
+
         def fake_download(url, output_dir, resolution):
             video_path = output_dir / "video.mp4"
             video_path.write_bytes(b"fake video")
@@ -47,6 +48,7 @@ async def test_acquire_creates_source_directory(sample_context, transcript_fixtu
         patch("pipeline.stages.acquire.download_video") as mock_dl,
         patch("pipeline.stages.acquire.extract_transcript") as mock_tr,
     ):
+
         def fake_download(url, output_dir, resolution):
             video_path = output_dir / "video.mp4"
             video_path.write_bytes(b"fake")

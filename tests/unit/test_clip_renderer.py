@@ -18,8 +18,12 @@ def test_render_clip_command(tmp_path):
 
         result = render_clip(
             visual={"type": "clip", "source": "primary", "start_sec": 10, "end_sec": 25},
-            duration_sec=15.0, width=1280, height=720,
-            work_dir=tmp_path, scene_id="s1", source_video=source,
+            duration_sec=15.0,
+            width=1280,
+            height=720,
+            work_dir=tmp_path,
+            scene_id="s1",
+            source_video=source,
         )
 
     cmd = mock_ff.call_args[0][0]
@@ -41,8 +45,12 @@ def test_render_clip_clamps_beyond_source(tmp_path):
 
         render_clip(
             visual={"type": "clip", "start_sec": 50, "end_sec": 65},
-            duration_sec=15.0, width=1280, height=720,
-            work_dir=tmp_path, scene_id="s2", source_video=source,
+            duration_sec=15.0,
+            width=1280,
+            height=720,
+            work_dir=tmp_path,
+            scene_id="s2",
+            source_video=source,
         )
 
     cmd = mock_ff.call_args[0][0]
@@ -53,9 +61,14 @@ def test_render_clip_clamps_beyond_source(tmp_path):
 
 def test_render_clip_no_source(tmp_path):
     import pytest
+
     with pytest.raises(FileNotFoundError):
         render_clip(
             visual={"type": "clip", "start_sec": 0, "end_sec": 10},
-            duration_sec=10.0, width=1280, height=720,
-            work_dir=tmp_path, scene_id="s1", source_video=None,
+            duration_sec=10.0,
+            width=1280,
+            height=720,
+            work_dir=tmp_path,
+            scene_id="s1",
+            source_video=None,
         )

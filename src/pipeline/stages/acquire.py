@@ -16,9 +16,12 @@ def download_video(url: str, output_dir: Path, resolution: str = "720p") -> Path
     output_template = str(output_dir / "video.%(ext)s")
     cmd = [
         "yt-dlp",
-        "-f", f"bestvideo[height<={resolution[:-1]}]+bestaudio/best[height<={resolution[:-1]}]",
-        "--merge-output-format", "mp4",
-        "-o", output_template,
+        "-f",
+        f"bestvideo[height<={resolution[:-1]}]+bestaudio/best[height<={resolution[:-1]}]",
+        "--merge-output-format",
+        "mp4",
+        "-o",
+        output_template,
         url,
     ]
     subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -35,6 +38,7 @@ def extract_transcript(url: str) -> tuple[str, list[dict]]:
     video_id = _extract_video_id(url)
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
+
         api = YouTubeTranscriptApi()
         transcript = api.fetch(video_id, languages=["en"])
         transcript_data = [
@@ -64,9 +68,12 @@ def _extract_via_ytdlp(url: str) -> tuple[str, list[dict]]:
     with tempfile.TemporaryDirectory() as tmpdir:
         cmd = [
             "yt-dlp",
-            "--write-auto-sub", "--sub-lang", "en",
+            "--write-auto-sub",
+            "--sub-lang",
+            "en",
             "--skip-download",
-            "-o", f"{tmpdir}/subs",
+            "-o",
+            f"{tmpdir}/subs",
             url,
         ]
         subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -92,9 +99,7 @@ class AcquireStage(PipelineStage):
         source_dir.mkdir(parents=True, exist_ok=True)
 
         # Download video
-        ctx.video_path = download_video(
-            ctx.source_url, source_dir, resolution="720p"
-        )
+        ctx.video_path = download_video(ctx.source_url, source_dir, resolution="720p")
         logger.info("acquire.video_downloaded", path=str(ctx.video_path))
 
         # Extract transcript

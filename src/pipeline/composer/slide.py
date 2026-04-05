@@ -50,13 +50,25 @@ def render_slide(
 
     vf = ",".join(filters) if filters else "null"
 
-    run_ffmpeg([
-        "ffmpeg", "-y",
-        "-f", "lavfi",
-        "-i", f"color=c={bg_color}:s={width}x{height}:d={duration_sec}:r=30",
-        "-vf", vf,
-        "-c:v", "libx264", "-preset", "medium", "-crf", "23",
-        "-pix_fmt", "yuv420p",
-        str(output),
-    ])
+    run_ffmpeg(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            f"color=c={bg_color}:s={width}x{height}:d={duration_sec}:r=30",
+            "-vf",
+            vf,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-crf",
+            "23",
+            "-pix_fmt",
+            "yuv420p",
+            str(output),
+        ]
+    )
     return output

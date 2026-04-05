@@ -192,13 +192,15 @@ FACTS:
 
     storyboards: list[Storyboard] = []
     for short_data in result["shorts"]:
-        sb = Storyboard.from_dict({
-            "version": 1,
-            "format": "short",
-            "target_duration_sec": 60,
-            "aspect_ratio": "9:16",
-            "scenes": short_data["scenes"],
-        })
+        sb = Storyboard.from_dict(
+            {
+                "version": 1,
+                "format": "short",
+                "target_duration_sec": 60,
+                "aspect_ratio": "9:16",
+                "scenes": short_data["scenes"],
+            }
+        )
         storyboards.append(sb)
 
     return storyboards
@@ -242,13 +244,15 @@ class DirectStage(PipelineStage):
         result = json.loads(raw_text)
 
         # Build storyboard
-        storyboard = Storyboard.from_dict({
-            "version": 1,
-            "format": self.fmt,
-            "target_duration_sec": 60 if self.fmt == "short" else 720,
-            "aspect_ratio": "9:16" if self.fmt == "short" else "16:9",
-            **result,
-        })
+        storyboard = Storyboard.from_dict(
+            {
+                "version": 1,
+                "format": self.fmt,
+                "target_duration_sec": 60 if self.fmt == "short" else 720,
+                "aspect_ratio": "9:16" if self.fmt == "short" else "16:9",
+                **result,
+            }
+        )
 
         # Save storyboard
         storyboard_path = ctx.work_dir / "storyboard.json"
@@ -266,8 +270,7 @@ class DirectStage(PipelineStage):
         # Backwards compat: populate old fields
         ctx.story_structure = {
             "beats": [
-                {"beat": s.section, "description": s.narration[:50]}
-                for s in storyboard.scenes
+                {"beat": s.section, "description": s.narration[:50]} for s in storyboard.scenes
             ],
         }
 

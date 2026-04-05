@@ -7,11 +7,17 @@ from pipeline.storyboard import Scene, Storyboard
 async def test_compose_uses_storyboard_when_available(sample_context):
     """When storyboard exists, use scene-by-scene rendering."""
     # Create storyboard
-    sb = Storyboard(scenes=[
-        Scene(id="s1", section="hook", narration="test",
-              narration_est_sec=5,
-              visual={"type": "text_card", "text": "Hook", "background": "#1a1a2e"}),
-    ])
+    sb = Storyboard(
+        scenes=[
+            Scene(
+                id="s1",
+                section="hook",
+                narration="test",
+                narration_est_sec=5,
+                visual={"type": "text_card", "text": "Hook", "background": "#1a1a2e"},
+            ),
+        ]
+    )
     sb_path = sample_context.work_dir / "storyboard.json"
     sb.save(sb_path)
     sample_context.storyboard_path = sb_path
@@ -28,8 +34,13 @@ async def test_compose_uses_storyboard_when_available(sample_context):
     sample_context.subtitle_path = subtitle
 
     sample_context.segment_timings = [
-        {"index": 0, "text": "test", "path": str(audio_dir / "seg_000.mp3"),
-         "start_ms": 0, "duration_ms": 5000}
+        {
+            "index": 0,
+            "text": "test",
+            "path": str(audio_dir / "seg_000.mp3"),
+            "start_ms": 0,
+            "duration_ms": 5000,
+        }
     ]
     (audio_dir / "seg_000.mp3").write_bytes(b"fake audio")
 

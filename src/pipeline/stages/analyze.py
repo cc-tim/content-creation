@@ -14,6 +14,7 @@ logger = structlog.get_logger()
 def get_anthropic_client():
     """Create Anthropic client from config."""
     import anthropic
+
     config = PipelineConfig()
     return anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 
@@ -86,17 +87,19 @@ class AnalyzeStage(PipelineStage):
         result = json.loads(raw_text)
 
         # Build Knowledge object
-        knowledge = Knowledge.from_dict({
-            "meta": {
-                "source_type": "youtube",
-                "source_url": ctx.source_url,
-                "title": getattr(ctx, "source_title", "Untitled"),
-                "locale": ctx.locale,
-                "created_at": "",
-                "updated_at": "",
-            },
-            **result,
-        })
+        knowledge = Knowledge.from_dict(
+            {
+                "meta": {
+                    "source_type": "youtube",
+                    "source_url": ctx.source_url,
+                    "title": getattr(ctx, "source_title", "Untitled"),
+                    "locale": ctx.locale,
+                    "created_at": "",
+                    "updated_at": "",
+                },
+                **result,
+            }
+        )
 
         # Save knowledge.json
         knowledge_path = ctx.work_dir / "knowledge.json"
@@ -112,8 +115,7 @@ class AnalyzeStage(PipelineStage):
         }
         ctx.knowledge_graph = {
             "entities": [
-                {"name": e.name, "role": e.role, "details": e.details}
-                for e in knowledge.entities
+                {"name": e.name, "role": e.role, "details": e.details} for e in knowledge.entities
             ],
             "context_needed_for_target_audience": knowledge.context_bridges,
         }

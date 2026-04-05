@@ -24,14 +24,21 @@ def render_still_frame(
     output = work_dir / f"{scene_id}_visual.mp4"
 
     # Extract single frame as PNG
-    run_ffmpeg([
-        "ffmpeg", "-y",
-        "-ss", str(timestamp),
-        "-i", str(source_video),
-        "-frames:v", "1",
-        "-q:v", "2",
-        str(frame_path),
-    ])
+    run_ffmpeg(
+        [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            str(timestamp),
+            "-i",
+            str(source_video),
+            "-frames:v",
+            "1",
+            "-q:v",
+            "2",
+            str(frame_path),
+        ]
+    )
 
     # Convert to video segment
     image_to_video(frame_path, output, duration_sec, width, height)

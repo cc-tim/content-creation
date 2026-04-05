@@ -9,9 +9,19 @@ from pipeline.utils.ffmpeg import run_ffmpeg
 def _get_source_duration(path: Path) -> float:
     """Get video duration in seconds via ffprobe."""
     result = subprocess.run(
-        ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
-         "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
-        capture_output=True, text=True, check=True,
+        [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
     )
     return float(result.stdout.strip())
 
@@ -52,15 +62,28 @@ def render_clip(
             f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2"
         )
 
-    run_ffmpeg([
-        "ffmpeg", "-y",
-        "-ss", str(start),
-        "-i", str(source_video),
-        "-t", str(clip_duration),
-        "-vf", vf,
-        "-c:v", "libx264", "-preset", "medium", "-crf", "23",
-        "-an",
-        "-r", "30",
-        str(output),
-    ])
+    run_ffmpeg(
+        [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            str(start),
+            "-i",
+            str(source_video),
+            "-t",
+            str(clip_duration),
+            "-vf",
+            vf,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-crf",
+            "23",
+            "-an",
+            "-r",
+            "30",
+            str(output),
+        ]
+    )
     return output

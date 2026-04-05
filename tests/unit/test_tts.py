@@ -1,6 +1,11 @@
 from unittest.mock import patch
 
-from pipeline.stages.tts import TtsStage, extract_narration_segments
+from pipeline.stages.tts import (
+    TtsStage,
+    _build_subtitle_entries,
+    _split_text_for_subtitles,
+    extract_narration_segments,
+)
 
 
 def test_extract_narration_segments():
@@ -35,6 +40,7 @@ async def test_tts_generates_audio(sample_context):
     assert stage.name == "tts"
 
     with patch("pipeline.stages.tts.generate_edge_tts") as mock_tts:
+
         async def fake_tts(text, voice, output_path):
             output_path.write_bytes(b"fake audio data here")
             return {"duration_ms": 3000, "word_timings": []}
@@ -46,3 +52,47 @@ async def test_tts_generates_audio(sample_context):
     assert ctx.narration_path is not None
     assert ctx.narration_path.exists()
     assert ctx.subtitle_path is not None
+
+
+def test_split_text_short():
+    """Short text should not be split."""
+    chunks = _split_text_for_subtitles("你好世界", max_chars=18)
+    assert len(chunks) == 1
+    assert chunks[0] == "你好世界"
+
+
+def test_split_text_by_punctuation():
+    """Long text splits at sentence-ending punctuation."""
+    text = "這是第一句話。這是第二句話。這是第三句話。"
+    chunks = _split_text_for_subtitles(text, max_chars=10)
+    assert len(chunks) >= 2
+    for chunk in chunks:
+        assert len(chunk) <= 40  # no single chunk is absurdly long
+
+
+def test_split_text_long_no_punctuation():
+    """Long text without punctuation splits by comma or length."""
+    text = "在美國的執法體系中，州際公路由州警負責，而市區道路則是當地警察局的管轄範圍"
+    chunks = _split_text_for_subtitles(text, max_chars=18)
+    assert len(chunks) >= 2
+
+
+def test_build_subtitle_entries_splits():
+    """Subtitle entries should be split from long narration."""
+    timings = [
+        {
+            "index": 0,
+            "text": "這是一段很長的旁白文字。它會被分成多個字幕條目。每個條目最多顯示兩行。",
+            "path": "/tmp/seg.mp3",
+            "start_ms": 0,
+            "duration_ms": 10000,
+        }
+    ]
+    entries = _build_subtitle_entries(timings)
+    assert len(entries) >= 2
+    # Each entry should be reasonably short
+    for e in entries:
+        assert len(e.text) <= 40
+    # Timings should cover the full range
+    assert entries[0].start_ms == 0
+    assert abs(entries[-1].end_ms - 10000) <= 1  # rounding tolerance

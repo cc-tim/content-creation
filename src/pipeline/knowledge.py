@@ -80,8 +80,7 @@ class Knowledge:
                 for e in self.entities
             ],
             "timeline": [
-                {"time": t.time, "event": t.event, "facts": t.facts}
-                for t in self.timeline
+                {"time": t.time, "event": t.event, "facts": t.facts} for t in self.timeline
             ],
             "context_bridges": self.context_bridges,
         }

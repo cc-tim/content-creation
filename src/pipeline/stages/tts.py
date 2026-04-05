@@ -95,13 +95,15 @@ class TtsStage(PipelineStage):
             # Get actual duration via ffprobe
             est_duration_ms = _get_audio_duration_ms(seg_path)
 
-            segment_timings.append({
-                "index": i,
-                "text": text,
-                "path": str(seg_path),
-                "start_ms": cumulative_ms,
-                "duration_ms": est_duration_ms,
-            })
+            segment_timings.append(
+                {
+                    "index": i,
+                    "text": text,
+                    "path": str(seg_path),
+                    "start_ms": cumulative_ms,
+                    "duration_ms": est_duration_ms,
+                }
+            )
             segment_paths.append(seg_path)
             cumulative_ms += est_duration_ms
 
@@ -110,16 +112,8 @@ class TtsStage(PipelineStage):
         _concatenate_audio(segment_paths, narration_path)
         ctx.narration_path = narration_path
 
-        # Generate SRT from segment timings
-        srt_entries = [
-            SrtEntry(
-                index=t["index"] + 1,
-                start_ms=t["start_ms"],
-                end_ms=t["start_ms"] + t["duration_ms"],
-                text=t["text"],
-            )
-            for t in segment_timings
-        ]
+        # Generate SRT from segment timings — split long text into subtitle chunks
+        srt_entries = _build_subtitle_entries(segment_timings)
         subtitle_path = audio_dir / f"subtitles_{ctx.locale}.srt"
         write_srt(srt_entries, subtitle_path)
         ctx.subtitle_path = subtitle_path
@@ -130,14 +124,118 @@ class TtsStage(PipelineStage):
         return ctx
 
 
+def _split_text_for_subtitles(text: str, max_chars: int = 18) -> list[str]:
+    """Split text into subtitle-sized chunks.
+
+    For CJK text, split by punctuation first (。！？，、；),
+    then by max_chars if still too long. Max 2 lines per subtitle.
+    """
+    import re
+
+    # Split on CJK sentence-ending punctuation
+    parts = re.split(r"([。！？；])", text)
+
+    # Rejoin punctuation with preceding text
+    chunks: list[str] = []
+    current = ""
+    for part in parts:
+        if re.match(r"^[。！？；]$", part):
+            current += part
+            if len(current) >= max_chars:
+                chunks.append(current.strip())
+                current = ""
+        else:
+            if current:
+                if len(current) + len(part) > max_chars * 2:
+                    chunks.append(current.strip())
+                    current = part
+                else:
+                    current += part
+            else:
+                current = part
+
+    if current.strip():
+        chunks.append(current.strip())
+
+    # Further split any chunk that's still too long
+    result: list[str] = []
+    for chunk in chunks:
+        if len(chunk) <= max_chars * 2:
+            result.append(chunk)
+        else:
+            # Split by comma or mid-point
+            sub_parts = re.split(r"([，、])", chunk)
+            sub_current = ""
+            for sp in sub_parts:
+                if len(sub_current) + len(sp) > max_chars * 2:
+                    if sub_current.strip():
+                        result.append(sub_current.strip())
+                    sub_current = sp
+                else:
+                    sub_current += sp
+            if sub_current.strip():
+                result.append(sub_current.strip())
+
+    return [r for r in result if r]
+
+
+def _build_subtitle_entries(
+    segment_timings: list[dict[str, Any]],
+) -> list[SrtEntry]:
+    """Build SRT entries from segment timings, splitting long text into chunks.
+
+    Each subtitle shows max ~36 CJK characters (2 lines of ~18).
+    Timing is distributed proportionally across chunks within each segment.
+    """
+    entries: list[SrtEntry] = []
+    index = 1
+
+    for t in segment_timings:
+        text = t["text"]
+        start_ms = t["start_ms"]
+        duration_ms = t["duration_ms"]
+
+        chunks = _split_text_for_subtitles(text, max_chars=18)
+        if not chunks:
+            continue
+
+        # Distribute time proportionally by character count
+        total_chars = sum(len(c) for c in chunks)
+        if total_chars == 0:
+            continue
+
+        chunk_start = start_ms
+        for chunk in chunks:
+            proportion = len(chunk) / total_chars
+            chunk_duration = int(duration_ms * proportion)
+            chunk_end = chunk_start + chunk_duration
+
+            entries.append(
+                SrtEntry(
+                    index=index,
+                    start_ms=chunk_start,
+                    end_ms=chunk_end,
+                    text=chunk,
+                )
+            )
+            index += 1
+            chunk_start = chunk_end
+
+    return entries
+
+
 def _get_audio_duration_ms(path: Path) -> int:
     """Get audio duration in milliseconds using ffprobe."""
     try:
         result = subprocess.run(
             [
-                "ffprobe", "-v", "quiet",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
+                "ffprobe",
+                "-v",
+                "quiet",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
                 str(path),
             ],
             capture_output=True,

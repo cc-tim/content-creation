@@ -34,18 +34,32 @@ def image_to_video(
 
     Scales/pads the image to exactly width x height, then loops for duration.
     """
-    run_ffmpeg([
-        "ffmpeg", "-y",
-        "-loop", "1",
-        "-i", str(image_path),
-        "-t", str(duration_sec),
-        "-vf", f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
-               f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "23",
-        "-pix_fmt", "yuv420p",
-        "-r", "30",
-        str(output_path),
-    ])
+    run_ffmpeg(
+        [
+            "ffmpeg",
+            "-y",
+            "-loop",
+            "1",
+            "-i",
+            str(image_path),
+            "-t",
+            str(duration_sec),
+            "-vf",
+            f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-crf",
+            "23",
+            "-pix_fmt",
+            "yuv420p",
+            "-r",
+            "30",
+            str(output_path),
+        ]
+    )
     return output_path
 
 
@@ -69,22 +83,27 @@ def render_scene(
 
     if visual_type == "clip":
         from pipeline.composer.clip import render_clip
+
         return render_clip(visual, duration_sec, width, height, work_dir, scene_id, source_video)
 
     elif visual_type == "text_card":
         from pipeline.composer.text_card import render_text_card
+
         return render_text_card(visual, duration_sec, width, height, work_dir, scene_id)
 
     elif visual_type == "generated_image":
         from pipeline.composer.image import render_generated_image
+
         return render_generated_image(visual, duration_sec, width, height, work_dir, scene_id)
 
     elif visual_type == "slide":
         from pipeline.composer.slide import render_slide
+
         return render_slide(visual, duration_sec, width, height, work_dir, scene_id)
 
     elif visual_type == "still_frame":
         from pipeline.composer.still_frame import render_still_frame
+
         return render_still_frame(
             visual, duration_sec, width, height, work_dir, scene_id, source_video
         )
@@ -92,6 +111,7 @@ def render_scene(
     elif visual_type in ("namecard", "map"):
         # Fallback: render as text card with appropriate content
         from pipeline.composer.text_card import render_text_card
+
         fallback_visual = {
             "type": "text_card",
             "text": visual.get("name", visual.get("query", visual_type)),

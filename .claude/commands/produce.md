@@ -79,9 +79,16 @@ Create the storyboard directly based on the knowledge base:
 
 1. Plan narrative arc (hook → context → rising → climax → aftermath → analysis)
 2. Write narration text in target locale for each scene
-3. Choose visual type per scene (clip, map, text_card, generated_image, slide, etc.)
+3. Choose visual type per scene — IMPORTANT visual guidelines:
+   - **Prefer designed visuals over clips** (text_card, slide, generated_image > clip)
+   - Use clips ONLY for moments you're confident the source video visually matches the narration
+   - Use slide for explaining concepts, structures, comparisons
+   - Use text_card for key quotes, statistics, dramatic statements
+   - Use generated_image for mood, transitions, scenes hard to show with clips
+   - Target: ~30% clips, ~70% designed visuals
 4. Reference fact IDs for each scene
-5. Add overlays where useful
+5. Add overlays where useful (title, namecard, text lower-thirds)
+6. Keep each scene's narration concise — aim for 8-15 seconds per scene for good pacing
 
 Save as storyboard.json and derive script.md:
 ```bash
@@ -129,3 +136,21 @@ Suggest: play with mpv, generate shorts with /shorts, review storyboard with /st
 - You have full conversation context — use it for better creative decisions
 - Always let the user review between stages
 - Cost: $0 for analysis + storyboard (only TTS + compose cost compute time)
+
+## Seeking more materials
+
+Before creating the storyboard, actively seek additional context:
+- Search the web for related news articles, background info, or expert analysis about the topic
+- Look for additional data points, statistics, or context that would strengthen the narrative
+- For complex topics (politics, science, history), verify key claims against reliable sources
+- Add any new facts found to knowledge.json with `source: "enrichment"`
+- This enrichment makes the knowledge layer more robust and enables better storytelling
+- Tell the user what additional context you found and why it matters
+
+## Visual design philosophy
+
+- **Designed visuals > raw clips**: A well-designed text card or slide is more impactful than a mismatched clip
+- Clips should only be used when the source footage clearly matches the narration moment
+- Each scene should be short (8-15s narration) for good pacing
+- Visual variety across scenes — don't repeat the same visual type 3+ times in a row
+- Overlays add context without requiring a visual change (use them liberally)

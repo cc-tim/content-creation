@@ -24,6 +24,7 @@ def test_get_resolution_unknown():
 
 def test_render_scene_unknown_type():
     from pipeline.composer.base import render_scene
+
     with pytest.raises(ValueError, match="Unknown visual type"):
         render_scene(
             scene={"id": "s1", "visual": {"type": "hologram"}},

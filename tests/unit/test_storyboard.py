@@ -29,10 +29,14 @@ def test_storyboard_round_trip(tmp_path):
 def test_derive_script():
     sb = Storyboard(
         scenes=[
-            Scene(id="s1", section="hook", narration="第一句旁白。",
-                  narration_est_sec=5, pause_after_sec=2),
-            Scene(id="s2", section="context", narration="第二句旁白。",
-                  narration_est_sec=8),
+            Scene(
+                id="s1",
+                section="hook",
+                narration="第一句旁白。",
+                narration_est_sec=5,
+                pause_after_sec=2,
+            ),
+            Scene(id="s2", section="context", narration="第二句旁白。", narration_est_sec=8),
         ]
     )
     script = sb.derive_script()
@@ -49,9 +53,13 @@ def test_derive_script():
 def test_swap_visual():
     sb = Storyboard(
         scenes=[
-            Scene(id="s1", section="hook", narration="test",
-                  narration_est_sec=5,
-                  visual={"type": "clip", "source": "primary", "start_sec": 0, "end_sec": 15}),
+            Scene(
+                id="s1",
+                section="hook",
+                narration="test",
+                narration_est_sec=5,
+                visual={"type": "clip", "source": "primary", "start_sec": 0, "end_sec": 15},
+            ),
         ]
     )
     new_visual = {
@@ -72,10 +80,12 @@ def test_swap_visual_nonexistent():
 def test_estimated_duration():
     sb = Storyboard(
         scenes=[
-            Scene(id="s1", section="hook", narration="test",
-                  narration_est_sec=5, pause_after_sec=2),
-            Scene(id="s2", section="context", narration="test",
-                  narration_est_sec=8, pause_after_sec=0),
+            Scene(
+                id="s1", section="hook", narration="test", narration_est_sec=5, pause_after_sec=2
+            ),
+            Scene(
+                id="s2", section="context", narration="test", narration_est_sec=8, pause_after_sec=0
+            ),
         ]
     )
     assert sb.estimated_duration_sec() == 15.0

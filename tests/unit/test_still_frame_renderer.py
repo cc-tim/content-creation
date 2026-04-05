@@ -19,8 +19,12 @@ def test_render_still_frame_command(tmp_path):
 
         result = render_still_frame(
             visual={"type": "still_frame", "timestamp_sec": 120},
-            duration_sec=10.0, width=1280, height=720,
-            work_dir=tmp_path, scene_id="s1", source_video=source,
+            duration_sec=10.0,
+            width=1280,
+            height=720,
+            work_dir=tmp_path,
+            scene_id="s1",
+            source_video=source,
         )
 
     # Check frame extraction
@@ -38,6 +42,10 @@ def test_render_still_frame_no_source(tmp_path):
     with pytest.raises(FileNotFoundError):
         render_still_frame(
             visual={"type": "still_frame", "timestamp_sec": 0},
-            duration_sec=5.0, width=1280, height=720,
-            work_dir=tmp_path, scene_id="s1", source_video=None,
+            duration_sec=5.0,
+            width=1280,
+            height=720,
+            work_dir=tmp_path,
+            scene_id="s1",
+            source_video=None,
         )

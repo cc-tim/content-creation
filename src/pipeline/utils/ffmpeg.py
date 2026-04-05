@@ -18,11 +18,16 @@ def build_extract_clip_cmd(
     """Build ffmpeg command to extract a clip between start and end seconds."""
     duration = end_sec - start_sec
     return [
-        "ffmpeg", "-y",
-        "-ss", str(start_sec),
-        "-i", input_path,
-        "-t", str(duration),
-        "-c", "copy",
+        "ffmpeg",
+        "-y",
+        "-ss",
+        str(start_sec),
+        "-i",
+        input_path,
+        "-t",
+        str(duration),
+        "-c",
+        "copy",
         output_path,
     ]
 
@@ -40,10 +45,14 @@ def build_burn_subtitles_cmd(
     style = f"FontName={font_name},FontSize={font_size}"
     subtitle_filter = f"subtitles={escaped_sub_path}:force_style='{style}'"
     return [
-        "ffmpeg", "-y",
-        "-i", input_path,
-        "-vf", subtitle_filter,
-        "-c:a", "copy",
+        "ffmpeg",
+        "-y",
+        "-i",
+        input_path,
+        "-vf",
+        subtitle_filter,
+        "-c:a",
+        "copy",
         output_path,
     ]
 
@@ -54,11 +63,16 @@ def build_concat_cmd(
 ) -> list[str]:
     """Build ffmpeg command to concatenate files listed in a text file."""
     return [
-        "ffmpeg", "-y",
-        "-f", "concat",
-        "-safe", "0",
-        "-i", filelist_path,
-        "-c", "copy",
+        "ffmpeg",
+        "-y",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        filelist_path,
+        "-c",
+        "copy",
         output_path,
     ]
 

@@ -16,8 +16,11 @@ def test_render_text_card_command(tmp_path):
 
         result = render_text_card(
             visual={"type": "text_card", "text": "重要資訊", "background": "#2d2d44"},
-            duration_sec=8.0, width=1280, height=720,
-            work_dir=tmp_path, scene_id="s1",
+            duration_sec=8.0,
+            width=1280,
+            height=720,
+            work_dir=tmp_path,
+            scene_id="s1",
         )
 
     cmd = mock_ff.call_args[0][0]
@@ -35,8 +38,11 @@ def test_render_text_card_default_bg(tmp_path):
 
         render_text_card(
             visual={"type": "text_card", "text": "test"},
-            duration_sec=5.0, width=1280, height=720,
-            work_dir=tmp_path, scene_id="s2",
+            duration_sec=5.0,
+            width=1280,
+            height=720,
+            work_dir=tmp_path,
+            scene_id="s2",
         )
 
     cmd_str = " ".join(mock_ff.call_args[0][0])

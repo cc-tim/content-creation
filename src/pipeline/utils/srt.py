@@ -43,12 +43,14 @@ def parse_srt(path: Path) -> list[SrtEntry]:
         index = int(lines[0])
         start_str, end_str = lines[1].split(" --> ")
         content = "\n".join(lines[2:])
-        entries.append(SrtEntry(
-            index=index,
-            start_ms=_srt_time_to_ms(start_str.strip()),
-            end_ms=_srt_time_to_ms(end_str.strip()),
-            text=content,
-        ))
+        entries.append(
+            SrtEntry(
+                index=index,
+                start_ms=_srt_time_to_ms(start_str.strip()),
+                end_ms=_srt_time_to_ms(end_str.strip()),
+                text=content,
+            )
+        )
     return entries
 
 
