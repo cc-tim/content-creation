@@ -1,0 +1,131 @@
+# Produce Video (Agent-Driven)
+
+Full pipeline from URL to video. The agent does the creative work (analysis, storyboard creation) directly in conversation — no separate API calls needed.
+
+## Input
+
+- **Arguments:** $ARGUMENTS (YouTube URL)
+- If no URL provided, ask for one.
+- Default locale: zh-TW (unless user specifies otherwise)
+
+## Process
+
+### Step 1: Acquire
+
+Download video and extract transcript:
+
+```bash
+uv run pipeline acquire --url "<URL>"
+```
+
+Note the project ID from the output. Then read the transcript:
+
+```bash
+uv run python3 -c "
+import json
+from pathlib import Path
+data = json.loads(Path('output/projects/<ID>/source/transcript.json').read_text())
+text = ' '.join(d['text'] for d in data)
+print(text[:3000])
+print(f'... ({len(text)} total chars)')
+"
+```
+
+Also fetch metadata:
+```bash
+uv run yt-dlp --dump-json --no-download "<URL>" 2>/dev/null | uv run python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(f'Title: {d[\"title\"]}')
+print(f'Channel: {d[\"channel\"]}')
+print(f'Views: {d[\"view_count\"]:,}')
+print(f'Duration: {d[\"duration\"]//60}m{d[\"duration\"]%60}s')
+"
+```
+
+### Step 2: Analyze (agent-driven — YOU do this)
+
+Read the full transcript and extract:
+
+1. **Facts** — individual factual statements with IDs (f1, f2...), timestamps, tags
+2. **Entities** — people, organizations, locations with IDs (e1, e2...)
+3. **Timeline** — key events in chronological order, referencing fact IDs
+4. **Context bridges** — cultural context the target locale audience needs
+
+Save as knowledge.json using the Knowledge schema:
+```bash
+uv run python3 -c "
+import json
+from pathlib import Path
+knowledge = <YOUR_KNOWLEDGE_DICT>
+Path('output/projects/<ID>/knowledge.json').write_text(
+    json.dumps(knowledge, indent=2, ensure_ascii=False), encoding='utf-8'
+)
+print('Saved knowledge.json')
+"
+```
+
+Present the knowledge summary to the user. Show top facts, entities, context bridges.
+Ask: "Anything to correct or add before I create the storyboard?"
+
+### Step 3: Human review of knowledge
+
+Wait for user feedback. Apply edits using /knowledge operations.
+If user approves, proceed.
+
+### Step 4: Direct (agent-driven — YOU do this)
+
+Create the storyboard directly based on the knowledge base:
+
+1. Plan narrative arc (hook → context → rising → climax → aftermath → analysis)
+2. Write narration text in target locale for each scene
+3. Choose visual type per scene (clip, map, text_card, generated_image, slide, etc.)
+4. Reference fact IDs for each scene
+5. Add overlays where useful
+
+Save as storyboard.json and derive script.md:
+```bash
+uv run python3 -c "
+import json
+from pathlib import Path
+from pipeline.storyboard import Storyboard
+sb_data = <YOUR_STORYBOARD_DICT>
+sb = Storyboard.from_dict(sb_data)
+sb.save(Path('output/projects/<ID>/storyboard.json'))
+script = sb.derive_script()
+Path('output/projects/<ID>/script').mkdir(parents=True, exist_ok=True)
+Path('output/projects/<ID>/script/script_<LOCALE>.md').write_text(script, encoding='utf-8')
+print(f'Storyboard: {len(sb.scenes)} scenes, ~{sb.estimated_duration_sec():.0f}s')
+print('Script derived')
+"
+```
+
+Present the storyboard summary. Ask: "Ready to render, or want to adjust anything?"
+
+### Step 5: Human review of storyboard
+
+Wait for user feedback. Apply edits using /storyboard operations.
+
+### Step 6: Render
+
+Run TTS + compose:
+```bash
+uv run pipeline produce --url "<URL>" --project-id <ID> --locale <LOCALE> --start-from tts --skip-review
+```
+
+### Step 7: Show result
+
+```bash
+ls -lh output/projects/<ID>/compose/final_*.mp4
+ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 output/projects/<ID>/compose/final_*.mp4
+```
+
+Suggest: play with mpv, generate shorts with /shorts, review storyboard with /storyboard.
+
+## Important
+
+- YOU do the analysis and storyboard creation directly — no API calls
+- This means you can ask questions, the user guides in real-time, quality is higher
+- You have full conversation context — use it for better creative decisions
+- Always let the user review between stages
+- Cost: $0 for analysis + storyboard (only TTS + compose cost compute time)
