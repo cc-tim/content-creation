@@ -1,7 +1,6 @@
-from unittest.mock import patch, MagicMock
-from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from pipeline.composer.image import render_generated_image, _cache_key
+from pipeline.composer.image import _cache_key, render_generated_image
 
 
 def test_cache_key_deterministic():
@@ -47,7 +46,7 @@ def test_render_image_no_api_key(tmp_path):
         mock_config_cls.return_value = mock_config
         mock_tc.return_value = tmp_path / "s1_visual.mp4"
 
-        result = render_generated_image(
+        render_generated_image(
             visual={"type": "generated_image", "prompt": "some scene"},
             duration_sec=8.0,
             width=1280,
@@ -74,7 +73,7 @@ def test_render_image_api_failure(tmp_path):
         mock_config_cls.return_value = mock_config
         mock_tc.return_value = tmp_path / "s1_visual.mp4"
 
-        result = render_generated_image(
+        render_generated_image(
             visual={"type": "generated_image", "prompt": "failing prompt"},
             duration_sec=8.0,
             width=1280,

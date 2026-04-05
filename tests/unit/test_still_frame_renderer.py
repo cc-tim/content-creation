@@ -1,6 +1,6 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from pathlib import Path
 
 from pipeline.composer.still_frame import render_still_frame
 

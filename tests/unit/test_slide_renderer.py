@@ -1,5 +1,4 @@
-from unittest.mock import patch, MagicMock
-from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from pipeline.composer.slide import render_slide
 

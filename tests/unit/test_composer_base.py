@@ -1,7 +1,8 @@
-import pytest
 from pathlib import Path
 
-from pipeline.composer.base import get_resolution, RESOLUTIONS
+import pytest
+
+from pipeline.composer.base import get_resolution
 
 
 def test_get_resolution_16_9():

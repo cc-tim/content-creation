@@ -47,7 +47,10 @@ def render_clip(
         # 9:16 — center-crop from 16:9 source
         vf = f"crop=ih*{width}/{height}:ih,scale={width}:{height}"
     else:
-        vf = f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2"
+        vf = (
+            f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2"
+        )
 
     run_ffmpeg([
         "ffmpeg", "-y",

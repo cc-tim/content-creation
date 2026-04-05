@@ -1,4 +1,3 @@
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from pipeline.stages.compose import ComposeStage
@@ -39,7 +38,7 @@ async def test_compose_uses_storyboard_when_available(sample_context):
     with (
         patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
         patch("pipeline.stages.compose.render_scene") as mock_render,
-        patch("pipeline.stages.compose.apply_overlay") as mock_overlay,
+        patch("pipeline.stages.compose.apply_overlay"),
         patch("pipeline.stages.compose.run_ffmpeg") as mock_ff,
     ):
         # render_scene returns a fake visual

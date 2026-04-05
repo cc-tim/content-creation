@@ -1,7 +1,6 @@
-from unittest.mock import patch, MagicMock
-from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from pipeline.composer.text_card import render_text_card, _escape_drawtext
+from pipeline.composer.text_card import _escape_drawtext, render_text_card
 
 
 def test_escape_drawtext():
