@@ -43,6 +43,32 @@ print(f'Duration: {d[\"duration\"]//60}m{d[\"duration\"]%60}s')
 "
 ```
 
+### Step 1b: Visual analysis (clip confidence)
+
+Extract keyframes and detect scene changes to inform clip decisions later:
+
+```bash
+uv run python3 -c "
+from pathlib import Path
+from pipeline.utils.video_analysis import extract_keyframes, detect_scene_changes
+
+video = Path('output/projects/<ID>/source/video.mp4')
+kf_dir = Path('output/projects/<ID>/source/keyframes')
+frames = extract_keyframes(video, kf_dir, interval_sec=15)
+print(f'Extracted {len(frames)} keyframes (every 15s)')
+
+scenes = detect_scene_changes(video, threshold=0.3)
+print(f'Detected {len(scenes)} scene changes: {[f\"{t:.1f}s\" for t in scenes[:10]]}')"
+```
+
+**IMPORTANT:** Read the keyframe images to understand what's visually happening at each timestamp. This is how you decide which moments are safe to use as clips:
+- Look at each keyframe — what does it show? Action? Static graphic? Talking head? Map?
+- Note timestamps where visually compelling footage occurs
+- Only use `clip` visual type for timestamps where you've confirmed the footage matches the narration
+- Prefer designed visuals (text_card, slide, generated_image) for everything else
+
+Scene change timestamps indicate visual transitions — these are natural cut points for clips.
+
 ### Step 2: Analyze (agent-driven — YOU do this)
 
 Read the full transcript and extract:
@@ -120,12 +146,35 @@ Run TTS + compose:
 uv run pipeline produce --url "<URL>" --project-id <ID> --locale <LOCALE> --start-from tts --skip-review
 ```
 
-### Step 7: Show result
+### Step 7: Post-render review
+
+Check the output and verify visual quality:
 
 ```bash
 ls -lh output/projects/<ID>/compose/final_*.mp4
 ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 output/projects/<ID>/compose/final_*.mp4
 ```
+
+Extract review frames from the final video to spot-check visual quality:
+```bash
+uv run python3 -c "
+from pathlib import Path
+from pipeline.utils.video_analysis import extract_review_frames
+video = Path('output/projects/<ID>/compose/final_<LOCALE>.mp4')
+review_dir = Path('output/projects/<ID>/compose/review_frames')
+frames = extract_review_frames(video, review_dir, count=8)
+for f in frames:
+    print(f'{f[\"timestamp_sec\"]:.0f}s: {f[\"path\"]}')
+"
+```
+
+**Read the review frames** to verify:
+- Are text cards readable? Font size OK?
+- Do clip segments show relevant footage?
+- Are overlays visible and properly positioned?
+- Is there visual variety across scenes?
+
+If issues found, suggest specific storyboard edits (swap visuals, adjust timestamps) and offer to re-render.
 
 Suggest: play with mpv, generate shorts with /shorts, review storyboard with /storyboard.
 
