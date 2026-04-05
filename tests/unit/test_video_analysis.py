@@ -92,7 +92,9 @@ def test_extract_review_frames_with_timestamps(tmp_path):
         (out_dir / "review_001.jpg").write_bytes(b"jpg")
 
         frames = extract_review_frames(
-            video, out_dir, timestamps=[10.0, 25.0],
+            video,
+            out_dir,
+            timestamps=[10.0, 25.0],
         )
 
     assert len(frames) == 2

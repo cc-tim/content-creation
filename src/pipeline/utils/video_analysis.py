@@ -25,21 +25,29 @@ def extract_keyframes(
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    run_ffmpeg([
-        "ffmpeg", "-y",
-        "-i", str(video_path),
-        "-vf", f"fps=1/{interval_sec}",
-        "-q:v", "5",
-        str(output_dir / "keyframe_%04d.jpg"),
-    ])
+    run_ffmpeg(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(video_path),
+            "-vf",
+            f"fps=1/{interval_sec}",
+            "-q:v",
+            "5",
+            str(output_dir / "keyframe_%04d.jpg"),
+        ]
+    )
 
     # Collect results
     frames = []
     for i, f in enumerate(sorted(output_dir.glob("keyframe_*.jpg"))):
-        frames.append({
-            "timestamp_sec": i * interval_sec,
-            "path": str(f),
-        })
+        frames.append(
+            {
+                "timestamp_sec": i * interval_sec,
+                "path": str(f),
+            }
+        )
 
     return frames
 
@@ -56,11 +64,17 @@ def detect_scene_changes(
     """
     result = subprocess.run(
         [
-            "ffprobe", "-v", "quiet",
-            "-show_entries", "frame=pts_time",
-            "-select_streams", "v:0",
-            "-of", "json",
-            "-f", "lavfi",
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-show_entries",
+            "frame=pts_time",
+            "-select_streams",
+            "v:0",
+            "-of",
+            "json",
+            "-f",
+            "lavfi",
             f"movie={video_path},select=gt(scene\\,{threshold})",
         ],
         capture_output=True,
@@ -106,14 +120,21 @@ def extract_review_frames(
     for i, ts in enumerate(timestamps):
         out_path = output_dir / f"review_{i:03d}.jpg"
         try:
-            run_ffmpeg([
-                "ffmpeg", "-y",
-                "-ss", str(ts),
-                "-i", str(video_path),
-                "-frames:v", "1",
-                "-q:v", "2",
-                str(out_path),
-            ])
+            run_ffmpeg(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-ss",
+                    str(ts),
+                    "-i",
+                    str(video_path),
+                    "-frames:v",
+                    "1",
+                    "-q:v",
+                    "2",
+                    str(out_path),
+                ]
+            )
             frames.append({"timestamp_sec": ts, "path": str(out_path)})
         except subprocess.CalledProcessError:
             continue
@@ -125,11 +146,17 @@ def _get_duration(path: Path) -> float:
     """Get media duration in seconds."""
     result = subprocess.run(
         [
-            "ffprobe", "-v", "quiet",
-            "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1",
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
             str(path),
         ],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     return float(result.stdout.strip())
