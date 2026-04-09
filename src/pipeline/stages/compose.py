@@ -7,6 +7,7 @@ import structlog
 
 from pipeline.composer.base import get_resolution, render_scene
 from pipeline.composer.overlay import apply_overlay
+from pipeline.composer.overlay_rules import check_overlay_allowed
 from pipeline.stages.base import PipelineContext, PipelineStage
 from pipeline.storyboard import Storyboard
 from pipeline.utils.ffmpeg import check_ffmpeg_available, run_ffmpeg
@@ -121,11 +122,14 @@ class ComposeStage(PipelineStage):
                     height,
                 )
 
-            # Step 2: Apply overlay if present
-            # Skip overlays on text-based visuals — text-on-text overlap is unreadable
-            visual_type = scene.visual.get("type", "")
-            text_visual_types = {"text_card", "slide"}
-            if scene.overlay and visual_type not in text_visual_types:
+            # Step 2: Apply overlay if present (collision rule enforced upfront)
+            check_overlay_allowed(
+                scene=scene_dict,
+                overlay=scene.overlay,
+                visual=scene.visual,
+                burn_subtitles=True,
+            )
+            if scene.overlay:
                 try:
                     overlaid_path = apply_overlay(
                         visual_path=visual_path,
@@ -143,12 +147,6 @@ class ComposeStage(PipelineStage):
                         scene_id=scene.id,
                         error=str(e),
                     )
-            elif scene.overlay and visual_type in text_visual_types:
-                logger.info(
-                    "compose.scene.overlay_skipped",
-                    scene_id=scene.id,
-                    reason="text-on-text overlap",
-                )
 
             # Step 3: Combine visual + audio
             scene_final = scenes_dir / f"{scene.id}_final.mp4"
