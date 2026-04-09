@@ -17,6 +17,7 @@ dependencies = [
     "httpx>=0.28",
     "openai>=2.30.0",
     "google-genai>=0.3.0",
+    "pillow>=12.2.0",
 ]
 
 [project.scripts]
