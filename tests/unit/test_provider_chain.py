@@ -81,3 +81,58 @@ def test_try_chain_raises_on_empty_provider_list(tmp_path):
             out_path=tmp_path / "d.png",
             size="1024x1024",
         )
+
+
+# --- DalleImageProvider ---
+
+
+def test_dalle_provider_writes_file(tmp_path, monkeypatch):
+    from unittest.mock import MagicMock
+
+    from pipeline.providers.dalle import DalleImageProvider
+
+    fake_client = MagicMock()
+    fake_client.images.generate.return_value = MagicMock(
+        data=[MagicMock(url="https://example/img.png")]
+    )
+    monkeypatch.setattr(
+        "pipeline.providers.dalle._build_client", lambda key: fake_client
+    )
+    monkeypatch.setattr(
+        "pipeline.providers.dalle._download",
+        lambda url, path: path.write_bytes(b"png-bytes"),
+    )
+
+    provider = DalleImageProvider(api_key="fake")
+    out = tmp_path / "dalle.png"
+    result = provider.generate("a cat", out, "1024x1024")
+
+    assert result.provider == "dalle"
+    assert out.read_bytes() == b"png-bytes"
+    fake_client.images.generate.assert_called_once()
+
+
+def test_dalle_provider_maps_rate_limit_to_quota(tmp_path, monkeypatch):
+    from unittest.mock import MagicMock
+
+    from openai import RateLimitError
+
+    from pipeline.providers.base import QuotaExhausted
+    from pipeline.providers.dalle import DalleImageProvider
+
+    def boom(*_a, **_k):
+        raise RateLimitError(
+            "rate-limited",
+            response=MagicMock(status_code=429),
+            body=None,
+        )
+
+    fake_client = MagicMock()
+    fake_client.images.generate.side_effect = boom
+    monkeypatch.setattr(
+        "pipeline.providers.dalle._build_client", lambda key: fake_client
+    )
+
+    provider = DalleImageProvider(api_key="fake")
+    with pytest.raises(QuotaExhausted):
+        provider.generate("x", tmp_path / "x.png", "1024x1024")
