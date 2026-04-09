@@ -6,6 +6,10 @@ from pathlib import Path
 import structlog
 
 from pipeline.composer.base import get_resolution, render_scene
+from pipeline.composer.compartment import (
+    build_compartment_loop,
+    composite_compartment_on_scene,
+)
 from pipeline.composer.overlay import apply_overlay
 from pipeline.composer.overlay_rules import check_overlay_allowed
 from pipeline.stages.base import PipelineContext, PipelineStage
@@ -85,6 +89,7 @@ class ComposeStage(PipelineStage):
                 "id": scene.id,
                 "visual": scene.visual,
                 "overlay": scene.overlay,
+                "compartment": scene.compartment,
             }
 
             # Get audio for this scene
@@ -121,6 +126,33 @@ class ComposeStage(PipelineStage):
                     width,
                     height,
                 )
+
+            # Step 1b: Composite compartment animation if present
+            if scene.compartment:
+                try:
+                    compartment_video = build_compartment_loop(
+                        compartment=scene.compartment,
+                        scene_duration_sec=duration,
+                        scene_width=width,
+                        scene_height=height,
+                        work_dir=scenes_dir,
+                        scene_id=scene.id,
+                    )
+                    visual_path = composite_compartment_on_scene(
+                        scene_video=visual_path,
+                        compartment_video=compartment_video,
+                        compartment_config=scene.compartment,
+                        scene_width=width,
+                        scene_height=height,
+                        work_dir=scenes_dir,
+                        scene_id=scene.id,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "compose.scene.compartment_failed",
+                        scene_id=scene.id,
+                        error=str(e),
+                    )
 
             # Step 2: Apply overlay if present (collision rule enforced upfront)
             check_overlay_allowed(
