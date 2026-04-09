@@ -6,7 +6,12 @@ from pathlib import Path
 import structlog
 
 from pipeline.composer.base import get_resolution, render_scene
+from pipeline.composer.compartment import (
+    build_compartment_loop,
+    composite_compartment_on_scene,
+)
 from pipeline.composer.overlay import apply_overlay
+from pipeline.composer.overlay_rules import check_overlay_allowed
 from pipeline.stages.base import PipelineContext, PipelineStage
 from pipeline.storyboard import Storyboard
 from pipeline.utils.ffmpeg import check_ffmpeg_available, run_ffmpeg
@@ -84,6 +89,7 @@ class ComposeStage(PipelineStage):
                 "id": scene.id,
                 "visual": scene.visual,
                 "overlay": scene.overlay,
+                "compartment": scene.compartment,
             }
 
             # Get audio for this scene
@@ -121,14 +127,51 @@ class ComposeStage(PipelineStage):
                     height,
                 )
 
-            # Step 2: Apply overlay if present
-            # Skip overlays on text-based visuals — text-on-text overlap is unreadable
-            visual_type = scene.visual.get("type", "")
-            text_visual_types = {"text_card", "slide"}
-            if scene.overlay and visual_type not in text_visual_types:
-                overlaid_path = scenes_dir / f"{scene.id}_overlaid.mp4"
+            # Step 1b: Composite compartment animation if present
+            if scene.compartment:
                 try:
-                    apply_overlay(visual_path, scene.overlay, overlaid_path, width, height)
+                    compartment_video = build_compartment_loop(
+                        compartment=scene.compartment,
+                        scene_duration_sec=duration,
+                        scene_width=width,
+                        scene_height=height,
+                        work_dir=scenes_dir,
+                        scene_id=scene.id,
+                    )
+                    visual_path = composite_compartment_on_scene(
+                        scene_video=visual_path,
+                        compartment_video=compartment_video,
+                        compartment_config=scene.compartment,
+                        scene_width=width,
+                        scene_height=height,
+                        work_dir=scenes_dir,
+                        scene_id=scene.id,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "compose.scene.compartment_failed",
+                        scene_id=scene.id,
+                        error=str(e),
+                    )
+
+            # Step 2: Apply overlay if present (collision rule enforced upfront)
+            check_overlay_allowed(
+                scene=scene_dict,
+                overlay=scene.overlay,
+                visual=scene.visual,
+                burn_subtitles=True,
+            )
+            if scene.overlay:
+                try:
+                    overlaid_path = apply_overlay(
+                        visual_path=visual_path,
+                        overlay=scene.overlay,
+                        width=width,
+                        height=height,
+                        work_dir=scenes_dir,
+                        scene_id=scene.id,
+                        theme=theme_dict,
+                    )
                     visual_path = overlaid_path
                 except Exception as e:
                     logger.warning(
@@ -136,12 +179,6 @@ class ComposeStage(PipelineStage):
                         scene_id=scene.id,
                         error=str(e),
                     )
-            elif scene.overlay and visual_type in text_visual_types:
-                logger.info(
-                    "compose.scene.overlay_skipped",
-                    scene_id=scene.id,
-                    reason="text-on-text overlap",
-                )
 
             # Step 3: Combine visual + audio
             scene_final = scenes_dir / f"{scene.id}_final.mp4"

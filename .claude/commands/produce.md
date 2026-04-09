@@ -175,6 +175,77 @@ print('Script derived')
 "
 ```
 
+### Step 4a: Start Scene Director (SUB-AGENT)
+
+**Dispatch a separate Director sub-agent** to pick the most compelling intro
+treatment for this specific video. The Director must read the whole context
+(knowledge.json, draft storyboard, keyframes, article images if web source)
+and propose TWO distinct candidate intros. You then present both to the user
+and apply the one they pick. If the user already said which treatment they
+want in their /produce arguments, skip the sub-agent and apply their choice
+directly.
+
+```
+Agent(
+  subagent_type="general-purpose",
+  description="Pick best intro for this video",
+  prompt="""You are the START SCENE DIRECTOR. Your job is to design the opening
+scene (s1) of a short video so it grabs attention and sets up the story.
+
+Read these files carefully — do not skim:
+1. output/projects/<ID>/knowledge.json
+2. output/projects/<ID>/storyboard.json
+3. ls output/projects/<ID>/source/keyframes/ (YouTube sources)
+4. ls output/projects/<ID>/source/images/ (web sources, if present)
+5. .claude/commands/produce.md (visual guidelines)
+
+Your output is TWO distinct candidate intro treatments. They should differ in
+style — not two variants of the same idea. For each candidate provide:
+
+- Name (e.g. "Kinetic stat slam", "Montage of reactions", "Quiet question")
+- Rationale (1-2 sentences: why this opening suits THIS video's topic and tone)
+- A concrete storyboard patch for s1:
+  ```json
+  {
+    "id": "s1",
+    "visual": { "type": "...", "...": "..." },
+    "overlay": { "type": "...", "text": "..." },
+    "compartment": null,
+    "narration": "...",
+    "narration_est_sec": 8
+  }
+  ```
+- The visual type must be one of: generated_image, article_image, clip,
+  text_card, slide. Do not invent new types.
+- If you pick generated_image, write a concrete prompt in the visual.
+- Do not put text overlays on text_card or slide visuals.
+- Overlay types must be one of: title, namecard, text_top, text_left,
+  text_emphasis. The legacy "text" type is banned.
+- Never place overlays below y=0.70 (collides with subtitles).
+
+Return STRICTLY in this format:
+
+```
+## Candidate A: <name>
+Rationale: ...
+Patch:
+<json block>
+
+## Candidate B: <name>
+Rationale: ...
+Patch:
+<json block>
+```
+
+Be opinionated. Under 500 words."""
+)
+```
+
+Present both candidates to the user. Ask which to apply. If they picked one up
+front via /produce arguments, apply that one directly without asking.
+
+Then patch `storyboard.json` with the chosen s1 block and re-save.
+
 ### Step 4b: Storyboard Quality Evaluation (SUB-AGENT)
 
 **Dispatch a separate evaluator sub-agent.** The creator should never grade its own storyboard.
@@ -207,8 +278,14 @@ Score each dimension 1-5 with specific evidence:
 6. **Article images** — (If web source) How many available images are used vs available?
    Are they assigned to scenes where they're contextually relevant?
 
-**Anti-pattern check:** Flag any scene where overlay is applied to a text_card or slide visual — this creates
-text-on-text overlap which is unreadable. Overlays should only go on image-based visuals (article_image, clip, still_frame, generated_image).
+**Anti-pattern checks (hard fail if any are true):**
+- Any overlay with `type == "text"` (banned legacy type — collides with subtitles).
+- Any text_* overlay applied to a text_card or slide visual (text-on-text is unreadable).
+- Any scene where the opening shot (s1) is a plain text_card and no
+  generated_image or article_image variant was considered.
+- Any scene with a compartment whose `position == "bottom"` (collides with subs).
+- Duration mismatch: storyboard total estimate vs target_duration_sec diverges
+  by more than 15%.
 
 Be CRITICAL. A great storyboard has no score below 3.
 
@@ -303,10 +380,18 @@ Score each dimension 1-5 by actually looking at the frames:
 
 Be CRITICAL. Flag specific frames by timestamp if there are problems.
 
+**Anti-pattern checks (hard fail if any are true):**
+- Any frame where overlay text overlaps the burned subtitles (lower 30%).
+- Any frame where overlay is on a text_card or slide visual.
+- Any scene with a compartment but no visible compartment in any review frame.
+- Rendered duration diverges by more than 15% from storyboard.target_duration_sec.
+- The s1 intro frame looks like a generic text_card with no visual hook —
+  the Start Scene Director's choice should be visible.
+
 Output format:
 - Scores table with evidence from specific frames
 - List of SPECIFIC fixes (e.g. "frame at 45s: text too small, increase font")
-- Overall verdict: PASS (all ≥ 3) or NEEDS_WORK (any ≤ 2)
+- Overall verdict: PASS (all ≥ 3 and zero anti-pattern hits) or NEEDS_WORK
 
 Report in under 300 words."""
 )

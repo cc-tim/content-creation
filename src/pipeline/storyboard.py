@@ -16,6 +16,36 @@ class Scene:
     visual: dict[str, Any] = field(default_factory=dict)
     overlay: dict[str, Any] | None = None
     pause_after_sec: float = 0
+    compartment: dict[str, Any] | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Scene:
+        return cls(
+            id=data["id"],
+            section=data["section"],
+            narration=data["narration"],
+            narration_est_sec=data["narration_est_sec"],
+            facts_ref=list(data.get("facts_ref", [])),
+            visual=dict(data.get("visual", {})),
+            overlay=data.get("overlay"),
+            pause_after_sec=float(data.get("pause_after_sec", 0)),
+            compartment=data.get("compartment"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {
+            "id": self.id,
+            "section": self.section,
+            "narration": self.narration,
+            "narration_est_sec": self.narration_est_sec,
+            "facts_ref": self.facts_ref,
+            "visual": self.visual,
+            "overlay": self.overlay,
+            "pause_after_sec": self.pause_after_sec,
+        }
+        if self.compartment is not None:
+            out["compartment"] = self.compartment
+        return out
 
 
 @dataclass
@@ -64,24 +94,12 @@ class Storyboard:
             "target_duration_sec": self.target_duration_sec,
             "aspect_ratio": self.aspect_ratio,
             "theme": self.theme.to_dict(),
-            "scenes": [
-                {
-                    "id": s.id,
-                    "section": s.section,
-                    "narration": s.narration,
-                    "narration_est_sec": s.narration_est_sec,
-                    "facts_ref": s.facts_ref,
-                    "visual": s.visual,
-                    "overlay": s.overlay,
-                    "pause_after_sec": s.pause_after_sec,
-                }
-                for s in self.scenes
-            ],
+            "scenes": [s.to_dict() for s in self.scenes],
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Storyboard:
-        scenes = [Scene(**s) for s in data.get("scenes", [])]
+        scenes = [Scene.from_dict(s) for s in data.get("scenes", [])]
         theme_data = data.get("theme", {})
         theme = Theme.from_dict(theme_data) if theme_data else Theme()
         return cls(
