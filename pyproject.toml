@@ -15,6 +15,7 @@ dependencies = [
     "structlog>=25.1",
     "trafilatura>=2.0",
     "httpx>=0.28",
+    "openai>=2.30.0",
 ]
 
 [project.scripts]

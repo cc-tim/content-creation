@@ -124,11 +124,58 @@ class TtsStage(PipelineStage):
         return ctx
 
 
-def _split_text_for_subtitles(text: str, max_chars: int = 18) -> list[str]:
+def _visual_width(text: str) -> int:
+    """Estimate visual width: CJK chars count as 2, Latin/digits as 1."""
+    width = 0
+    for ch in text:
+        if "\u2e80" <= ch <= "\u9fff" or "\uf900" <= ch <= "\ufaff" or "\ufe30" <= ch <= "\ufe4f":
+            width += 2
+        elif "\uff00" <= ch <= "\uffef":
+            width += 2  # fullwidth forms
+        else:
+            width += 1
+    return width
+
+
+def _wrap_subtitle_line(text: str, max_width: int = 36) -> str:
+    """Insert newline breaks into a subtitle chunk, respecting word boundaries.
+
+    CJK characters can break anywhere, but Latin/digit words must stay whole.
+    Uses visual width (CJK=2, Latin=1) so lines look balanced on screen.
+    Returns text with actual newlines for SRT format (max 2 lines).
+    """
+    import re
+
+    if _visual_width(text) <= max_width:
+        return text
+
+    # Tokenize into CJK chars and Latin words
+    tokens: list[str] = re.findall(r"[A-Za-z0-9]+|.", text)
+
+    line = ""
+    lines: list[str] = []
+    for token in tokens:
+        if _visual_width(line) + _visual_width(token) > max_width and line:
+            lines.append(line)
+            line = token
+        else:
+            line += token
+    if line:
+        lines.append(line)
+
+    # Max 2 lines per subtitle — use real newlines (SRT format)
+    if len(lines) <= 2:
+        return "\n".join(lines)
+    return "\n".join(["".join(lines[: len(lines) // 2]), "".join(lines[len(lines) // 2 :])])
+
+
+def _split_text_for_subtitles(text: str, max_width: int = 36) -> list[str]:
     """Split text into subtitle-sized chunks.
 
     For CJK text, split by punctuation first (。！？，、；),
-    then by max_chars if still too long. Max 2 lines per subtitle.
+    then by visual width if still too long. Max 2 lines per subtitle.
+    Uses visual width (CJK=2, Latin=1) so lines look balanced on screen.
+    Latin/English words are never broken mid-word.
     """
     import re
 
@@ -141,12 +188,12 @@ def _split_text_for_subtitles(text: str, max_chars: int = 18) -> list[str]:
     for part in parts:
         if re.match(r"^[。！？；]$", part):
             current += part
-            if len(current) >= max_chars:
+            if _visual_width(current) >= max_width:
                 chunks.append(current.strip())
                 current = ""
         else:
             if current:
-                if len(current) + len(part) > max_chars * 2:
+                if _visual_width(current) + _visual_width(part) > max_width * 2:
                     chunks.append(current.strip())
                     current = part
                 else:
@@ -160,21 +207,21 @@ def _split_text_for_subtitles(text: str, max_chars: int = 18) -> list[str]:
     # Further split any chunk that's still too long
     result: list[str] = []
     for chunk in chunks:
-        if len(chunk) <= max_chars * 2:
-            result.append(chunk)
+        if _visual_width(chunk) <= max_width * 2:
+            result.append(_wrap_subtitle_line(chunk, max_width))
         else:
             # Split by comma or mid-point
             sub_parts = re.split(r"([，、])", chunk)
             sub_current = ""
             for sp in sub_parts:
-                if len(sub_current) + len(sp) > max_chars * 2:
+                if _visual_width(sub_current) + _visual_width(sp) > max_width * 2:
                     if sub_current.strip():
-                        result.append(sub_current.strip())
+                        result.append(_wrap_subtitle_line(sub_current.strip(), max_width))
                     sub_current = sp
                 else:
                     sub_current += sp
             if sub_current.strip():
-                result.append(sub_current.strip())
+                result.append(_wrap_subtitle_line(sub_current.strip(), max_width))
 
     return [r for r in result if r]
 
@@ -195,7 +242,7 @@ def _build_subtitle_entries(
         start_ms = t["start_ms"]
         duration_ms = t["duration_ms"]
 
-        chunks = _split_text_for_subtitles(text, max_chars=18)
+        chunks = _split_text_for_subtitles(text, max_width=36)
         if not chunks:
             continue
 

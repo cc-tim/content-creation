@@ -17,34 +17,43 @@ def render_slide(
     height: int,
     work_dir: Path,
     scene_id: str,
+    theme: dict | None = None,
 ) -> Path:
     """Render a presentation-style slide: title + bullet points."""
+    theme = theme or {}
     title = visual.get("title", "")
     bullets = visual.get("bullets", [])
-    font = "Noto Sans CJK TC"
-    bg_color = "#1a1a2e"
+    font = theme.get("font", "Noto Sans CJK TC")
+    bg_color = visual.get("background", theme.get("background", "#1e293b"))
+    text_color = theme.get("text_color", "white")
+    accent = theme.get("accent", "#38bdf8")
     output = work_dir / f"{scene_id}_visual.mp4"
 
-    # Build filter chain: title at top, bullets below
+    # Build filter chain: accent bar at top, title, bullets
     filters = []
 
-    # Title — large, centered near top
+    # Accent bar at top (thin colored line for visual interest)
+    filters.append(
+        f"drawbox=x=0:y=0:w=iw:h=4:color={accent}:t=fill"
+    )
+
+    # Title — large, centered near top, accent color
     if title:
         escaped_title = _escape_drawtext(title)
         filters.append(
             f"drawtext=text='{escaped_title}':fontsize=56"
-            f":fontcolor=white:font='{font}'"
+            f":fontcolor={accent}:font='{font}'"
             f":x=(w-text_w)/2:y=h*0.15"
-            f":shadowcolor=black:shadowx=2:shadowy=2"
+            f":shadowcolor=black@0.3:shadowx=1:shadowy=1"
         )
 
-    # Bullets — smaller, left-aligned with bullet marker
+    # Bullets — lighter color, left-aligned
     for i, bullet in enumerate(bullets):
         escaped = _escape_drawtext(f"  {bullet}")
         y_pos = f"h*0.35+{i}*60"
         filters.append(
             f"drawtext=text='{escaped}':fontsize=36"
-            f":fontcolor=#cccccc:font='{font}'"
+            f":fontcolor={text_color}:font='{font}'"
             f":x=w*0.1:y={y_pos}"
         )
 

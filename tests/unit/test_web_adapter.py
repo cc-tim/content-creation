@@ -2,7 +2,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pipeline.adapters.web import WebArticle, fetch_article, save_article
+from pipeline.adapters.web import (
+    ArticleImage,
+    WebArticle,
+    _extract_image_urls,
+    fetch_article,
+    save_article,
+)
 
 
 def test_save_article(tmp_path):
@@ -72,3 +78,64 @@ def test_fetch_article_empty_content():
 
         with pytest.raises(ValueError, match="Could not extract"):
             fetch_article("https://example.com/empty")
+
+
+def test_extract_image_urls_basic():
+    html = """
+    <html><body>
+    <img src="https://cdn.example.com/photo1.png" alt="Diagram 1">
+    <img src="/images/photo2.jpg" alt="Diagram 2">
+    <img src="https://cdn.example.com/logo.svg" alt="Logo">
+    <img src="https://cdn.example.com/favicon.ico" alt="">
+    </body></html>
+    """
+    images = _extract_image_urls(html, "https://example.com/article")
+    # Should skip SVG and favicon
+    assert len(images) == 2
+    assert images[0].url == "https://cdn.example.com/photo1.png"
+    assert images[0].alt == "Diagram 1"
+    assert images[1].url == "https://example.com/images/photo2.jpg"
+
+
+def test_extract_image_urls_nextjs_proxy():
+    """Resolve Next.js _next/image proxy URLs."""
+    html = """
+    <html><body>
+    <img src="/_next/image?url=https%3A%2F%2Fcdn.example.com%2Fphoto.png&w=1920&q=75">
+    </body></html>
+    """
+    images = _extract_image_urls(html, "https://example.com/post")
+    assert len(images) == 1
+    assert images[0].url == "https://cdn.example.com/photo.png"
+
+
+def test_save_article_with_images(tmp_path):
+    """Images are downloaded and manifest is saved in metadata."""
+    img = ArticleImage(url="https://cdn.example.com/photo.png", alt="Test diagram")
+    article = WebArticle(
+        url="https://example.com/article",
+        title="With Images",
+        text="Article body.",
+        author="",
+        date="",
+        source_name="",
+        images=[img],
+    )
+
+    fake_resp = MagicMock()
+    fake_resp.content = b"fake png bytes"
+    fake_resp.headers = {"content-type": "image/png"}
+    fake_resp.raise_for_status = MagicMock()
+
+    with patch("pipeline.adapters.web.httpx.get", return_value=fake_resp):
+        save_article(article, tmp_path / "source")
+
+    images_dir = tmp_path / "source" / "images"
+    assert images_dir.exists()
+    assert (images_dir / "img_01.png").exists()
+
+    import json
+
+    meta = json.loads((tmp_path / "source" / "article_meta.json").read_text())
+    assert len(meta["images"]) == 1
+    assert meta["images"][0]["alt"] == "Test diagram"

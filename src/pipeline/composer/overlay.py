@@ -40,15 +40,16 @@ def apply_overlay(
     elif overlay_type == "namecard":
         name = _escape_drawtext(overlay.get("name", ""))
         role = _escape_drawtext(overlay.get("role", ""))
+        # Position at upper-lower area (65-79%) to avoid subtitle collision at bottom
         vf = (
-            f"drawbox=y=ih*0.78:w=iw:h=ih*0.14:color=black@0.7:t=fill,"
+            f"drawbox=y=ih*0.65:w=iw:h=ih*0.14:color=black@0.7:t=fill,"
             f"drawtext=text='{name}':fontsize=36"
             f":fontcolor=white:font='{font}'"
-            f":x=w*0.05:y=h*0.80"
+            f":x=w*0.05:y=h*0.67"
             f":shadowcolor=black:shadowx=1:shadowy=1,"
             f"drawtext=text='{role}':fontsize=24"
             f":fontcolor=#cccccc:font='{font}'"
-            f":x=w*0.05:y=h*0.86"
+            f":x=w*0.05:y=h*0.73"
         )
 
     else:

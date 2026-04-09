@@ -19,6 +19,32 @@ class Scene:
 
 
 @dataclass
+class Theme:
+    """Visual theme for consistent look across all scenes."""
+
+    background: str = "#1e293b"  # slate-800
+    text_color: str = "#f8fafc"  # slate-50
+    accent: str = "#38bdf8"  # sky-400
+    secondary_bg: str = "#334155"  # slate-700
+    font: str = "Noto Sans CJK TC"
+    image_style: str = "flat minimalist illustration, simple clean lines, limited color palette"
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "background": self.background,
+            "text_color": self.text_color,
+            "accent": self.accent,
+            "secondary_bg": self.secondary_bg,
+            "font": self.font,
+            "image_style": self.image_style,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, str]) -> Theme:
+        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+
+
+@dataclass
 class Storyboard:
     """Layer 2: Scene-by-scene directing. Regenerable, A/B testable."""
 
@@ -27,6 +53,7 @@ class Storyboard:
     target_duration_sec: int = 720
     aspect_ratio: str = "16:9"  # 16:9 | 9:16
     scenes: list[Scene] = field(default_factory=list)
+    theme: Theme = field(default_factory=Theme)
 
     # --- Serialization ---
 
@@ -36,6 +63,7 @@ class Storyboard:
             "format": self.format,
             "target_duration_sec": self.target_duration_sec,
             "aspect_ratio": self.aspect_ratio,
+            "theme": self.theme.to_dict(),
             "scenes": [
                 {
                     "id": s.id,
@@ -54,12 +82,15 @@ class Storyboard:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Storyboard:
         scenes = [Scene(**s) for s in data.get("scenes", [])]
+        theme_data = data.get("theme", {})
+        theme = Theme.from_dict(theme_data) if theme_data else Theme()
         return cls(
             version=data.get("version", 1),
             format=data.get("format", "standard"),
             target_duration_sec=data.get("target_duration_sec", 720),
             aspect_ratio=data.get("aspect_ratio", "16:9"),
             scenes=scenes,
+            theme=theme,
         )
 
     def save(self, path: Path) -> None:

@@ -69,6 +69,7 @@ class ComposeStage(PipelineStage):
         """Scene-by-scene rendering from storyboard."""
         storyboard = Storyboard.load(ctx.storyboard_path)
         width, height = get_resolution(storyboard.aspect_ratio)
+        theme_dict = storyboard.theme.to_dict()
 
         scenes_dir = compose_dir / "scenes"
         scenes_dir.mkdir(parents=True, exist_ok=True)
@@ -103,6 +104,7 @@ class ComposeStage(PipelineStage):
                     storyboard.aspect_ratio,
                     scenes_dir,
                     source_video=ctx.video_path,
+                    theme=theme_dict,
                 )
             except Exception as e:
                 logger.warning(
@@ -120,7 +122,10 @@ class ComposeStage(PipelineStage):
                 )
 
             # Step 2: Apply overlay if present
-            if scene.overlay:
+            # Skip overlays on text-based visuals — text-on-text overlap is unreadable
+            visual_type = scene.visual.get("type", "")
+            text_visual_types = {"text_card", "slide"}
+            if scene.overlay and visual_type not in text_visual_types:
                 overlaid_path = scenes_dir / f"{scene.id}_overlaid.mp4"
                 try:
                     apply_overlay(visual_path, scene.overlay, overlaid_path, width, height)
@@ -131,6 +136,12 @@ class ComposeStage(PipelineStage):
                         scene_id=scene.id,
                         error=str(e),
                     )
+            elif scene.overlay and visual_type in text_visual_types:
+                logger.info(
+                    "compose.scene.overlay_skipped",
+                    scene_id=scene.id,
+                    reason="text-on-text overlap",
+                )
 
             # Step 3: Combine visual + audio
             scene_final = scenes_dir / f"{scene.id}_final.mp4"

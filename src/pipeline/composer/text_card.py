@@ -17,12 +17,15 @@ def render_text_card(
     height: int,
     work_dir: Path,
     scene_id: str,
+    theme: dict | None = None,
 ) -> Path:
     """Generate a text card: styled text on a solid background."""
+    theme = theme or {}
     text = visual.get("text", "")
-    bg_color = visual.get("background", "#1a1a2e")
+    bg_color = visual.get("background", theme.get("background", "#1e293b"))
     font_size = visual.get("font_size", 48)
-    font = "Noto Sans CJK TC"
+    text_color = visual.get("text_color", theme.get("text_color", "white"))
+    font = theme.get("font", "Noto Sans CJK TC")
 
     output = work_dir / f"{scene_id}_visual.mp4"
     escaped = _escape_drawtext(text)
@@ -32,9 +35,9 @@ def render_text_card(
     if len(lines) == 1:
         drawtext = (
             f"drawtext=text='{escaped}':fontfile=:fontsize={font_size}"
-            f":fontcolor=white:font='{font}'"
+            f":fontcolor={text_color}:font='{font}'"
             f":x=(w-text_w)/2:y=(h-text_h)/2"
-            f":shadowcolor=black:shadowx=2:shadowy=2"
+            f":shadowcolor=black@0.3:shadowx=2:shadowy=2"
         )
     else:
         # Stack multiple drawtext filters for each line
@@ -44,9 +47,9 @@ def render_text_card(
             y_offset = f"(h/2)+({i}-{total_lines}/2)*{font_size + 10}"
             filters.append(
                 f"drawtext=text='{line}':fontsize={font_size}"
-                f":fontcolor=white:font='{font}'"
+                f":fontcolor={text_color}:font='{font}'"
                 f":x=(w-text_w)/2:y={y_offset}"
-                f":shadowcolor=black:shadowx=2:shadowy=2"
+                f":shadowcolor=black@0.3:shadowx=2:shadowy=2"
             )
         drawtext = ",".join(filters)
 

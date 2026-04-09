@@ -46,4 +46,4 @@ def test_render_text_card_default_bg(tmp_path):
         )
 
     cmd_str = " ".join(mock_ff.call_args[0][0])
-    assert "#1a1a2e" in cmd_str  # default background
+    assert "#1e293b" in cmd_str  # default background (slate-800)

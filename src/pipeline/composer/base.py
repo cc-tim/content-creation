@@ -69,6 +69,7 @@ def render_scene(
     aspect_ratio: str,
     work_dir: Path,
     source_video: Path | None = None,
+    theme: dict | None = None,
 ) -> Path:
     """Dispatch to the appropriate visual renderer based on scene.visual.type.
 
@@ -78,6 +79,7 @@ def render_scene(
     visual_type = visual.get("type", "text_card")
     scene_id = scene.get("id", "unknown")
     width, height = get_resolution(aspect_ratio)
+    theme = theme or {}
 
     logger.info("render_scene", scene_id=scene_id, type=visual_type, duration=duration_sec)
 
@@ -89,17 +91,36 @@ def render_scene(
     elif visual_type == "text_card":
         from pipeline.composer.text_card import render_text_card
 
-        return render_text_card(visual, duration_sec, width, height, work_dir, scene_id)
+        return render_text_card(visual, duration_sec, width, height, work_dir, scene_id, theme)
 
     elif visual_type == "generated_image":
         from pipeline.composer.image import render_generated_image
 
+        # Append theme image_style to prompt if not already styled
+        image_style = theme.get("image_style", "")
+        if image_style and "prompt" in visual:
+            prompt = visual["prompt"]
+            if image_style not in prompt:
+                visual = {**visual, "prompt": f"{prompt}. Style: {image_style}"}
         return render_generated_image(visual, duration_sec, width, height, work_dir, scene_id)
 
     elif visual_type == "slide":
         from pipeline.composer.slide import render_slide
 
-        return render_slide(visual, duration_sec, width, height, work_dir, scene_id)
+        return render_slide(visual, duration_sec, width, height, work_dir, scene_id, theme)
+
+    elif visual_type == "article_image":
+        img_path = Path(visual.get("path", ""))
+        if not img_path.exists():
+            logger.warning("article_image.missing", path=str(img_path), scene=scene_id)
+            from pipeline.composer.text_card import render_text_card
+
+            fallback = {"type": "text_card", "text": visual.get("alt", scene_id)}
+            return render_text_card(
+                fallback, duration_sec, width, height, work_dir, scene_id, theme
+            )
+        output = work_dir / f"{scene_id}_visual.mp4"
+        return image_to_video(img_path, output, duration_sec, width, height)
 
     elif visual_type == "still_frame":
         from pipeline.composer.still_frame import render_still_frame
@@ -109,15 +130,15 @@ def render_scene(
         )
 
     elif visual_type in ("namecard", "map"):
-        # Fallback: render as text card with appropriate content
         from pipeline.composer.text_card import render_text_card
 
         fallback_visual = {
             "type": "text_card",
             "text": visual.get("name", visual.get("query", visual_type)),
-            "background": "#1a1a2e",
         }
-        return render_text_card(fallback_visual, duration_sec, width, height, work_dir, scene_id)
+        return render_text_card(
+            fallback_visual, duration_sec, width, height, work_dir, scene_id, theme
+        )
 
     else:
         raise ValueError(f"Unknown visual type: {visual_type} in scene {scene_id}")

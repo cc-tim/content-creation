@@ -4,6 +4,8 @@ from pipeline.stages.tts import (
     TtsStage,
     _build_subtitle_entries,
     _split_text_for_subtitles,
+    _visual_width,
+    _wrap_subtitle_line,
     extract_narration_segments,
 )
 
@@ -54,9 +56,18 @@ async def test_tts_generates_audio(sample_context):
     assert ctx.subtitle_path is not None
 
 
+def test_visual_width():
+    """CJK chars count as 2, Latin/digits as 1."""
+    assert _visual_width("abc") == 3
+    assert _visual_width("你好") == 4
+    assert _visual_width("bug") == 3
+    assert _visual_width("AI寫code") == 8  # A(1)I(1)寫(2)c(1)o(1)d(1)e(1)
+    assert _visual_width("harness") == 7
+
+
 def test_split_text_short():
     """Short text should not be split."""
-    chunks = _split_text_for_subtitles("你好世界", max_chars=18)
+    chunks = _split_text_for_subtitles("你好世界", max_width=36)
     assert len(chunks) == 1
     assert chunks[0] == "你好世界"
 
@@ -64,7 +75,7 @@ def test_split_text_short():
 def test_split_text_by_punctuation():
     """Long text splits at sentence-ending punctuation."""
     text = "這是第一句話。這是第二句話。這是第三句話。"
-    chunks = _split_text_for_subtitles(text, max_chars=10)
+    chunks = _split_text_for_subtitles(text, max_width=20)
     assert len(chunks) >= 2
     for chunk in chunks:
         assert len(chunk) <= 40  # no single chunk is absurdly long
@@ -73,8 +84,63 @@ def test_split_text_by_punctuation():
 def test_split_text_long_no_punctuation():
     """Long text without punctuation splits by comma or length."""
     text = "在美國的執法體系中，州際公路由州警負責，而市區道路則是當地警察局的管轄範圍"
-    chunks = _split_text_for_subtitles(text, max_chars=18)
+    chunks = _split_text_for_subtitles(text, max_width=36)
     assert len(chunks) >= 2
+
+
+def test_wrap_subtitle_keeps_english_words_whole():
+    """English words like 'bug' must not be split across lines."""
+    text = "非常具體的bug。"
+    result = _wrap_subtitle_line(text, max_width=16)
+    # "bug" should appear whole on one line, never split as "bu\ng"
+    assert "bu\ng" not in result
+    assert "bug" in result
+
+
+def test_wrap_subtitle_mixed_cjk_english():
+    """Mixed CJK + English wraps at word boundaries."""
+    text = "使用Playwright瀏覽器自動化"
+    result = _wrap_subtitle_line(text, max_width=20)
+    # Playwright should not be split
+    assert "Playwri" not in result or "Playwright" in result
+
+
+def test_wrap_subtitle_uses_real_newlines():
+    """SRT format requires real newlines, not \\N (ASS format)."""
+    text = "這是一段比較長的文字需要換行顯示"
+    result = _wrap_subtitle_line(text, max_width=20)
+    assert "\\N" not in result  # no literal \N
+    assert "\n" in result  # real newline
+
+
+def test_split_english_word_not_broken():
+    """Full pipeline: English words in CJK text stay intact in subtitle chunks."""
+    text = "Delete鍵的條件判斷錯誤、路由順序導致422錯誤"
+    chunks = _split_text_for_subtitles(text, max_width=28)
+    for chunk in chunks:
+        # No Latin word should be split across a newline break
+        assert "Delet\n" not in chunk
+        assert "42\n2" not in chunk
+
+
+def test_split_bug_and_harness_not_broken():
+    """Specific regression: 'bug' and 'harness' must stay whole."""
+    text1 = "如果讓AI寫程式碼，結果是一堆bug跟破碎的應用程式，你會怎麼辦？"
+    chunks1 = _split_text_for_subtitles(text1, max_width=36)
+    all_text = " ".join(chunks1)
+    assert "bug" in all_text
+    # "bug" must not be split by newline
+    for chunk in chunks1:
+        for line in chunk.split("\n"):
+            if "bu" in line and "bug" not in line:
+                raise AssertionError(f"'bug' broken in line: {line!r}")
+
+    text2 = "每一個harness組件都是在假設模型做不到某件事。"
+    chunks2 = _split_text_for_subtitles(text2, max_width=36)
+    for chunk in chunks2:
+        for line in chunk.split("\n"):
+            if "harnes" in line and "harness" not in line:
+                raise AssertionError(f"'harness' broken in line: {line!r}")
 
 
 def test_build_subtitle_entries_splits():
@@ -92,7 +158,7 @@ def test_build_subtitle_entries_splits():
     assert len(entries) >= 2
     # Each entry should be reasonably short
     for e in entries:
-        assert len(e.text) <= 40
+        assert _visual_width(e.text.replace("\n", "")) <= 80
     # Timings should cover the full range
     assert entries[0].start_ms == 0
     assert abs(entries[-1].end_ms - 10000) <= 1  # rounding tolerance
