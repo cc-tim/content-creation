@@ -26,7 +26,7 @@ def _is_quota_error(exc: BaseException) -> bool:
 
 
 class GeminiImageProvider(ImageProvider):
-    MODEL = "gemini-2.5-flash-image-preview"
+    MODEL = "gemini-2.5-flash-image"
 
     def __init__(self, api_key: str):
         self._api_key = api_key
