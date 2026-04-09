@@ -15,3 +15,17 @@ def test_config_from_env(monkeypatch):
     config = PipelineConfig()
     assert config.ANTHROPIC_API_KEY == "sk-test"
     assert config.TTS_PROVIDER == "google"
+
+
+def test_gemini_key_from_unprefixed_env(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-gemini-key")
+    monkeypatch.delenv("PIPELINE_GEMINI_API_KEY", raising=False)
+    cfg = PipelineConfig()
+    assert cfg.GEMINI_API_KEY == "fake-gemini-key"
+
+
+def test_image_providers_default(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("PIPELINE_IMAGE_PROVIDERS", raising=False)
+    cfg = PipelineConfig()
+    assert cfg.IMAGE_PROVIDERS == "gemini,dalle"

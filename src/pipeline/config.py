@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 
 
@@ -11,6 +12,13 @@ class PipelineConfig(BaseSettings):
     OPENAI_API_KEY: str = ""
     YOUTUBE_API_KEY: str = ""
     GOOGLE_CLOUD_TTS_KEY: str = ""
+    GEMINI_API_KEY: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GEMINI_API_KEY", "PIPELINE_GEMINI_API_KEY"),
+    )
+
+    # Image generation
+    IMAGE_PROVIDERS: str = "gemini,dalle"
 
     # Paths
     OUTPUT_DIR: Path = Path("output")
