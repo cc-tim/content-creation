@@ -55,32 +55,34 @@ def test_gemini_key_from_unprefixed_env(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "fake-gemini-key")
     monkeypatch.delenv("PIPELINE_GEMINI_API_KEY", raising=False)
     cfg = PipelineConfig()
-    assert cfg.gemini_api_key == "fake-gemini-key"
+    assert cfg.GEMINI_API_KEY == "fake-gemini-key"
 
 
-def test_image_providers_default():
+def test_image_providers_default(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("PIPELINE_IMAGE_PROVIDERS", raising=False)
     cfg = PipelineConfig()
-    assert cfg.image_providers == "gemini,dalle"
+    assert cfg.IMAGE_PROVIDERS == "gemini,dalle"
 ```
 
 - [ ] **Step 4: Run test to verify it fails**
 
 Run: `uv run pytest tests/unit/test_config.py -v`
-Expected: FAIL — `AttributeError: 'PipelineConfig' object has no attribute 'gemini_api_key'`.
+Expected: FAIL — `AttributeError: 'PipelineConfig' object has no attribute 'GEMINI_API_KEY'`.
 
 - [ ] **Step 5: Add config fields**
 
-Edit `src/pipeline/config.py`. Add to `PipelineConfig`:
+Edit `src/pipeline/config.py`. Add to `PipelineConfig` (note: this codebase uses UPPER_SNAKE field names to match the existing API-key convention):
 
 ```python
 from pydantic import AliasChoices, Field
 
-# ... inside PipelineConfig, alongside existing *_api_key fields:
-gemini_api_key: str | None = Field(
+# ... inside PipelineConfig, alongside existing *_API_KEY fields:
+GEMINI_API_KEY: str | None = Field(
     default=None,
     validation_alias=AliasChoices("GEMINI_API_KEY", "PIPELINE_GEMINI_API_KEY"),
 )
-image_providers: str = "gemini,dalle"
+IMAGE_PROVIDERS: str = "gemini,dalle"
 ```
 
 If `AliasChoices` is already imported, skip the import line.
@@ -630,13 +632,13 @@ from pipeline.providers.gemini import GeminiImageProvider
 
 
 def _build_providers(cfg: PipelineConfig) -> list[ImageProvider]:
-    order = [p.strip() for p in cfg.image_providers.split(",") if p.strip()]
+    order = [p.strip() for p in cfg.IMAGE_PROVIDERS.split(",") if p.strip()]
     built: list[ImageProvider] = []
     for name in order:
-        if name == "gemini" and cfg.gemini_api_key:
-            built.append(GeminiImageProvider(api_key=cfg.gemini_api_key))
-        elif name == "dalle" and cfg.openai_api_key:
-            built.append(DalleImageProvider(api_key=cfg.openai_api_key))
+        if name == "gemini" and cfg.GEMINI_API_KEY:
+            built.append(GeminiImageProvider(api_key=cfg.GEMINI_API_KEY))
+        elif name == "dalle" and cfg.OPENAI_API_KEY:
+            built.append(DalleImageProvider(api_key=cfg.OPENAI_API_KEY))
     return built
 ```
 
@@ -699,10 +701,10 @@ from pipeline.config import PipelineConfig
 from pipeline.providers.base import try_chain
 from pipeline.providers.gemini import GeminiImageProvider
 cfg = PipelineConfig()
-assert cfg.gemini_api_key, 'GEMINI_API_KEY not loaded'
+assert cfg.GEMINI_API_KEY, 'GEMINI_API_KEY not loaded'
 out = Path('/tmp/gemini_smoke.png')
 result = try_chain(
-    [GeminiImageProvider(api_key=cfg.gemini_api_key)],
+    [GeminiImageProvider(api_key=cfg.GEMINI_API_KEY)],
     prompt='flat minimalist illustration of a robot reading a book',
     out_path=out,
     size='1024x1024',
