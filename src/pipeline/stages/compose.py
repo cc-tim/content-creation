@@ -126,9 +126,16 @@ class ComposeStage(PipelineStage):
             visual_type = scene.visual.get("type", "")
             text_visual_types = {"text_card", "slide"}
             if scene.overlay and visual_type not in text_visual_types:
-                overlaid_path = scenes_dir / f"{scene.id}_overlaid.mp4"
                 try:
-                    apply_overlay(visual_path, scene.overlay, overlaid_path, width, height)
+                    overlaid_path = apply_overlay(
+                        visual_path=visual_path,
+                        overlay=scene.overlay,
+                        width=width,
+                        height=height,
+                        work_dir=scenes_dir,
+                        scene_id=scene.id,
+                        theme=theme_dict,
+                    )
                     visual_path = overlaid_path
                 except Exception as e:
                     logger.warning(
