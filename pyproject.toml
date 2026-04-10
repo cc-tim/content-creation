@@ -20,6 +20,12 @@ dependencies = [
     "pillow>=12.2.0",
 ]
 
+[project.optional-dependencies]
+cosyvoice = [
+    "torch>=2.0.1",
+    "torchaudio>=2.0.2",
+]
+
 [project.scripts]
 pipeline = "pipeline.cli:app"
 
