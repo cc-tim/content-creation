@@ -37,6 +37,7 @@ class PipelineContext:
     narration_path: Path | None = None
     subtitle_path: Path | None = None
     segment_timings: list[dict[str, Any]] | None = None
+    voice_id: str | None = None
 
     # Stage 5: Compose
     final_video_path: Path | None = None

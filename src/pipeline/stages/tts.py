@@ -10,6 +10,7 @@ import structlog
 from pipeline.config import PipelineConfig
 from pipeline.stages.base import PipelineContext, PipelineStage
 from pipeline.utils.srt import SrtEntry, write_srt
+from pipeline.voices.registry import VoiceRegistry
 
 logger = structlog.get_logger()
 
@@ -74,7 +75,12 @@ class TtsStage(PipelineStage):
         logger.info("tts.start", locale=ctx.locale)
 
         config = PipelineConfig()
-        voice = config.get_tts_voice(ctx.locale)
+        registry = VoiceRegistry(config.VOICES_DIR)
+        if ctx.voice_id:
+            engine, profile = registry.resolve(ctx.voice_id)
+        else:
+            engine, profile = registry.default_for_locale(ctx.locale)
+
         script_text = ctx.script_path.read_text(encoding="utf-8")
 
         audio_dir = ctx.work_dir / "audio"
@@ -102,7 +108,7 @@ class TtsStage(PipelineStage):
 
         for i, text in enumerate(segments):
             seg_path = audio_dir / f"segment_{i:03d}.mp3"
-            await generate_edge_tts(text, voice, seg_path)
+            engine.synthesize(text, seg_path, profile)
 
             # Get actual duration via ffprobe
             est_duration_ms = _get_audio_duration_ms(seg_path)

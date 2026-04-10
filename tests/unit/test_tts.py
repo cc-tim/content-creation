@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from pipeline.stages.base import PipelineContext
 from pipeline.stages.tts import (
     TtsStage,
     _build_subtitle_entries,
@@ -35,6 +36,8 @@ async def test_tts_segment_timings_include_inter_scene_pauses(sample_context):
     scene's pause_after_sec in cumulative_ms so the SRT timestamps stay aligned
     with the rendered video. Regression for the s7 subtitle drift seen in
     project 1775401082."""
+    from pipeline.voices.base import VoiceProfile
+
     # Build a storyboard with three scenes, each with a different pause.
     scenes = [
         Scene(
@@ -58,18 +61,29 @@ async def test_tts_segment_timings_include_inter_scene_pauses(sample_context):
     script_path.write_text(storyboard.derive_script(), encoding="utf-8")
     sample_context.script_path = script_path
 
+    class _StubEngine:
+        @property
+        def name(self):
+            return "edge"
+
+        def synthesize(self, text, out_path, profile):
+            out_path.write_bytes(b"x")
+            return out_path
+
+    stub_pair = (
+        _StubEngine(),
+        VoiceProfile(id="stub", engine="edge", locale="zh-TW", params={"voice": "x"}),
+    )
+
     stage = TtsStage()
 
     with (
-        patch("pipeline.stages.tts.generate_edge_tts") as mock_tts,
+        patch(
+            "pipeline.voices.registry.VoiceRegistry.default_for_locale",
+            return_value=stub_pair,
+        ),
         patch("pipeline.stages.tts._get_audio_duration_ms", return_value=4000),
     ):
-
-        async def fake_tts(text, voice, output_path):
-            output_path.write_bytes(b"x")
-            return {"duration_ms": 0, "word_timings": []}
-
-        mock_tts.side_effect = fake_tts
         ctx = await stage.run(sample_context)
 
     timings = ctx.segment_timings
@@ -84,6 +98,8 @@ async def test_tts_segment_timings_include_inter_scene_pauses(sample_context):
 
 
 async def test_tts_generates_audio(sample_context):
+    from pipeline.voices.base import VoiceProfile
+
     script_dir = sample_context.work_dir / "script"
     script_dir.mkdir(parents=True)
     script_path = script_dir / "script_zh-TW.md"
@@ -93,22 +109,95 @@ async def test_tts_generates_audio(sample_context):
     )
     sample_context.script_path = script_path
 
+    class _StubEngine:
+        @property
+        def name(self):
+            return "edge"
+
+        def synthesize(self, text, out_path, profile):
+            out_path.write_bytes(b"fake audio data here")
+            return out_path
+
+    stub_pair = (
+        _StubEngine(),
+        VoiceProfile(id="stub", engine="edge", locale="zh-TW", params={"voice": "x"}),
+    )
+
     stage = TtsStage()
     assert stage.name == "tts"
 
-    with patch("pipeline.stages.tts.generate_edge_tts") as mock_tts:
-
-        async def fake_tts(text, voice, output_path):
-            output_path.write_bytes(b"fake audio data here")
-            return {"duration_ms": 3000, "word_timings": []}
-
-        mock_tts.side_effect = fake_tts
-
+    with patch(
+        "pipeline.voices.registry.VoiceRegistry.default_for_locale",
+        return_value=stub_pair,
+    ):
         ctx = await stage.run(sample_context)
 
     assert ctx.narration_path is not None
     assert ctx.narration_path.exists()
     assert ctx.subtitle_path is not None
+
+
+async def test_tts_stage_uses_registry_for_voice_id(tmp_path):
+    """When voice_id is set, TTS stage resolves via VoiceRegistry."""
+    work_dir = tmp_path
+    storyboard_path = work_dir / "storyboard.json"
+    storyboard = Storyboard(
+        scenes=[
+            Scene(
+                id="s1",
+                section="hook",
+                narration="你好",
+                narration_est_sec=2,
+                visual={"type": "text_card", "text": "hi"},
+                pause_after_sec=0,
+            )
+        ]
+    )
+    storyboard.save(storyboard_path)
+
+    script_dir = work_dir / "script"
+    script_dir.mkdir()
+    script_path = script_dir / "script_zh-TW.md"
+    script_path.write_text(storyboard.derive_script(), encoding="utf-8")
+
+    calls = {"synthesize": 0}
+
+    class _StubEngine:
+        @property
+        def name(self):
+            return "edge"
+
+        def synthesize(self, text, out_path, profile):
+            calls["synthesize"] += 1
+            out_path.write_bytes(b"FAKE-MP3")
+            return out_path
+
+    def fake_resolve(self, voice_id):
+        from pipeline.voices.base import VoiceProfile
+
+        return _StubEngine(), VoiceProfile(
+            id=voice_id, engine="edge", locale="zh-TW", params={"voice": "x"}
+        )
+
+    ctx = PipelineContext(
+        project_id=1,
+        source_url="https://example/x",
+        locale="zh-TW",
+        work_dir=work_dir,
+        voice_id="zh-TW-default-f",
+        storyboard_path=storyboard_path,
+        script_path=script_path,
+    )
+
+    with (
+        patch("pipeline.voices.registry.VoiceRegistry.resolve", fake_resolve),
+        patch("pipeline.stages.tts._get_audio_duration_ms", return_value=2000),
+    ):
+        ctx = await TtsStage().run(ctx)
+
+    assert calls["synthesize"] >= 1
+    assert ctx.narration_path is not None
+    assert ctx.narration_path.exists()
 
 
 def test_visual_width():
