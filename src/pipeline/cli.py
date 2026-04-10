@@ -14,8 +14,11 @@ from pipeline.stages.compose import ComposeStage
 from pipeline.stages.direct import DirectStage
 from pipeline.stages.tts import TtsStage
 
+from pipeline.cli_voice import voice_app
+
 logger = structlog.get_logger()
 app = typer.Typer(name="pipeline", help="YouTube content porting pipeline")
+app.add_typer(voice_app, name="voice")
 
 
 @app.command()
