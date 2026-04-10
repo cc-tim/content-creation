@@ -43,26 +43,6 @@ def extract_narration_segments(script: str) -> list[str]:
     return segments
 
 
-async def generate_edge_tts(text: str, voice: str, output_path: Path) -> dict[str, Any]:
-    """Generate TTS audio using edge-tts. Returns timing metadata."""
-    import edge_tts
-
-    communicate = edge_tts.Communicate(text, voice)
-    submaker = edge_tts.SubMaker()
-
-    with open(output_path, "wb") as f:
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                f.write(chunk["data"])
-            elif chunk["type"] == "WordBoundary":
-                submaker.feed(chunk)
-
-    return {
-        "duration_ms": 0,  # edge-tts doesn't provide total duration directly
-        "word_timings": [],  # simplified for MVP
-    }
-
-
 class TtsStage(PipelineStage):
     @property
     def name(self) -> str:
