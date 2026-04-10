@@ -8,6 +8,14 @@ Full pipeline from URL to video. The agent does the creative work (analysis, sto
 - If no URL provided, ask for one.
 - Default locale: zh-TW (unless user specifies otherwise)
 
+## Voice selection
+
+- Default: the registry picks the locale default (edge-tts).
+- Override with `--voice <id>` to use a cloned voice (e.g. `tim-zhtw`).
+- List available voices: `uv run pipeline voice list`.
+- To record a new voice, see `scripts/record_voice.md`.
+- If the user has not said otherwise, always use the default voice.
+
 ## Process
 
 ### Step 1: Acquire
@@ -311,7 +319,7 @@ Wait for user feedback. Apply edits using /storyboard operations.
 
 Run TTS + compose:
 ```bash
-uv run pipeline produce --url "<URL>" --project-id <ID> --locale <LOCALE> --start-from tts --skip-review
+uv run pipeline produce --url "<URL>" --project-id <ID> --locale <LOCALE> --start-from tts --skip-review [--voice <voice-id>]
 ```
 
 ### Step 7: Post-render review
