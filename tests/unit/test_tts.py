@@ -8,6 +8,7 @@ from pipeline.stages.tts import (
     _wrap_subtitle_line,
     extract_narration_segments,
 )
+from pipeline.storyboard import Scene, Storyboard
 
 
 def test_extract_narration_segments():
@@ -26,6 +27,60 @@ def test_extract_narration_segments():
     assert segments[0] == "這是第一段旁白文字。"
     assert segments[1] == "這是第二段旁白文字。"
     assert segments[2] == "這是第三段。"
+
+
+async def test_tts_segment_timings_include_inter_scene_pauses(sample_context):
+    """Compose adds silence gaps between scenes in the final video, but the
+    audio file (used for subtitles) does not. The TTS stage must include each
+    scene's pause_after_sec in cumulative_ms so the SRT timestamps stay aligned
+    with the rendered video. Regression for the s7 subtitle drift seen in
+    project 1775401082."""
+    # Build a storyboard with three scenes, each with a different pause.
+    scenes = [
+        Scene(
+            id=f"s{i + 1}",
+            section="hook" if i == 0 else "context",
+            narration=f"段落{i + 1}",
+            narration_est_sec=5.0,
+            pause_after_sec=p,
+            visual={"type": "text_card", "text": f"v{i + 1}"},
+        )
+        for i, p in enumerate([0.5, 0.3, 0.0])
+    ]
+    storyboard = Storyboard(scenes=scenes)
+    storyboard_path = sample_context.work_dir / "storyboard.json"
+    storyboard.save(storyboard_path)
+    sample_context.storyboard_path = storyboard_path
+
+    script_dir = sample_context.work_dir / "script"
+    script_dir.mkdir()
+    script_path = script_dir / "script_zh-TW.md"
+    script_path.write_text(storyboard.derive_script(), encoding="utf-8")
+    sample_context.script_path = script_path
+
+    stage = TtsStage()
+
+    with (
+        patch("pipeline.stages.tts.generate_edge_tts") as mock_tts,
+        patch("pipeline.stages.tts._get_audio_duration_ms", return_value=4000),
+    ):
+
+        async def fake_tts(text, voice, output_path):
+            output_path.write_bytes(b"x")
+            return {"duration_ms": 0, "word_timings": []}
+
+        mock_tts.side_effect = fake_tts
+        ctx = await stage.run(sample_context)
+
+    timings = ctx.segment_timings
+    assert len(timings) == 3
+    # Each segment is 4000ms (mocked); pauses are 500, 300, 0 ms.
+    # Segment 0 starts at 0.
+    assert timings[0]["start_ms"] == 0
+    # Segment 1 starts after segment 0's audio (4000) + s1 pause (500).
+    assert timings[1]["start_ms"] == 4500
+    # Segment 2 starts after segment 1's audio (+4000) + s2 pause (+300).
+    assert timings[2]["start_ms"] == 8800
 
 
 async def test_tts_generates_audio(sample_context):

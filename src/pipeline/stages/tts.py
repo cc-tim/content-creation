@@ -83,6 +83,18 @@ class TtsStage(PipelineStage):
         segments = extract_narration_segments(script_text)
         logger.info("tts.segments", count=len(segments))
 
+        # Compose inserts a silent video gap after each scene (see
+        # ComposeStage._silence_gap), but the audio file is a plain
+        # concatenation of segments with no silence between them. To keep the
+        # SRT subtitles aligned with the rendered video, we have to add each
+        # scene's pause_after_sec into the cumulative SRT timeline.
+        scene_pauses_ms: list[int] = []
+        if ctx.storyboard_path and ctx.storyboard_path.exists():
+            from pipeline.storyboard import Storyboard
+
+            storyboard = Storyboard.load(ctx.storyboard_path)
+            scene_pauses_ms = [int(s.pause_after_sec * 1000) for s in storyboard.scenes]
+
         # Generate audio per segment
         segment_paths: list[Path] = []
         segment_timings: list[dict[str, Any]] = []
@@ -106,6 +118,9 @@ class TtsStage(PipelineStage):
             )
             segment_paths.append(seg_path)
             cumulative_ms += est_duration_ms
+            # Account for the inter-scene pause that compose will insert.
+            if i < len(scene_pauses_ms):
+                cumulative_ms += scene_pauses_ms[i]
 
         # Concatenate all segments into one file
         narration_path = audio_dir / f"narration_{ctx.locale}.mp3"

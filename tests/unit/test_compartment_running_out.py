@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -94,6 +95,41 @@ def test_build_compartment_loop_produces_mp4(tmp_path):
         scene_width=1280,
         scene_height=720,
         work_dir=tmp_path,
+        scene_id="s3",
+    )
+    assert out.exists()
+    assert out.stat().st_size > 0
+
+
+@pytest.mark.integration
+def test_build_compartment_loop_with_relative_work_dir(tmp_path, monkeypatch):
+    """The concat demuxer resolves `file '...'` entries relative to the concat
+    file's own directory. If we write frame paths as-is and work_dir is a
+    relative path (as it is in production compose), ffmpeg double-prefixes
+    them and the build fails. Regression for the Phase B s3 failure.
+    """
+    monkeypatch.chdir(tmp_path)
+    rel_work = Path("project/compose/scenes")
+    rel_work.mkdir(parents=True)
+    assert not rel_work.is_absolute()
+
+    config = {
+        "type": "running_out",
+        "position": "right",
+        "size": {"width": 0.35, "height": 0.6},
+        "loop": True,
+        "animation": {
+            "label": "ctx",
+            "stages": [{"value": "20%", "face": "neutral", "color": "#fbbf24"}],
+            "stage_duration_sec": 1.0,
+        },
+    }
+    out = build_compartment_loop(
+        compartment=config,
+        scene_duration_sec=3.0,
+        scene_width=1280,
+        scene_height=720,
+        work_dir=rel_work,
         scene_id="s3",
     )
     assert out.exists()

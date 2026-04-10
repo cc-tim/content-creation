@@ -41,14 +41,17 @@ def build_compartment_loop(
         raise ValueError("compartment produced zero frames")
 
     # Build a concat list that loops through stages. Duration per frame lives
-    # in each CompartmentFrame.
+    # in each CompartmentFrame. The concat demuxer resolves `file '...'` entries
+    # relative to the concat file's own directory, so we must write absolute
+    # paths — otherwise a relative work_dir (as in production compose) causes
+    # ffmpeg to double-prefix and fail.
     stage_list_path = work_dir / f"{scene_id}_compartment_frames.txt"
     lines: list[str] = []
     for frame in frames:
-        lines.append(f"file '{frame.path.as_posix()}'")
+        lines.append(f"file '{frame.path.resolve().as_posix()}'")
         lines.append(f"duration {frame.duration_sec}")
     # ffmpeg concat demuxer requires the final file listed one extra time.
-    lines.append(f"file '{frames[-1].path.as_posix()}'")
+    lines.append(f"file '{frames[-1].path.resolve().as_posix()}'")
     stage_list_path.write_text("\n".join(lines) + "\n")
 
     loop_mp4 = work_dir / f"{scene_id}_compartment.mp4"
