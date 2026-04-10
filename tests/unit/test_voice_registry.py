@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
-from pipeline.voices.base import VoiceEngine, VoiceProfile
+from pipeline.voices.base import VoiceEngine, VoiceNotFound, VoiceProfile
+from pipeline.voices.edge_engine import EdgeEngine
+from pipeline.voices.registry import VoiceRegistry
 
 
 def test_voice_profile_from_dict_minimum():
@@ -43,3 +46,76 @@ def test_voice_profile_with_reference(tmp_path):
 def test_voice_engine_is_abstract():
     with pytest.raises(TypeError):
         VoiceEngine()  # type: ignore[abstract]
+
+
+# ---- VoiceRegistry tests ----
+
+
+def _seed_registry(tmp_path) -> VoiceRegistry:
+    voices_dir = tmp_path / "voices"
+    voices_dir.mkdir()
+    (voices_dir / "registry.json").write_text(
+        json.dumps(
+            {
+                "voices": [
+                    {
+                        "id": "zh-TW-default-f",
+                        "engine": "edge",
+                        "locale": "zh-TW",
+                        "params": {"voice": "zh-TW-HsiaoChenNeural"},
+                        "display_name": "HsiaoChen (default)",
+                    }
+                ]
+            }
+        )
+    )
+    return VoiceRegistry(voices_dir)
+
+
+def test_registry_lists_built_in_voice(tmp_path):
+    registry = _seed_registry(tmp_path)
+    profiles = registry.list()
+    assert [p.id for p in profiles] == ["zh-TW-default-f"]
+
+
+def test_registry_resolve_returns_engine_and_profile(tmp_path):
+    registry = _seed_registry(tmp_path)
+    engine, profile = registry.resolve("zh-TW-default-f")
+    assert isinstance(engine, EdgeEngine)
+    assert profile.locale == "zh-TW"
+
+
+def test_registry_resolve_missing_raises(tmp_path):
+    registry = _seed_registry(tmp_path)
+    try:
+        registry.resolve("nonexistent")
+    except VoiceNotFound:
+        return
+    raise AssertionError("expected VoiceNotFound")
+
+
+def test_registry_default_by_locale(tmp_path):
+    registry = _seed_registry(tmp_path)
+    engine, profile = registry.default_for_locale("zh-TW")
+    assert profile.id == "zh-TW-default-f"
+
+
+def test_registry_add_and_save(tmp_path):
+    registry = _seed_registry(tmp_path)
+    added = registry.add(
+        {
+            "id": "tim-zhtw",
+            "engine": "cosyvoice",
+            "locale": "zh-TW",
+            "params": {},
+            "reference": str(tmp_path / "voices" / "cloned" / "tim.wav"),
+            "reference_text": "測試",
+            "display_name": "Tim (clone)",
+        }
+    )
+    assert added.id == "tim-zhtw"
+    registry.save()
+
+    # Re-load from disk to prove it persisted.
+    reloaded = VoiceRegistry(tmp_path / "voices")
+    assert any(p.id == "tim-zhtw" for p in reloaded.list())

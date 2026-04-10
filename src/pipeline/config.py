@@ -22,6 +22,7 @@ class PipelineConfig(BaseSettings):
 
     # Paths
     OUTPUT_DIR: Path = Path("output")
+    VOICES_DIR: Path = Path("voices")
 
     # Claude
     CLAUDE_MODEL: str = "claude-sonnet-4-20250514"
