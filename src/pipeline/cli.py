@@ -29,6 +29,9 @@ def produce(
     project_id: int = typer.Option(0, "--project-id", help="Project ID (0 = auto)"),
     skip_review: bool = typer.Option(False, "--skip-review", help="Skip human review gate"),
     source_type: str = typer.Option("youtube", "--source-type", help="Source: youtube or web"),
+    voice: str | None = typer.Option(
+        None, "--voice", help="Voice profile id (see `pipeline voice list`)."
+    ),
 ) -> None:
     """Run the full production pipeline for a video or web article."""
     config = PipelineConfig()
@@ -44,12 +47,15 @@ def produce(
     context_file = work_dir / "context.json"
     if start_from and context_file.exists():
         ctx = PipelineContext.load(context_file)
+        if voice:
+            ctx.voice_id = voice
     else:
         ctx = PipelineContext(
             project_id=project_id,
             source_url=url,
             locale=locale,
             work_dir=work_dir,
+            voice_id=voice,
         )
 
     # Select acquire stage based on source type
