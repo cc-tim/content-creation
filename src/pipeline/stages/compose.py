@@ -159,7 +159,7 @@ class ComposeStage(PipelineStage):
                 scene=scene_dict,
                 overlay=scene.overlay,
                 visual=scene.visual,
-                burn_subtitles=True,
+                burn_subtitles=ctx.burn_subtitles,
             )
             if scene.overlay:
                 try:
@@ -233,29 +233,35 @@ class ComposeStage(PipelineStage):
         raw_path = compose_dir / "raw.mp4"
         self._concat_scenes(scene_finals, raw_path)
 
-        # Step 6: Burn subtitles
+        # Step 6: Burn subtitles (optional)
         final_path = compose_dir / f"final_{ctx.locale}.mp4"
-        escaped_sub = str(ctx.subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
-        subtitle_style = "FontName=Noto Sans CJK TC,FontSize=24"
-        run_ffmpeg(
-            [
-                "ffmpeg",
-                "-y",
-                "-i",
-                str(raw_path),
-                "-vf",
-                f"subtitles={escaped_sub}:force_style='{subtitle_style}'",
-                "-c:v",
-                "libx264",
-                "-preset",
-                "medium",
-                "-crf",
-                "23",
-                "-c:a",
-                "copy",
-                str(final_path),
-            ]
-        )
+        if ctx.burn_subtitles:
+            escaped_sub = str(ctx.subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
+            subtitle_style = "FontName=Noto Sans CJK TC,FontSize=24"
+            run_ffmpeg(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    str(raw_path),
+                    "-vf",
+                    f"subtitles={escaped_sub}:force_style='{subtitle_style}'",
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "medium",
+                    "-crf",
+                    "23",
+                    "-c:a",
+                    "copy",
+                    str(final_path),
+                ]
+            )
+        else:
+            # No subtitle burn: raw.mp4 is already libx264/aac from scene finals.
+            import shutil
+
+            shutil.copyfile(raw_path, final_path)
 
         return final_path
 
@@ -270,39 +276,40 @@ class ComposeStage(PipelineStage):
         start_offset = min(30.0, source_duration * 0.05)
 
         final_path = compose_dir / f"final_{ctx.locale}.mp4"
-        escaped_sub = str(ctx.subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
-        subtitle_style = "FontName=Noto Sans CJK TC,FontSize=24"
-        run_ffmpeg(
-            [
-                "ffmpeg",
-                "-y",
-                "-ss",
-                str(start_offset),
-                "-i",
-                str(ctx.video_path),
-                "-i",
-                str(ctx.narration_path),
-                "-t",
-                str(narration_duration),
-                "-map",
-                "0:v:0",
-                "-map",
-                "1:a:0",
-                "-vf",
-                f"subtitles={escaped_sub}:force_style='{subtitle_style}'",
-                "-c:v",
-                "libx264",
-                "-preset",
-                "medium",
-                "-crf",
-                "23",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "128k",
-                str(final_path),
-            ]
-        )
+        cmd: list[str] = [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            str(start_offset),
+            "-i",
+            str(ctx.video_path),
+            "-i",
+            str(ctx.narration_path),
+            "-t",
+            str(narration_duration),
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
+        ]
+        if ctx.burn_subtitles:
+            escaped_sub = str(ctx.subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
+            subtitle_style = "FontName=Noto Sans CJK TC,FontSize=24"
+            cmd += ["-vf", f"subtitles={escaped_sub}:force_style='{subtitle_style}'"]
+        cmd += [
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-crf",
+            "23",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            str(final_path),
+        ]
+        run_ffmpeg(cmd)
         return final_path
 
     def _black_screen(

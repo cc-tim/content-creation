@@ -111,3 +111,76 @@ async def test_compose_falls_back_to_mvp(sample_context):
     assert ctx.final_video_path is not None
     # Should have called run_ffmpeg with MVP approach (single call)
     assert mock_ff.called
+
+
+def test_compose_no_subtitles_skips_burn(monkeypatch, tmp_path):
+    """With burn_subtitles=False, compose copies raw.mp4 to final
+    without invoking the -vf subtitles ffmpeg pass."""
+    from pathlib import Path
+
+    from pipeline.stages.base import PipelineContext
+    from pipeline.stages.compose import ComposeStage
+    from pipeline.storyboard import Scene, Storyboard
+
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    (work_dir / "audio").mkdir()
+    narration = work_dir / "audio" / "narration.mp3"
+    narration.write_bytes(b"mp3")
+    subs = work_dir / "audio" / "subs.srt"
+    subs.write_text("1\n00:00:00,000 --> 00:00:01,000\nx\n", encoding="utf-8")
+
+    storyboard = Storyboard(
+        scenes=[
+            Scene(
+                id="s1",
+                section="hook",
+                narration="x",
+                narration_est_sec=1.0,
+                visual={"type": "text_card", "text": "hi"},
+            )
+        ]
+    )
+    sb_path = work_dir / "storyboard.json"
+    storyboard.save(sb_path)
+
+    ctx = PipelineContext(
+        project_id=1,
+        source_url="x",
+        locale="zh-TW",
+        work_dir=work_dir,
+        narration_path=narration,
+        subtitle_path=subs,
+        storyboard_path=sb_path,
+        segment_timings=[
+            {"index": 0, "text": "x", "path": str(narration), "start_ms": 0, "duration_ms": 1000}
+        ],
+        burn_subtitles=False,
+    )
+
+    ffmpeg_calls: list[list[str]] = []
+
+    def capture(cmd):
+        ffmpeg_calls.append(cmd)
+        # simulate outputs:
+        if "-i" in cmd and cmd[-1].endswith(".mp4"):
+            Path(cmd[-1]).write_bytes(b"mp4")
+
+    monkeypatch.setattr("pipeline.stages.compose.run_ffmpeg", capture)
+    monkeypatch.setattr(
+        "pipeline.stages.compose.check_ffmpeg_available", lambda: True
+    )
+    monkeypatch.setattr(
+        "pipeline.stages.compose.render_scene",
+        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None: Path(work_dir)
+        / f"{scene['id']}.mp4",
+    )
+
+    import asyncio
+
+    asyncio.run(ComposeStage().run(ctx))
+
+    # No ffmpeg call should include the subtitles filter.
+    for cmd in ffmpeg_calls:
+        joined = " ".join(cmd)
+        assert "subtitles=" not in joined, f"subtitles filter found in: {joined}"
