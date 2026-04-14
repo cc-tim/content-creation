@@ -66,7 +66,7 @@ async def test_tts_segment_timings_include_inter_scene_pauses(sample_context):
         def name(self):
             return "edge"
 
-        def synthesize(self, text, out_path, profile):
+        def synthesize(self, text, out_path, profile, scene_id=None):
             out_path.write_bytes(b"x")
             return out_path
 
@@ -114,7 +114,7 @@ async def test_tts_generates_audio(sample_context):
         def name(self):
             return "edge"
 
-        def synthesize(self, text, out_path, profile):
+        def synthesize(self, text, out_path, profile, scene_id=None):
             out_path.write_bytes(b"fake audio data here")
             return out_path
 
@@ -167,7 +167,7 @@ async def test_tts_stage_uses_registry_for_voice_id(tmp_path):
         def name(self):
             return "edge"
 
-        def synthesize(self, text, out_path, profile):
+        def synthesize(self, text, out_path, profile, scene_id=None):
             calls["synthesize"] += 1
             out_path.write_bytes(b"FAKE-MP3")
             return out_path
@@ -306,3 +306,63 @@ def test_build_subtitle_entries_splits():
     # Timings should cover the full range
     assert entries[0].start_ms == 0
     assert abs(entries[-1].end_ms - 10000) <= 1  # rounding tolerance
+
+
+async def test_tts_passes_scene_id_to_engine(sample_context):
+    """TtsStage must pass each scene's id to engine.synthesize so
+    PrerecordedEngine can key lookups by scene."""
+    from pipeline.voices.base import VoiceProfile
+
+    scenes = [
+        Scene(
+            id="hook_1",
+            section="hook",
+            narration="段落一",
+            narration_est_sec=2.0,
+            visual={"type": "text_card", "text": "v1"},
+        ),
+        Scene(
+            id="ctx_1",
+            section="context",
+            narration="段落二",
+            narration_est_sec=2.0,
+            visual={"type": "text_card", "text": "v2"},
+        ),
+    ]
+    storyboard = Storyboard(scenes=scenes)
+    storyboard_path = sample_context.work_dir / "storyboard.json"
+    storyboard.save(storyboard_path)
+    sample_context.storyboard_path = storyboard_path
+
+    script_dir = sample_context.work_dir / "script"
+    script_dir.mkdir()
+    script_path = script_dir / "script_zh-TW.md"
+    script_path.write_text(storyboard.derive_script(), encoding="utf-8")
+    sample_context.script_path = script_path
+
+    seen_scene_ids: list[str | None] = []
+
+    class _SceneSpyEngine:
+        @property
+        def name(self):
+            return "edge"
+
+        def synthesize(self, text, out_path, profile, scene_id=None):
+            seen_scene_ids.append(scene_id)
+            out_path.write_bytes(b"x")
+            return out_path
+
+    stub_pair = (
+        _SceneSpyEngine(),
+        VoiceProfile(id="stub", engine="edge", locale="zh-TW", params={"voice": "x"}),
+    )
+    stage = TtsStage()
+
+    with (
+        patch("pipeline.stages.tts.VoiceRegistry") as mock_reg_cls,
+        patch("pipeline.stages.tts._get_audio_duration_ms", return_value=1000),
+    ):
+        mock_reg_cls.return_value.default_for_locale.return_value = stub_pair
+        await stage.run(sample_context)
+
+    assert seen_scene_ids == ["hook_1", "ctx_1"]

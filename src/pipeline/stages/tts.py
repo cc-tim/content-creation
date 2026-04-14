@@ -86,9 +86,19 @@ class TtsStage(PipelineStage):
         segment_timings: list[dict[str, Any]] = []
         cumulative_ms = 0
 
+        # Scene ids align 1:1 with segments when the storyboard is present
+        # (storyboard.derive_script emits one narration line per scene).
+        scene_ids: list[str | None] = []
+        if ctx.storyboard_path and ctx.storyboard_path.exists():
+            from pipeline.storyboard import Storyboard
+
+            storyboard_for_ids = Storyboard.load(ctx.storyboard_path)
+            scene_ids = [s.id for s in storyboard_for_ids.scenes]
+
         for i, text in enumerate(segments):
             seg_path = audio_dir / f"segment_{i:03d}.mp3"
-            engine.synthesize(text, seg_path, profile)
+            scene_id = scene_ids[i] if i < len(scene_ids) else None
+            engine.synthesize(text, seg_path, profile, scene_id=scene_id)
 
             # Get actual duration via ffprobe
             est_duration_ms = _get_audio_duration_ms(seg_path)
