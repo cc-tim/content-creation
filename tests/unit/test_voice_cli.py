@@ -49,7 +49,7 @@ def test_voice_add_persists_entry(tmp_path, monkeypatch):
         [
             "add",
             "--id", "tim-zhtw",
-            "--engine", "cosyvoice",
+            "--engine", "edge",
             "--locale", "zh-TW",
             "--reference", str(ref),
             "--reference-text", "大家好",

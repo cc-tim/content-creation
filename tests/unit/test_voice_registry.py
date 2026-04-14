@@ -32,7 +32,7 @@ def test_voice_profile_with_reference(tmp_path):
     profile = VoiceProfile.from_dict(
         {
             "id": "tim-zhtw",
-            "engine": "cosyvoice",
+            "engine": "edge",
             "locale": "zh-TW",
             "reference": str(ref),
             "reference_text": "大家好",
@@ -105,7 +105,7 @@ def test_registry_add_and_save(tmp_path):
     added = registry.add(
         {
             "id": "tim-zhtw",
-            "engine": "cosyvoice",
+            "engine": "edge",
             "locale": "zh-TW",
             "params": {},
             "reference": str(tmp_path / "voices" / "cloned" / "tim.wav"),
