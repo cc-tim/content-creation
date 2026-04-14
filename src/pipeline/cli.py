@@ -32,6 +32,11 @@ def produce(
     voice: str | None = typer.Option(
         None, "--voice", help="Voice profile id (see `pipeline voice list`)."
     ),
+    subtitles: bool = typer.Option(
+        False,
+        "--subtitles/--no-subtitles",
+        help="Burn subtitles into the final video (default: off).",
+    ),
 ) -> None:
     """Run the full production pipeline for a video or web article."""
     config = PipelineConfig()
@@ -49,6 +54,7 @@ def produce(
         ctx = PipelineContext.load(context_file)
         if voice:
             ctx.voice_id = voice
+        ctx.burn_subtitles = subtitles
     else:
         ctx = PipelineContext(
             project_id=project_id,
@@ -56,6 +62,7 @@ def produce(
             locale=locale,
             work_dir=work_dir,
             voice_id=voice,
+            burn_subtitles=subtitles,
         )
 
     # Select acquire stage based on source type
