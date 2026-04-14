@@ -41,6 +41,7 @@ class PipelineContext:
 
     # Stage 5: Compose
     final_video_path: Path | None = None
+    burn_subtitles: bool = True
 
     # Stage 6: Publish
     youtube_video_id: str | None = None
