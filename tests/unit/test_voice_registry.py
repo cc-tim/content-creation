@@ -139,3 +139,36 @@ def test_edge_engine_accepts_optional_scene_id(tmp_path, monkeypatch):
     # Must not raise:
     EdgeEngine().synthesize("你好", out, profile, scene_id="scene_001")
     assert out.exists()
+
+
+def test_registry_resolves_prerecorded_engine(tmp_path):
+    from pipeline.voices.prerecorded_engine import PrerecordedEngine
+    from pipeline.voices.registry import VoiceRegistry
+
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(
+        '{"voices": [{"id": "tim-zhtw", "engine": "prerecorded", '
+        '"locale": "zh-TW", "params": {"recording_dir": "r"}}, '
+        '{"id": "zh-TW-default-f", "engine": "edge", "locale": "zh-TW", '
+        '"params": {"voice": "zh-TW-HsiaoChenNeural"}}]}',
+        encoding="utf-8",
+    )
+    registry = VoiceRegistry(tmp_path)
+    engine, profile = registry.resolve("tim-zhtw")
+    assert isinstance(engine, PrerecordedEngine)
+    assert profile.id == "tim-zhtw"
+
+
+def test_registry_rejects_cosyvoice_engine(tmp_path):
+    from pipeline.voices.base import VoiceNotFound
+    from pipeline.voices.registry import VoiceRegistry
+
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(
+        '{"voices": [{"id": "gone", "engine": "cosyvoice", '
+        '"locale": "zh-TW", "params": {}}]}',
+        encoding="utf-8",
+    )
+    registry = VoiceRegistry(tmp_path)
+    with pytest.raises(VoiceNotFound, match="unknown engine 'cosyvoice'"):
+        registry.resolve("gone")

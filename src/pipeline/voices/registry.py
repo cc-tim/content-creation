@@ -70,8 +70,11 @@ class VoiceRegistry:
         del self._profiles[voice_id]
 
     # ---- engine factory ----
-    @staticmethod
-    def _engine_for(profile: VoiceProfile) -> VoiceEngine:
+    def _engine_for(self, profile: VoiceProfile) -> VoiceEngine:
         if profile.engine == "edge":
             return EdgeEngine()
+        if profile.engine == "prerecorded":
+            from pipeline.voices.prerecorded_engine import PrerecordedEngine
+
+            return PrerecordedEngine(registry=self)
         raise VoiceNotFound(f"unknown engine '{profile.engine}' for voice {profile.id}")
