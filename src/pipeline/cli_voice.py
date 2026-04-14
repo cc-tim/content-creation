@@ -33,7 +33,7 @@ def list_voices() -> None:
 @voice_app.command("add")
 def add_voice(
     id: str = typer.Option(..., "--id"),
-    engine: str = typer.Option(..., "--engine", help="edge | cosyvoice"),
+    engine: str = typer.Option(..., "--engine", help="edge | prerecorded"),
     locale: str = typer.Option(..., "--locale"),
     reference: Optional[Path] = typer.Option(None, "--reference"),
     reference_text: Optional[str] = typer.Option(None, "--reference-text"),

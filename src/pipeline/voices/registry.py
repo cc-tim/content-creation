@@ -74,8 +74,4 @@ class VoiceRegistry:
     def _engine_for(profile: VoiceProfile) -> VoiceEngine:
         if profile.engine == "edge":
             return EdgeEngine()
-        if profile.engine == "cosyvoice":
-            from pipeline.voices.cosy_engine import CosyVoiceEngine
-
-            return CosyVoiceEngine()
         raise VoiceNotFound(f"unknown engine '{profile.engine}' for voice {profile.id}")

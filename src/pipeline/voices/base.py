@@ -13,7 +13,7 @@ class VoiceNotFound(LookupError):
 @dataclass
 class VoiceProfile:
     id: str
-    engine: str  # "edge" | "cosyvoice"
+    engine: str  # "edge" | "prerecorded"
     locale: str
     params: dict[str, Any] = field(default_factory=dict)
     reference_path: Path | None = None
