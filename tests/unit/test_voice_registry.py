@@ -119,3 +119,23 @@ def test_registry_add_and_save(tmp_path):
     # Re-load from disk to prove it persisted.
     reloaded = VoiceRegistry(tmp_path / "voices")
     assert any(p.id == "tim-zhtw" for p in reloaded.list())
+
+
+def test_edge_engine_accepts_optional_scene_id(tmp_path, monkeypatch):
+    """EdgeEngine ignores scene_id but must not reject it."""
+
+    async def fake_run(cls, text, voice, out_path):
+        out_path.write_bytes(b"fake-mp3")
+
+    monkeypatch.setattr(EdgeEngine, "_run", classmethod(fake_run))
+
+    profile = VoiceProfile(
+        id="t",
+        engine="edge",
+        locale="zh-TW",
+        params={"voice": "zh-TW-HsiaoChenNeural"},
+    )
+    out = tmp_path / "a.mp3"
+    # Must not raise:
+    EdgeEngine().synthesize("你好", out, profile, scene_id="scene_001")
+    assert out.exists()

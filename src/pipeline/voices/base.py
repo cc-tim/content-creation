@@ -57,5 +57,16 @@ class VoiceEngine(ABC):
     def name(self) -> str: ...
 
     @abstractmethod
-    def synthesize(self, text: str, out_path: Path, profile: VoiceProfile) -> Path:
-        """Write audio for `text` to `out_path`. Returns the final path."""
+    def synthesize(
+        self,
+        text: str,
+        out_path: Path,
+        profile: VoiceProfile,
+        scene_id: str | None = None,
+    ) -> Path:
+        """Write audio for `text` to `out_path`. Returns the final path.
+
+        `scene_id` is the storyboard scene identifier, passed down by TtsStage.
+        Engines that key off scene identity (e.g. PrerecordedEngine) use it;
+        others ignore it.
+        """

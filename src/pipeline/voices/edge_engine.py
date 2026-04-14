@@ -13,7 +13,14 @@ class EdgeEngine(VoiceEngine):
     def name(self) -> str:
         return "edge"
 
-    def synthesize(self, text: str, out_path: Path, profile: VoiceProfile) -> Path:
+    def synthesize(
+        self,
+        text: str,
+        out_path: Path,
+        profile: VoiceProfile,
+        scene_id: str | None = None,
+    ) -> Path:
+        _ = scene_id  # unused: edge voices are scene-agnostic
         voice = profile.params.get("voice")
         if not voice:
             raise ValueError(f"edge voice profile {profile.id} is missing params.voice")
