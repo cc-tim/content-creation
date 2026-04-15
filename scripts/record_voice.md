@@ -1,49 +1,84 @@
-# Recording a voice sample for CosyVoice2
+# Recording your own voice per scene
 
-## Target
+This project supports a hybrid narration workflow: generate a draft with
+Edge-TTS, then iteratively replace individual scenes with your own
+recordings. You can re-run `produce` at any time; scenes with recordings
+use your voice, the rest use Edge.
 
-A single 30–60 second WAV clip that captures your natural narration voice.
-This becomes the reference audio for zero-shot cloning.
+## One-time setup
 
-## Equipment
+1. Create a recording directory under `voices/prerecorded/`:
+   ```bash
+   mkdir -p voices/prerecorded/tim-zhtw
+   ```
 
-- Any decent USB mic or headset (Blue Yeti, Shure MV7, AirPods Pro all work).
-- A quiet room (no fan, no TV, no AC hum).
-- `arecord` on Linux, QuickTime Player on macOS, or Audacity cross-platform.
-
-## Procedure
-
-1. Run `scripts/install_cosyvoice.sh` once per workstation.
-2. Pick a unique voice id, e.g. `tim-zhtw`, and prepare an empty file:
-   `voices/cloned/tim-zhtw.wav`.
-3. Read the script below at your natural cadence. Do not rush.
-4. Save the file as **16 kHz mono PCM WAV** (CosyVoice2 will resample internally
-   but 16 kHz avoids quality surprises).
-5. Register the voice:
-
+2. Register a `prerecorded` voice profile:
    ```bash
    uv run pipeline voice add \
      --id tim-zhtw \
-     --engine cosyvoice \
+     --engine prerecorded \
      --locale zh-TW \
-     --reference voices/cloned/tim-zhtw.wav \
-     --reference-text "大家好，歡迎來到今天的影片。..." \
-     --display-name "Tim (zh-TW clone)"
+     --recording-dir voices/prerecorded/tim-zhtw \
+     --fallback-voice zh-TW-default-f \
+     --display-name "Tim (zh-TW, pre-recorded)"
    ```
 
-6. Smoke test:
-
+3. Verify:
    ```bash
-   uv run pipeline voice test tim-zhtw --text "測試一二三" --out /tmp/tim_test.wav
+   uv run pipeline voice list
    ```
 
-## Reference script (zh-TW, ~45 seconds)
+## Recording loop
 
-> 大家好，歡迎來到今天的影片。今天我想跟各位分享一個非常有趣的研究。
-> 在人工智慧快速發展的時代，我們常常聽到像是 GPT、Claude 這些名字。
-> 但你知道嗎？讓 AI 真正能夠寫出完整應用程式的關鍵，其實不在於模型本身，
-> 而在於整個系統的設計。從規劃、執行到評估，每一個環節都不能少。
-> 那麼，接下來就讓我們一起來看看，研究員到底是怎麼做到的？
+1. Produce a draft (Edge fills every scene):
+   ```bash
+   uv run pipeline produce --url <video-url> --locale zh-TW \
+     --voice tim-zhtw --no-subtitles
+   ```
 
-Use this exact text as `--reference-text` — CosyVoice2 matches the prosody of
-the recording to the text, so the two must line up.
+2. See what still needs recording:
+   ```bash
+   uv run pipeline storyboard recordings --voice tim-zhtw \
+     --work-dir output/projects/<project_id>
+   ```
+
+3. For each scene you want to re-record, read the exact text:
+   ```bash
+   uv run pipeline storyboard show --scene hook_1 \
+     --work-dir output/projects/<project_id>
+   ```
+
+4. Record that scene. Recommended settings: 16 kHz mono WAV.
+   Save as `voices/prerecorded/tim-zhtw/hook_1.wav`.
+
+5. Re-run `produce` with the same `--project-id` and `--start-from tts`:
+   ```bash
+   uv run pipeline produce --url <video-url> --locale zh-TW \
+     --voice tim-zhtw --no-subtitles \
+     --project-id <project_id> --start-from tts
+   ```
+
+6. Iterate scene by scene. `storyboard recordings` shows progress.
+
+## When text drifts
+
+If you hand-edit `storyboard.json` (or re-run `direct`), a scene's
+narration may change after you already recorded it. The engine compares
+the live narration to the snapshot `<scene_id>.txt` saved at record time:
+
+- If they match → recording is used silently.
+- If they differ → a `prerecorded.stale_recording` warning prints and the
+  recording is used anyway. `storyboard recordings` shows `status: stale`.
+
+To refresh, re-record the scene. The snapshot is rewritten on next run.
+
+## Orphans
+
+A file in the recording directory that has no matching scene id in the
+storyboard is an orphan. `storyboard recordings` lists orphans separately.
+Delete them when you're confident they're no longer needed.
+
+## Equipment
+
+Any decent USB mic or headset works. Record in a quiet room. The pipeline
+transcodes WAV/MP3/M4A input to MP3 automatically.

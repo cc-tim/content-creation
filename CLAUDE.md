@@ -164,6 +164,18 @@ uv run pipeline scriptwrite <analysis-path> --locale zh-TW   # Generate adapted 
 uv run pipeline tts <script-path> --locale zh-TW             # Generate narration
 uv run pipeline compose <project-dir>                        # Final video composition
 
+# Storyboard editing (hand-edit storyboard.json helpers)
+uv run pipeline storyboard show                              # list all scenes
+uv run pipeline storyboard show --scene scene_003            # one scene's full text
+uv run pipeline storyboard recordings --voice tim-zhtw       # recording status per scene
+uv run pipeline storyboard set scene_003 narration="新文字"  # edit a safe field
+
+# Natural-language triggers (for the assistant):
+#   "show me scene X's narration"       → storyboard show --scene X
+#   "which scenes still need recording" → storyboard recordings
+#   "fix scene X's text to Y"           → storyboard set X narration="Y"
+#   "change scene X's pause to Ns"      → storyboard set X pause_after_sec=N
+
 # Testing
 uv run pytest                              # All tests
 uv run pytest tests/unit/                  # Unit tests only
@@ -226,6 +238,14 @@ Trending content must be ported within 48-72 hours of the EN original going vira
 | zh-TW | `zh-TW-HsiaoChenNeural`, `zh-TW-HsiaoYuNeural` | `zh-TW-YunJheNeural` |
 | ja-JP | `ja-JP-NanamiNeural` | `ja-JP-KeitaNeural` |
 | es-MX | `es-MX-DaliaNeural` | `es-MX-JorgeNeural` |
+
+## Prerecorded voice workflow
+
+For occasional vlog-style content, a creator can record scene audio by hand
+and drop files into `voices/prerecorded/<voice_id>/<scene_id>.wav`. The
+pipeline's `PrerecordedEngine` picks up these files and falls back to
+Edge-TTS for any scene without a recording. See `scripts/record_voice.md`
+for the full workflow.
 
 ## CJK Subtitle Rendering
 
