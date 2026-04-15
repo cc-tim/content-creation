@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -60,21 +59,15 @@ def _classify(rec_dir: Path, scene_id: str, live_text: str) -> tuple[str, str]:
     return "recorded", ""
 
 
-def _resolve_voice_profile(
-    registry: VoiceRegistry, voice_id: Optional[str]
-) -> VoiceProfile:
+def _resolve_voice_profile(registry: VoiceRegistry, voice_id: str | None) -> VoiceProfile:
     if voice_id is not None:
         return registry.get(voice_id)
     prerecorded = [p for p in registry.list() if p.engine == "prerecorded"]
     if len(prerecorded) == 1:
         return prerecorded[0]
     if not prerecorded:
-        raise typer.BadParameter(
-            "no prerecorded voice in registry; pass --voice <id>"
-        )
-    raise typer.BadParameter(
-        "multiple prerecorded voices in registry; pass --voice <id>"
-    )
+        raise typer.BadParameter("no prerecorded voice in registry; pass --voice <id>")
+    raise typer.BadParameter("multiple prerecorded voices in registry; pass --voice <id>")
 
 
 def _coerce_value(field: str, raw: str) -> object:
@@ -82,9 +75,7 @@ def _coerce_value(field: str, raw: str) -> object:
         try:
             return float(raw)
         except ValueError as exc:
-            raise typer.BadParameter(
-                f"{field} must be a number, got {raw!r}"
-            ) from exc
+            raise typer.BadParameter(f"{field} must be a number, got {raw!r}") from exc
     if field == "section":
         if raw not in _ALLOWED_SECTIONS:
             raise typer.BadParameter(
@@ -96,7 +87,7 @@ def _coerce_value(field: str, raw: str) -> object:
 
 @storyboard_app.command("show")
 def show(
-    scene: Optional[str] = typer.Option(None, "--scene", help="Scene id to focus"),
+    scene: str | None = typer.Option(None, "--scene", help="Scene id to focus"),
     work_dir: Path = typer.Option(Path("."), "--work-dir"),
 ) -> None:
     """List scenes or print one scene's full narration."""
@@ -139,7 +130,7 @@ def show(
 
 @storyboard_app.command("recordings")
 def recordings(
-    voice: Optional[str] = typer.Option(None, "--voice", help="Voice id"),
+    voice: str | None = typer.Option(None, "--voice", help="Voice id"),
     work_dir: Path = typer.Option(Path("."), "--work-dir"),
 ) -> None:
     """Show per-scene recording status for a prerecorded voice."""

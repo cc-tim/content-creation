@@ -5,6 +5,8 @@ import asyncio
 import structlog
 import typer
 
+from pipeline.cli_storyboard import storyboard_app
+from pipeline.cli_voice import voice_app
 from pipeline.config import PipelineConfig
 from pipeline.orchestrator import Orchestrator
 from pipeline.stages.acquire import AcquireStage
@@ -13,9 +15,6 @@ from pipeline.stages.base import PipelineContext
 from pipeline.stages.compose import ComposeStage
 from pipeline.stages.direct import DirectStage
 from pipeline.stages.tts import TtsStage
-
-from pipeline.cli_storyboard import storyboard_app
-from pipeline.cli_voice import voice_app
 
 logger = structlog.get_logger()
 app = typer.Typer(name="pipeline", help="YouTube content porting pipeline")

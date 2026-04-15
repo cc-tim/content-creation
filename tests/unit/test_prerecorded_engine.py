@@ -84,9 +84,7 @@ def test_missing_fallback_voice_id_uses_default_for_locale(tmp_path):
 
     engine = PrerecordedEngine(registry=reg)
     out = tmp_path / "out.mp3"
-    engine.synthesize(
-        "你好", out, _mk_profile(tmp_path, fallback=None), scene_id="scene_001"
-    )
+    engine.synthesize("你好", out, _mk_profile(tmp_path, fallback=None), scene_id="scene_001")
     assert called["locale"] == "zh-TW"
 
 
@@ -131,9 +129,7 @@ def test_found_recording_with_matching_snapshot_no_warning(tmp_path, monkeypatch
     assert "stale_recording" not in caplog.text
 
 
-def test_found_recording_with_drifted_snapshot_emits_warning(
-    tmp_path, monkeypatch, caplog
-):
+def test_found_recording_with_drifted_snapshot_emits_warning(tmp_path, monkeypatch, caplog):
     import logging
 
     profile = _mk_profile(tmp_path)

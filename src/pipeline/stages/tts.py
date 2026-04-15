@@ -101,9 +101,7 @@ class TtsStage(PipelineStage):
             scene_id = scene_ids[i] if i < len(scene_ids) else None
             # Engines are sync and some (EdgeEngine) call asyncio.run internally,
             # which blows up inside this running loop. Offload to a worker thread.
-            await asyncio.to_thread(
-                engine.synthesize, text, seg_path, profile, scene_id=scene_id
-            )
+            await asyncio.to_thread(engine.synthesize, text, seg_path, profile, scene_id=scene_id)
 
             # Get actual duration via ffprobe
             est_duration_ms = _get_audio_duration_ms(seg_path)

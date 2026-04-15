@@ -46,7 +46,7 @@ def _find_recording(recording_dir: Path, scene_id: str) -> Path | None:
 class PrerecordedEngine(VoiceEngine):
     """Looks up scene-keyed recordings; falls back to another voice on miss."""
 
-    def __init__(self, registry: "VoiceRegistry"):
+    def __init__(self, registry: VoiceRegistry):
         self._registry = registry
 
     @property
@@ -61,15 +61,11 @@ class PrerecordedEngine(VoiceEngine):
         scene_id: str | None = None,
     ) -> Path:
         if scene_id is None:
-            raise ValueError(
-                "PrerecordedEngine requires scene_id; invoke via TtsStage"
-            )
+            raise ValueError("PrerecordedEngine requires scene_id; invoke via TtsStage")
 
         recording_dir_str = profile.params.get("recording_dir")
         if not recording_dir_str:
-            raise ValueError(
-                f"prerecorded profile {profile.id} missing params.recording_dir"
-            )
+            raise ValueError(f"prerecorded profile {profile.id} missing params.recording_dir")
         recording_dir = Path(recording_dir_str)
 
         src = _find_recording(recording_dir, scene_id)
@@ -94,9 +90,7 @@ class PrerecordedEngine(VoiceEngine):
         )
         return fallback_engine.synthesize(text, out_path, fallback_profile, scene_id=scene_id)
 
-    def _handle_snapshot(
-        self, recording_dir: Path, scene_id: str, live_text: str
-    ) -> None:
+    def _handle_snapshot(self, recording_dir: Path, scene_id: str, live_text: str) -> None:
         snapshot_path = recording_dir / f"{scene_id}.txt"
         if not snapshot_path.exists():
             snapshot_path.write_text(live_text, encoding="utf-8")
@@ -112,9 +106,7 @@ class PrerecordedEngine(VoiceEngine):
                 },
             )
 
-    def _resolve_fallback(
-        self, profile: VoiceProfile
-    ) -> tuple[VoiceEngine, VoiceProfile]:
+    def _resolve_fallback(self, profile: VoiceProfile) -> tuple[VoiceEngine, VoiceProfile]:
         fallback_id = profile.params.get("fallback_voice_id")
         if fallback_id:
             return self._registry.resolve(fallback_id)

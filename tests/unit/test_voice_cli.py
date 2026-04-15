@@ -29,7 +29,7 @@ def _init_voices(tmp_path):
 
 
 def test_voice_list_shows_registry(tmp_path, monkeypatch):
-    voices = _init_voices(tmp_path)
+    _init_voices(tmp_path)
     monkeypatch.chdir(tmp_path)
     result = CliRunner().invoke(voice_app, ["list"])
     assert result.exit_code == 0
@@ -48,12 +48,18 @@ def test_voice_add_persists_entry(tmp_path, monkeypatch):
         voice_app,
         [
             "add",
-            "--id", "tim-zhtw",
-            "--engine", "edge",
-            "--locale", "zh-TW",
-            "--reference", str(ref),
-            "--reference-text", "大家好",
-            "--display-name", "Tim",
+            "--id",
+            "tim-zhtw",
+            "--engine",
+            "edge",
+            "--locale",
+            "zh-TW",
+            "--reference",
+            str(ref),
+            "--reference-text",
+            "大家好",
+            "--display-name",
+            "Tim",
         ],
     )
     assert result.exit_code == 0, result.stdout
@@ -80,12 +86,18 @@ def test_voice_add_prerecorded(tmp_path, monkeypatch):
         voice_app,
         [
             "add",
-            "--id", "tim-zhtw",
-            "--engine", "prerecorded",
-            "--locale", "zh-TW",
-            "--recording-dir", str(rec_dir),
-            "--fallback-voice", "zh-TW-default-f",
-            "--display-name", "Tim (zh-TW)",
+            "--id",
+            "tim-zhtw",
+            "--engine",
+            "prerecorded",
+            "--locale",
+            "zh-TW",
+            "--recording-dir",
+            str(rec_dir),
+            "--fallback-voice",
+            "zh-TW-default-f",
+            "--display-name",
+            "Tim (zh-TW)",
         ],
     )
     assert result.exit_code == 0, result.stdout
