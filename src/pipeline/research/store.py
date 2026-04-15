@@ -90,6 +90,16 @@ class ResearchStore:
             self.conn.commit()
             return UpsertResult(status="source_duplicate", document_id=doc_id)
 
+        content_match = cur.execute(
+            "SELECT id FROM documents WHERE content_hash = ?",
+            (doc.content_hash,),
+        ).fetchone()
+        if content_match is not None:
+            self.conn.commit()
+            return UpsertResult(
+                status="content_duplicate", document_id=content_match[0]
+            )
+
         raw_path = self._write_raw(doc, raw_bytes, raw_ext)
         cur.execute(
             """

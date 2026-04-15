@@ -67,3 +67,15 @@ def test_same_source_and_external_id_is_source_dup(store: ResearchStore) -> None
         ).fetchall()
     }
     assert topics == {"sleep", "toddler"}
+
+
+def test_same_content_from_different_source_is_content_dup(
+    store: ResearchStore,
+) -> None:
+    first = _doc(source="openalex", external_id="W1", cleaned_text="same body")
+    second = _doc(source="aap", external_id="https://aap/x", cleaned_text="same body")
+    assert store.upsert(first, raw_bytes=b"{}", raw_ext="json").status == "inserted"
+    result = store.upsert(second, raw_bytes=b"<html>", raw_ext="html")
+    assert result.status == "content_duplicate"
+    count = store.conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+    assert count == 1
