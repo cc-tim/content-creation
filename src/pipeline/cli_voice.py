@@ -39,6 +39,16 @@ def add_voice(
     reference_text: Optional[str] = typer.Option(None, "--reference-text"),
     display_name: Optional[str] = typer.Option(None, "--display-name"),
     param: list[str] = typer.Option([], "--param", help="key=value, repeatable"),
+    recording_dir: Optional[Path] = typer.Option(
+        None,
+        "--recording-dir",
+        help="Directory of per-scene recordings (prerecorded engine).",
+    ),
+    fallback_voice: Optional[str] = typer.Option(
+        None,
+        "--fallback-voice",
+        help="Voice id to use when a scene recording is missing (prerecorded engine).",
+    ),
 ) -> None:
     """Add a new voice profile to the registry."""
     params: dict[str, str] = {}
@@ -47,6 +57,15 @@ def add_voice(
             raise typer.BadParameter(f"--param must be key=value, got {p!r}")
         k, v = p.split("=", 1)
         params[k] = v
+
+    if engine == "prerecorded":
+        if recording_dir is None:
+            raise typer.BadParameter(
+                "--recording-dir is required when --engine prerecorded"
+            )
+        params["recording_dir"] = str(recording_dir)
+        if fallback_voice is not None:
+            params["fallback_voice_id"] = fallback_voice
 
     registry = _registry()
     entry: dict = {

@@ -70,3 +70,28 @@ def test_voice_remove_deletes_entry(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.stdout
     data = json.loads((voices / "registry.json").read_text())
     assert data["voices"] == []
+
+
+def test_voice_add_prerecorded(tmp_path, monkeypatch):
+    voices = _init_voices(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    rec_dir = tmp_path / "rec"
+    result = CliRunner().invoke(
+        voice_app,
+        [
+            "add",
+            "--id", "tim-zhtw",
+            "--engine", "prerecorded",
+            "--locale", "zh-TW",
+            "--recording-dir", str(rec_dir),
+            "--fallback-voice", "zh-TW-default-f",
+            "--display-name", "Tim (zh-TW)",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+    data = json.loads((voices / "registry.json").read_text())
+    profile = next(v for v in data["voices"] if v["id"] == "tim-zhtw")
+    assert profile["engine"] == "prerecorded"
+    assert profile["params"]["recording_dir"] == str(rec_dir)
+    assert profile["params"]["fallback_voice_id"] == "zh-TW-default-f"
