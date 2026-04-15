@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 import subprocess
 from pathlib import Path
@@ -98,7 +99,11 @@ class TtsStage(PipelineStage):
         for i, text in enumerate(segments):
             seg_path = audio_dir / f"segment_{i:03d}.mp3"
             scene_id = scene_ids[i] if i < len(scene_ids) else None
-            engine.synthesize(text, seg_path, profile, scene_id=scene_id)
+            # Engines are sync and some (EdgeEngine) call asyncio.run internally,
+            # which blows up inside this running loop. Offload to a worker thread.
+            await asyncio.to_thread(
+                engine.synthesize, text, seg_path, profile, scene_id=scene_id
+            )
 
             # Get actual duration via ffprobe
             est_duration_ms = _get_audio_duration_ms(seg_path)
