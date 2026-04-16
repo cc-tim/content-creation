@@ -9,6 +9,7 @@ from pipeline.cli_storyboard import storyboard_app
 from pipeline.cli_voice import voice_app
 from pipeline.config import PipelineConfig
 from pipeline.orchestrator import Orchestrator
+from pipeline.research.cli import app as research_app
 from pipeline.stages.acquire import AcquireStage
 from pipeline.stages.analyze import AnalyzeStage
 from pipeline.stages.base import PipelineContext
@@ -20,6 +21,7 @@ logger = structlog.get_logger()
 app = typer.Typer(name="pipeline", help="YouTube content porting pipeline")
 app.add_typer(voice_app, name="voice")
 app.add_typer(storyboard_app, name="storyboard")
+app.add_typer(research_app, name="research")
 
 
 @app.command()
