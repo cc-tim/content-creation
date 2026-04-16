@@ -1,0 +1,25 @@
+{
+  "results": [
+    {
+      "id": "https://openalex.org/W2741809807",
+      "title": "Sleep regulation in early childhood",
+      "publication_date": "2022-03-15",
+      "language": "en",
+      "authorships": [
+        {"author": {"display_name": "Jane Smith"}},
+        {"author": {"display_name": "Carlos Ruiz"}}
+      ],
+      "abstract_inverted_index": {
+        "Sleep": [0],
+        "patterns": [1],
+        "in": [2],
+        "toddlers": [3],
+        "vary": [4],
+        "widely.": [5]
+      },
+      "cited_by_count": 42,
+      "open_access": {"is_oa": true, "oa_url": null},
+      "primary_location": {"landing_page_url": "https://journal.example/w/1"}
+    }
+  ]
+}
