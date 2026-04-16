@@ -5,9 +5,21 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any as _Any
 from typing import Literal
 
 from pipeline.research.models import Document
+
+
+class _RowView(dict[str, _Any]):
+    """Dict subclass that also exposes keys as attributes (for tests + query)."""
+
+    def __getattr__(self, name: str) -> _Any:
+        try:
+            return self[name]
+        except KeyError as exc:
+            raise AttributeError(name) from exc
+
 
 UpsertStatus = Literal["inserted", "source_duplicate", "content_duplicate"]
 
@@ -175,3 +187,53 @@ class ResearchStore:
             ),
         )
         self.conn.commit()
+
+    def list_documents(
+        self,
+        *,
+        topic: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, _Any]]:
+        if topic:
+            rows = self.conn.execute(
+                """
+                SELECT d.* FROM documents d
+                  JOIN document_topics t ON t.document_id = d.id
+                 WHERE t.topic = ?
+                 ORDER BY COALESCE(d.published_at, '') DESC, d.id DESC
+                 LIMIT ?
+                """,
+                (topic, limit or 10_000),
+            )
+        else:
+            rows = self.conn.execute(
+                """
+                SELECT * FROM documents
+                 ORDER BY COALESCE(published_at, '') DESC, id DESC
+                 LIMIT ?
+                """,
+                (limit or 10_000,),
+            )
+        cols = [c[0] for c in rows.description]
+        results: list[dict[str, _Any]] = []
+        for row in rows:
+            rec = dict(zip(cols, row, strict=True))
+            rec["external_id"] = rec["external_id"]
+            results.append(_RowView(rec))
+        return results
+
+    def stats(self) -> dict[str, _Any]:
+        total = self.conn.execute(
+            "SELECT COUNT(*) FROM documents"
+        ).fetchone()[0]
+        by_source = dict(
+            self.conn.execute(
+                "SELECT source, COUNT(*) FROM documents GROUP BY source"
+            ).fetchall()
+        )
+        by_topic = dict(
+            self.conn.execute(
+                "SELECT topic, COUNT(*) FROM document_topics GROUP BY topic"
+            ).fetchall()
+        )
+        return {"total": total, "by_source": by_source, "by_topic": by_topic}
