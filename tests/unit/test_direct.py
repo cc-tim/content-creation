@@ -61,6 +61,7 @@ async def test_direct_outputs_storyboard(sample_context, direct_fixture):
     # Storyboard output
     assert ctx.storyboard_path is not None
     assert ctx.storyboard_path.exists()
+    assert ctx.storyboard_path.name == "storyboard_zh-TW.json"
     sb = Storyboard.load(ctx.storyboard_path)
     assert len(sb.scenes) == 4
     assert sb.scenes[0].section == "hook"

@@ -255,7 +255,7 @@ class DirectStage(PipelineStage):
         )
 
         # Save storyboard
-        storyboard_path = ctx.work_dir / "storyboard.json"
+        storyboard_path = ctx.work_dir / f"storyboard_{ctx.locale}.json"
         storyboard.save(storyboard_path)
         ctx.storyboard_path = storyboard_path
 
