@@ -34,6 +34,8 @@ def build_direct_prompt(
     locale: str,
     fmt: str = "standard",
     tone: str = "dramatic",
+    strategies_text: str = "",
+    reference_storyboard_json: str | None = None,  # wired up in Task 9; accept here
 ) -> str:
     """Build Claude prompt to generate a storyboard from knowledge."""
     locale_instruction = LOCALE_INSTRUCTIONS.get(locale, LOCALE_INSTRUCTIONS["zh-TW"])
@@ -65,6 +67,14 @@ Use 15-25 scenes. Target 12 minutes total."""
             "namecard for introductions, text_card for key facts, generated_image for mood."
         )
 
+    strategies_block = f"\n{strategies_text}\n" if strategies_text else ""
+    reference_block = (
+        f"\nREFERENCE STORYBOARD (preserve scene count, ids, facts_ref, visual, overlay; "
+        f"rewrite only narration in target locale):\n```json\n{reference_storyboard_json}\n```\n"
+        if reference_storyboard_json
+        else ""
+    )
+
     return f"""You are a video director. Create a scene-by-scene storyboard \
 from the knowledge below.
 This is NOT a translation — it is a cultural adaptation creating ORIGINAL content.
@@ -72,7 +82,7 @@ This is NOT a translation — it is a cultural adaptation creating ORIGINAL cont
 LOCALE: {locale}
 LANGUAGE: {locale_instruction}
 TONE: {tone}
-
+{strategies_block}{reference_block}
 {structure}
 
 VISUAL TYPES (assign one per scene):
@@ -225,11 +235,18 @@ class DirectStage(PipelineStage):
 
         logger.info("direct.start", locale=ctx.locale, format=self.fmt)
 
+        from pipeline.strategies import load_strategies
+
+        strategies_text = load_strategies(ctx)
+
         knowledge = Knowledge.load(ctx.knowledge_path)
         client = get_anthropic_client()
         config = PipelineConfig()
 
-        prompt = build_direct_prompt(knowledge, ctx.locale, self.fmt, self.tone)
+        prompt = build_direct_prompt(
+            knowledge, ctx.locale, self.fmt, self.tone,
+            strategies_text=strategies_text,
+        )
 
         response = client.messages.create(
             model=config.CLAUDE_MODEL,

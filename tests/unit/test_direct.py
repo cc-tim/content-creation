@@ -173,3 +173,70 @@ async def test_generate_shorts_storyboards(sample_knowledge):
     assert len(storyboards[0].scenes) == 3
     assert storyboards[0].scenes[0].section == "hook"
     assert len(storyboards[1].scenes) == 2
+
+
+from pathlib import Path as _Path
+
+
+def test_build_direct_prompt_includes_strategies(sample_knowledge):
+    strategies_text = "LOADED STRATEGIES\n\n### test — desc\nHello strategy"
+    prompt = build_direct_prompt(
+        sample_knowledge, "ja", "standard", "dramatic",
+        strategies_text=strategies_text,
+    )
+    assert "LOADED STRATEGIES" in prompt
+    assert "Hello strategy" in prompt
+
+
+def test_build_direct_prompt_omits_strategies_when_empty(sample_knowledge):
+    prompt = build_direct_prompt(
+        sample_knowledge, "ja", "standard", "dramatic",
+        strategies_text="",
+    )
+    assert "LOADED STRATEGIES" not in prompt
+
+
+async def test_direct_stage_loads_and_injects_strategies(
+    sample_context, direct_fixture, tmp_path, monkeypatch
+):
+    # Minimal knowledge
+    kb = _Path(__file__).parent.parent / "fixtures" / "sample_knowledge.json"
+    (sample_context.work_dir / "knowledge.json").write_text(kb.read_text())
+    sample_context.knowledge_path = sample_context.work_dir / "knowledge.json"
+    sample_context.locale = "ja"
+    sample_context.source_locale = "US"
+
+    strat_dir = tmp_path / "promos"
+    strat_dir.mkdir()
+    (strat_dir / "t.md").write_text(
+        "---\n"
+        "name: test-strat\n"
+        "description: test strat desc\n"
+        "applies_when:\n"
+        "  target_locale_differs_from_source: true\n"
+        "---\n"
+        "Body of strategy visible in prompt.\n"
+    )
+
+    # Patch the DEFAULT_STRATEGIES_DIR used by DirectStage
+    import pipeline.strategies as strategies_mod
+    monkeypatch.setattr(strategies_mod, "DEFAULT_STRATEGIES_DIR", strat_dir)
+
+    stage = DirectStage()
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text=json.dumps(direct_fixture))]
+    captured = {}
+
+    with patch("pipeline.stages.direct.get_anthropic_client") as mock_client_fn:
+        mock_client = MagicMock()
+
+        def _create(**kwargs):
+            captured["messages"] = kwargs["messages"]
+            return mock_response
+
+        mock_client.messages.create.side_effect = _create
+        mock_client_fn.return_value = mock_client
+        await stage.run(sample_context)
+
+    prompt_text = captured["messages"][0]["content"]
+    assert "Body of strategy visible in prompt." in prompt_text
