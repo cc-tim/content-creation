@@ -47,3 +47,22 @@ def test_locale_differs_strategy_skipped_when_locales_match(tmp_path):
     ctx = _ctx(tmp_path, locale="en", source_locale="en")
     out = load_strategies(ctx, strategies_dir=FIXTURE_DIR)
     assert "Locale-differs strategy body." not in out
+
+
+def test_target_locale_in_matches(tmp_path):
+    ctx = _ctx(tmp_path, locale="ja")
+    out = load_strategies(ctx, strategies_dir=FIXTURE_DIR)
+    assert "JA-only strategy body." in out
+
+
+def test_target_locale_in_does_not_match(tmp_path):
+    ctx = _ctx(tmp_path, locale="zh-TW")
+    out = load_strategies(ctx, strategies_dir=FIXTURE_DIR)
+    assert "JA-only strategy body." not in out
+
+
+def test_malformed_file_skipped_without_crash(tmp_path, caplog):
+    ctx = _ctx(tmp_path, locale="ja", source_locale="US")
+    # Should not raise even though malformed.md is present in FIXTURE_DIR
+    out = load_strategies(ctx, strategies_dir=FIXTURE_DIR)
+    assert "Body never reached." not in out

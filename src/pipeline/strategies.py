@@ -25,9 +25,23 @@ def _predicate_target_locale_differs_from_source(ctx: PipelineContext, value: An
     return ctx.locale != ctx.source_locale
 
 
+def _predicate_target_locale_in(ctx: PipelineContext, value: Any) -> bool:
+    if not isinstance(value, list):
+        return False
+    return ctx.locale in value
+
+
+def _predicate_source_locale_in(ctx: PipelineContext, value: Any) -> bool:
+    if not isinstance(value, list) or ctx.source_locale is None:
+        return False
+    return ctx.source_locale in value
+
+
 PREDICATES: dict[str, Callable[[PipelineContext, Any], bool]] = {
     "always": _predicate_always,
     "target_locale_differs_from_source": _predicate_target_locale_differs_from_source,
+    "target_locale_in": _predicate_target_locale_in,
+    "source_locale_in": _predicate_source_locale_in,
 }
 
 
