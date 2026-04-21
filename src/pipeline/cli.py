@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 import structlog
 import typer
@@ -40,6 +41,14 @@ def produce(
         "--subtitles/--no-subtitles",
         help="Burn subtitles into the final video (default: off).",
     ),
+    source_locale: str | None = typer.Option(
+        None, "--source-locale", help="Origin of source material (e.g. US, CA, en, ja)"
+    ),
+    reference_storyboard: str | None = typer.Option(
+        None,
+        "--reference-storyboard",
+        help="Path to an existing storyboard JSON used as parallel-locale reference",
+    ),
 ) -> None:
     """Run the full production pipeline for a video or web article."""
     config = PipelineConfig()
@@ -58,6 +67,10 @@ def produce(
         if voice:
             ctx.voice_id = voice
         ctx.burn_subtitles = subtitles
+        if source_locale is not None:
+            ctx.source_locale = source_locale
+        if reference_storyboard is not None:
+            ctx.reference_storyboard_path = Path(reference_storyboard)
     else:
         ctx = PipelineContext(
             project_id=project_id,
@@ -66,6 +79,10 @@ def produce(
             work_dir=work_dir,
             voice_id=voice,
             burn_subtitles=subtitles,
+            source_locale=source_locale,
+            reference_storyboard_path=(
+                Path(reference_storyboard) if reference_storyboard else None
+            ),
         )
 
     # Select acquire stage based on source type
