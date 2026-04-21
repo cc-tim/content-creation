@@ -239,6 +239,10 @@ class DirectStage(PipelineStage):
 
         strategies_text = load_strategies(ctx)
 
+        reference_storyboard_json: str | None = None
+        if ctx.reference_storyboard_path and ctx.reference_storyboard_path.exists():
+            reference_storyboard_json = ctx.reference_storyboard_path.read_text(encoding="utf-8")
+
         knowledge = Knowledge.load(ctx.knowledge_path)
         client = get_anthropic_client()
         config = PipelineConfig()
@@ -246,6 +250,7 @@ class DirectStage(PipelineStage):
         prompt = build_direct_prompt(
             knowledge, ctx.locale, self.fmt, self.tone,
             strategies_text=strategies_text,
+            reference_storyboard_json=reference_storyboard_json,
         )
 
         response = client.messages.create(

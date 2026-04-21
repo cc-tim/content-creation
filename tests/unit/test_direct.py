@@ -196,6 +196,49 @@ def test_build_direct_prompt_omits_strategies_when_empty(sample_knowledge):
     assert "LOADED STRATEGIES" not in prompt
 
 
+async def test_direct_stage_injects_reference_storyboard(
+    sample_context, direct_fixture, tmp_path
+):
+    kb = _Path(__file__).parent.parent / "fixtures" / "sample_knowledge.json"
+    (sample_context.work_dir / "knowledge.json").write_text(kb.read_text())
+    sample_context.knowledge_path = sample_context.work_dir / "knowledge.json"
+    sample_context.locale = "ja"
+
+    ref_path = sample_context.work_dir / "storyboard_en.json"
+    ref_path.write_text(json.dumps({
+        "version": 1,
+        "format": "standard",
+        "target_duration_sec": 720,
+        "aspect_ratio": "16:9",
+        "scenes": [
+            {"id": "s1", "section": "hook", "narration": "English hook",
+             "narration_est_sec": 5, "facts_ref": [], "visual": {"type": "clip"},
+             "overlay": None, "pause_after_sec": 0}
+        ],
+    }))
+    sample_context.reference_storyboard_path = ref_path
+
+    stage = DirectStage()
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text=json.dumps(direct_fixture))]
+    captured = {}
+
+    with patch("pipeline.stages.direct.get_anthropic_client") as mock_client_fn:
+        mock_client = MagicMock()
+
+        def _create(**kwargs):
+            captured["messages"] = kwargs["messages"]
+            return mock_response
+
+        mock_client.messages.create.side_effect = _create
+        mock_client_fn.return_value = mock_client
+        await stage.run(sample_context)
+
+    prompt_text = captured["messages"][0]["content"]
+    assert "REFERENCE STORYBOARD" in prompt_text
+    assert "English hook" in prompt_text
+
+
 async def test_direct_stage_loads_and_injects_strategies(
     sample_context, direct_fixture, tmp_path, monkeypatch
 ):
