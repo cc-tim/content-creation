@@ -79,6 +79,9 @@ async def test_direct_outputs_storyboard(sample_context, direct_fixture):
     # Backwards compat
     assert ctx.story_structure is not None
 
+    assert sb.title == "美國警匪追逐全記錄"
+    assert sb.description.startswith("芝加哥街頭")
+
 
 async def test_generate_shorts_storyboards(sample_knowledge):
     mock_response_data = {
@@ -283,3 +286,30 @@ async def test_direct_stage_loads_and_injects_strategies(
 
     prompt_text = captured["messages"][0]["content"]
     assert "Body of strategy visible in prompt." in prompt_text
+
+
+async def test_direct_handles_missing_title_description(
+    sample_context, direct_fixture
+):
+    kb = _Path(__file__).parent.parent / "fixtures" / "sample_knowledge.json"
+    (sample_context.work_dir / "knowledge.json").write_text(kb.read_text())
+    sample_context.knowledge_path = sample_context.work_dir / "knowledge.json"
+
+    # Strip title/description from fixture
+    response = dict(direct_fixture)
+    response.pop("title", None)
+    response.pop("description", None)
+
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text=json.dumps(response))]
+
+    with patch("pipeline.stages.direct.get_anthropic_client") as mock_client_fn:
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_response
+        mock_client_fn.return_value = mock_client
+
+        ctx = await DirectStage().run(sample_context)
+
+    sb = Storyboard.load(ctx.storyboard_path)
+    assert sb.title is None
+    assert sb.description is None

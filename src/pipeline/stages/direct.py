@@ -105,6 +105,8 @@ Each scene references fact IDs from the knowledge base.
 
 Return ONLY valid JSON:
 {{
+  "title": "YouTube title in target locale, ~60 chars, applying loaded strategies",
+  "description": "YouTube description in target locale, 2-3 paragraphs, crediting sources",
   "scenes": [
     {{
       "id": "s1",
@@ -272,7 +274,9 @@ class DirectStage(PipelineStage):
                 "format": self.fmt,
                 "target_duration_sec": 60 if self.fmt == "short" else 720,
                 "aspect_ratio": "9:16" if self.fmt == "short" else "16:9",
-                **result,
+                "title": result.get("title"),
+                "description": result.get("description"),
+                **{k: v for k, v in result.items() if k not in ("title", "description")},
             }
         )
 
