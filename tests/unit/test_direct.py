@@ -178,9 +178,6 @@ async def test_generate_shorts_storyboards(sample_knowledge):
     assert len(storyboards[1].scenes) == 2
 
 
-from pathlib import Path as _Path
-
-
 def test_build_direct_prompt_includes_strategies(sample_knowledge):
     strategies_text = "LOADED STRATEGIES\n\n### test — desc\nHello strategy"
     prompt = build_direct_prompt(
@@ -202,7 +199,7 @@ def test_build_direct_prompt_omits_strategies_when_empty(sample_knowledge):
 async def test_direct_stage_injects_reference_storyboard(
     sample_context, direct_fixture, tmp_path
 ):
-    kb = _Path(__file__).parent.parent / "fixtures" / "sample_knowledge.json"
+    kb = Path(__file__).parent.parent / "fixtures" / "sample_knowledge.json"
     (sample_context.work_dir / "knowledge.json").write_text(kb.read_text())
     sample_context.knowledge_path = sample_context.work_dir / "knowledge.json"
     sample_context.locale = "ja"
@@ -246,7 +243,7 @@ async def test_direct_stage_loads_and_injects_strategies(
     sample_context, direct_fixture, tmp_path, monkeypatch
 ):
     # Minimal knowledge
-    kb = _Path(__file__).parent.parent / "fixtures" / "sample_knowledge.json"
+    kb = Path(__file__).parent.parent / "fixtures" / "sample_knowledge.json"
     (sample_context.work_dir / "knowledge.json").write_text(kb.read_text())
     sample_context.knowledge_path = sample_context.work_dir / "knowledge.json"
     sample_context.locale = "ja"
@@ -291,7 +288,7 @@ async def test_direct_stage_loads_and_injects_strategies(
 async def test_direct_handles_missing_title_description(
     sample_context, direct_fixture
 ):
-    kb = _Path(__file__).parent.parent / "fixtures" / "sample_knowledge.json"
+    kb = Path(__file__).parent.parent / "fixtures" / "sample_knowledge.json"
     (sample_context.work_dir / "knowledge.json").write_text(kb.read_text())
     sample_context.knowledge_path = sample_context.work_dir / "knowledge.json"
 
@@ -318,7 +315,7 @@ async def test_direct_handles_missing_title_description(
 async def test_direct_warns_on_scene_count_drift(
     sample_context, direct_fixture, tmp_path, capsys
 ):
-    kb = _Path(__file__).parent.parent / "fixtures" / "sample_knowledge.json"
+    kb = Path(__file__).parent.parent / "fixtures" / "sample_knowledge.json"
     (sample_context.work_dir / "knowledge.json").write_text(kb.read_text())
     sample_context.knowledge_path = sample_context.work_dir / "knowledge.json"
 

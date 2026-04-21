@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import pytest
-
 from pipeline.stages.base import PipelineContext
 from pipeline.strategies import load_strategies
 
