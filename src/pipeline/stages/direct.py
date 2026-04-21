@@ -280,6 +280,24 @@ class DirectStage(PipelineStage):
             }
         )
 
+        if reference_storyboard_json is not None:
+            ref_scenes = json.loads(reference_storyboard_json).get("scenes", [])
+            if len(ref_scenes) != len(storyboard.scenes):
+                logger.warning(
+                    "direct.scene_drift",
+                    reference_count=len(ref_scenes),
+                    produced_count=len(storyboard.scenes),
+                )
+            else:
+                ref_ids = [s.get("id") for s in ref_scenes]
+                new_ids = [s.id for s in storyboard.scenes]
+                if ref_ids != new_ids:
+                    logger.warning(
+                        "direct.scene_id_mismatch",
+                        reference_ids=ref_ids,
+                        produced_ids=new_ids,
+                    )
+
         # Save storyboard
         storyboard_path = ctx.work_dir / f"storyboard_{ctx.locale}.json"
         storyboard.save(storyboard_path)

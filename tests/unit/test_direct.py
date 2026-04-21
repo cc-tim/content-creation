@@ -313,3 +313,41 @@ async def test_direct_handles_missing_title_description(
     sb = Storyboard.load(ctx.storyboard_path)
     assert sb.title is None
     assert sb.description is None
+
+
+async def test_direct_warns_on_scene_count_drift(
+    sample_context, direct_fixture, tmp_path, capsys
+):
+    kb = _Path(__file__).parent.parent / "fixtures" / "sample_knowledge.json"
+    (sample_context.work_dir / "knowledge.json").write_text(kb.read_text())
+    sample_context.knowledge_path = sample_context.work_dir / "knowledge.json"
+
+    # Reference has 2 scenes, response will have 4 (from direct_fixture)
+    ref_path = sample_context.work_dir / "storyboard_en.json"
+    ref_path.write_text(json.dumps({
+        "version": 1, "format": "standard",
+        "target_duration_sec": 720, "aspect_ratio": "16:9",
+        "scenes": [
+            {"id": "sX", "section": "hook", "narration": "x",
+             "narration_est_sec": 1, "facts_ref": [], "visual": {}, "overlay": None,
+             "pause_after_sec": 0},
+            {"id": "sY", "section": "context", "narration": "y",
+             "narration_est_sec": 1, "facts_ref": [], "visual": {}, "overlay": None,
+             "pause_after_sec": 0},
+        ],
+    }))
+    sample_context.reference_storyboard_path = ref_path
+
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text=json.dumps(direct_fixture))]
+
+    with patch("pipeline.stages.direct.get_anthropic_client") as mock_client_fn:
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_response
+        mock_client_fn.return_value = mock_client
+        await DirectStage().run(sample_context)
+
+    # structlog emits to stdout; caplog does not capture it in this repo's config.
+    # Check stdout for the warning event name instead.
+    captured = capsys.readouterr()
+    assert "scene_drift" in captured.out or "scene_count_mismatch" in captured.out
