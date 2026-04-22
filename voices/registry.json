@@ -4,29 +4,46 @@
       "id": "zh-TW-default-f",
       "engine": "edge",
       "locale": "zh-TW",
-      "params": {"voice": "zh-TW-HsiaoChenNeural"},
+      "params": {
+        "voice": "zh-TW-HsiaoChenNeural"
+      },
       "display_name": "HsiaoChen (edge, default)"
     },
     {
       "id": "zh-TW-default-m",
       "engine": "edge",
       "locale": "zh-TW",
-      "params": {"voice": "zh-TW-YunJheNeural"},
+      "params": {
+        "voice": "zh-TW-YunJheNeural"
+      },
       "display_name": "YunJhe (edge)"
     },
     {
       "id": "ja-default-f",
       "engine": "edge",
       "locale": "ja",
-      "params": {"voice": "ja-JP-NanamiNeural"},
+      "params": {
+        "voice": "ja-JP-NanamiNeural"
+      },
       "display_name": "Nanami (edge, default)"
     },
     {
       "id": "es-MX-default-f",
       "engine": "edge",
       "locale": "es-MX",
-      "params": {"voice": "es-MX-DaliaNeural"},
+      "params": {
+        "voice": "es-MX-DaliaNeural"
+      },
       "display_name": "Dalia (edge, default)"
+    },
+    {
+      "id": "en-US-jenny",
+      "engine": "edge",
+      "locale": "en",
+      "params": {
+        "voice": "en-US-JennyNeural"
+      },
+      "display_name": "Jenny (edge, calm)"
     }
   ]
 }
