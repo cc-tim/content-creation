@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -39,13 +40,11 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
         except (json.JSONDecodeError, OSError):
             continue
 
-        meta: dict = {}
+        meta: dict[str, object] = {}
         meta_file = project_dir / "metadata.json"
         if meta_file.exists():
-            try:
+            with contextlib.suppress(json.JSONDecodeError, OSError):
                 meta = json.loads(meta_file.read_text())
-            except (json.JSONDecodeError, OSError):
-                pass
 
         locale: str = ctx.get("locale", "")
         final_mp4 = _find_final_video(project_dir, locale)
@@ -58,7 +57,7 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
             ProjectInfo(
                 project_id=project_dir.name,
                 status=_derive_status(ctx, project_dir, locale),
-                title=meta.get("title"),
+                title=meta.get("title"),  # type: ignore[arg-type]
                 locale=locale,
                 niche=ctx.get("niche"),
                 source_url=ctx.get("source_url"),
@@ -66,14 +65,14 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
                 published_at=ctx.get("published_at"),
                 has_video=has_video,
                 final_video_url_path=final_video_url_path,
-                tags=meta.get("tags", []),
+                tags=meta.get("tags", []),  # type: ignore[arg-type]
             )
         )
 
     return results
 
 
-def _derive_status(ctx: dict, project_dir: Path, locale: str) -> str:
+def _derive_status(ctx: dict[str, object], project_dir: Path, locale: str) -> str:
     if ctx.get("youtube_video_id"):
         return "published"
     if _find_final_video(project_dir, locale) is not None:
