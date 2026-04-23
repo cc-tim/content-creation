@@ -1,0 +1,34 @@
+# YouTube channel profiles. Non-secret — safe to commit.
+# Token files live at ~/.config/content-creation/youtube/<profile>.json (mode 0600).
+#
+# After adding a profile here, run:
+#   pipeline publish auth --profile <profile-name>
+
+[profiles.ideal-parents-tw]
+niche      = "parenting"
+locale     = "zh-TW"
+channel_id = ""   # fill in after first auth
+voice_guide = """
+Warm, reassuring parental tone. Avoid clickbait.
+Lead with empathy. Title pattern: scenario + outcome
+("孩子半夜哭鬧?三個步驟幫他冷靜下來").
+Always end description with source credit and AI-disclosure notice.
+"""
+default_tags = ["育兒", "親子", "幼兒教育"]
+category_id  = 27
+
+[profiles.tech-bummer-en]
+niche      = "tech"
+locale     = "en"
+channel_id = ""   # fill in after first auth
+voice_guide = """
+Punchy, curious, slightly irreverent. OK to use "this is wild" energy.
+Title pattern: hook + specificity ("I tried X for 30 days and...").
+End description with source credits + AI-generated-narration disclosure.
+"""
+default_tags = ["tech", "AI", "productivity"]
+category_id  = 28
+
+[routing]
+"parenting/zh-TW" = "ideal-parents-tw"
+"tech/en"         = "tech-bummer-en"

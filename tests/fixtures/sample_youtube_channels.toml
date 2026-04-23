@@ -1,0 +1,28 @@
+[profiles.parenting-tw]
+niche       = "parenting"
+locale      = "zh-TW"
+channel_id  = "UC_parenting_tw"
+voice_guide = "Warm parental tone."
+default_tags = ["育兒"]
+category_id  = 27
+
+[profiles.tech-en]
+niche       = "tech"
+locale      = "en"
+channel_id  = "UC_tech_en"
+voice_guide = "Punchy tech tone."
+default_tags = ["tech"]
+category_id  = 28
+
+[profiles.drama-tw]
+niche       = "drama"
+locale      = "zh-TW"
+channel_id  = "UC_drama_tw"
+voice_guide = "Dramatic narrator."
+default_tags = ["drama"]
+category_id  = 24
+
+[routing]
+"parenting/zh-TW" = "parenting-tw"
+"tech/en"         = "tech-en"
+"drama/zh-TW"     = "drama-tw"
