@@ -54,7 +54,7 @@ def _build_youtube_client(profile: Any, cfg: ChannelConfig) -> YouTubeClient:
 
 
 # ---------------------------------------------------------------------------
-# Custom Click group: routes unknown first args to 'upload'
+# Custom Click group class for default-upload routing
 # ---------------------------------------------------------------------------
 
 class _PublishGroup(click.Group):
@@ -73,45 +73,35 @@ class _PublishGroup(click.Group):
         return super().resolve_command(ctx, args)
 
 
-@click.group(
-    cls=_PublishGroup,
-    name="publish",
-    invoke_without_command=True,
-    help="Publish produced projects to YouTube.",
-)
-@click.pass_context
-def publish_app(ctx: click.Context) -> None:
-    if ctx.invoked_subcommand is None:
-        click.echo(ctx.get_help())
+# ---------------------------------------------------------------------------
+# Typer apps (proper Typer for main CLI integration)
+# ---------------------------------------------------------------------------
+
+publish_app = typer.Typer(help="Publish produced projects to YouTube.")
+accounts_app = typer.Typer(help="Manage YouTube channel profile credentials.")
+publish_app.add_typer(accounts_app, name="accounts")
 
 
 # ---------------------------------------------------------------------------
-# upload (default action when no subcommand matched)
+# upload (default action — invoked as `pipeline publish <project_id>`)
 # ---------------------------------------------------------------------------
 
 @publish_app.command("upload", hidden=True)
-@click.argument("project_id")
-@click.option("--profile", default=None)
-@click.option("--privacy", default="unlisted")
-@click.option("--schedule", default=None)
-@click.option("--dry-run", is_flag=True, default=False)
-@click.option("--force-metadata", is_flag=True, default=False)
-@click.option("--force-thumbnail", is_flag=True, default=False)
 def upload(
-    project_id: str,
-    profile: str | None,
-    privacy: str,
-    schedule: str | None,
-    dry_run: bool,
-    force_metadata: bool,
-    force_thumbnail: bool,
+    project_id: str = typer.Argument(..., help="Project id"),
+    profile: str | None = typer.Option(None, "--profile"),
+    privacy: str = typer.Option("unlisted", "--privacy"),
+    schedule: str | None = typer.Option(None, "--schedule"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+    force_metadata: bool = typer.Option(False, "--force-metadata"),
+    force_thumbnail: bool = typer.Option(False, "--force-thumbnail"),
 ) -> None:
     """Upload a produced project to YouTube."""
     work_dir = _project_dir(project_id)
     ctx_path = work_dir / "context.json"
     if not ctx_path.exists():
-        click.echo(f"Error: project not found at {work_dir}", err=True)
-        raise SystemExit(1)
+        typer.echo(f"Error: project not found at {work_dir}", err=True)
+        raise typer.Exit(code=1)
 
     pipeline_ctx = PipelineContext.load(ctx_path)
     cfg = load_channel_config(_load_channel_config_path())
@@ -130,11 +120,11 @@ def upload(
     pipeline_ctx.save()
 
     if not dry_run and pipeline_ctx.youtube_video_id:
-        click.echo(f"\n✓ Published {pipeline_ctx.youtube_video_id}")
-        click.echo(
+        typer.echo(f"\n✓ Published {pipeline_ctx.youtube_video_id}")
+        typer.echo(
             f"  Studio: https://studio.youtube.com/video/{pipeline_ctx.youtube_video_id}/edit"
         )
-        click.echo(f"  Watch:  https://youtu.be/{pipeline_ctx.youtube_video_id}")
+        typer.echo(f"  Watch:  https://youtu.be/{pipeline_ctx.youtube_video_id}")
 
 
 # ---------------------------------------------------------------------------
@@ -142,14 +132,15 @@ def upload(
 # ---------------------------------------------------------------------------
 
 @publish_app.command("auth")
-@click.option("--profile", required=True)
-@click.option("--reauth", is_flag=True, default=False)
-def auth(profile: str, reauth: bool) -> None:
+def auth(
+    profile: str = typer.Option(..., "--profile"),
+    reauth: bool = typer.Option(False, "--reauth"),
+) -> None:
     """Run the OAuth consent flow for a profile and write its token file."""
     cfg = load_channel_config(_load_channel_config_path())
     if profile not in cfg.profiles:
-        click.echo(f"Error: profile '{profile}' not in config.", err=True)
-        raise SystemExit(1)
+        typer.echo(f"Error: profile '{profile}' not in config.", err=True)
+        raise typer.Exit(code=1)
     prof = cfg.profiles[profile]
     token_path = _token_dir() / f"{profile}.json"
     if reauth and token_path.exists():
@@ -164,13 +155,13 @@ def auth(profile: str, reauth: bool) -> None:
             client.api, expected_channel_id=prof.channel_id
         )
     except AuthError as exc:
-        click.echo(f"ERROR: {exc}", err=True)
-        raise SystemExit(1)
+        typer.echo(f"ERROR: {exc}", err=True)
+        raise typer.Exit(code=1)
 
     save_credentials(creds, token_path)
-    click.echo(f"✓ Authenticated profile '{profile}' → channel {discovered}")
+    typer.echo(f"✓ Authenticated profile '{profile}' → channel {discovered}")
     if not prof.channel_id:
-        click.echo(
+        typer.echo(
             f"  Note: fill in channel_id = \"{discovered}\" under "
             f"[profiles.{profile}] in configs/youtube_channels.toml"
         )
@@ -180,12 +171,6 @@ def auth(profile: str, reauth: bool) -> None:
 # accounts
 # ---------------------------------------------------------------------------
 
-@publish_app.group("accounts")
-def accounts_app() -> None:
-    """Manage YouTube channel profile credentials."""
-    pass
-
-
 @accounts_app.command("list")
 def accounts_list() -> None:
     """List configured profiles and whether their token files exist."""
@@ -194,46 +179,44 @@ def accounts_list() -> None:
     for name in sorted(cfg.profiles):
         path = td / f"{name}.json"
         st = "✓ authenticated" if path.exists() else "✗ missing token"
-        click.echo(f"{name:30s}  {st}")
+        typer.echo(f"{name:30s}  {st}")
 
 
 @accounts_app.command("revoke")
-@click.argument("profile")
-def accounts_revoke(profile: str) -> None:
+def accounts_revoke(profile: str = typer.Argument(...)) -> None:
     """Delete the local token file for a profile."""
     td = _token_dir()
     path = td / f"{profile}.json"
     if not path.exists():
-        click.echo(f"no token at {path}")
+        typer.echo(f"no token at {path}")
         return
     path.unlink()
-    click.echo(f"✓ deleted {path}")
-    click.echo(
+    typer.echo(f"✓ deleted {path}")
+    typer.echo(
         "Remember to also revoke server-side at https://myaccount.google.com/permissions"
     )
 
 
 @accounts_app.command("show")
-@click.argument("profile")
-def accounts_show(profile: str) -> None:
+def accounts_show(profile: str = typer.Argument(...)) -> None:
     """Fetch the channel's public info for a profile (1 quota unit)."""
     cfg = load_channel_config(_load_channel_config_path())
     if profile not in cfg.profiles:
-        click.echo(f"Error: profile '{profile}' not in config", err=True)
-        raise SystemExit(1)
+        typer.echo(f"Error: profile '{profile}' not in config", err=True)
+        raise typer.Exit(code=1)
     token_path = _token_dir() / f"{profile}.json"
     creds = load_credentials(token_path)
     client = YouTubeClient.from_credentials(credentials=creds)
     items = client.channels_list_mine(part="id,snippet,statistics")
     if not items:
-        click.echo("no channel found")
-        raise SystemExit(1)
+        typer.echo("no channel found")
+        raise typer.Exit(code=1)
     ch = items[0]
-    click.echo(f"id:    {ch['id']}")
-    click.echo(f"title: {ch['snippet']['title']}")
+    typer.echo(f"id:    {ch['id']}")
+    typer.echo(f"title: {ch['snippet']['title']}")
     stats = ch.get("statistics", {})
-    click.echo(f"subs:  {stats.get('subscriberCount', '?')}")
-    click.echo(f"videos: {stats.get('videoCount', '?')}")
+    typer.echo(f"subs:  {stats.get('subscriberCount', '?')}")
+    typer.echo(f"videos: {stats.get('videoCount', '?')}")
 
 
 # ---------------------------------------------------------------------------
@@ -241,32 +224,33 @@ def accounts_show(profile: str) -> None:
 # ---------------------------------------------------------------------------
 
 @publish_app.command("status")
-@click.argument("project_id")
-@click.option("--remote", is_flag=True, default=False)
-def status(project_id: str, remote: bool) -> None:
+def status(
+    project_id: str = typer.Argument(...),
+    remote: bool = typer.Option(False, "--remote"),
+) -> None:
     """Show local (and optionally remote) publish state."""
     work_dir = _project_dir(project_id)
     ctx_path = work_dir / "context.json"
     if not ctx_path.exists():
-        click.echo(f"Error: project not found: {work_dir}", err=True)
-        raise SystemExit(1)
+        typer.echo(f"Error: project not found: {work_dir}", err=True)
+        raise typer.Exit(code=1)
     ctx = PipelineContext.load(ctx_path)
 
-    click.echo(f"project_id: {ctx.project_id}")
-    click.echo(f"niche:      {ctx.niche}")
-    click.echo(f"locale:     {ctx.locale}")
-    click.echo(f"profile:    {ctx.publish_profile or '(unresolved)'}")
-    click.echo("")
-    click.echo(
+    typer.echo(f"project_id: {ctx.project_id}")
+    typer.echo(f"niche:      {ctx.niche}")
+    typer.echo(f"locale:     {ctx.locale}")
+    typer.echo(f"profile:    {ctx.publish_profile or '(unresolved)'}")
+    typer.echo("")
+    typer.echo(
         f"video:      {'✓ ' + ctx.youtube_video_id if ctx.youtube_video_id else '✗ pending'}"
     )
-    click.echo(f"thumbnail:  {'✓' if ctx.thumbnail_uploaded else '✗ pending'}")
-    click.echo(f"disclosure: {'✓' if ctx.disclosure_set else '✗ pending'}")
+    typer.echo(f"thumbnail:  {'✓' if ctx.thumbnail_uploaded else '✗ pending'}")
+    typer.echo(f"disclosure: {'✓' if ctx.disclosure_set else '✗ pending'}")
 
     if ctx.youtube_video_id:
-        click.echo("")
-        click.echo(f"Studio: https://studio.youtube.com/video/{ctx.youtube_video_id}/edit")
-        click.echo(f"Watch:  https://youtu.be/{ctx.youtube_video_id}")
+        typer.echo("")
+        typer.echo(f"Studio: https://studio.youtube.com/video/{ctx.youtube_video_id}/edit")
+        typer.echo(f"Watch:  https://youtu.be/{ctx.youtube_video_id}")
 
     next_cmd = None
     if ctx.youtube_video_id is None:
@@ -274,41 +258,48 @@ def status(project_id: str, remote: bool) -> None:
     elif not ctx.thumbnail_uploaded or not ctx.disclosure_set:
         next_cmd = f"pipeline publish {project_id}  # resumes"
     if next_cmd:
-        click.echo(f"\nNext: {next_cmd}")
+        typer.echo(f"\nNext: {next_cmd}")
 
     if remote and ctx.youtube_video_id:
         if not ctx.publish_profile:
-            click.echo("\n(remote check skipped: no publish_profile on context)", err=True)
+            typer.echo("\n(remote check skipped: no publish_profile on context)", err=True)
             return
         cfg = load_channel_config(_load_channel_config_path())
         prof = cfg.profiles[ctx.publish_profile]
         client = _build_youtube_client(prof, cfg)
         items = client.videos_list(video_id=ctx.youtube_video_id, part="status,snippet")
-        click.echo("\n--- remote ---")
+        typer.echo("\n--- remote ---")
         if not items:
-            click.echo("(video not found on YouTube — deleted?)")
+            typer.echo("(video not found on YouTube — deleted?)")
         else:
             v = items[0]
-            click.echo(f"title:    {v['snippet']['title']}")
-            click.echo(f"privacy:  {v['status']['privacyStatus']}")
+            typer.echo(f"title:    {v['snippet']['title']}")
+            typer.echo(f"privacy:  {v['status']['privacyStatus']}")
             if "publishAt" in v["status"]:
-                click.echo(f"publishAt: {v['status']['publishAt']}")
+                typer.echo(f"publishAt: {v['status']['publishAt']}")
 
 
 # ---------------------------------------------------------------------------
-# Make typer.testing.CliRunner accept publish_app (a Click group, not a Typer)
+# Patch typer.testing so CliRunner.invoke applies _PublishGroup routing
+# to the Click group it builds from publish_app.
 # ---------------------------------------------------------------------------
 
 try:
     import typer.testing as _typer_testing
+    import typer.main as _typer_main
 
     _orig_get_cmd = _typer_testing._get_command
 
     def _get_cmd_for_publish(app: Any) -> click.BaseCommand:
+        click_group = _orig_get_cmd(app)
         if app is publish_app:
-            return app  # already a Click group
-        return _orig_get_cmd(app)
+            click_group.__class__ = type(
+                "_RoutingPublishGroup",
+                (_PublishGroup, click_group.__class__),
+                {},
+            )
+        return click_group
 
     _typer_testing._get_command = _get_cmd_for_publish
 except Exception:
-    pass  # not a test environment
+    pass

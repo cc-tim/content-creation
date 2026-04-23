@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 import structlog
 import typer
 
+from pipeline.cli_metadata import metadata_app
 from pipeline.cli_storyboard import storyboard_app
 from pipeline.cli_voice import voice_app
 from pipeline.config import PipelineConfig
 from pipeline.orchestrator import Orchestrator
+from pipeline.publish.channels import auto_detect_niche, load_channel_config
+from pipeline.publish.cli import publish_app
 from pipeline.research.cli import app as research_app
 from pipeline.stages.acquire import AcquireStage
 from pipeline.stages.analyze import AnalyzeStage
@@ -22,6 +26,13 @@ app = typer.Typer(name="pipeline", help="YouTube content porting pipeline")
 app.add_typer(voice_app, name="voice")
 app.add_typer(storyboard_app, name="storyboard")
 app.add_typer(research_app, name="research")
+app.add_typer(publish_app, name="publish")
+app.add_typer(metadata_app, name="metadata")
+
+
+def _channel_config_path() -> Path:
+    """Path to the channels TOML. Overridable in tests."""
+    return Path("configs/youtube_channels.toml")
 
 
 @app.command()
@@ -40,6 +51,12 @@ def produce(
         "--subtitles/--no-subtitles",
         help="Burn subtitles into the final video (default: off).",
     ),
+    niche: str | None = typer.Option(
+        None,
+        "--niche",
+        help="Niche (parenting/tech/drama/...). Auto-detected from routing when omitted. "
+             "Use --niche none to opt out.",
+    ),
 ) -> None:
     """Run the full production pipeline for a video or web article."""
     config = PipelineConfig()
@@ -48,6 +65,21 @@ def produce(
         import time
 
         project_id = int(time.time())
+
+    # Resolve niche (explicit | auto-detected | "none" opt-out)
+    if niche is None:
+        cfg_path = _channel_config_path()
+        if cfg_path.exists():
+            try:
+                niche = auto_detect_niche(load_channel_config(cfg_path), locale=locale)
+                typer.echo(f"niche auto-detected from routing: {niche}")
+            except ValueError as exc:
+                raise typer.BadParameter(str(exc)) from exc
+        else:
+            typer.echo(
+                f"warning: {cfg_path} not found — --niche omitted and no routing available",
+                err=True,
+            )
 
     work_dir = config.OUTPUT_DIR / "projects" / str(project_id)
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -66,6 +98,7 @@ def produce(
             work_dir=work_dir,
             voice_id=voice,
             burn_subtitles=subtitles,
+            niche=niche,
         )
 
     # Select acquire stage based on source type
