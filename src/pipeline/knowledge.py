@@ -87,10 +87,36 @@ class Knowledge:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Knowledge:
-        meta = KnowledgeMeta(**data["meta"])
+        if "meta" in data:
+            meta = KnowledgeMeta(**data["meta"])
+        else:
+            # Legacy format: meta fields at top level
+            meta = KnowledgeMeta(
+                source_type=data.get("source_type", "youtube"),
+                source_url=data.get("source_url", ""),
+                title=data.get("source_title", data.get("topic", "")),
+                locale=data.get("locale", "zh-TW"),
+                created_at=data.get("created_at", ""),
+                updated_at=data.get("updated_at", ""),
+            )
         facts = [Fact(**f) for f in data.get("facts", [])]
-        entities = [Entity(**e) for e in data.get("entities", [])]
-        timeline = [TimelineEvent(**t) for t in data.get("timeline", [])]
+        entities = [
+            Entity(
+                id=e["id"],
+                name=e["name"],
+                role=e.get("role", e.get("type", "")),
+                details=e.get("details", ""),
+            )
+            for e in data.get("entities", [])
+        ]
+        timeline = [
+            TimelineEvent(
+                time=t.get("time", t.get("when", "")),
+                event=t.get("event", t.get("what", "")),
+                facts=t.get("facts", t.get("facts_ref", [])),
+            )
+            for t in data.get("timeline", [])
+        ]
         context_bridges = data.get("context_bridges", [])
         return cls(
             meta=meta,

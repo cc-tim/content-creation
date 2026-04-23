@@ -95,7 +95,7 @@ class PublishStage:
 
     client_factory: Callable[[Any], Any]
     channel_config: "ChannelConfig"
-    privacy: str = "unlisted"
+    privacy: str = "private"
     schedule_iso: str | None = None
     force_metadata: bool = False
     force_thumbnail: bool = False

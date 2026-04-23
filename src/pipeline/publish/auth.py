@@ -13,7 +13,7 @@ logger = structlog.get_logger()
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
-    "https://www.googleapis.com/auth/youtube.readonly",
+    "https://www.googleapis.com/auth/youtube",
 ]
 
 DEFAULT_CONFIG_DIR = Path.home() / ".config" / "content-creation" / "youtube"

@@ -6,6 +6,7 @@ from typing import Any
 import click
 import structlog
 import typer
+from typer.core import TyperGroup
 
 from pipeline.config import PipelineConfig
 from pipeline.publish.auth import (
@@ -59,8 +60,8 @@ def _build_youtube_client(profile: Any, cfg: ChannelConfig) -> YouTubeClient:
 # ---------------------------------------------------------------------------
 
 
-class _PublishGroup(click.Group):
-    """Routes first arg to 'upload' when it doesn't match a known subcommand."""
+class _PublishGroup(TyperGroup):
+    """Routes first positional arg to 'upload' when it doesn't match a known subcommand."""
 
     def resolve_command(
         self, ctx: click.Context, args: list[str]
@@ -75,7 +76,7 @@ class _PublishGroup(click.Group):
 # Typer apps (proper Typer for main CLI integration)
 # ---------------------------------------------------------------------------
 
-publish_app = typer.Typer(help="Publish produced projects to YouTube.")
+publish_app = typer.Typer(help="Publish produced projects to YouTube.", cls=_PublishGroup)
 accounts_app = typer.Typer(help="Manage YouTube channel profile credentials.")
 publish_app.add_typer(accounts_app, name="accounts")
 
@@ -89,7 +90,7 @@ publish_app.add_typer(accounts_app, name="accounts")
 def upload(
     project_id: str = typer.Argument(..., help="Project id"),
     profile: str | None = typer.Option(None, "--profile"),
-    privacy: str = typer.Option("unlisted", "--privacy"),
+    privacy: str = typer.Option("private", "--privacy"),
     schedule: str | None = typer.Option(None, "--schedule"),
     dry_run: bool = typer.Option(False, "--dry-run"),
     force_metadata: bool = typer.Option(False, "--force-metadata"),
@@ -277,26 +278,3 @@ def status(
                 typer.echo(f"publishAt: {v['status']['publishAt']}")
 
 
-# ---------------------------------------------------------------------------
-# Patch typer.testing so CliRunner.invoke applies _PublishGroup routing
-# to the Click group it builds from publish_app.
-# ---------------------------------------------------------------------------
-
-try:
-    import typer.testing as _typer_testing
-
-    _orig_get_cmd = _typer_testing._get_command  # type: ignore[attr-defined]
-
-    def _get_cmd_for_publish(app: Any) -> Any:
-        click_group = _orig_get_cmd(app)
-        if app is publish_app:
-            click_group.__class__ = type(
-                "_RoutingPublishGroup",
-                (_PublishGroup, click_group.__class__),
-                {},
-            )
-        return click_group
-
-    _typer_testing._get_command = _get_cmd_for_publish  # type: ignore[attr-defined, assignment]
-except Exception:
-    pass

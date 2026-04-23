@@ -99,16 +99,17 @@ If any preflight error appears, fix it before proceeding.
 
 ### Step 5: Upload
 
-Upload as unlisted (default) so you can review in YouTube Studio before making it public:
+Upload as **private** (default) — only you can see it in YouTube Studio. You manually change it to public when ready.
 
 ```bash
-# Basic upload (auto-routes via niche+locale)
+# Basic upload (auto-routes via niche+locale) — uploads as private
 uv run pipeline publish <ID>
 
 # Or with explicit options:
 uv run pipeline publish <ID> --profile ideal-parents-tw
 uv run pipeline publish <ID> --schedule 2026-04-25T19:00:00+08:00  # scheduled publish
-uv run pipeline publish <ID> --privacy private                       # private draft
+uv run pipeline publish <ID> --privacy unlisted                      # unlisted (link-only)
+uv run pipeline publish <ID> --privacy public                        # public immediately (not recommended)
 ```
 
 **If upload is interrupted** (network drop, quota exceeded), just re-run the same command — it resumes from the last completed phase (video / thumbnail / disclosure).
@@ -128,7 +129,7 @@ The `--remote` flag confirms:
 Tell the user the Studio URL:
 `https://studio.youtube.com/video/<video_id>/edit`
 
-The video is unlisted — review thumbnail, chapters, and description in Studio before flipping it public.
+The video is **private** — only visible to you in YouTube Studio. Review thumbnail, chapters, and description, then flip it to Public when ready.
 
 ## Resuming a stuck publish
 
@@ -155,7 +156,7 @@ If `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` env vars are set, any publish fai
 ## Important
 
 - Always dry-run before uploading — catches all local issues without spending quota
-- Upload as unlisted, not public — review in YouTube Studio first
+- Upload as **private** by default — only you can see it. Flip to public manually in YouTube Studio when ready
 - Thumbnail must be hand-designed (1280×720, ≤ 2MB PNG/JPG) — pipeline does not generate thumbnails
 - YouTube quota resets at Pacific midnight — if you hit `quotaExceeded`, retry next day
 - Each channel has its own OAuth token; `pipeline publish accounts list` shows auth status

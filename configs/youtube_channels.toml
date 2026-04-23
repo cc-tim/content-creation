@@ -7,7 +7,7 @@
 [profiles.ideal-parents-tw]
 niche      = "parenting"
 locale     = "zh-TW"
-channel_id = ""   # fill in after first auth
+channel_id = "UCOzL_agyMJLknQtXgLMIyyA"
 voice_guide = """
 Warm, reassuring parental tone. Avoid clickbait.
 Lead with empathy. Title pattern: scenario + outcome
