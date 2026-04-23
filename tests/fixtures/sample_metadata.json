@@ -1,0 +1,13 @@
+{
+  "title": "Sample Title",
+  "description": "Sample description.",
+  "tags": ["sample", "test"],
+  "category_id": 27,
+  "default_language": "zh-TW",
+  "default_audio_language": "zh-TW",
+  "made_for_kids": false,
+  "altered_or_synthetic_content": "synthetic_voice",
+  "_generated_at": "2026-04-23T00:00:00+00:00",
+  "_source_url": "https://example.com",
+  "_profile": "sample-profile"
+}
