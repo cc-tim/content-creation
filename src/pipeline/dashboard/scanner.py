@@ -88,14 +88,13 @@ def _derive_status(ctx: dict, project_dir: Path, locale: str) -> str:
 
 
 def _find_final_video(project_dir: Path, locale: str) -> Path | None:
+    if not locale:
+        return None
     compose_dir = project_dir / "compose"
     if not compose_dir.exists():
         return None
     specific = compose_dir / f"final_{locale}.mp4"
-    if specific.exists():
-        return specific
-    matches = list(compose_dir.glob("final_*.mp4"))
-    return matches[0] if matches else None
+    return specific if specific.exists() else None
 
 
 def _sort_key(project_id: str) -> tuple[int, str]:

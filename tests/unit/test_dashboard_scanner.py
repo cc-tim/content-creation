@@ -125,3 +125,27 @@ def test_locale_and_niche_populated(tmp_path: Path) -> None:
     [p] = scan_projects(tmp_path / "output")
     assert p.locale == "ja"
     assert p.niche == "crime"
+
+
+def test_project_with_invalid_context_json_is_skipped(tmp_path: Path) -> None:
+    project_dir = tmp_path / "output" / "projects" / "bad"
+    project_dir.mkdir(parents=True)
+    (project_dir / "context.json").write_text("{invalid json")
+    result = scan_projects(tmp_path / "output")
+    assert result == []
+
+
+def test_project_with_invalid_metadata_json_falls_back(tmp_path: Path) -> None:
+    _make_project(tmp_path, "good")
+    bad_dir = tmp_path / "output" / "projects" / "bad2"
+    bad_dir.mkdir(parents=True)
+    (bad_dir / "context.json").write_text(json.dumps({
+        "project_id": "bad2", "locale": "zh-TW",
+        "source_url": None, "niche": None,
+        "youtube_video_id": None, "published_at": None,
+    }))
+    (bad_dir / "metadata.json").write_text("{not json}")
+    results = scan_projects(tmp_path / "output")
+    bad = next(p for p in results if p.project_id == "bad2")
+    assert bad.title is None
+    assert bad.tags == []
