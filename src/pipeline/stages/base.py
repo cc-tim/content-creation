@@ -17,6 +17,7 @@ class PipelineContext:
     locale: str  # zh-TW, ja, es-MX
     work_dir: Path
     candidate_id: int | None = None  # FK to candidates table (set when coming from discovery)
+    niche: str | None = None  # parenting, tech, drama, ... or "none"
 
     # Stage 1: Acquire
     video_path: Path | None = None
@@ -45,6 +46,10 @@ class PipelineContext:
 
     # Stage 6: Publish
     youtube_video_id: str | None = None
+    thumbnail_uploaded: bool = False
+    disclosure_set: bool = False
+    published_at: str | None = None   # ISO8601
+    publish_profile: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to JSON-safe dict. Converts Path to str."""
