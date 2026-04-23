@@ -176,6 +176,39 @@ uv run pipeline storyboard set scene_003 narration="新文字"  # edit a safe fi
 #   "fix scene X's text to Y"           → storyboard set X narration="Y"
 #   "change scene X's pause to Ns"      → storyboard set X pause_after_sec=N
 
+## Publish and metadata workflow
+
+```bash
+# Upload a produced project (unlisted by default → review in YouTube Studio)
+uv run pipeline publish <project-id>                               # auto-routes via niche+locale
+uv run pipeline publish <project-id> --profile ideal-parents-tw    # explicit channel
+uv run pipeline publish <project-id> --schedule 2026-04-25T19:00:00+08:00
+uv run pipeline publish <project-id> --dry-run                     # preflight only
+
+# OAuth setup (one-time per channel)
+uv run pipeline publish auth --profile ideal-parents-tw
+uv run pipeline publish accounts list
+uv run pipeline publish accounts show ideal-parents-tw
+
+# Diagnose stuck publishes
+uv run pipeline publish status <project-id>
+uv run pipeline publish status <project-id> --remote               # live state from YouTube
+
+# Edit generated metadata
+uv run pipeline metadata show --work-dir <project-dir>
+uv run pipeline metadata set title="新標題" --work-dir <project-dir>
+uv run pipeline metadata regenerate --work-dir <project-dir>
+
+# Natural-language triggers (for the assistant):
+#   "upload project X to YouTube"               → pipeline publish X
+#   "schedule X for tomorrow 7pm"               → pipeline publish X --schedule <ISO8601>
+#   "what's the publish state of X?"            → pipeline publish status X
+#   "what's actually live for project X?"       → pipeline publish status X --remote
+#   "re-authorize the parenting channel"        → pipeline publish auth --profile ideal-parents-tw --reauth
+#   "change project X's title to Y"             → pipeline metadata set title=Y --work-dir <project-dir>
+#   "show me project X's metadata"              → pipeline metadata show --work-dir <project-dir>
+```
+
 # Testing
 uv run pytest                              # All tests
 uv run pytest tests/unit/                  # Unit tests only
