@@ -12,7 +12,7 @@ import json
 import re
 import subprocess
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from pipeline.utils.video_analysis import detect_scene_changes, get_duration
 
@@ -141,7 +141,7 @@ def _merge_scores(
     keywords: list[tuple[float, float]],
     duration_sec: float,
     window_sec: int = 5,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Merge three signal lists into per-window combined scores."""
     def to_dict(scores: list[tuple[float, float]]) -> dict[int, float]:
         out: dict[int, float] = {}
@@ -170,13 +170,13 @@ def _merge_scores(
 
 
 def _select_candidates(
-    scored: list[dict],
+    scored: list[dict[str, Any]],
     top_n: int = 10,
     min_spacing_sec: float = 15.0,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Pick top-N candidates, enforcing minimum spacing between timestamps."""
     sorted_by_score = sorted(scored, key=lambda x: x["combined_score"], reverse=True)
-    selected: list[dict] = []
+    selected: list[dict[str, Any]] = []
     for candidate in sorted_by_score:
         ts = candidate["timestamp_sec"]
         if all(abs(ts - s["timestamp_sec"]) >= min_spacing_sec for s in selected):
@@ -198,7 +198,7 @@ def extract_highlights(
     window_sec: int = 5,
     top_n: int = 10,
     min_spacing_sec: float = 15.0,
-) -> dict:
+) -> dict[str, Any]:
     """Generate clip manifest content for a source video.
 
     Returns the manifest dict. Caller writes it to disk.
@@ -227,8 +227,8 @@ def extract_highlights(
 
     raw_candidates = _select_candidates(scored, top_n, min_spacing_sec)
 
-    candidates: list[dict] = []
-    rejected: list[dict] = []
+    candidates: list[dict[str, Any]] = []
+    rejected: list[dict[str, Any]] = []
     for c in raw_candidates:
         kf_path = Path(c["keyframe_path"]) if c.get("keyframe_path") else None
         caption = (

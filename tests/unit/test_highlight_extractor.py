@@ -12,6 +12,7 @@ from pipeline.utils.highlight_extractor import (
     NullCaptionProvider,
     _audio_rms_per_window,
     _count_scene_changes_per_window,
+    _is_rejected_caption,
     _merge_scores,
     _score_keywords,
     _select_candidates,
@@ -104,9 +105,27 @@ def test_merge_scores_combines_signals():
 
 def test_select_candidates_enforces_spacing():
     scored = [
-        {"timestamp_sec": 0.0, "combined_score": 0.9, "frame_diff": 0.9, "audio_rms": 0.9, "keyword_score": 0.9},
-        {"timestamp_sec": 5.0, "combined_score": 0.85, "frame_diff": 0.8, "audio_rms": 0.8, "keyword_score": 0.9},
-        {"timestamp_sec": 20.0, "combined_score": 0.7, "frame_diff": 0.7, "audio_rms": 0.7, "keyword_score": 0.7},
+        {
+            "timestamp_sec": 0.0,
+            "combined_score": 0.9,
+            "frame_diff": 0.9,
+            "audio_rms": 0.9,
+            "keyword_score": 0.9,
+        },
+        {
+            "timestamp_sec": 5.0,
+            "combined_score": 0.85,
+            "frame_diff": 0.8,
+            "audio_rms": 0.8,
+            "keyword_score": 0.9,
+        },
+        {
+            "timestamp_sec": 20.0,
+            "combined_score": 0.7,
+            "frame_diff": 0.7,
+            "audio_rms": 0.7,
+            "keyword_score": 0.7,
+        },
     ]
     result = _select_candidates(scored, top_n=10, min_spacing_sec=15.0)
     timestamps = [c["timestamp_sec"] for c in result]
@@ -129,10 +148,24 @@ def test_extract_highlights_returns_manifest_shape(tmp_path):
     fake_video = tmp_path / "video.mp4"
     fake_video.write_bytes(b"fake")
 
-    with patch("pipeline.utils.highlight_extractor.get_duration", return_value=60.0), \
-         patch("pipeline.utils.highlight_extractor.detect_scene_changes", return_value=[10.0, 25.0, 40.0]), \
-         patch("pipeline.utils.highlight_extractor._audio_rms_per_window", return_value=[(0.0, 0.5), (5.0, 0.8)]), \
-         patch("pipeline.utils.video_analysis.extract_keyframes", return_value=[]):
+    with (
+        patch(
+            "pipeline.utils.highlight_extractor.get_duration",
+            return_value=60.0,
+        ),
+        patch(
+            "pipeline.utils.highlight_extractor.detect_scene_changes",
+            return_value=[10.0, 25.0, 40.0],
+        ),
+        patch(
+            "pipeline.utils.highlight_extractor._audio_rms_per_window",
+            return_value=[(0.0, 0.5), (5.0, 0.8)],
+        ),
+        patch(
+            "pipeline.utils.video_analysis.extract_keyframes",
+            return_value=[],
+        ),
+    ):
         manifest = extract_highlights(fake_video, transcript_path=None)
 
     assert "candidates" in manifest
@@ -144,3 +177,15 @@ def test_extract_highlights_returns_manifest_shape(tmp_path):
         assert "combined_score" in c
         assert "caption" in c
         assert c["usable"] is True
+
+
+def test_is_rejected_caption_matches_patterns():
+    assert _is_rejected_caption("talking head at desk answering questions") is True
+    assert _is_rejected_caption("anchor at desk reading news") is True
+    assert _is_rejected_caption("blank screen with white noise") is True
+
+
+def test_is_rejected_caption_passes_usable_frames():
+    assert _is_rejected_caption("officer drawing weapon, suspect visible") is False
+    assert _is_rejected_caption("car chase on highway at night") is False
+    assert _is_rejected_caption("courtroom, judge reading verdict") is False
