@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Content Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0f0f0f; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; font-size: 14px; }
+
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid #1e1e1e; }
+    .header-title { font-size: 16px; font-weight: 600; }
+    .header-count { margin-left: 10px; color: #4a5568; font-size: 12px; }
+    .header-stats { display: flex; gap: 8px; align-items: center; }
+    .stat-pill { font-size: 11px; padding: 3px 8px; border-radius: 4px; }
+    .pill-published { background: #16a34a22; color: #16a34a; }
+    .pill-rendered  { background: #d9770622; color: #d97706; }
+    .pill-storyboard{ background: #6366f122; color: #6366f1; }
+    .live-ind { color: #374151; font-size: 11px; padding: 3px 8px; transition: color .3s; }
+    .live-ind.pulse { color: #16a34a; }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { border-bottom: 1px solid #1e1e1e; }
+    th { text-align: left; padding: 8px 16px; font-size: 10px; text-transform: uppercase;
+         letter-spacing: .05em; color: #4a5568; font-weight: 500; }
+    tbody tr { border-bottom: 1px solid #141414; }
+    tbody tr.clickable { cursor: pointer; transition: background .1s; }
+    tbody tr.clickable:hover, tbody tr.active { background: #161616; }
+    tbody tr.dimmed { opacity: .45; }
+    td { padding: 10px 16px; vertical-align: middle; }
+
+    .badge { font-size: 9px; padding: 2px 8px; border-radius: 10px; color: #fff; white-space: nowrap; }
+    .s-published  { background: #16a34a; }
+    .s-rendered   { background: #d97706; }
+    .s-storyboard { background: #6366f1; }
+    .s-analyzed   { background: #3b82f6; }
+    .s-acquired   { background: #475569; }
+    .s-new        { background: #374151; }
+
+    .t-main { color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+    .t-id   { color: #374151; font-size: 10px; margin-top: 2px; }
+    .t-miss { color: #4a5568; font-style: italic; }
+    a { color: #3b82f6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    a.yt { color: #16a34a; }
+    .nil { color: #2d3748; }
+
+    .detail-row td { padding: 0; }
+    .detail-panel { padding: 16px 20px; background: #111; border-bottom: 1px solid #1e1e1e; }
+    video { width: 100%; max-width: 720px; border-radius: 4px; background: #000; display: block; margin-bottom: 14px; }
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: #64748b; }
+    .meta-grid .lbl { color: #475569; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <span class="header-title">Content Dashboard</span>
+    <span class="header-count" id="hcount"></span>
+  </div>
+  <div class="header-stats">
+    <span id="sp" class="stat-pill pill-published" style="display:none"></span>
+    <span id="sr" class="stat-pill pill-rendered"  style="display:none"></span>
+    <span id="ss" class="stat-pill pill-storyboard" style="display:none"></span>
+    <span id="live" class="live-ind">↻ live</span>
+  </div>
+</div>
+
+<table>
+  <thead><tr>
+    <th>Status</th>
+    <th>Title / ID</th>
+    <th>Locale · Niche</th>
+    <th>Source</th>
+    <th>YouTube</th>
+    <th>Date</th>
+  </tr></thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<script>
+let activeId = null;
+
+function ytId(url) {
+  if (!url) return null;
+  const m = url.match(/[?&]v=([^&]+)/);
+  return m ? m[1] : null;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleDateString('en-US', {month:'short', day:'numeric'}); }
+  catch { return '—'; }
+}
+
+function render(data) {
+  const counts = {published:0, rendered:0, storyboard:0};
+  data.forEach(p => { if (p.status in counts) counts[p.status]++; });
+
+  document.getElementById('hcount').textContent =
+    `${data.length} project${data.length !== 1 ? 's' : ''}`;
+
+  [['sp','published'],['sr','rendered'],['ss','storyboard']].forEach(([id, s]) => {
+    const el = document.getElementById(id);
+    if (counts[s] > 0) { el.textContent = `${counts[s]} ${s}`; el.style.display=''; }
+    else el.style.display = 'none';
+  });
+
+  const tbody = document.getElementById('tbody');
+  const prevActive = activeId;
+  tbody.innerHTML = '';
+
+  data.forEach(p => {
+    const canClick = p.has_video;
+    const isActive = canClick && p.project_id === prevActive;
+    const srcId = ytId(p.source_url);
+
+    const tr = document.createElement('tr');
+    tr.dataset.id = p.project_id;
+    tr.className = canClick
+      ? ('clickable' + (isActive ? ' active' : ''))
+      : 'dimmed';
+
+    tr.innerHTML = `
+      <td><span class="badge s-${p.status}">● ${p.status}</span></td>
+      <td style="max-width:280px">
+        <div class="t-main ${p.title ? '' : 't-miss'}">${p.title || 'No title yet'}</div>
+        <div class="t-id">${p.project_id}</div>
+      </td>
+      <td style="color:#64748b">${p.locale}${p.niche ? ' · '+p.niche : ''}</td>
+      <td>${srcId
+        ? `<a href="https://www.youtube.com/watch?v=${srcId}" target="_blank">${srcId} ↗</a>`
+        : '<span class="nil">—</span>'}</td>
+      <td>${p.youtube_video_id
+        ? `<a class="yt" href="https://www.youtube.com/watch?v=${p.youtube_video_id}" target="_blank">${p.youtube_video_id} ↗</a>`
+        : '<span class="nil">—</span>'}</td>
+      <td style="color:#4a5568;font-size:11px">${fmtDate(p.published_at)}</td>`;
+
+    if (canClick) tr.addEventListener('click', () => toggleDetail(p));
+    tbody.appendChild(tr);
+
+    if (isActive) tbody.appendChild(makeDetailRow(p));
+  });
+}
+
+function makeDetailRow(p) {
+  const dr = document.createElement('tr');
+  dr.className = 'detail-row';
+  dr.dataset.detailFor = p.project_id;
+  const srcId = ytId(p.source_url);
+  const tags = p.tags.slice(0, 5).join(', ') + (p.tags.length > 5 ? '…' : '');
+  dr.innerHTML = `<td colspan="6"><div class="detail-panel">
+    <video controls src="${p.final_video_url_path || ''}"></video>
+    <div class="meta-grid">
+      <div><span class="lbl">Title: </span>${p.title || '—'}</div>
+      <div><span class="lbl">Locale: </span>${p.locale}${p.niche ? ' · '+p.niche : ''}</div>
+      <div><span class="lbl">YouTube: </span>${p.youtube_video_id
+        ? `<a class="yt" href="https://www.youtube.com/watch?v=${p.youtube_video_id}" target="_blank">${p.youtube_video_id} ↗</a>`
+        : '—'}</div>
+      <div><span class="lbl">Published: </span>${fmtDate(p.published_at)}</div>
+      <div><span class="lbl">Tags: </span><span style="color:#475569">${tags || '—'}</span></div>
+      <div><span class="lbl">Source: </span>${srcId
+        ? `<a href="https://www.youtube.com/watch?v=${srcId}" target="_blank">${srcId} ↗</a>`
+        : '—'}</div>
+    </div>
+  </div></td>`;
+  return dr;
+}
+
+function toggleDetail(p) {
+  const existing = document.querySelector(`tr[data-detail-for="${p.project_id}"]`);
+  if (existing) {
+    existing.remove();
+    document.querySelector(`tr[data-id="${p.project_id}"]`).classList.remove('active');
+    activeId = null;
+    return;
+  }
+  // Close any open panel
+  const open = document.querySelector('tr.detail-row');
+  if (open) {
+    const prevId = open.dataset.detailFor;
+    open.remove();
+    document.querySelector(`tr[data-id="${prevId}"]`)?.classList.remove('active');
+  }
+  // Open new panel
+  const tr = document.querySelector(`tr[data-id="${p.project_id}"]`);
+  tr.classList.add('active');
+  tr.insertAdjacentElement('afterend', makeDetailRow(p));
+  activeId = p.project_id;
+}
+
+async function refresh() {
+  const ind = document.getElementById('live');
+  try {
+    const resp = await fetch('/api/projects');
+    if (!resp.ok) throw new Error(resp.status);
+    render(await resp.json());
+    ind.classList.add('pulse');
+    setTimeout(() => ind.classList.remove('pulse'), 500);
+    ind.textContent = '↻ live';
+    ind.style.color = '';
+  } catch (e) {
+    ind.textContent = '↻ error';
+    ind.style.color = '#ef4444';
+  }
+}
+
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>
