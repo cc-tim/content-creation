@@ -51,31 +51,69 @@ print(f'Duration: {d[\"duration\"]//60}m{d[\"duration\"]%60}s')
 "
 ```
 
-### Step 1b: Visual analysis (clip confidence)
+### Step 1b: Highlight extraction (clip confidence)
 
-Extract keyframes and detect scene changes to inform clip decisions later:
+Extract signal-scored highlight candidates — replaces raw keyframe scanning:
 
 ```bash
 uv run python3 -c "
+from pipeline.utils.highlight_extractor import extract_highlights
 from pathlib import Path
-from pipeline.utils.video_analysis import extract_keyframes, detect_scene_changes
+import json
 
-video = Path('output/projects/<ID>/source/video.mp4')
-kf_dir = Path('output/projects/<ID>/source/keyframes')
-frames = extract_keyframes(video, kf_dir, interval_sec=15)
-print(f'Extracted {len(frames)} keyframes (every 15s)')
-
-scenes = detect_scene_changes(video, threshold=0.3)
-print(f'Detected {len(scenes)} scene changes: {[f\"{t:.1f}s\" for t in scenes[:10]]}')"
+manifest = extract_highlights(
+    Path('output/projects/<ID>/source/video.mp4'),
+    transcript_path=Path('output/projects/<ID>/source/transcript.json'),
+)
+Path('output/projects/<ID>/source/clip_manifest.json').write_text(
+    json.dumps(manifest, indent=2, ensure_ascii=False), encoding='utf-8'
+)
+print(f'Highlights: {len(manifest[\"candidates\"])} candidates ({manifest[\"duration_sec\"]}s video)')
+for c in manifest['candidates']:
+    print(f'  {c[\"timestamp_sec\"]:>6.0f}s  score={c[\"combined_score\"]:.2f}  keyframe={c[\"keyframe_path\"]}')
+"
 ```
 
-**IMPORTANT:** Read the keyframe images to understand what's visually happening at each timestamp. This is how you decide which moments are safe to use as clips:
-- Look at each keyframe — what does it show? Action? Static graphic? Talking head? Map?
-- Note timestamps where visually compelling footage occurs
-- Only use `clip` visual type for timestamps where you've confirmed the footage matches the narration
-- Prefer designed visuals (text_card, slide, generated_image) for everything else
+**IMPORTANT:** Read each keyframe image listed in `clip_manifest.json` candidates (only those 10, not all keyframes) to understand what's visually at each timestamp before assigning clips in the storyboard.
 
-Scene change timestamps indicate visual transitions — these are natural cut points for clips.
+To swap in vision captions later (reduces image-reading to zero): pass `caption_provider=GptVisionCaptionProvider(api_key=...)` to `extract_highlights()`.
+
+### Step 1c: ClipSelector sub-agent (QA gate)
+
+**Dispatch a ClipSelector sub-agent** to validate the highlight candidates before proceeding. Do NOT self-evaluate.
+
+```python
+Agent(
+  subagent_type="general-purpose",
+  description="Validate highlight candidates for clip usability",
+  prompt="""You are the CLIP SELECTOR — an independent QA agent.
+
+Read: output/projects/<ID>/source/clip_manifest.json
+Also read each keyframe image listed in candidates[].keyframe_path
+
+For each candidate, apply the quality rubric:
+
+PASS criteria (all must be true):
+- Keyframe shows clear visual action or recognizable setting (not a talking head or blank)
+- combined_score >= 0.5
+- No sensitive content (explicit violence close-ups, private individuals in harmful context)
+
+FAIL criteria (any triggers rejection):
+- Keyframe shows ONLY: news anchor at desk, blank screen, static title card, empty room
+- combined_score < 0.3
+- Near-duplicate: another candidate within 10s covers the same content
+
+Output STRICTLY in this format:
+approved: [<timestamp_sec>, ...]
+rejected: [{"timestamp_sec": X, "reason": "..."}]
+summary: "X of Y candidates approved"
+
+Under 150 words. Be critical."""
+)
+```
+
+If 0 candidates are approved: warn the user and continue — all scenes will use designed visuals.
+Note the approved timestamps. Reference ONLY approved timestamps when writing `clip` visual types in the storyboard.
 
 ### Step 2: Analyze (agent-driven — YOU do this)
 
@@ -147,6 +185,71 @@ Ask: "Anything to correct or add before I create the storyboard?"
 
 Wait for user feedback. Apply edits using /knowledge operations.
 If user approves, proceed.
+
+### Step 3b: Gallery lookup + AssetEvaluator sub-agent
+
+Before writing the storyboard, consult the gallery for candidate assets per story section.
+
+For each of the 6 story sections (hook, context, rising, climax, aftermath, analysis), run:
+
+```bash
+uv run pipeline gallery search "<section_concept_keywords>" --niche <niche> --type image
+```
+
+Example for a bodycam video with a courthouse climax scene:
+```bash
+uv run pipeline gallery search "courthouse verdict guilty" --niche bodycam --type image
+```
+
+Accumulate results and write `assets/manifest.json`:
+
+```python
+import json
+from pathlib import Path
+
+assets = {
+    "hook": {"tier": "local", "path": "output/gallery/images/abc123.png", "tags": ["police", "night"]},
+    "context": {"tier": "generate", "suggested_prompt": "flat minimalist map of US state borders"},
+    # ... one entry per section
+}
+Path('output/projects/<ID>/assets').mkdir(parents=True, exist_ok=True)
+Path('output/projects/<ID>/assets/manifest.json').write_text(
+    json.dumps(assets, indent=2), encoding='utf-8'
+)
+```
+
+Then **dispatch the AssetEvaluator sub-agent**:
+
+```python
+Agent(
+  subagent_type="general-purpose",
+  description="Validate gallery/stock assets against scene intent",
+  prompt="""You are the ASSET EVALUATOR — an independent QA agent.
+
+Read:
+1. output/projects/<ID>/assets/manifest.json  (proposed assets per story section)
+2. output/projects/<ID>/knowledge.json         (what the video is about)
+
+For each proposed asset:
+1. Relevance (1-5): does it illustrate its assigned section?
+2. Quality (PASS/FAIL): resolution adequate? No watermarks? No AI faces?
+3. Tone match (PASS/FAIL): does the visual mood match the narrative moment?
+
+Hard rejects:
+- Watermarked images
+- AI photorealism on human faces
+- Asset visually unrelated to the video topic
+
+Output per asset: APPROVED / REPLACE (with alternative gallery search query) / GENERATE
+Overall verdict: PASS (>80% approved) or NEEDS_WORK
+
+Under 200 words. Be critical."""
+)
+```
+
+If NEEDS_WORK: re-run gallery search with the suggested alternative queries, then re-evaluate. Fix before proceeding to storyboard.
+
+Use the approved asset paths when setting `visual.type = "article_image"` with `visual.path` in storyboard scenes. Tier-3 (generate) sections will use `visual.type = "generated_image"` as usual.
 
 ### Step 4: Direct (agent-driven — YOU do this)
 
