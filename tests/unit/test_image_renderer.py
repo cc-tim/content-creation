@@ -96,11 +96,12 @@ def test_render_generated_image_uses_provider_chain(tmp_path):
     """Happy path: provider chain is called with cache path and aspect-aware size."""
     captured: dict = {}
 
-    def fake_chain(providers, *, prompt, out_path, size):
+    def fake_chain(providers, *, prompt, out_path, size, reference_image=None):
         captured["provider_count"] = len(providers)
         captured["prompt"] = prompt
         captured["out_path"] = out_path
         captured["size"] = size
+        captured["reference_image"] = reference_image
         out_path.write_bytes(b"png")
         return ProviderResult(path=out_path, provider="gemini")
 

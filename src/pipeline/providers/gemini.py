@@ -35,12 +35,28 @@ class GeminiImageProvider(ImageProvider):
     def name(self) -> str:
         return "gemini"
 
-    def generate(self, prompt: str, out_path: Path, size: str) -> ProviderResult:
+    def generate(
+        self,
+        prompt: str,
+        out_path: Path,
+        size: str,
+        reference_image: Path | None = None,
+    ) -> ProviderResult:
+        from google.genai import types
+
         client = _build_client(self._api_key)
+        contents: list = [prompt]
+        if reference_image is not None and reference_image.exists():
+            mime = "image/png" if reference_image.suffix.lower() == ".png" else "image/jpeg"
+            contents.append(
+                types.Part.from_bytes(
+                    data=reference_image.read_bytes(), mime_type=mime
+                )
+            )
         try:
             response = client.models.generate_content(
                 model=self.MODEL,
-                contents=prompt,
+                contents=contents if len(contents) > 1 else prompt,
             )
         except Exception as exc:  # google-genai raises many subtypes; normalize here
             if _is_quota_error(exc):

@@ -32,7 +32,13 @@ class DalleImageProvider(ImageProvider):
     def name(self) -> str:
         return "dalle"
 
-    def generate(self, prompt: str, out_path: Path, size: str) -> ProviderResult:
+    def generate(
+        self,
+        prompt: str,
+        out_path: Path,
+        size: str,
+        reference_image: Path | None = None,
+    ) -> ProviderResult:
         client = _build_client(self._api_key)
         try:
             response = client.images.generate(

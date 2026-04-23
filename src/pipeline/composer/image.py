@@ -61,6 +61,17 @@ def render_generated_image(
     cache_dir = work_dir / "image_cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
 
+    ref_raw = visual.get("reference_image")
+    reference_image: Path | None = None
+    if ref_raw:
+        candidate = Path(ref_raw)
+        if not candidate.is_absolute():
+            candidate = work_dir / ref_raw
+        if candidate.exists():
+            reference_image = candidate
+        else:
+            logger.warning("image.reference_missing", reference=str(candidate))
+
     cache_name = _cache_key(prompt)
     cached_png = cache_dir / f"{cache_name}.png"
     output = work_dir / f"{scene_id}_visual.mp4"
@@ -82,8 +93,14 @@ def render_generated_image(
                 prompt=prompt,
                 out_path=cached_png,
                 size=_dalle_size(width, height),
+                reference_image=reference_image,
             )
-            logger.info("image.generated", prompt=prompt[:50], provider=result.provider)
+            logger.info(
+                "image.generated",
+                prompt=prompt[:50],
+                provider=result.provider,
+                with_reference=reference_image is not None,
+            )
         except ProviderError as exc:
             logger.warning("image.generation_failed", error=str(exc))
             return _fallback_text_card(

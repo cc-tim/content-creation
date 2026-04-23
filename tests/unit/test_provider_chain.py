@@ -23,7 +23,13 @@ class _StubProvider(ImageProvider):
     def name(self) -> str:
         return self._name
 
-    def generate(self, prompt: str, out_path: Path, size: str) -> ProviderResult:
+    def generate(
+        self,
+        prompt: str,
+        out_path: Path,
+        size: str,
+        reference_image: Path | None = None,
+    ) -> ProviderResult:
         self.calls += 1
         if self._behavior == "ok":
             out_path.write_bytes(b"fake-bytes")

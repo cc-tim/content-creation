@@ -30,7 +30,13 @@ class ImageProvider(ABC):
     def name(self) -> str: ...
 
     @abstractmethod
-    def generate(self, prompt: str, out_path: Path, size: str) -> ProviderResult: ...
+    def generate(
+        self,
+        prompt: str,
+        out_path: Path,
+        size: str,
+        reference_image: Path | None = None,
+    ) -> ProviderResult: ...
 
 
 def try_chain(
@@ -39,6 +45,7 @@ def try_chain(
     prompt: str,
     out_path: Path,
     size: str,
+    reference_image: Path | None = None,
 ) -> ProviderResult:
     """Walk providers in order, returning the first successful result.
 
@@ -52,7 +59,9 @@ def try_chain(
     for provider in providers:
         try:
             logger.info("image provider attempt: %s", provider.name)
-            return provider.generate(prompt, out_path, size)
+            return provider.generate(
+                prompt, out_path, size, reference_image=reference_image
+            )
         except QuotaExhausted as exc:
             logger.warning("image provider %s quota exhausted: %s", provider.name, exc)
             last_error = exc
