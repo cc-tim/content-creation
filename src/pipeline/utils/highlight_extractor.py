@@ -9,11 +9,12 @@ by default) can enrich candidates with visual descriptions.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from pipeline.utils.video_analysis import detect_scene_changes
+from pipeline.utils.video_analysis import detect_scene_changes, get_duration
 
 ACTION_WORDS = [
     "shot", "arrest", "fight", "crash", "verdict", "confronted",
@@ -21,10 +22,15 @@ ACTION_WORDS = [
     "threatening", "fleeing", "struggle", "collision", "fired",
 ]
 
+# Used by caption providers (Task 2) to filter visually low-quality candidates.
 REJECT_PATTERNS = [
     "talking head at desk", "anchor at desk", "blank screen",
     "empty room", "news lower third", "static title card",
 ]
+
+_ACTION_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in ACTION_WORDS) + r")\b"
+)
 
 
 @runtime_checkable
@@ -39,19 +45,6 @@ class NullCaptionProvider:
         return None
 
 
-def _get_duration(video_path: Path) -> float:
-    result = subprocess.run(
-        [
-            "ffprobe", "-v", "quiet",
-            "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            str(video_path),
-        ],
-        capture_output=True, text=True, check=True,
-    )
-    return float(result.stdout.strip())
-
-
 def _count_scene_changes_per_window(
     video_path: Path,
     window_sec: int = 5,
@@ -63,7 +56,7 @@ def _count_scene_changes_per_window(
     Returns list of (timestamp_sec, normalized_score).
     """
     timestamps = detect_scene_changes(video_path, threshold=threshold)
-    duration = _get_duration(video_path)
+    duration = get_duration(video_path)
     n_windows = int(duration / window_sec) + 1
     counts = [0] * n_windows
     for ts in timestamps:
@@ -137,8 +130,6 @@ def _score_keywords(
         text = entry.get("text", "").lower()
         bucket = int(start / window_sec)
         if 0 <= bucket < n_windows:
-            for word in ACTION_WORDS:
-                if word in text:
-                    counts[bucket] += 1
+            counts[bucket] += len(_ACTION_RE.findall(text))
     max_count = max(counts) or 1
     return [(float(i * window_sec), c / max_count) for i, c in enumerate(counts)]
