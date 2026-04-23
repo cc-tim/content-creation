@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from typing import Any
 
 import structlog
 
@@ -45,12 +46,15 @@ def _dalle_size(width: int, height: int) -> str:
 
 
 def render_generated_image(
-    visual: dict,
+    visual: dict[str, Any],
     duration_sec: float,
     width: int,
     height: int,
     work_dir: Path,
     scene_id: str,
+    gallery_path: Path | None = None,
+    niche: str | None = None,
+    scene_narration: str = "",
 ) -> Path:
     """Generate an image via the configured provider chain, convert to video.
 
@@ -101,6 +105,14 @@ def render_generated_image(
                 provider=result.provider,
                 with_reference=reference_image is not None,
             )
+            if gallery_path is not None:
+                _write_to_gallery(
+                    image_path=cached_png,
+                    prompt=prompt,
+                    gallery_path=gallery_path,
+                    niche=niche or "",
+                    scene_narration=scene_narration,
+                )
         except ProviderError as exc:
             logger.warning("image.generation_failed", error=str(exc))
             return _fallback_text_card(
@@ -129,3 +141,45 @@ def _fallback_text_card(
         work_dir,
         scene_id,
     )
+
+
+def _write_to_gallery(
+    image_path: Path,
+    prompt: str,
+    gallery_path: Path,
+    niche: str,
+    scene_narration: str,
+) -> None:
+    """Append a successfully generated image to the global gallery index."""
+    import shutil
+    from datetime import date
+    from pipeline.utils.gallery import GalleryEntry, GalleryIndex, GALLERY_DIR
+
+    gallery_images_dir = GALLERY_DIR / "images"
+    gallery_images_dir.mkdir(parents=True, exist_ok=True)
+
+    entry_id = hashlib.md5(prompt.encode()).hexdigest()[:12]
+    dest = gallery_images_dir / f"{entry_id}.png"
+
+    if not dest.exists():
+        shutil.copy2(image_path, dest)
+
+    stop_words = {"a", "an", "the", "of", "in", "for", "with", "and", "or", "is", "are"}
+    words = (prompt + " " + scene_narration).lower().split()
+    tags = list(dict.fromkeys(w for w in words if len(w) > 3 and w not in stop_words))[:8]
+
+    idx = GalleryIndex.load(gallery_path)
+    if any(e.id == entry_id for e in idx.entries):
+        return
+    idx.append(GalleryEntry(
+        id=entry_id,
+        path=str(dest),
+        type="image",
+        origin="dalle",
+        prompt=prompt,
+        query=None,
+        tags=tags,
+        niche=[niche] if niche else [],
+        created_at=date.today().isoformat(),
+    ))
+    idx.save()

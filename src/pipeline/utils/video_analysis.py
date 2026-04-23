@@ -112,7 +112,7 @@ def extract_review_frames(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if timestamps is None:
-        duration = _get_duration(video_path)
+        duration = get_duration(video_path)
         interval = duration / (count + 1)
         timestamps = [interval * (i + 1) for i in range(count)]
 
@@ -142,7 +142,7 @@ def extract_review_frames(
     return frames
 
 
-def _get_duration(path: Path) -> float:
+def get_duration(path: Path) -> float:
     """Get media duration in seconds."""
     result = subprocess.run(
         [

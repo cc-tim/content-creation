@@ -13,7 +13,7 @@ def test_extract_keyframes(tmp_path):
     out_dir = tmp_path / "keyframes"
 
     with (
-        patch("pipeline.utils.video_analysis._get_duration", return_value=30.0),
+        patch("pipeline.utils.video_analysis.get_duration", return_value=30.0),
         patch("pipeline.utils.video_analysis.run_ffmpeg") as mock_ff,
     ):
         mock_ff.return_value = MagicMock(returncode=0)
@@ -65,7 +65,7 @@ def test_extract_review_frames(tmp_path):
     out_dir = tmp_path / "review"
 
     with (
-        patch("pipeline.utils.video_analysis._get_duration", return_value=60.0),
+        patch("pipeline.utils.video_analysis.get_duration", return_value=60.0),
         patch("pipeline.utils.video_analysis.run_ffmpeg") as mock_ff,
     ):
         mock_ff.return_value = MagicMock(returncode=0)
