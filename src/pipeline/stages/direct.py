@@ -213,9 +213,14 @@ _METADATA_TOOL = {
     "input_schema": {
         "type": "object",
         "required": [
-            "title", "description", "tags", "category_id",
-            "default_language", "default_audio_language",
-            "made_for_kids", "altered_or_synthetic_content",
+            "title",
+            "description",
+            "tags",
+            "category_id",
+            "default_language",
+            "default_audio_language",
+            "made_for_kids",
+            "altered_or_synthetic_content",
         ],
         "properties": {
             "title": {"type": "string", "maxLength": 100},
@@ -335,8 +340,8 @@ def write_metadata_for_project(
 
     tool_input.setdefault("category_id", profile.category_id)
 
-    tool_input["description"] = (
-        tool_input["description"].rstrip() + _locale_footer(locale, source_url)
+    tool_input["description"] = tool_input["description"].rstrip() + _locale_footer(
+        locale, source_url
     )
 
     metadata = Metadata(**tool_input)

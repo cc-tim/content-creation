@@ -55,7 +55,7 @@ def produce(
         None,
         "--niche",
         help="Niche (parenting/tech/drama/...). Auto-detected from routing when omitted. "
-             "Use --niche none to opt out.",
+        "Use --niche none to opt out.",
     ),
 ) -> None:
     """Run the full production pipeline for a video or web article."""

@@ -61,9 +61,16 @@ def show(
     """Pretty-print metadata.json."""
     path = _metadata_path(work_dir)
     raw = json.loads(path.read_text(encoding="utf-8"))
-    for key in ("title", "description", "tags", "category_id",
-                "default_language", "default_audio_language",
-                "made_for_kids", "altered_or_synthetic_content"):
+    for key in (
+        "title",
+        "description",
+        "tags",
+        "category_id",
+        "default_language",
+        "default_audio_language",
+        "made_for_kids",
+        "altered_or_synthetic_content",
+    ):
         if key in raw:
             _console.print(f"[bold]{key}[/bold]: {raw[key]}")
     for key in sorted(k for k in raw if k.startswith("_")):
@@ -132,8 +139,7 @@ def regenerate(
 
     if not ctx.niche or ctx.niche == "none":
         raise typer.BadParameter(
-            "context has no niche set; cannot route to a profile. "
-            "Re-run produce with --niche NAME."
+            "context has no niche set; cannot route to a profile. Re-run produce with --niche NAME."
         )
 
     cfg = load_channel_config(Path("configs/youtube_channels.toml"))
@@ -142,7 +148,7 @@ def regenerate(
     storyboard = Storyboard.load(ctx.storyboard_path or work_dir / "storyboard.json")
     synopsis = "\n".join(f"{s.section}: {s.narration[:120]}" for s in storyboard.scenes)
 
-    facts: list[dict] = []
+    facts: list[dict[str, str]] = []
     if ctx.knowledge_path and ctx.knowledge_path.exists():
         knowledge = Knowledge.load(ctx.knowledge_path)
         facts = [{"id": f.id, "text": f.text} for f in knowledge.facts[:10]]

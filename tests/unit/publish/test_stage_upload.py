@@ -155,8 +155,13 @@ def test_explicit_profile_override(ready_project: Path) -> None:
     client.videos_insert.return_value = "V"
     cfg = _make_config()
     other = ChannelProfile(
-        name="other", niche="x", locale="en", channel_id="UC_other",
-        voice_guide="", default_tags=[], category_id=1,
+        name="other",
+        niche="x",
+        locale="en",
+        channel_id="UC_other",
+        voice_guide="",
+        default_tags=[],
+        category_id=1,
     )
     cfg = ChannelConfig(
         profiles={**cfg.profiles, "other": other},

@@ -30,6 +30,7 @@ logger = structlog.get_logger()
 # Helpers (patched in tests via monkeypatch / patch)
 # ---------------------------------------------------------------------------
 
+
 def _load_channel_config_path() -> Path:
     return Path("configs/youtube_channels.toml")
 
@@ -57,6 +58,7 @@ def _build_youtube_client(profile: Any, cfg: ChannelConfig) -> YouTubeClient:
 # Custom Click group class for default-upload routing
 # ---------------------------------------------------------------------------
 
+
 class _PublishGroup(click.Group):
     """Routes first arg to 'upload' when it doesn't match a known subcommand."""
 
@@ -64,11 +66,7 @@ class _PublishGroup(click.Group):
         self, ctx: click.Context, args: list[str]
     ) -> tuple[str | None, click.Command | None, list[str]]:
         cmd_name = click.utils.make_str(args[0]) if args else None
-        if (
-            cmd_name is not None
-            and not cmd_name.startswith("-")
-            and cmd_name not in self.commands
-        ):
+        if cmd_name is not None and not cmd_name.startswith("-") and cmd_name not in self.commands:
             args = ["upload"] + list(args)
         return super().resolve_command(ctx, args)
 
@@ -85,6 +83,7 @@ publish_app.add_typer(accounts_app, name="accounts")
 # ---------------------------------------------------------------------------
 # upload (default action — invoked as `pipeline publish <project_id>`)
 # ---------------------------------------------------------------------------
+
 
 @publish_app.command("upload", hidden=True)
 def upload(
@@ -131,6 +130,7 @@ def upload(
 # auth
 # ---------------------------------------------------------------------------
 
+
 @publish_app.command("auth")
 def auth(
     profile: str = typer.Option(..., "--profile"),
@@ -151,9 +151,7 @@ def auth(
     client = YouTubeClient.from_credentials(credentials=creds)
 
     try:
-        discovered = verify_channel_ownership(
-            client.api, expected_channel_id=prof.channel_id
-        )
+        discovered = verify_channel_ownership(client.api, expected_channel_id=prof.channel_id)
     except AuthError as exc:
         typer.echo(f"ERROR: {exc}", err=True)
         raise typer.Exit(code=1)
@@ -162,7 +160,7 @@ def auth(
     typer.echo(f"✓ Authenticated profile '{profile}' → channel {discovered}")
     if not prof.channel_id:
         typer.echo(
-            f"  Note: fill in channel_id = \"{discovered}\" under "
+            f'  Note: fill in channel_id = "{discovered}" under '
             f"[profiles.{profile}] in configs/youtube_channels.toml"
         )
 
@@ -170,6 +168,7 @@ def auth(
 # ---------------------------------------------------------------------------
 # accounts
 # ---------------------------------------------------------------------------
+
 
 @accounts_app.command("list")
 def accounts_list() -> None:
@@ -192,9 +191,7 @@ def accounts_revoke(profile: str = typer.Argument(...)) -> None:
         return
     path.unlink()
     typer.echo(f"✓ deleted {path}")
-    typer.echo(
-        "Remember to also revoke server-side at https://myaccount.google.com/permissions"
-    )
+    typer.echo("Remember to also revoke server-side at https://myaccount.google.com/permissions")
 
 
 @accounts_app.command("show")
@@ -222,6 +219,7 @@ def accounts_show(profile: str = typer.Argument(...)) -> None:
 # ---------------------------------------------------------------------------
 # status
 # ---------------------------------------------------------------------------
+
 
 @publish_app.command("status")
 def status(
@@ -286,11 +284,10 @@ def status(
 
 try:
     import typer.testing as _typer_testing
-    import typer.main as _typer_main
 
-    _orig_get_cmd = _typer_testing._get_command
+    _orig_get_cmd = _typer_testing._get_command  # type: ignore[attr-defined]
 
-    def _get_cmd_for_publish(app: Any) -> click.BaseCommand:
+    def _get_cmd_for_publish(app: Any) -> Any:
         click_group = _orig_get_cmd(app)
         if app is publish_app:
             click_group.__class__ = type(
@@ -300,6 +297,6 @@ try:
             )
         return click_group
 
-    _typer_testing._get_command = _get_cmd_for_publish
+    _typer_testing._get_command = _get_cmd_for_publish  # type: ignore[attr-defined, assignment]
 except Exception:
     pass

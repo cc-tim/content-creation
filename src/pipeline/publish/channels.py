@@ -19,7 +19,7 @@ class ChannelProfile:
 @dataclass(frozen=True)
 class ChannelConfig:
     profiles: dict[str, ChannelProfile]
-    routing: dict[str, str]   # "niche/locale" -> profile name
+    routing: dict[str, str]  # "niche/locale" -> profile name
 
 
 def load_channel_config(path: Path) -> ChannelConfig:
@@ -44,8 +44,7 @@ def load_channel_config(path: Path) -> ChannelConfig:
     for key, profile_name in routing.items():
         if profile_name not in profiles:
             raise ValueError(
-                f"routing references unknown profile: {profile_name} "
-                f"(from key '{key}')"
+                f"routing references unknown profile: {profile_name} (from key '{key}')"
             )
 
     return ChannelConfig(profiles=profiles, routing=routing)
@@ -62,8 +61,7 @@ def resolve_profile(
     if override is not None:
         if override not in cfg.profiles:
             raise ValueError(
-                f"profile '{override}' not found in config. "
-                f"Available: {sorted(cfg.profiles)}"
+                f"profile '{override}' not found in config. Available: {sorted(cfg.profiles)}"
             )
         return cfg.profiles[override]
 
@@ -107,7 +105,6 @@ def auto_detect_niche(cfg: ChannelConfig, *, locale: str) -> str:
         )
     if len(unique) > 1:
         raise ValueError(
-            f"Ambiguous: locale={locale} maps to niches: {', '.join(unique)}. "
-            f"Specify --niche NAME."
+            f"Ambiguous: locale={locale} maps to niches: {', '.join(unique)}. Specify --niche NAME."
         )
     return unique[0]

@@ -30,7 +30,7 @@ def test_load_channel_config_routing_points_at_unknown_profile(tmp_path: Path) -
     bad = tmp_path / "bad.toml"
     bad.write_text(
         '[profiles.a]\nniche="x"\nlocale="en"\nchannel_id=""\nvoice_guide=""\n'
-        'default_tags=[]\ncategory_id=1\n'
+        "default_tags=[]\ncategory_id=1\n"
         '[routing]\n"x/en" = "nonexistent"\n',
         encoding="utf-8",
     )

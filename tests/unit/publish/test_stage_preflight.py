@@ -60,7 +60,9 @@ def test_preflight_missing_metadata(ready_project: Path) -> None:
 
 
 def test_preflight_thumbnail_too_large(ready_project: Path) -> None:
-    (ready_project / "thumbnail.png").write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * (3 * 1024 * 1024))
+    (ready_project / "thumbnail.png").write_bytes(
+        b"\x89PNG\r\n\x1a\n" + b"\x00" * (3 * 1024 * 1024)
+    )
     ctx = _ctx(ready_project)
     with pytest.raises(PreflightError, match="thumbnail.*exceeds"):
         run_preflight(ctx=ctx, privacy="unlisted", schedule_iso=None)
@@ -69,17 +71,13 @@ def test_preflight_thumbnail_too_large(ready_project: Path) -> None:
 def test_preflight_schedule_with_public_rejected(ready_project: Path) -> None:
     ctx = _ctx(ready_project)
     with pytest.raises(PreflightError, match="schedule.*public"):
-        run_preflight(
-            ctx=ctx, privacy="public", schedule_iso="2099-01-01T00:00:00+00:00"
-        )
+        run_preflight(ctx=ctx, privacy="public", schedule_iso="2099-01-01T00:00:00+00:00")
 
 
 def test_preflight_schedule_in_past(ready_project: Path) -> None:
     ctx = _ctx(ready_project)
     with pytest.raises(PreflightError, match="schedule.*past"):
-        run_preflight(
-            ctx=ctx, privacy="private", schedule_iso="2000-01-01T00:00:00+00:00"
-        )
+        run_preflight(ctx=ctx, privacy="private", schedule_iso="2000-01-01T00:00:00+00:00")
 
 
 def test_preflight_invalid_metadata(ready_project: Path) -> None:

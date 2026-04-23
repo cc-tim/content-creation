@@ -8,9 +8,7 @@ from typer.testing import CliRunner
 
 from pipeline.cli import app
 
-CHANNELS_FIXTURE = (
-    Path(__file__).parents[1] / "fixtures" / "sample_youtube_channels.toml"
-)
+CHANNELS_FIXTURE = Path(__file__).parents[1] / "fixtures" / "sample_youtube_channels.toml"
 
 
 @pytest.fixture
@@ -43,9 +41,12 @@ def test_produce_uses_explicit_niche(
             app,
             [
                 "produce",
-                "--url", "https://example.com",
-                "--locale", "zh-TW",
-                "--niche", "drama",
+                "--url",
+                "https://example.com",
+                "--locale",
+                "zh-TW",
+                "--niche",
+                "drama",
                 "--skip-review",
             ],
         )
@@ -64,8 +65,10 @@ def test_produce_auto_detects_when_locale_unambiguous(
             app,
             [
                 "produce",
-                "--url", "https://example.com",
-                "--locale", "en",
+                "--url",
+                "https://example.com",
+                "--locale",
+                "en",
                 "--skip-review",
             ],
         )
@@ -83,9 +86,12 @@ def test_produce_niche_none_skips_routing(
             app,
             [
                 "produce",
-                "--url", "https://example.com",
-                "--locale", "es-MX",
-                "--niche", "none",
+                "--url",
+                "https://example.com",
+                "--locale",
+                "es-MX",
+                "--niche",
+                "none",
                 "--skip-review",
             ],
         )
@@ -104,8 +110,10 @@ def test_produce_ambiguous_locale_errors(
             app,
             [
                 "produce",
-                "--url", "https://example.com",
-                "--locale", "zh-TW",
+                "--url",
+                "https://example.com",
+                "--locale",
+                "zh-TW",
                 "--skip-review",
             ],
         )

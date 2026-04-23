@@ -85,10 +85,18 @@ def test_write_metadata_does_not_overwrite_existing(
     work_dir.mkdir()
     existing = work_dir / "metadata.json"
     existing.write_text(
-        json.dumps({"title": "USER EDITED", "description": "...", "tags": [],
-                    "category_id": 27, "default_language": "zh-TW",
-                    "default_audio_language": "zh-TW", "made_for_kids": False,
-                    "altered_or_synthetic_content": "synthetic_voice"}),
+        json.dumps(
+            {
+                "title": "USER EDITED",
+                "description": "...",
+                "tags": [],
+                "category_id": 27,
+                "default_language": "zh-TW",
+                "default_audio_language": "zh-TW",
+                "made_for_kids": False,
+                "altered_or_synthetic_content": "synthetic_voice",
+            }
+        ),
         encoding="utf-8",
     )
 

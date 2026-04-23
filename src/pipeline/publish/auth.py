@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import os
 import stat
 from pathlib import Path
+from typing import Any
 
 import structlog
 from google.auth.transport.requests import Request
@@ -43,8 +43,7 @@ def load_credentials(path: Path) -> Credentials:
     """Load credentials, refreshing if expired. Raises AuthError on failure."""
     if not path.exists():
         raise AuthError(
-            f"token file not found at {path}. "
-            f"Run: pipeline publish auth --profile <name>"
+            f"token file not found at {path}. Run: pipeline publish auth --profile <name>"
         )
     creds = Credentials.from_authorized_user_file(str(path), scopes=SCOPES)
     if not creds.valid:
@@ -57,8 +56,7 @@ def load_credentials(path: Path) -> Credentials:
             creds.refresh(Request())
         except Exception as exc:
             raise AuthError(
-                f"token refresh failed: {exc}. "
-                f"Run: pipeline publish auth --profile <name> --reauth"
+                f"token refresh failed: {exc}. Run: pipeline publish auth --profile <name> --reauth"
             ) from exc
         # Best-effort persist of refreshed token; skip on failure (e.g. in tests)
         try:
@@ -76,8 +74,7 @@ def run_oauth_flow(
     """Run the browser OAuth consent flow. Returns new Credentials."""
     if not client_secret_file.exists():
         raise AuthError(
-            f"client_secret.json not found at {client_secret_file}. "
-            f"See spec for GCP setup steps."
+            f"client_secret.json not found at {client_secret_file}. See spec for GCP setup steps."
         )
     flow = InstalledAppFlow.from_client_secrets_file(
         str(client_secret_file),
@@ -86,17 +83,13 @@ def run_oauth_flow(
     return flow.run_local_server(port=0)
 
 
-def verify_channel_ownership(youtube_api, *, expected_channel_id: str) -> str:
+def verify_channel_ownership(youtube_api: Any, *, expected_channel_id: str) -> str:
     """Call channels.list(mine=true) and verify the discovered id matches expected.
 
     If expected is empty (placeholder in config), returns the discovered id so
     the caller can write it back to config.
     """
-    response = (
-        youtube_api.channels()
-        .list(part="id", mine=True)
-        .execute()
-    )
+    response = youtube_api.channels().list(part="id", mine=True).execute()
     items = response.get("items", [])
     if not items:
         raise AuthError(

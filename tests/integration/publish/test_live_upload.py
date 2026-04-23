@@ -11,6 +11,7 @@ Setup requirements (documented in README.md):
 
 The test uploads a minimal video → verifies via videos.list → DELETES it.
 """
+
 from __future__ import annotations
 
 import os
@@ -55,13 +56,12 @@ def sandbox_project(tmp_path: Path) -> Path:
         default_audio_language="en",
     )
     from pipeline.publish.metadata import save_metadata
+
     save_metadata(meta, d / "metadata.json", source_url="https://example.com", profile="sandbox")
     return d
 
 
-def test_live_upload_and_cleanup(
-    sandbox_enabled: None, sandbox_project: Path
-) -> None:
+def test_live_upload_and_cleanup(sandbox_enabled: None, sandbox_project: Path) -> None:
     cfg = load_channel_config(Path("configs/youtube_channels.toml"))
     assert "sandbox" in cfg.profiles, "add a [profiles.sandbox] entry first"
 

@@ -3,7 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Any, Callable
+
+if TYPE_CHECKING:
+    from pipeline.publish.channels import ChannelConfig
+    from pipeline.publish.metadata import Metadata
 
 import structlog
 from pydantic import ValidationError
@@ -61,21 +65,14 @@ def run_preflight(
 
     thumb = _thumbnail_path(ctx.work_dir)
     if not thumb.exists():
-        raise PreflightError(
-            f"thumbnail.png not found at {thumb}. "
-            f"Hand-design one and save there."
-        )
+        raise PreflightError(f"thumbnail.png not found at {thumb}. Hand-design one and save there.")
     tsize = thumb.stat().st_size
     if tsize > MAX_THUMBNAIL_BYTES:
-        raise PreflightError(
-            f"thumbnail.png exceeds 2MB limit (is {tsize} bytes). Shrink it."
-        )
+        raise PreflightError(f"thumbnail.png exceeds 2MB limit (is {tsize} bytes). Shrink it.")
 
     if schedule_iso is not None:
         if privacy == "public":
-            raise PreflightError(
-                "--schedule requires privacy=private|unlisted (public conflicts)"
-            )
+            raise PreflightError("--schedule requires privacy=private|unlisted (public conflicts)")
         try:
             when = datetime.fromisoformat(schedule_iso)
         except ValueError as exc:
@@ -96,8 +93,8 @@ class PublishStage:
     Idempotent via context fields (youtube_video_id, thumbnail_uploaded, disclosure_set).
     """
 
-    client_factory: Callable[[object], object]
-    channel_config: object  # ChannelConfig
+    client_factory: Callable[[Any], Any]
+    channel_config: "ChannelConfig"
     privacy: str = "unlisted"
     schedule_iso: str | None = None
     force_metadata: bool = False
@@ -134,6 +131,7 @@ class PublishStage:
 
         if self.dry_run:
             import json as _json
+
             print(_json.dumps(upload_body, indent=2, ensure_ascii=False))
             return ctx
 
@@ -157,8 +155,8 @@ class PublishStage:
         ctx.save()
         return ctx
 
-    def _build_upload_body(self, metadata) -> dict:
-        body: dict = {
+    def _build_upload_body(self, metadata: "Metadata") -> dict[str, Any]:
+        body: dict[str, Any] = {
             "snippet": {
                 "title": metadata.title,
                 "description": metadata.description,
@@ -178,7 +176,7 @@ class PublishStage:
             body["status"]["privacyStatus"] = self.privacy
         return body
 
-    def _phase_a_upload(self, client, ctx: PipelineContext, body: dict) -> None:
+    def _phase_a_upload(self, client: Any, ctx: PipelineContext, body: dict[str, Any]) -> None:
         if ctx.youtube_video_id is not None and not self.force_metadata:
             logger.info("publish.phase_a.skipped", video_id=ctx.youtube_video_id)
             return
@@ -197,7 +195,7 @@ class PublishStage:
         ctx.save()
         logger.info("publish.upload.complete", video_id=video_id)
 
-    def _phase_b_thumbnail(self, client, ctx: PipelineContext) -> None:
+    def _phase_b_thumbnail(self, client: Any, ctx: PipelineContext) -> None:
         if ctx.thumbnail_uploaded and not self.force_thumbnail:
             return
         thumb = ctx.work_dir / "thumbnail.png"
@@ -206,7 +204,7 @@ class PublishStage:
         ctx.save()
         logger.info("publish.thumbnail.complete", video_id=ctx.youtube_video_id)
 
-    def _phase_c_disclosure(self, client, ctx: PipelineContext, metadata) -> None:
+    def _phase_c_disclosure(self, client: Any, ctx: PipelineContext, metadata: "Metadata") -> None:
         if ctx.disclosure_set:
             return
         body = {
@@ -216,9 +214,7 @@ class PublishStage:
                 == "synthetic_voice",
             },
         }
-        client.videos_update(
-            video_id=ctx.youtube_video_id, part="status", body=body
-        )
+        client.videos_update(video_id=ctx.youtube_video_id, part="status", body=body)
         ctx.disclosure_set = True
         ctx.save()
         logger.info("publish.disclosure.complete", video_id=ctx.youtube_video_id)
