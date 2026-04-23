@@ -13,6 +13,7 @@ from pipeline.config import PipelineConfig
 from pipeline.orchestrator import Orchestrator
 from pipeline.publish.channels import auto_detect_niche, load_channel_config
 from pipeline.publish.cli import publish_app
+from pipeline.gallery_cli import gallery_app
 from pipeline.research.cli import app as research_app
 from pipeline.stages.acquire import AcquireStage
 from pipeline.stages.analyze import AnalyzeStage
@@ -28,6 +29,7 @@ app.add_typer(storyboard_app, name="storyboard")
 app.add_typer(research_app, name="research")
 app.add_typer(publish_app, name="publish")
 app.add_typer(metadata_app, name="metadata")
+app.add_typer(gallery_app, name="gallery")
 
 
 def _channel_config_path() -> Path:
