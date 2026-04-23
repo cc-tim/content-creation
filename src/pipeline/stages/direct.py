@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import structlog
 
@@ -206,6 +207,144 @@ FACTS:
     return storyboards
 
 
+_METADATA_TOOL = {
+    "name": "emit_metadata",
+    "description": "Emit YouTube metadata as structured JSON.",
+    "input_schema": {
+        "type": "object",
+        "required": [
+            "title", "description", "tags", "category_id",
+            "default_language", "default_audio_language",
+            "made_for_kids", "altered_or_synthetic_content",
+        ],
+        "properties": {
+            "title": {"type": "string", "maxLength": 100},
+            "description": {"type": "string", "maxLength": 5000},
+            "tags": {"type": "array", "items": {"type": "string"}},
+            "category_id": {"type": "integer"},
+            "default_language": {"type": "string"},
+            "default_audio_language": {"type": "string"},
+            "made_for_kids": {"type": "boolean"},
+            "altered_or_synthetic_content": {
+                "type": "string",
+                "enum": ["synthetic_voice", "altered", "none"],
+            },
+        },
+    },
+}
+
+
+def _build_metadata_prompt(
+    *,
+    profile,
+    locale: str,
+    source_url: str,
+    storyboard_synopsis: str,
+    knowledge_facts: list[dict],
+) -> tuple[str, str]:
+    facts_text = "\n".join(f"- {f.get('text', '')}" for f in knowledge_facts[:10])
+    system = f"""You are writing YouTube metadata for a channel with this voice:
+
+{profile.voice_guide}
+
+Constraints:
+- Title ≤ 100 chars
+- Description ≤ 5000 chars
+- Tags total (sum + commas) ≤ 500 chars
+- Write in locale {locale}
+
+Return via the emit_metadata tool. Do not output prose."""
+    user = f"""Source URL: {source_url}
+
+Storyboard synopsis:
+{storyboard_synopsis}
+
+Relevant facts for credit-worthy claims:
+{facts_text or "(none)"}
+
+Generate title, description, tags, and related metadata fields."""
+    return system, user
+
+
+def _locale_footer(locale: str, source_url: str) -> str:
+    if locale == "zh-TW":
+        return f"\n\n資料來源:{source_url}\n\n本影片旁白由 AI 合成。"
+    if locale == "ja":
+        return f"\n\n情報源:{source_url}\n\n本動画のナレーションはAI音声です。"
+    if locale == "es-MX":
+        return f"\n\nFuente: {source_url}\n\nLa narración de este video fue generada por IA."
+    return f"\n\nSource: {source_url}\n\nThis video uses AI-generated narration."
+
+
+def write_metadata_for_project(
+    *,
+    work_dir: Path,
+    profile,
+    locale: str,
+    source_url: str,
+    storyboard_synopsis: str,
+    knowledge_facts: list[dict],
+    regenerate: bool = False,
+) -> Path:
+    """Generate (or preserve) metadata.json for a project.
+
+    Returns the written path. If the file already exists and regenerate=False,
+    leaves it untouched (preserves operator's hand-edits).
+    """
+    from pipeline.publish.metadata import Metadata, save_metadata
+
+    path = work_dir / "metadata.json"
+    if path.exists() and not regenerate:
+        logger.info("direct.metadata.skipped_existing", path=str(path))
+        return path
+
+    system, user = _build_metadata_prompt(
+        profile=profile,
+        locale=locale,
+        source_url=source_url,
+        storyboard_synopsis=storyboard_synopsis,
+        knowledge_facts=knowledge_facts,
+    )
+
+    client = get_anthropic_client()
+    config = PipelineConfig()
+
+    response = client.messages.create(
+        model=config.CLAUDE_MODEL,
+        max_tokens=2048,
+        system=system,
+        tools=[_METADATA_TOOL],
+        tool_choice={"type": "tool", "name": "emit_metadata"},
+        messages=[{"role": "user", "content": user}],
+    )
+
+    tool_input: dict | None = None
+    for block in response.content:
+        if getattr(block, "type", None) == "tool_use":
+            tool_input = block.input
+            break
+    if tool_input is None:
+        raise RuntimeError("Claude did not return emit_metadata tool use")
+
+    # Merge default tags (prepend, dedup preserving order)
+    merged_tags: list[str] = []
+    for tag in list(profile.default_tags) + list(tool_input.get("tags") or []):
+        if tag not in merged_tags:
+            merged_tags.append(tag)
+    tool_input["tags"] = merged_tags
+
+    tool_input.setdefault("category_id", profile.category_id)
+
+    tool_input["description"] = (
+        tool_input["description"].rstrip() + _locale_footer(locale, source_url)
+    )
+
+    metadata = Metadata(**tool_input)
+    save_metadata(metadata, path, source_url=source_url, profile=profile.name)
+    logger.info("direct.metadata.written", path=str(path), profile=profile.name)
+    return path
+
+
 class DirectStage(PipelineStage):
     """Generates storyboard (Layer 2) from knowledge (Layer 1).
     Replaces the old scriptwrite stage.
@@ -279,4 +418,38 @@ class DirectStage(PipelineStage):
             scenes=len(storyboard.scenes),
             est_duration=storyboard.estimated_duration_sec(),
         )
+
+        # Generate metadata.json for publish (skipped when niche is None or "none")
+        if ctx.niche and ctx.niche != "none":
+            from pipeline.publish.channels import load_channel_config, resolve_profile
+
+            channel_cfg_path = Path("configs/youtube_channels.toml")
+            if channel_cfg_path.exists():
+                cfg = load_channel_config(channel_cfg_path)
+                try:
+                    profile = resolve_profile(
+                        cfg, niche=ctx.niche, locale=ctx.locale, override=None
+                    )
+                except ValueError as exc:
+                    logger.warning("direct.metadata.skipped", reason=str(exc))
+                else:
+                    synopsis = "\n".join(
+                        f"{s.section}: {s.narration[:120]}" for s in storyboard.scenes
+                    )
+                    write_metadata_for_project(
+                        work_dir=ctx.work_dir,
+                        profile=profile,
+                        locale=ctx.locale,
+                        source_url=ctx.source_url,
+                        storyboard_synopsis=synopsis,
+                        knowledge_facts=[
+                            {"id": f.id, "text": f.text} for f in knowledge.facts[:10]
+                        ],
+                    )
+            else:
+                logger.warning(
+                    "direct.metadata.skipped",
+                    reason=f"channel config not found at {channel_cfg_path}",
+                )
+
         return ctx
