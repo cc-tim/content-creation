@@ -86,7 +86,8 @@ src/
     presenter.py         # CLI ranked list display, human selection
     config.py            # Discovery-specific config
   pipeline/              # Video production pipeline
-    cli.py               # Typer CLI entry point
+    cli.py               # Typer CLI entry point (registers publish + metadata sub-apps)
+    cli_metadata.py      # `pipeline metadata` sub-app (show/set/validate/regenerate)
     config.py            # pydantic-settings (env → .env → TOML → defaults)
     models.py            # Shared Pydantic models
     orchestrator.py      # Chains stages, handles state/resume
@@ -94,10 +95,18 @@ src/
       base.py            # PipelineStage ABC + PipelineContext dataclass
       acquire.py         # yt-dlp download + transcript extraction
       analyze.py         # Claude API story structure + knowledge graph
-      scriptwrite.py     # Claude API script adaptation (NOT translation)
+      direct.py          # Agent-driven storyboard generation + metadata.json emit
       tts.py             # TTS generation (edge-tts, Google Cloud, OpenAI)
       compose.py         # FFmpeg video composition
-      publish.py         # Metadata generation + YouTube upload
+    publish/             # YouTube upload subpackage
+      auth.py            # OAuth flow + token load/save/refresh (mode 0600)
+      channels.py        # TOML config loader; (niche,locale) → profile routing
+      client.py          # YouTubeClient wrapper (videos.insert, thumbnails.set, etc.)
+      cli.py             # `pipeline publish` sub-app (upload/auth/accounts/status)
+      metadata.py        # Metadata Pydantic model + read/write helpers
+      stage.py           # PublishStage: idempotent 3-phase upload (A/B/C)
+    notify/
+      telegram.py        # Failure notifier via Telegram Bot API
     utils/
       ffmpeg.py          # FFmpeg command wrappers
       srt.py             # SRT/VTT parsing
@@ -124,6 +133,42 @@ docs/superpowers/specs/  # Design specs
 - **Human-in-the-loop at 3 gates**: story selection, script review, final video review
 - **PipelineContext serialization** enables resume from any stage after failure or human review pause
 - **TTS abstraction** — swap between edge-tts (free), Google Cloud TTS, or OpenAI TTS via config
+- **Publish is always explicit** — `PublishStage` is never in the orchestrator auto-chain. Every upload requires an explicit `pipeline publish <id>` call after human review.
+- **Idempotent upload** — `PipelineContext` tracks `youtube_video_id`, `thumbnail_uploaded`, `disclosure_set`. Re-running `publish` resumes from the last successful phase.
+
+### Channel Config + Niche Routing
+
+Channel profiles live in `configs/youtube_channels.toml` (committed, no secrets). Token files live at `~/.config/content-creation/youtube/<profile>.json` (mode 0600, gitignored).
+
+```toml
+[profiles.ideal-parents-tw]
+niche      = "parenting"
+locale     = "zh-TW"
+channel_id = "UC..."          # fill in after first auth
+voice_guide = "..."            # shapes Claude's metadata generation
+default_tags = ["育兒", "親子"]
+category_id  = 27
+
+[routing]
+"parenting/zh-TW" = "ideal-parents-tw"
+```
+
+**Niche auto-detection**: `produce --locale zh-TW` → looks up routing → if exactly one niche configured for that locale, uses it automatically; errors if ambiguous; warns if no config found. Override with `--niche parenting` or opt-out with `--niche none`.
+
+**Metadata generation**: `DirectStage` emits `metadata.json` (title, description, tags, disclosure) using Claude + the channel's `voice_guide`. Skipped when niche is `none` or config missing. Operator edits with `pipeline metadata set/regenerate` before upload.
+
+**Three-phase upload (A → B → C)**:
+- Phase A: `videos.insert` (resumable, returns `youtube_video_id`)
+- Phase B: `thumbnails.set` (requires `thumbnail.png` ≤ 2MB in project dir)
+- Phase C: `videos.update` with `containsSyntheticMedia` disclosure
+
+Each phase is persisted to `context.json` — partial failure resumes cleanly.
+
+**One-time OAuth per channel**:
+```bash
+uv run pipeline publish auth --profile ideal-parents-tw
+# Opens browser → Google consent → writes ~/.config/content-creation/youtube/ideal-parents-tw.json
+```
 
 ## Tech Stack
 
@@ -140,7 +185,9 @@ docs/superpowers/specs/  # Design specs
 | TTS (premium) | **Google Cloud TTS Neural2** | 1M chars/month free tier |
 | Video composition | **FFmpeg** via ffmpeg-python | Industry standard |
 | Trend monitoring | **YouTube Data API v3** + **pytrends** | Free tiers sufficient |
+| YouTube upload | **google-api-python-client** + **google-auth-oauthlib** | YouTube Data API v3 resumable upload |
 | Subtitle parsing | **pysrt** | Simple SRT read/write |
+| Failure notifications | **httpx** → Telegram Bot API | Lightweight, no extra dep |
 | Logging | **structlog** | Structured JSON per stage |
 | Linting/formatting | **Ruff** | Replaces black + isort + flake8 |
 | Testing | **pytest** | Markers: `slow`, `integration`, `network` |
@@ -158,11 +205,9 @@ uv run pipeline discover --trending --days 7                # Trending last 7 da
 
 # Production pipeline
 uv run pipeline produce <video-url> --locale zh-TW          # Full pipeline for one video
+uv run pipeline produce <video-url> --locale zh-TW --niche parenting  # explicit channel niche
+uv run pipeline produce <video-url> --locale zh-TW --niche none       # skip metadata gen
 uv run pipeline acquire <video-url>                          # Download + extract only
-uv run pipeline analyze <transcript-path>                    # Story structure only
-uv run pipeline scriptwrite <analysis-path> --locale zh-TW   # Generate adapted script
-uv run pipeline tts <script-path> --locale zh-TW             # Generate narration
-uv run pipeline compose <project-dir>                        # Final video composition
 
 # Storyboard editing (hand-edit storyboard.json helpers)
 uv run pipeline storyboard show                              # list all scenes
@@ -175,6 +220,7 @@ uv run pipeline storyboard set scene_003 narration="新文字"  # edit a safe fi
 #   "which scenes still need recording" → storyboard recordings
 #   "fix scene X's text to Y"           → storyboard set X narration="Y"
 #   "change scene X's pause to Ns"      → storyboard set X pause_after_sec=N
+```
 
 ## Publish and metadata workflow
 
@@ -209,14 +255,13 @@ uv run pipeline metadata regenerate --work-dir <project-dir>
 #   "show me project X's metadata"              → pipeline metadata show --work-dir <project-dir>
 ```
 
-# Testing
+## Testing & Lint
+
+```bash
 uv run pytest                              # All tests
 uv run pytest tests/unit/                  # Unit tests only
 uv run pytest -m "not slow and not network" # Fast tests only
-uv run pytest tests/unit/test_scriptwrite.py # Single test file
 uv run pytest -k "test_story_structure"    # Single test by name
-
-# Lint & format
 uv run ruff check src/ tests/
 uv run ruff format src/ tests/
 uv run mypy src/
