@@ -12,7 +12,10 @@ from pipeline.utils.highlight_extractor import (
     NullCaptionProvider,
     _audio_rms_per_window,
     _count_scene_changes_per_window,
+    _merge_scores,
     _score_keywords,
+    _select_candidates,
+    extract_highlights,
 )
 
 
@@ -84,3 +87,60 @@ def test_audio_rms_per_window_normalizes_db():
     ts, score = result[0]
     assert ts == pytest.approx(0.0)
     assert score == pytest.approx(0.5)
+
+
+# Task 2: Candidate selection + extract_highlights() API
+
+def test_merge_scores_combines_signals():
+    fd = [(0.0, 0.8), (5.0, 0.2)]
+    ar = [(0.0, 0.6), (5.0, 0.4)]
+    kw = [(0.0, 1.0), (5.0, 0.0)]
+    result = _merge_scores(fd, ar, kw, duration_sec=10.0, window_sec=5)
+    assert len(result) == 3  # 0s, 5s, 10s
+    # Window 0: 0.4*0.8 + 0.3*0.6 + 0.3*1.0 = 0.32 + 0.18 + 0.30 = 0.80
+    assert result[0]["combined_score"] == pytest.approx(0.80, abs=0.01)
+    assert result[0]["timestamp_sec"] == 0.0
+
+
+def test_select_candidates_enforces_spacing():
+    scored = [
+        {"timestamp_sec": 0.0, "combined_score": 0.9, "frame_diff": 0.9, "audio_rms": 0.9, "keyword_score": 0.9},
+        {"timestamp_sec": 5.0, "combined_score": 0.85, "frame_diff": 0.8, "audio_rms": 0.8, "keyword_score": 0.9},
+        {"timestamp_sec": 20.0, "combined_score": 0.7, "frame_diff": 0.7, "audio_rms": 0.7, "keyword_score": 0.7},
+    ]
+    result = _select_candidates(scored, top_n=10, min_spacing_sec=15.0)
+    timestamps = [c["timestamp_sec"] for c in result]
+    assert 0.0 in timestamps
+    assert 5.0 not in timestamps   # within 15s of 0.0 — rejected
+    assert 20.0 in timestamps
+
+
+def test_select_candidates_respects_top_n():
+    scored = [
+        {"timestamp_sec": float(i * 20), "combined_score": 1.0 - i * 0.05,
+         "frame_diff": 0.5, "audio_rms": 0.5, "keyword_score": 0.5}
+        for i in range(20)
+    ]
+    result = _select_candidates(scored, top_n=5, min_spacing_sec=15.0)
+    assert len(result) == 5
+
+
+def test_extract_highlights_returns_manifest_shape(tmp_path):
+    fake_video = tmp_path / "video.mp4"
+    fake_video.write_bytes(b"fake")
+
+    with patch("pipeline.utils.highlight_extractor.get_duration", return_value=60.0), \
+         patch("pipeline.utils.highlight_extractor.detect_scene_changes", return_value=[10.0, 25.0, 40.0]), \
+         patch("pipeline.utils.highlight_extractor._audio_rms_per_window", return_value=[(0.0, 0.5), (5.0, 0.8)]), \
+         patch("pipeline.utils.video_analysis.extract_keyframes", return_value=[]):
+        manifest = extract_highlights(fake_video, transcript_path=None)
+
+    assert "candidates" in manifest
+    assert "rejected" in manifest
+    assert manifest["caption_provider"] == "NullCaptionProvider"
+    assert manifest["duration_sec"] == pytest.approx(60.0, abs=0.5)
+    for c in manifest["candidates"]:
+        assert "timestamp_sec" in c
+        assert "combined_score" in c
+        assert "caption" in c
+        assert c["usable"] is True
