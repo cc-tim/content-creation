@@ -217,5 +217,29 @@ def shorts(
     typer.echo(f"\nGenerated {len(storyboards)} Short storyboards.")
 
 
+@app.command()
+def dashboard(
+    port: int = typer.Option(8765, "--port", help="Port to serve on"),
+    no_browser: bool = typer.Option(False, "--no-browser", help="Skip auto-opening browser"),
+) -> None:
+    """Start the read-only project monitoring dashboard."""
+    import webbrowser
+
+    import uvicorn
+
+    from pipeline.dashboard.server import create_app
+
+    config = PipelineConfig()
+    server_app = create_app(config.OUTPUT_DIR)
+
+    url = f"http://localhost:{port}"
+    typer.echo(f"Dashboard → {url}  (Ctrl+C to stop)")
+
+    if not no_browser:
+        webbrowser.open(url)
+
+    uvicorn.run(server_app, host="localhost", port=port, log_level="warning")
+
+
 if __name__ == "__main__":
     app()
