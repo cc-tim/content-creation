@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -115,7 +116,7 @@ class ComposeStage(PipelineStage):
         scene_finals: list[Path] = []
         scene_finals_no_overlay: list[Path] = []
         scenes_data: list[dict[str, object]] = []
-        _running_sec = 0.0
+        running_sec = 0.0
 
         for i, scene in enumerate(storyboard.scenes):
             scene_dict = {
@@ -259,11 +260,11 @@ class ComposeStage(PipelineStage):
             scenes_data.append({
                 "id": scene.id,
                 "section": scene.section,
-                "start_sec": _running_sec,
+                "start_sec": running_sec,
                 "duration_sec": scene_dur,
                 "narration": scene.narration,
             })
-            _running_sec += scene_dur
+            running_sec += scene_dur
 
         (compose_dir / "scenes.json").write_text(
             json.dumps(scenes_data, indent=2, ensure_ascii=False),
@@ -286,8 +287,6 @@ class ComposeStage(PipelineStage):
                 "-c:v", "libx264", "-preset", "medium", "-crf", "23", "-c:a", "copy",
                 str(dst),
             ])
-
-        import shutil
 
         locale = ctx.locale
         plain        = compose_dir / f"final_{locale}.mp4"

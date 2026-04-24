@@ -1,7 +1,7 @@
 import json
+from unittest.mock import MagicMock, patch
 
 import pytest
-from unittest.mock import MagicMock, patch
 
 from pipeline.stages.compose import ComposeStage
 from pipeline.storyboard import Scene, Storyboard
@@ -122,7 +122,7 @@ async def test_compose_falls_back_to_mvp(sample_context):
     assert mock_ff.called
 
 
-def test_compose_no_subtitles_skips_burn(monkeypatch, tmp_path):
+def test_compose_burn_subtitles_false_returns_plain_variant(monkeypatch, tmp_path):
     """With burn_subtitles=False, compose copies raw.mp4 to final
     without invoking the -vf subtitles ffmpeg pass."""
     from pathlib import Path
@@ -179,19 +179,16 @@ def test_compose_no_subtitles_skips_burn(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "pipeline.stages.compose.check_ffmpeg_available", lambda: True
     )
-    monkeypatch.setattr(
-        "pipeline.stages.compose.render_scene",
-        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None: Path(work_dir)
-        / f"{scene['id']}.mp4",
-    )
+    def _fake_render(scene, duration, aspect_ratio, work_dir, source_video=None, theme=None):
+        return Path(work_dir) / f"{scene['id']}.mp4"
+
+    monkeypatch.setattr("pipeline.stages.compose.render_scene", _fake_render)
 
     import asyncio
 
     result_ctx = asyncio.run(ComposeStage().run(ctx))
 
-    # With burn_subtitles=False, the primary output path should be the plain variant,
-    # not the subtitles-burned variant. The new code still produces a _subtitles variant
-    # as a side-output, but ctx.final_video_path must point to the plain file.
+    # burn_subtitles=False selects the plain variant as final_video_path; subs encoding still runs
     locale = ctx.locale
     compose_dir = work_dir / "compose"
     assert result_ctx.final_video_path == compose_dir / f"final_{locale}.mp4", (
@@ -203,6 +200,7 @@ def test_compose_no_subtitles_skips_burn(monkeypatch, tmp_path):
 def test_scenes_json_written_by_storyboard_compose(monkeypatch, tmp_path):
     """After _compose_from_storyboard, compose/scenes.json exists with correct timestamps."""
     from pathlib import Path
+
     from pipeline.stages.base import PipelineContext
     from pipeline.stages.compose import ComposeStage
     from pipeline.storyboard import Scene, Storyboard
@@ -236,8 +234,14 @@ def test_scenes_json_written_by_storyboard_compose(monkeypatch, tmp_path):
         subtitle_path=subs,
         storyboard_path=sb_path,
         segment_timings=[
-            {"index": 0, "text": "First scene", "path": str(narration), "start_ms": 0, "duration_ms": 5000},
-            {"index": 1, "text": "Second scene", "path": str(narration), "start_ms": 5000, "duration_ms": 8000},
+            {
+                "index": 0, "text": "First scene", "path": str(narration),
+                "start_ms": 0, "duration_ms": 5000,
+            },
+            {
+                "index": 1, "text": "Second scene", "path": str(narration),
+                "start_ms": 5000, "duration_ms": 8000,
+            },
         ],
         burn_subtitles=False,
     )
