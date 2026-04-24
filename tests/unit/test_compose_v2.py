@@ -271,3 +271,16 @@ def test_scenes_json_written_by_storyboard_compose(monkeypatch, tmp_path):
     assert scenes[1]["start_sec"] == pytest.approx(5.5)
     assert scenes[1]["duration_sec"] == pytest.approx(8.0)   # 8000ms audio + 0s pause
     assert scenes[1]["narration"] == "Second scene"
+
+
+def test_preferred_variant_persists_in_context(tmp_path):
+    """preferred_variant round-trips through to_dict/from_dict."""
+    from pipeline.stages.base import PipelineContext
+    ctx = PipelineContext(
+        project_id=1, source_url="x", locale="zh-TW",
+        work_dir=tmp_path, preferred_variant="subtitles_no_overlay",
+    )
+    data = ctx.to_dict()
+    assert data["preferred_variant"] == "subtitles_no_overlay"
+    ctx2 = PipelineContext.from_dict(data)
+    assert ctx2.preferred_variant == "subtitles_no_overlay"

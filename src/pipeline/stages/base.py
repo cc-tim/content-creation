@@ -44,6 +44,7 @@ class PipelineContext:
     final_video_path: Path | None = None
     burn_subtitles: bool = True
     skip_overlays: bool = False
+    preferred_variant: str | None = None  # e.g. "subtitles_no_overlay"
 
     # Stage 6: Publish
     youtube_video_id: str | None = None
