@@ -60,6 +60,17 @@
       background: #1a1a2e; color: #94a3b8; cursor: pointer; transition: background .1s, color .1s; }
     .btn-variant:hover { background: #1e293b; color: #e2e8f0; }
     .btn-variant.active { background: #1e293b; color: #e2e8f0; border-color: #3b82f6; }
+    .scene-strip { display:flex; gap:5px; overflow-x:auto; padding:10px 0 6px; scrollbar-width:thin; scroll-behavior:smooth; }
+    .scene-chip { flex-shrink:0; padding:4px 10px; border-radius:4px; font-size:10px; font-family:monospace;
+      cursor:pointer; background:#1e1e1e; color:#4a5568; border:1px solid #2d3748;
+      white-space:nowrap; transition:background .1s, color .1s; }
+    .scene-chip:hover { background:#1e293b; color:#94a3b8; }
+    .scene-chip.sc-past { background:#161616; color:#374151; border-color:#161616; }
+    .scene-chip.sc-active { background:#1e3a5f; color:#93c5fd; border-color:#3b82f6; }
+    .scene-narration { margin-top:2px; background:#1e293b; border:1px solid #334155; border-radius:6px;
+      padding:10px 14px; font-size:12px; color:#cbd5e1; line-height:1.7; user-select:text; cursor:text;
+      margin-bottom:10px; }
+    .scene-nar-hdr { font-size:10px; color:#6366f1; font-family:monospace; margin-bottom:6px; }
     .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: #64748b; }
     .meta-grid .lbl { color: #475569; }
   </style>
@@ -122,6 +133,10 @@ function render(data) {
     else el.style.display = 'none';
   });
 
+  // Detach the existing detail row before wiping so the <video> element survives
+  const existingDetailRow = document.querySelector('tr.detail-row');
+  if (existingDetailRow) existingDetailRow.remove();
+
   const tbody = document.getElementById('tbody');
   const prevActive = activeId;
   tbody.innerHTML = '';
@@ -155,9 +170,28 @@ function render(data) {
         : '<span class="nil">—</span>'}</td>`;
 
     tbody.appendChild(tr);
-    if (isActive) tbody.appendChild(makeDetailRow(p));
+    if (isActive) {
+      // Re-attach the same detail row (preserves <video> element and playback state)
+      if (existingDetailRow && existingDetailRow.dataset.detailFor === p.project_id) {
+        tbody.appendChild(existingDetailRow);
+      } else {
+        tbody.appendChild(makeDetailRow(p));
+      }
+    }
   });
 
+}
+
+function buildSceneStrip(scenes) {
+  const chips = scenes.map((s, i) =>
+    `<div class="scene-chip" data-idx="${i}" data-start="${s.start_sec}">${s.id} · ${s.section}</div>`
+  ).join('');
+  return `
+    <div class="scene-strip">${chips}</div>
+    <div class="scene-narration" style="display:none">
+      <div class="scene-nar-hdr"></div>
+      <div class="scene-nar-text"></div>
+    </div>`;
 }
 
 function makeDetailRow(p) {
@@ -176,6 +210,7 @@ function makeDetailRow(p) {
   dr.innerHTML = `<td colspan="7"><div class="detail-panel">
     ${tabsHtml}
     <video controls src="${firstUrl}"></video>
+    ${p.scenes && p.scenes.length ? buildSceneStrip(p.scenes) : ''}
     <div class="meta-grid">
       <div><span class="lbl">Project ID: </span><span style="font-family:monospace;color:#94a3b8">${p.project_id}</span></div>
       <div><span class="lbl">Locale: </span>${p.locale}${p.niche ? ' · '+p.niche : ''}</div>
@@ -230,8 +265,55 @@ function toggleDetail(p) {
       if (vid) { vid.src = btn.dataset.url; vid.load(); vid.play(); }
       detailRow.querySelectorAll('.btn-variant').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      // Reset scene strip — timeupdate will re-sync once video loads
+      detailRow.querySelectorAll('.scene-chip').forEach(c => c.classList.remove('sc-active', 'sc-past'));
+      const narPanel = detailRow.querySelector('.scene-narration');
+      if (narPanel) narPanel.style.display = 'none';
     });
   });
+  // Wire scene strip
+  const vid = detailRow.querySelector('video');
+  const strip = detailRow.querySelector('.scene-strip');
+  if (vid && strip && p.scenes && p.scenes.length) {
+    let activeSc = -1;
+    vid.addEventListener('timeupdate', () => {
+      const t = vid.currentTime;
+      let idx = 0;
+      for (let i = 0; i < p.scenes.length; i++) {
+        if (t >= p.scenes[i].start_sec) idx = i;
+      }
+      if (idx === activeSc) return;
+      activeSc = idx;
+      strip.querySelectorAll('.scene-chip').forEach((c, i) => {
+        c.classList.toggle('sc-past', i < idx);
+        c.classList.toggle('sc-active', i === idx);
+      });
+      strip.querySelectorAll('.scene-chip')[idx]?.scrollIntoView({inline: 'nearest', behavior: 'smooth'});
+    });
+
+    let openSc = -1;
+    strip.addEventListener('click', e => {
+      const chip = e.target.closest('.scene-chip');
+      if (!chip) return;
+      const idx = +chip.dataset.idx;
+      const scene = p.scenes[idx];
+      vid.currentTime = scene.start_sec;
+      const narPanel = detailRow.querySelector('.scene-narration');
+      const narHdr   = detailRow.querySelector('.scene-nar-hdr');
+      const narText  = detailRow.querySelector('.scene-nar-text');
+      if (openSc === idx) {
+        narPanel.style.display = 'none';
+        openSc = -1;
+      } else {
+        const mm = Math.floor(scene.start_sec / 60);
+        const ss = String(Math.floor(scene.start_sec % 60)).padStart(2, '0');
+        narHdr.textContent = `${scene.id} · ${scene.section} · ${mm}:${ss}`;
+        narText.textContent = scene.narration;
+        narPanel.style.display = 'block';
+        openSc = idx;
+      }
+    });
+  }
   activeId = p.project_id;
 }
 
