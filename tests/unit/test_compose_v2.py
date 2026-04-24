@@ -64,10 +64,16 @@ async def test_compose_uses_storyboard_when_available(sample_context):
         mock_ff.return_value = MagicMock(returncode=0)
 
         # Create expected output files that ffmpeg would produce
-        (sample_context.work_dir / "compose" / "scenes" / "s1_final.mp4").write_bytes(b"f")
-        (sample_context.work_dir / "compose" / "raw.mp4").write_bytes(b"f")
-        final = sample_context.work_dir / "compose" / f"final_{sample_context.locale}.mp4"
-        final.write_bytes(b"final")
+        compose_dir = sample_context.work_dir / "compose"
+        (compose_dir / "scenes" / "s1_final.mp4").write_bytes(b"f")
+        (compose_dir / "scenes" / "s1_final_no_overlay.mp4").write_bytes(b"f")
+        (compose_dir / "raw.mp4").write_bytes(b"f")
+        (compose_dir / "raw_no_overlay.mp4").write_bytes(b"f")
+        locale = sample_context.locale
+        (compose_dir / f"final_{locale}.mp4").write_bytes(b"final")
+        (compose_dir / f"final_{locale}_no_overlay.mp4").write_bytes(b"f")
+        (compose_dir / f"final_{locale}_subtitles.mp4").write_bytes(b"f")
+        (compose_dir / f"final_{locale}_subtitles_no_overlay.mp4").write_bytes(b"f")
 
         ctx = await stage.run(sample_context)
 
@@ -181,12 +187,17 @@ def test_compose_no_subtitles_skips_burn(monkeypatch, tmp_path):
 
     import asyncio
 
-    asyncio.run(ComposeStage().run(ctx))
+    result_ctx = asyncio.run(ComposeStage().run(ctx))
 
-    # No ffmpeg call should include the subtitles filter.
-    for cmd in ffmpeg_calls:
-        joined = " ".join(cmd)
-        assert "subtitles=" not in joined, f"subtitles filter found in: {joined}"
+    # With burn_subtitles=False, the primary output path should be the plain variant,
+    # not the subtitles-burned variant. The new code still produces a _subtitles variant
+    # as a side-output, but ctx.final_video_path must point to the plain file.
+    locale = ctx.locale
+    compose_dir = work_dir / "compose"
+    assert result_ctx.final_video_path == compose_dir / f"final_{locale}.mp4", (
+        f"Expected plain variant, got {result_ctx.final_video_path}"
+    )
+    assert result_ctx.final_video_path != compose_dir / f"final_{locale}_subtitles.mp4"
 
 
 def test_scenes_json_written_by_storyboard_compose(monkeypatch, tmp_path):
