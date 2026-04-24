@@ -40,12 +40,12 @@ def render_clip(
         raise FileNotFoundError(f"Source video not found for clip in scene {scene_id}")
 
     start = float(visual.get("start_sec", 0))
-    end = float(visual.get("end_sec", start + duration_sec))
     source_dur = _get_source_duration(source_video)
 
-    # Clamp to source bounds
+    # Clip duration always follows audio duration, not storyboard's end_sec estimate.
+    # end_sec in the storyboard was generated from narration_est_sec which is often wrong.
     start = max(0, min(start, source_dur - 1))
-    end = max(start + 1, min(end, source_dur))
+    end = max(start + 1, min(start + duration_sec, source_dur))
     clip_duration = end - start
 
     output = work_dir / f"{scene_id}_visual.mp4"

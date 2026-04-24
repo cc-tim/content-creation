@@ -191,7 +191,7 @@ class ComposeStage(PipelineStage):
                 visual=scene.visual,
                 burn_subtitles=ctx.burn_subtitles,
             )
-            if scene.overlay:
+            if scene.overlay and not ctx.skip_overlays:
                 try:
                     overlaid_path = apply_overlay(
                         visual_path=visual_path,

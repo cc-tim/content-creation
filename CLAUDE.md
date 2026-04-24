@@ -220,7 +220,30 @@ uv run pipeline storyboard set scene_003 narration="新文字"  # edit a safe fi
 #   "which scenes still need recording" → storyboard recordings
 #   "fix scene X's text to Y"           → storyboard set X narration="Y"
 #   "change scene X's pause to Ns"      → storyboard set X pause_after_sec=N
+
+# Proofreading (runs automatically at the review gate; also callable standalone)
+uv run pipeline proofread run --project-id <ID>              # show issues found by Claude Haiku
+uv run pipeline proofread run --project-id <ID> --apply      # show + apply all fixes
+
+# Natural-language triggers (for the assistant):
+#   "proofread project X"               → pipeline proofread run --project-id X
+#   "apply proofread fixes for X"       → pipeline proofread run --project-id X --apply
 ```
+
+### Review gate flow (with proofread integrated)
+
+```
+produce (phase 1: acquire → analyze → direct)
+  ↓
+HUMAN REVIEW GATE
+  • Shows storyboard / knowledge / script paths
+  • Auto-runs proofread (Claude Haiku) — lists any text issues
+  • If issues found: "uv run pipeline proofread run --project-id X --apply"
+  ↓ (user edits storyboard if needed, then resumes)
+produce --start-from tts  (phase 2: tts → compose)
+```
+
+With `--skip-review`, proofread fixes are applied automatically before TTS.
 
 ## Dashboard (project monitoring)
 

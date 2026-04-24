@@ -7,6 +7,7 @@ import structlog
 import typer
 
 from pipeline.cli_metadata import metadata_app
+from pipeline.cli_proofread import proofread_app
 from pipeline.cli_storyboard import storyboard_app
 from pipeline.cli_voice import voice_app
 from pipeline.config import PipelineConfig
@@ -30,6 +31,7 @@ app.add_typer(research_app, name="research")
 app.add_typer(publish_app, name="publish")
 app.add_typer(metadata_app, name="metadata")
 app.add_typer(gallery_app, name="gallery")
+app.add_typer(proofread_app, name="proofread")
 
 
 def _channel_config_path() -> Path:
@@ -136,7 +138,25 @@ def produce(
             typer.echo(f"Knowledge: {result.ctx.knowledge_path}")
             typer.echo(f"Storyboard: {result.ctx.storyboard_path}")
             typer.echo(f"Script: {result.ctx.script_path}")
-            typer.echo("Review these files, then resume with:")
+
+            # Auto-proofread storyboard at the review gate (before TTS)
+            if result.ctx.storyboard_path and result.ctx.storyboard_path.exists():
+                typer.echo("\nProofreading storyboard text (Claude Haiku)...")
+                try:
+                    from pipeline.cli_proofread import print_issues_table, proofread_storyboard
+                    issues = proofread_storyboard(result.ctx.storyboard_path)
+                    if issues:
+                        print_issues_table(issues)
+                        typer.echo(
+                            f"\nFound {len(issues)} issue(s). Apply before resuming:\n"
+                            f"  uv run pipeline proofread run --project-id {project_id} --apply"
+                        )
+                    else:
+                        typer.echo("  ✓ No text issues found.")
+                except Exception as exc:
+                    typer.echo(f"  (proofread skipped: {exc})")
+
+            typer.echo("\nReview the files above, then resume with:")
             typer.echo(
                 f'  uv run pipeline produce --url "{url}" --locale {locale} '
                 f"--project-id {project_id} --start-from tts"
@@ -144,6 +164,17 @@ def produce(
             return
 
         if result.success and skip_review:
+            # Auto-apply proofread fixes before TTS in fully automated runs
+            if result.ctx.storyboard_path and result.ctx.storyboard_path.exists():
+                try:
+                    from pipeline.cli_proofread import apply_issues, proofread_storyboard
+                    issues = proofread_storyboard(result.ctx.storyboard_path)
+                    if issues:
+                        n = apply_issues(result.ctx.storyboard_path, issues)
+                        typer.echo(f"  proofread: auto-applied {n}/{len(issues)} fix(es)")
+                except Exception as exc:
+                    typer.echo(f"  (proofread skipped: {exc})")
+
             phase2 = [s for s in all_stages if s.name in post_review]
             orch = Orchestrator(stages=phase2)
             result = asyncio.run(orch.run(result.ctx))
