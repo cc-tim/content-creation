@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -61,19 +62,12 @@ async def test_compose_uses_storyboard_when_available(sample_context):
         visual_out.write_bytes(b"fake visual")
         mock_render.return_value = visual_out
 
-        mock_ff.return_value = MagicMock(returncode=0)
+        def _fake_ffmpeg(cmd):
+            out = cmd[-1]
+            if isinstance(out, str) and out.endswith(".mp4"):
+                Path(out).write_bytes(b"fake")
 
-        # Create expected output files that ffmpeg would produce
-        compose_dir = sample_context.work_dir / "compose"
-        (compose_dir / "scenes" / "s1_final.mp4").write_bytes(b"f")
-        (compose_dir / "scenes" / "s1_final_no_overlay.mp4").write_bytes(b"f")
-        (compose_dir / "raw.mp4").write_bytes(b"f")
-        (compose_dir / "raw_no_overlay.mp4").write_bytes(b"f")
-        locale = sample_context.locale
-        (compose_dir / f"final_{locale}.mp4").write_bytes(b"final")
-        (compose_dir / f"final_{locale}_no_overlay.mp4").write_bytes(b"f")
-        (compose_dir / f"final_{locale}_subtitles.mp4").write_bytes(b"f")
-        (compose_dir / f"final_{locale}_subtitles_no_overlay.mp4").write_bytes(b"f")
+        mock_ff.side_effect = _fake_ffmpeg
 
         ctx = await stage.run(sample_context)
 
@@ -284,6 +278,53 @@ def test_preferred_variant_persists_in_context(tmp_path):
     assert data["preferred_variant"] == "subtitles_no_overlay"
     ctx2 = PipelineContext.from_dict(data)
     assert ctx2.preferred_variant == "subtitles_no_overlay"
+
+
+def test_compose_skips_existing_scene_finals(monkeypatch, tmp_path):
+    """If sN_final.mp4 and sN_final_no_overlay.mp4 already exist, render_scene is NOT called."""
+    from pipeline.stages.base import PipelineContext
+
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    audio_dir = work_dir / "audio"
+    audio_dir.mkdir()
+    narration = audio_dir / "narration.mp3"
+    narration.write_bytes(b"mp3")
+    subs = audio_dir / "subs.srt"
+    subs.write_text("1\n00:00:00,000 --> 00:00:01,000\nx\n", encoding="utf-8")
+
+    sb = Storyboard(scenes=[
+        Scene(id="s1", section="hook", narration="x", narration_est_sec=1.0,
+              visual={"type": "text_card", "text": "hi"})
+    ])
+    sb_path = work_dir / "storyboard.json"
+    sb.save(sb_path)
+
+    # Pre-create scene finals to simulate a prior completed run
+    scenes_dir = work_dir / "compose" / "scenes"
+    scenes_dir.mkdir(parents=True)
+    (scenes_dir / "s1_final.mp4").write_bytes(b"cached")
+    (scenes_dir / "s1_final_no_overlay.mp4").write_bytes(b"cached")
+
+    ctx = PipelineContext(
+        project_id=1, source_url="x", locale="zh-TW", work_dir=work_dir,
+        narration_path=narration, subtitle_path=subs, storyboard_path=sb_path,
+        segment_timings=[{"index": 0, "text": "x", "path": str(narration),
+                          "start_ms": 0, "duration_ms": 1000}],
+        burn_subtitles=False,
+    )
+
+    render_calls = []
+    monkeypatch.setattr("pipeline.stages.compose.render_scene",
+        lambda *a, **kw: render_calls.append(1) or Path(kw.get("work_dir", a[3])) / "s1.mp4")
+    monkeypatch.setattr("pipeline.stages.compose.run_ffmpeg",
+        lambda cmd: Path(cmd[-1]).write_bytes(b"mp4"))
+    monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
+
+    import asyncio
+    asyncio.run(ComposeStage().run(ctx))
+
+    assert render_calls == [], "render_scene should be skipped when scene finals already exist"
 
 
 def test_preferred_variant_selects_correct_final_path(monkeypatch, tmp_path):

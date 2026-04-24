@@ -151,94 +151,101 @@ class ComposeStage(PipelineStage):
 
             logger.info("compose.scene", scene_id=scene.id, duration=f"{duration:.1f}s")
 
-            # Step 1: Render visual
-            try:
-                visual_path = render_scene(
-                    scene_dict,
-                    duration,
-                    storyboard.aspect_ratio,
-                    scenes_dir,
-                    source_video=ctx.video_path,
-                    theme=theme_dict,
-                )
-            except Exception as e:
-                logger.warning(
-                    "compose.scene.visual_failed",
-                    scene_id=scene.id,
-                    error=str(e),
-                )
-                # Fallback: black screen for this scene
-                visual_path = self._black_screen(
-                    scenes_dir,
-                    scene.id,
-                    duration,
-                    width,
-                    height,
-                )
-
-            # Step 1b: Composite compartment animation if present
-            if scene.compartment:
-                try:
-                    compartment_video = build_compartment_loop(
-                        compartment=scene.compartment,
-                        scene_duration_sec=duration,
-                        scene_width=width,
-                        scene_height=height,
-                        work_dir=scenes_dir,
-                        scene_id=scene.id,
-                    )
-                    visual_path = composite_compartment_on_scene(
-                        scene_video=visual_path,
-                        compartment_video=compartment_video,
-                        compartment_config=scene.compartment,
-                        scene_width=width,
-                        scene_height=height,
-                        work_dir=scenes_dir,
-                        scene_id=scene.id,
-                    )
-                except Exception as e:
-                    logger.warning(
-                        "compose.scene.compartment_failed",
-                        scene_id=scene.id,
-                        error=str(e),
-                    )
-
-            # Step 2: Apply overlay if present (collision rule enforced upfront)
-            visual_path_before_overlay = visual_path
-            check_overlay_allowed(
-                scene=scene_dict,
-                overlay=scene.overlay,
-                visual=scene.visual,
-                burn_subtitles=ctx.burn_subtitles,
-            )
-            if scene.overlay and not ctx.skip_overlays:
-                try:
-                    overlaid_path = apply_overlay(
-                        visual_path=visual_path,
-                        overlay=scene.overlay,
-                        width=width,
-                        height=height,
-                        work_dir=scenes_dir,
-                        scene_id=scene.id,
-                        theme=theme_dict,
-                    )
-                    visual_path = overlaid_path
-                except Exception as e:
-                    logger.warning(
-                        "compose.scene.overlay_failed",
-                        scene_id=scene.id,
-                        error=str(e),
-                    )
-
             # Step 3: Combine visual + audio — produce both main and no_overlay per scene
             scene_final = scenes_dir / f"{scene.id}_final.mp4"
             scene_final_no_overlay = scenes_dir / f"{scene.id}_final_no_overlay.mp4"
 
-            self._mux(visual_path, scene_final, audio_path)
+            if scene_final.exists() and scene_final_no_overlay.exists():
+                logger.info("compose.scene.cached", scene_id=scene.id)
+                if i < len(audio_segments):
+                    duration = audio_segments[i]["duration_ms"] / 1000.0
+                else:
+                    duration = _get_duration_sec(scene_final)
+            else:
+                # Step 1: Render visual
+                try:
+                    visual_path = render_scene(
+                        scene_dict,
+                        duration,
+                        storyboard.aspect_ratio,
+                        scenes_dir,
+                        source_video=ctx.video_path,
+                        theme=theme_dict,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "compose.scene.visual_failed",
+                        scene_id=scene.id,
+                        error=str(e),
+                    )
+                    # Fallback: black screen for this scene
+                    visual_path = self._black_screen(
+                        scenes_dir,
+                        scene.id,
+                        duration,
+                        width,
+                        height,
+                    )
 
-            # No-overlay variant: use the pre-overlay visual for scenes that had overlays
-            no_overlay_visual = visual_path_before_overlay if scene.overlay else visual_path
-            self._mux(no_overlay_visual, scene_final_no_overlay, audio_path)
+                # Step 1b: Composite compartment animation if present
+                if scene.compartment:
+                    try:
+                        compartment_video = build_compartment_loop(
+                            compartment=scene.compartment,
+                            scene_duration_sec=duration,
+                            scene_width=width,
+                            scene_height=height,
+                            work_dir=scenes_dir,
+                            scene_id=scene.id,
+                        )
+                        visual_path = composite_compartment_on_scene(
+                            scene_video=visual_path,
+                            compartment_video=compartment_video,
+                            compartment_config=scene.compartment,
+                            scene_width=width,
+                            scene_height=height,
+                            work_dir=scenes_dir,
+                            scene_id=scene.id,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "compose.scene.compartment_failed",
+                            scene_id=scene.id,
+                            error=str(e),
+                        )
+
+                # Step 2: Apply overlay if present (collision rule enforced upfront)
+                visual_path_before_overlay = visual_path
+                check_overlay_allowed(
+                    scene=scene_dict,
+                    overlay=scene.overlay,
+                    visual=scene.visual,
+                    burn_subtitles=ctx.burn_subtitles,
+                )
+                if scene.overlay and not ctx.skip_overlays:
+                    try:
+                        overlaid_path = apply_overlay(
+                            visual_path=visual_path,
+                            overlay=scene.overlay,
+                            width=width,
+                            height=height,
+                            work_dir=scenes_dir,
+                            scene_id=scene.id,
+                            theme=theme_dict,
+                        )
+                        visual_path = overlaid_path
+                    except Exception as e:
+                        logger.warning(
+                            "compose.scene.overlay_failed",
+                            scene_id=scene.id,
+                            error=str(e),
+                        )
+
+                self._mux(visual_path, scene_final, audio_path)
+
+                # No-overlay variant: use the pre-overlay visual for scenes that had overlays
+                no_overlay_visual = visual_path_before_overlay if scene.overlay else visual_path
+                self._mux(no_overlay_visual, scene_final_no_overlay, audio_path)
 
             scene_finals.append(scene_final)
             scene_finals_no_overlay.append(scene_final_no_overlay)
