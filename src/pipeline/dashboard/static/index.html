@@ -94,6 +94,7 @@
 
 <script>
 let activeId = null;
+let currentData = [];
 
 function ytId(url) {
   if (!url) return null;
@@ -108,6 +109,7 @@ function fmtDate(iso) {
 }
 
 function render(data) {
+  currentData = data;
   const counts = {published:0, rendered:0, storyboard:0};
   data.forEach(p => { if (p.status in counts) counts[p.status]++; });
 
@@ -148,21 +150,14 @@ function render(data) {
         : '<span class="nil">—</span>'}</td>
       <td style="color:#4a5568;font-size:11px">${fmtDate(p.published_at)}</td>
       <td>${canPreview
-        ? `<button class="btn-preview${isActive ? ' active' : ''}" data-id="${p.project_id}">▶ Preview</button>`
+        ? `<button class="btn-preview${isActive ? ' active' : ''}" data-id="${p.project_id}">▶ Preview</button>
+           <div style="font-size:10px;color:#374151;margin-top:4px">${(p.video_variants||[]).map(v=>v.label).join(' · ')}</div>`
         : '<span class="nil">—</span>'}</td>`;
 
     tbody.appendChild(tr);
     if (isActive) tbody.appendChild(makeDetailRow(p));
   });
 
-  // Attach click handlers to preview buttons (event delegation)
-  tbody.addEventListener('click', e => {
-    const btn = e.target.closest('.btn-preview');
-    if (!btn) return;
-    const pid = btn.dataset.id;
-    const allData = data.find(p => p.project_id === pid);
-    if (allData) toggleDetail(allData);
-  }, {once: true});
 }
 
 function makeDetailRow(p) {
@@ -255,6 +250,14 @@ async function refresh() {
     ind.style.color = '#ef4444';
   }
 }
+
+// Persistent preview-button handler — lives outside render() so it survives re-renders
+document.getElementById('tbody').addEventListener('click', e => {
+  const btn = e.target.closest('.btn-preview');
+  if (!btn) return;
+  const p = currentData.find(x => x.project_id === btn.dataset.id);
+  if (p) toggleDetail(p);
+});
 
 refresh();
 setInterval(refresh, 30000);
