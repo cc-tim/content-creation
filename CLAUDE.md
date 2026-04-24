@@ -284,6 +284,19 @@ uv run pipeline storyboard set scene_003 narration="新文字"  # edit a safe fi
 #   "fix scene X's text to Y"           → storyboard set X narration="Y"
 #   "change scene X's pause to Ns"      → storyboard set X pause_after_sec=N
 
+# Compose iteration (after the storyboard-review loop)
+uv run pipeline compose set-variant --project-id <ID> --variant subtitles_no_overlay  # lock preferred variant
+uv run pipeline compose rescene --project-id <ID> --scene s9 [--scene s12]            # re-render named scenes only
+uv run pipeline compose reburn --project-id <ID> [--variant subtitles_no_overlay]     # re-burn subtitles from existing raws (seconds)
+
+# Natural-language triggers (for the assistant):
+#   "s9 overlay is unclear / wrong"          → edit storyboard.json, then compose rescene --project-id X --scene s9
+#   "fix wording in scene X"                 → storyboard set + compose rescene --project-id X --scene X
+#   "subtitles too small / wrong color"      → edit theme in storyboard.json, then compose reburn --project-id X
+#   "focus on subtitles_no_overlay variant"  → pipeline compose set-variant --project-id X --variant subtitles_no_overlay
+#   "rebuild only the chosen variant"        → compose reburn --project-id X --variant <preferred>
+#   "re-render just the compose step"        → produce --project-id X --url <url> --start-from compose
+
 # Proofreading (runs automatically at the review gate; also callable standalone)
 uv run pipeline proofread run --project-id <ID>              # show issues found by Claude Haiku
 uv run pipeline proofread run --project-id <ID> --apply      # show + apply all fixes
