@@ -20,6 +20,7 @@ class ProjectInfo:
     video_variants: list[dict[str, str]]
     tags: list[str] = field(default_factory=list)
     session_logs: list[dict[str, str]] = field(default_factory=list)
+    scenes: list[dict[str, object]] = field(default_factory=list)
 
 
 def scan_projects(output_dir: Path) -> list[ProjectInfo]:
@@ -61,6 +62,14 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
             with contextlib.suppress(json.JSONDecodeError, OSError):
                 session_logs = json.loads(sessions_file.read_text())
 
+        scenes: list[dict[str, object]] = []
+        scenes_file = project_dir / "compose" / "scenes.json"
+        if scenes_file.exists():
+            with contextlib.suppress(json.JSONDecodeError, OSError):
+                scenes = json.loads(scenes_file.read_text(encoding="utf-8"))
+        elif (project_dir / "storyboard.json").exists():
+            scenes = _estimate_scenes_from_storyboard(project_dir / "storyboard.json")
+
         results.append(
             ProjectInfo(
                 project_id=project_dir.name,
@@ -75,6 +84,7 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
                 video_variants=video_variants,
                 tags=meta.get("tags", []),  # type: ignore[arg-type]
                 session_logs=session_logs,
+                scenes=scenes,
             )
         )
 
@@ -110,6 +120,25 @@ def _find_all_final_videos(project_dir: Path, locale: str) -> list[tuple[str, Pa
     # canonical "final" variant first
     results.sort(key=lambda x: (x[0] != "final", x[0]))
     return results
+
+
+def _estimate_scenes_from_storyboard(sb_path: Path) -> list[dict[str, object]]:
+    with contextlib.suppress(json.JSONDecodeError, OSError):
+        data = json.loads(sb_path.read_text(encoding="utf-8"))
+        start = 0.0
+        result: list[dict[str, object]] = []
+        for scene in data.get("scenes", []):
+            dur = float(scene.get("narration_est_sec", 0)) + float(scene.get("pause_after_sec", 0))
+            result.append({
+                "id": scene["id"],
+                "section": scene.get("section", ""),
+                "start_sec": start,
+                "duration_sec": dur,
+                "narration": scene.get("narration", ""),
+            })
+            start += dur
+        return result
+    return []
 
 
 def _sort_key(project_id: str) -> tuple[int, str]:
