@@ -25,14 +25,18 @@ def test_api_projects_returns_project(tmp_path: Path) -> None:
     output_dir = _output_dir(tmp_path)
     project_dir = output_dir / "projects" / "9999"
     project_dir.mkdir(parents=True)
-    (project_dir / "context.json").write_text(json.dumps({
-        "project_id": "9999",
-        "locale": "zh-TW",
-        "source_url": "https://www.youtube.com/watch?v=test123",
-        "niche": "parenting",
-        "youtube_video_id": None,
-        "published_at": None,
-    }))
+    (project_dir / "context.json").write_text(
+        json.dumps(
+            {
+                "project_id": "9999",
+                "locale": "zh-TW",
+                "source_url": "https://www.youtube.com/watch?v=test123",
+                "niche": "parenting",
+                "youtube_video_id": None,
+                "published_at": None,
+            }
+        )
+    )
 
     client = TestClient(create_app(output_dir))
     resp = client.get("/api/projects")
@@ -52,21 +56,29 @@ def test_api_projects_published_fields(tmp_path: Path) -> None:
     output_dir = _output_dir(tmp_path)
     project_dir = output_dir / "projects" / "8888"
     project_dir.mkdir(parents=True)
-    (project_dir / "context.json").write_text(json.dumps({
-        "project_id": "8888",
-        "locale": "zh-TW",
-        "source_url": "https://www.youtube.com/watch?v=src",
-        "niche": None,
-        "youtube_video_id": "pub123",
-        "published_at": "2026-04-23T12:00:00+00:00",
-    }))
+    (project_dir / "context.json").write_text(
+        json.dumps(
+            {
+                "project_id": "8888",
+                "locale": "zh-TW",
+                "source_url": "https://www.youtube.com/watch?v=src",
+                "niche": None,
+                "youtube_video_id": "pub123",
+                "published_at": "2026-04-23T12:00:00+00:00",
+            }
+        )
+    )
     compose_dir = project_dir / "compose"
     compose_dir.mkdir()
     (compose_dir / "final_zh-TW.mp4").write_text("")
-    (project_dir / "metadata.json").write_text(json.dumps({
-        "title": "Test Title",
-        "tags": ["a", "b"],
-    }))
+    (project_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "title": "Test Title",
+                "tags": ["a", "b"],
+            }
+        )
+    )
 
     client = TestClient(create_app(output_dir))
     resp = client.get("/api/projects")
@@ -84,15 +96,21 @@ def test_api_projects_includes_scenes(tmp_path: Path) -> None:
     output_dir = _output_dir(tmp_path)
     project_dir = output_dir / "projects" / "7777"
     project_dir.mkdir(parents=True)
-    (project_dir / "context.json").write_text(json.dumps({
-        "project_id": "7777",
-        "locale": "zh-TW",
-        "source_url": None,
-        "niche": None,
-        "youtube_video_id": None,
-        "published_at": None,
-    }))
-    scenes = [{"id": "s1", "section": "hook", "start_sec": 0.0, "duration_sec": 5.0, "narration": "Hello"}]
+    (project_dir / "context.json").write_text(
+        json.dumps(
+            {
+                "project_id": "7777",
+                "locale": "zh-TW",
+                "source_url": None,
+                "niche": None,
+                "youtube_video_id": None,
+                "published_at": None,
+            }
+        )
+    )
+    scenes = [
+        {"id": "s1", "section": "hook", "start_sec": 0.0, "duration_sec": 5.0, "narration": "Hello"}
+    ]
     compose_dir = project_dir / "compose"
     compose_dir.mkdir()
     (compose_dir / "scenes.json").write_text(json.dumps(scenes))
