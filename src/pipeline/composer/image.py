@@ -26,6 +26,17 @@ def _size_arg(width: int, height: int) -> str:
     return "1024x1024"
 
 
+def _is_too_dark(path: Path, threshold: int = 60) -> bool:
+    """Return True if the image average brightness is below threshold (0-255)."""
+    try:
+        from PIL import Image
+        img = Image.open(path).convert("L")
+        pixels = list(img.getdata())
+        return (sum(pixels) / len(pixels)) < threshold
+    except Exception:
+        return False
+
+
 def render_generated_image(
     visual: dict[str, Any],
     duration_sec: float,
@@ -54,8 +65,13 @@ def render_generated_image(
     output = work_dir / f"{scene_id}_visual.mp4"
 
     if cached_png.exists():
-        logger.info("image.cache_hit", prompt=prompt[:50])
-    else:
+        if _is_too_dark(cached_png):
+            logger.warning("image.dark_cache_evicted", scene=scene_id, path=str(cached_png))
+            cached_png.unlink()
+        else:
+            logger.info("image.cache_hit", prompt=prompt[:50])
+
+    if not cached_png.exists():
         provider = GenImageProvider(tier=tier)
         try:
             result = try_chain(
@@ -65,6 +81,18 @@ def render_generated_image(
                 size=_size_arg(width, height),
             )
             logger.info("image.generated", prompt=prompt[:50], provider=result.provider)
+            # Retry once with explicit light-background hint if result is dark
+            if _is_too_dark(cached_png):
+                logger.warning("image.dark_retry", scene=scene_id)
+                cached_png.unlink()
+                light_prompt = f"{prompt}, white background, bright cream paper, no dark areas"
+                light_key = _cache_key(light_prompt)
+                light_png = cache_dir / f"{light_key}.png"
+                size = _size_arg(width, height)
+                try_chain([provider], prompt=light_prompt, out_path=light_png, size=size)
+                cached_png = light_png
+                bright = not _is_too_dark(cached_png)
+                logger.info("image.dark_retry_done", scene=scene_id, bright=bright)
             if gallery_path is not None:
                 _write_to_gallery(
                     image_path=cached_png,
@@ -116,7 +144,8 @@ def _write_to_gallery(
 ) -> None:
     import shutil
     from datetime import date
-    from pipeline.utils.gallery import GalleryEntry, GalleryIndex, GALLERY_DIR
+
+    from pipeline.utils.gallery import GALLERY_DIR, GalleryEntry, GalleryIndex
 
     gallery_images_dir = GALLERY_DIR / "images"
     gallery_images_dir.mkdir(parents=True, exist_ok=True)

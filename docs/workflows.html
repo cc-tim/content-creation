@@ -96,7 +96,7 @@
 <div class="meta">
   Open from terminal: <code>xdg-open docs/workflows.html</code>
   &nbsp;·&nbsp;
-  Last updated: 2026-04-24
+  Last updated: 2026-04-25
   &nbsp;·&nbsp;
   Update this file as new components are added
 </div>
@@ -294,6 +294,11 @@ flowchart TD
     <!-- COMPOSE -->
     <tr>
       <td><span class="stage s-compose">COMPOSE</span></td>
+      <td>Dark-image auto-retry</td><td><code>composer/image.py</code></td><td>free (check only)</td>
+      <td><span class="badge b-new">new</span></td><td>On cache hit or generation, checks avg brightness (&lt;60/255 = dark). Evicts cache + retries once with <code>", white background, bright cream paper, no dark areas"</code> appended. Flux Schnell draft can silently produce black frames on dark-concept prompts (pools, mirrors, panels).</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-compose">COMPOSE</span></td>
       <td>FFmpeg video assembly</td><td>FFmpeg</td><td>free</td>
       <td><span class="badge b-stable">stable</span></td><td>Stitches scenes, mixes audio, applies clips</td>
     </tr>
@@ -373,6 +378,9 @@ output/projects/<span class="dir">{project_id}/</span><br>
     <tr><td>Wrong narration text</td><td>storyboard.json or script/script_zh-TW.md</td><td>--start-from tts</td></tr>
     <tr><td>Wrong voice / audio pacing</td><td>voices/registry.json or --voice flag</td><td>--start-from tts</td></tr>
     <tr><td>Bad image / visual card</td><td>Regenerate with gen-image.py → replace file</td><td>--start-from compose</td></tr>
+    <tr><td>Scene has black/dark background</td><td>Fix storyboard <code>bg_prompt</code> or <code>prompt</code>: avoid dark-concept keywords (pool, mirror, underwater, panels). Delete <code>compose/scenes/sXX_*.{png,mp4}</code> and the matching <code>image_cache/*.png</code>. Dark-retry logic in <code>image.py</code> handles future runs automatically.</td><td>--start-from compose</td></tr>
+    <tr><td>Overlay text reads as a fragment in zh-TW</td><td>Edit <code>overlay.text</code> in storyboard.json — must be a complete standalone statement; avoid leading with "不是...，是..." or "，是..." patterns. Use "關鍵：..." or positive restatement form.</td><td>--start-from compose</td></tr>
+    <tr><td>rich_slide footer text hard to read (collides with subtitles)</td><td>Move content from <code>footer</code> field → 3rd bullet with <code>✦</code> prefix. Footer renders small (font 26, muted gray) at bottom of frame where subtitle text also appears.</td><td>--start-from compose</td></tr>
     <tr><td>Bad video composition / subtitles</td><td>compose config or --subtitles flag</td><td>--start-from compose</td></tr>
     <tr><td>Wrong YouTube title/tags</td><td>metadata.json</td><td>pipeline metadata set … then re-publish</td></tr>
   </tbody>
