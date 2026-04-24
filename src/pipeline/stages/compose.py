@@ -220,26 +220,11 @@ class ComposeStage(PipelineStage):
             scene_final = scenes_dir / f"{scene.id}_final.mp4"
             scene_final_no_overlay = scenes_dir / f"{scene.id}_final_no_overlay.mp4"
 
-            def _mux(vis: Path, out: Path, aud: Path | None = audio_path) -> None:
-                if aud and aud.exists():
-                    run_ffmpeg([
-                        "ffmpeg", "-y",
-                        "-i", str(vis), "-i", str(aud),
-                        "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", "-shortest",
-                        str(out),
-                    ])
-                else:
-                    run_ffmpeg([
-                        "ffmpeg", "-y",
-                        "-i", str(vis), "-c:v", "copy", "-an",
-                        str(out),
-                    ])
-
-            _mux(visual_path, scene_final)
+            self._mux(visual_path, scene_final, audio_path)
 
             # No-overlay variant: use the pre-overlay visual for scenes that had overlays
             no_overlay_visual = visual_path_before_overlay if scene.overlay else visual_path
-            _mux(no_overlay_visual, scene_final_no_overlay)
+            self._mux(no_overlay_visual, scene_final_no_overlay, audio_path)
 
             scene_finals.append(scene_final)
             scene_finals_no_overlay.append(scene_final_no_overlay)
@@ -355,6 +340,22 @@ class ComposeStage(PipelineStage):
         ]
         run_ffmpeg(cmd)
         return final_path
+
+    @staticmethod
+    def _mux(vis: Path, out: Path, aud: Path | None) -> None:
+        if aud and aud.exists():
+            run_ffmpeg([
+                "ffmpeg", "-y",
+                "-i", str(vis), "-i", str(aud),
+                "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", "-shortest",
+                str(out),
+            ])
+        else:
+            run_ffmpeg([
+                "ffmpeg", "-y",
+                "-i", str(vis), "-c:v", "copy", "-an",
+                str(out),
+            ])
 
     def _black_screen(
         self,

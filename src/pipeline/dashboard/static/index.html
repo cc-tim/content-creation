@@ -258,6 +258,7 @@ function toggleDetail(p) {
   document.querySelector(`.btn-preview[data-id="${p.project_id}"]`)?.classList.add('active');
   const detailRow = makeDetailRow(p);
   tr?.insertAdjacentElement('afterend', detailRow);
+  let openSc = -1;
   // Wire variant tab clicks
   detailRow.querySelectorAll('.btn-variant').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -269,6 +270,7 @@ function toggleDetail(p) {
       detailRow.querySelectorAll('.scene-chip').forEach(c => c.classList.remove('sc-active', 'sc-past'));
       const narPanel = detailRow.querySelector('.scene-narration');
       if (narPanel) narPanel.style.display = 'none';
+      openSc = -1;
     });
   });
   // Wire scene strip
@@ -291,7 +293,6 @@ function toggleDetail(p) {
       strip.querySelectorAll('.scene-chip')[idx]?.scrollIntoView({inline: 'nearest', behavior: 'smooth'});
     });
 
-    let openSc = -1;
     strip.addEventListener('click', e => {
       const chip = e.target.closest('.scene-chip');
       if (!chip) return;
