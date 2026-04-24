@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -112,6 +113,9 @@ class ComposeStage(PipelineStage):
         audio_segments = ctx.segment_timings or []
 
         scene_finals: list[Path] = []
+        scene_finals_no_overlay: list[Path] = []
+        scenes_data: list[dict[str, object]] = []
+        _running_sec = 0.0
 
         for i, scene in enumerate(storyboard.scenes):
             scene_dict = {
@@ -185,6 +189,7 @@ class ComposeStage(PipelineStage):
                     )
 
             # Step 2: Apply overlay if present (collision rule enforced upfront)
+            visual_path_before_overlay = visual_path
             check_overlay_allowed(
                 scene=scene_dict,
                 overlay=scene.overlay,
@@ -210,43 +215,33 @@ class ComposeStage(PipelineStage):
                         error=str(e),
                     )
 
-            # Step 3: Combine visual + audio
+            # Step 3: Combine visual + audio — produce both main and no_overlay per scene
             scene_final = scenes_dir / f"{scene.id}_final.mp4"
-            if audio_path and audio_path.exists():
-                run_ffmpeg(
-                    [
-                        "ffmpeg",
-                        "-y",
-                        "-i",
-                        str(visual_path),
-                        "-i",
-                        str(audio_path),
-                        "-c:v",
-                        "copy",
-                        "-c:a",
-                        "aac",
-                        "-b:a",
-                        "128k",
-                        "-shortest",
-                        str(scene_final),
-                    ]
-                )
-            else:
-                # No audio — use silent visual
-                run_ffmpeg(
-                    [
-                        "ffmpeg",
-                        "-y",
-                        "-i",
-                        str(visual_path),
-                        "-c:v",
-                        "copy",
-                        "-an",
-                        str(scene_final),
-                    ]
-                )
+            scene_final_no_overlay = scenes_dir / f"{scene.id}_final_no_overlay.mp4"
+
+            def _mux(vis: Path, out: Path, aud: Path | None = audio_path) -> None:
+                if aud and aud.exists():
+                    run_ffmpeg([
+                        "ffmpeg", "-y",
+                        "-i", str(vis), "-i", str(aud),
+                        "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", "-shortest",
+                        str(out),
+                    ])
+                else:
+                    run_ffmpeg([
+                        "ffmpeg", "-y",
+                        "-i", str(vis), "-c:v", "copy", "-an",
+                        str(out),
+                    ])
+
+            _mux(visual_path, scene_final)
+
+            # No-overlay variant: use the pre-overlay visual for scenes that had overlays
+            no_overlay_visual = visual_path_before_overlay if scene.overlay else visual_path
+            _mux(no_overlay_visual, scene_final_no_overlay)
 
             scene_finals.append(scene_final)
+            scene_finals_no_overlay.append(scene_final_no_overlay)
 
             # Step 4: Add pause if needed
             if scene.pause_after_sec > 0:
@@ -258,41 +253,60 @@ class ComposeStage(PipelineStage):
                     height,
                 )
                 scene_finals.append(pause_path)
+                scene_finals_no_overlay.append(pause_path)
 
-        # Step 5: Concatenate all scene segments
+            scene_dur = duration + scene.pause_after_sec
+            scenes_data.append({
+                "id": scene.id,
+                "section": scene.section,
+                "start_sec": _running_sec,
+                "duration_sec": scene_dur,
+                "narration": scene.narration,
+            })
+            _running_sec += scene_dur
+
+        (compose_dir / "scenes.json").write_text(
+            json.dumps(scenes_data, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        # Step 5: Concatenate both scene lists
         raw_path = compose_dir / "raw.mp4"
+        raw_no_overlay_path = compose_dir / "raw_no_overlay.mp4"
         self._concat_scenes(scene_finals, raw_path)
+        self._concat_scenes(scene_finals_no_overlay, raw_no_overlay_path)
 
-        # Step 6: Burn subtitles (optional)
-        final_path = compose_dir / f"final_{ctx.locale}.mp4"
-        if ctx.burn_subtitles:
+        # Step 6: Produce all 4 final variants (main + no_overlay) × (plain + subtitles)
+        def _burn_subs(src: Path, dst: Path) -> None:
             escaped_sub = str(ctx.subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
             subtitle_style = _build_subtitle_style(theme_dict)
-            run_ffmpeg(
-                [
-                    "ffmpeg",
-                    "-y",
-                    "-i",
-                    str(raw_path),
-                    "-vf",
-                    f"subtitles={escaped_sub}:force_style='{subtitle_style}'",
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "medium",
-                    "-crf",
-                    "23",
-                    "-c:a",
-                    "copy",
-                    str(final_path),
-                ]
-            )
+            run_ffmpeg([
+                "ffmpeg", "-y", "-i", str(src),
+                "-vf", f"subtitles={escaped_sub}:force_style='{subtitle_style}'",
+                "-c:v", "libx264", "-preset", "medium", "-crf", "23", "-c:a", "copy",
+                str(dst),
+            ])
+
+        import shutil
+
+        locale = ctx.locale
+        plain        = compose_dir / f"final_{locale}.mp4"
+        plain_no_ov  = compose_dir / f"final_{locale}_no_overlay.mp4"
+        subs         = compose_dir / f"final_{locale}_subtitles.mp4"
+        subs_no_ov   = compose_dir / f"final_{locale}_subtitles_no_overlay.mp4"
+
+        shutil.copyfile(raw_path, plain)
+        shutil.copyfile(raw_no_overlay_path, plain_no_ov)
+
+        if ctx.subtitle_path and ctx.subtitle_path.exists():
+            _burn_subs(raw_path, subs)
+            _burn_subs(raw_no_overlay_path, subs_no_ov)
         else:
-            # No subtitle burn: raw.mp4 is already libx264/aac from scene finals.
-            import shutil
+            shutil.copyfile(raw_path, subs)
+            shutil.copyfile(raw_no_overlay_path, subs_no_ov)
 
-            shutil.copyfile(raw_path, final_path)
-
+        # Return the variant the rest of the pipeline expects
+        final_path = subs if ctx.burn_subtitles else plain
         return final_path
 
     async def _compose_mvp(self, ctx: PipelineContext, compose_dir: Path) -> Path:

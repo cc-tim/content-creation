@@ -1,3 +1,6 @@
+import json
+
+import pytest
 from unittest.mock import MagicMock, patch
 
 from pipeline.stages.compose import ComposeStage
@@ -184,3 +187,72 @@ def test_compose_no_subtitles_skips_burn(monkeypatch, tmp_path):
     for cmd in ffmpeg_calls:
         joined = " ".join(cmd)
         assert "subtitles=" not in joined, f"subtitles filter found in: {joined}"
+
+
+def test_scenes_json_written_by_storyboard_compose(monkeypatch, tmp_path):
+    """After _compose_from_storyboard, compose/scenes.json exists with correct timestamps."""
+    from pathlib import Path
+    from pipeline.stages.base import PipelineContext
+    from pipeline.stages.compose import ComposeStage
+    from pipeline.storyboard import Scene, Storyboard
+
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    audio_dir = work_dir / "audio"
+    audio_dir.mkdir()
+    narration = audio_dir / "narration.mp3"
+    narration.write_bytes(b"mp3")
+    subs = audio_dir / "subs.srt"
+    subs.write_text("1\n00:00:00,000 --> 00:00:01,000\nx\n", encoding="utf-8")
+
+    storyboard = Storyboard(
+        scenes=[
+            Scene(id="s1", section="hook", narration="First scene", narration_est_sec=5.0,
+                  visual={"type": "text_card", "text": "hi"}, pause_after_sec=0.5),
+            Scene(id="s2", section="context", narration="Second scene", narration_est_sec=8.0,
+                  visual={"type": "text_card", "text": "ho"}, pause_after_sec=0.0),
+        ]
+    )
+    sb_path = work_dir / "storyboard.json"
+    storyboard.save(sb_path)
+
+    ctx = PipelineContext(
+        project_id=1,
+        source_url="x",
+        locale="zh-TW",
+        work_dir=work_dir,
+        narration_path=narration,
+        subtitle_path=subs,
+        storyboard_path=sb_path,
+        segment_timings=[
+            {"index": 0, "text": "First scene", "path": str(narration), "start_ms": 0, "duration_ms": 5000},
+            {"index": 1, "text": "Second scene", "path": str(narration), "start_ms": 5000, "duration_ms": 8000},
+        ],
+        burn_subtitles=False,
+    )
+
+    monkeypatch.setattr("pipeline.stages.compose.run_ffmpeg",
+        lambda cmd: Path(cmd[-1]).write_bytes(b"mp4"))
+    monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
+    monkeypatch.setattr("pipeline.stages.compose.render_scene",
+        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None:
+            Path(work_dir) / f"{scene['id']}.mp4")
+
+    import asyncio
+    asyncio.run(ComposeStage().run(ctx))
+
+    scenes_file = work_dir / "compose" / "scenes.json"
+    assert scenes_file.exists(), "compose/scenes.json was not written"
+    scenes = json.loads(scenes_file.read_text())
+    assert len(scenes) == 2
+
+    assert scenes[0]["id"] == "s1"
+    assert scenes[0]["section"] == "hook"
+    assert scenes[0]["start_sec"] == 0.0
+    assert scenes[0]["duration_sec"] == pytest.approx(5.5)   # 5000ms audio + 0.5s pause
+    assert scenes[0]["narration"] == "First scene"
+
+    assert scenes[1]["id"] == "s2"
+    assert scenes[1]["start_sec"] == pytest.approx(5.5)
+    assert scenes[1]["duration_sec"] == pytest.approx(8.0)   # 8000ms audio + 0s pause
+    assert scenes[1]["narration"] == "Second scene"
