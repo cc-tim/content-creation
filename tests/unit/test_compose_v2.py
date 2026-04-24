@@ -284,3 +284,49 @@ def test_preferred_variant_persists_in_context(tmp_path):
     assert data["preferred_variant"] == "subtitles_no_overlay"
     ctx2 = PipelineContext.from_dict(data)
     assert ctx2.preferred_variant == "subtitles_no_overlay"
+
+
+def test_preferred_variant_selects_correct_final_path(monkeypatch, tmp_path):
+    """When preferred_variant is set, compose returns that variant's path."""
+    from pathlib import Path
+    from pipeline.stages.base import PipelineContext
+    from pipeline.stages.compose import ComposeStage
+    from pipeline.storyboard import Scene, Storyboard
+
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    audio_dir = work_dir / "audio"
+    audio_dir.mkdir()
+    narration = audio_dir / "narration.mp3"
+    narration.write_bytes(b"mp3")
+    subs = audio_dir / "subs.srt"
+    subs.write_text("1\n00:00:00,000 --> 00:00:01,000\nx\n", encoding="utf-8")
+
+    sb = Storyboard(scenes=[
+        Scene(id="s1", section="hook", narration="x", narration_est_sec=1.0,
+              visual={"type": "text_card", "text": "hi"})
+    ])
+    sb_path = work_dir / "storyboard.json"
+    sb.save(sb_path)
+
+    ctx = PipelineContext(
+        project_id=1, source_url="x", locale="zh-TW", work_dir=work_dir,
+        narration_path=narration, subtitle_path=subs, storyboard_path=sb_path,
+        segment_timings=[{"index": 0, "text": "x", "path": str(narration),
+                          "start_ms": 0, "duration_ms": 1000}],
+        burn_subtitles=False,
+        preferred_variant="subtitles_no_overlay",
+    )
+
+    monkeypatch.setattr("pipeline.stages.compose.run_ffmpeg",
+        lambda cmd: Path(cmd[-1]).write_bytes(b"mp4"))
+    monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
+    monkeypatch.setattr("pipeline.stages.compose.render_scene",
+        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None:
+            Path(work_dir) / f"{scene['id']}.mp4")
+
+    import asyncio
+    result_ctx = asyncio.run(ComposeStage().run(ctx))
+
+    compose_dir = work_dir / "compose"
+    assert result_ctx.final_video_path == compose_dir / "final_zh-TW_subtitles_no_overlay.mp4"

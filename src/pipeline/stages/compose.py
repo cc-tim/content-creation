@@ -50,6 +50,18 @@ def _build_subtitle_style(theme_dict: dict[str, str]) -> str:
     )
 
 
+def _burn_subtitle_pass(src: Path, dst: Path, subtitle_path: Path, theme_dict: dict) -> None:
+    """Burn subtitles from subtitle_path into src, writing to dst."""
+    escaped_sub = str(subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
+    subtitle_style = _build_subtitle_style(theme_dict)
+    run_ffmpeg([
+        "ffmpeg", "-y", "-i", str(src),
+        "-vf", f"subtitles={escaped_sub}:force_style='{subtitle_style}'",
+        "-c:v", "libx264", "-preset", "medium", "-crf", "23", "-c:a", "copy",
+        str(dst),
+    ])
+
+
 def _get_duration_sec(path: Path) -> float:
     """Get media duration in seconds via ffprobe."""
     result = subprocess.run(
@@ -263,16 +275,6 @@ class ComposeStage(PipelineStage):
         self._concat_scenes(scene_finals_no_overlay, raw_no_overlay_path)
 
         # Step 6: Produce all 4 final variants (main + no_overlay) × (plain + subtitles)
-        def _burn_subs(src: Path, dst: Path) -> None:
-            escaped_sub = str(ctx.subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
-            subtitle_style = _build_subtitle_style(theme_dict)
-            run_ffmpeg([
-                "ffmpeg", "-y", "-i", str(src),
-                "-vf", f"subtitles={escaped_sub}:force_style='{subtitle_style}'",
-                "-c:v", "libx264", "-preset", "medium", "-crf", "23", "-c:a", "copy",
-                str(dst),
-            ])
-
         locale = ctx.locale
         plain        = compose_dir / f"final_{locale}.mp4"
         plain_no_ov  = compose_dir / f"final_{locale}_no_overlay.mp4"
@@ -283,14 +285,23 @@ class ComposeStage(PipelineStage):
         shutil.copyfile(raw_no_overlay_path, plain_no_ov)
 
         if ctx.subtitle_path and ctx.subtitle_path.exists():
-            _burn_subs(raw_path, subs)
-            _burn_subs(raw_no_overlay_path, subs_no_ov)
+            _burn_subtitle_pass(raw_path, subs, ctx.subtitle_path, theme_dict)
+            _burn_subtitle_pass(raw_no_overlay_path, subs_no_ov, ctx.subtitle_path, theme_dict)
         else:
             shutil.copyfile(raw_path, subs)
             shutil.copyfile(raw_no_overlay_path, subs_no_ov)
 
         # Return the variant the rest of the pipeline expects
-        final_path = subs if ctx.burn_subtitles else plain
+        _VARIANT_MAP = {
+            "plain": plain,
+            "no_overlay": plain_no_ov,
+            "subtitles": subs,
+            "subtitles_no_overlay": subs_no_ov,
+        }
+        if ctx.preferred_variant and ctx.preferred_variant in _VARIANT_MAP:
+            final_path = _VARIANT_MAP[ctx.preferred_variant]
+        else:
+            final_path = subs if ctx.burn_subtitles else plain
         return final_path
 
     async def _compose_mvp(self, ctx: PipelineContext, compose_dir: Path) -> Path:
