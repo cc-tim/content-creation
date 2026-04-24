@@ -80,6 +80,30 @@ def test_api_projects_published_fields(tmp_path: Path) -> None:
     assert p["final_video_url_path"] == "/output/projects/8888/compose/final_zh-TW.mp4"
 
 
+def test_api_projects_includes_scenes(tmp_path: Path) -> None:
+    output_dir = _output_dir(tmp_path)
+    project_dir = output_dir / "projects" / "7777"
+    project_dir.mkdir(parents=True)
+    (project_dir / "context.json").write_text(json.dumps({
+        "project_id": "7777",
+        "locale": "zh-TW",
+        "source_url": None,
+        "niche": None,
+        "youtube_video_id": None,
+        "published_at": None,
+    }))
+    scenes = [{"id": "s1", "section": "hook", "start_sec": 0.0, "duration_sec": 5.0, "narration": "Hello"}]
+    compose_dir = project_dir / "compose"
+    compose_dir.mkdir()
+    (compose_dir / "scenes.json").write_text(json.dumps(scenes))
+
+    client = TestClient(create_app(output_dir))
+    resp = client.get("/api/projects")
+    assert resp.status_code == 200
+    [p] = resp.json()
+    assert p["scenes"] == scenes
+
+
 def test_index_serves_html(tmp_path: Path) -> None:
     client = TestClient(create_app(_output_dir(tmp_path)))
     resp = client.get("/")
