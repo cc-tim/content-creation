@@ -17,15 +17,15 @@ def test_config_from_env(monkeypatch):
     assert config.TTS_PROVIDER == "google"
 
 
-def test_gemini_key_from_unprefixed_env(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "fake-gemini-key")
-    monkeypatch.delenv("PIPELINE_GEMINI_API_KEY", raising=False)
+def test_pexels_key_from_unprefixed_env(monkeypatch):
+    monkeypatch.setenv("PEXELS_API_KEY", "fake-pexels-key")
+    monkeypatch.delenv("PIPELINE_PEXELS_API_KEY", raising=False)
     cfg = PipelineConfig()
-    assert cfg.GEMINI_API_KEY == "fake-gemini-key"
+    assert cfg.PEXELS_API_KEY == "fake-pexels-key"
 
 
-def test_image_providers_default(monkeypatch):
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    monkeypatch.delenv("PIPELINE_IMAGE_PROVIDERS", raising=False)
+def test_pixabay_key_from_unprefixed_env(monkeypatch):
+    monkeypatch.setenv("PIXABAY_API_KEY", "fake-pixabay-key")
+    monkeypatch.delenv("PIPELINE_PIXABAY_API_KEY", raising=False)
     cfg = PipelineConfig()
-    assert cfg.IMAGE_PROVIDERS == "gemini,dalle"
+    assert cfg.PIXABAY_API_KEY == "fake-pixabay-key"

@@ -9,13 +9,9 @@ class PipelineConfig(BaseSettings):
 
     # API keys
     ANTHROPIC_API_KEY: str = ""
-    OPENAI_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""   # used only for OpenAI TTS; image gen uses gen-image.py
     YOUTUBE_API_KEY: str = ""
     GOOGLE_CLOUD_TTS_KEY: str = ""
-    GEMINI_API_KEY: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices("GEMINI_API_KEY", "PIPELINE_GEMINI_API_KEY"),
-    )
     PEXELS_API_KEY: str | None = Field(
         default=None,
         validation_alias=AliasChoices("PEXELS_API_KEY", "PIPELINE_PEXELS_API_KEY"),
@@ -24,9 +20,6 @@ class PipelineConfig(BaseSettings):
         default=None,
         validation_alias=AliasChoices("PIXABAY_API_KEY", "PIPELINE_PIXABAY_API_KEY"),
     )
-
-    # Image generation
-    IMAGE_PROVIDERS: str = "gemini,dalle"
 
     # Paths
     OUTPUT_DIR: Path = Path("output")
