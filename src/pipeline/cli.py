@@ -6,6 +6,7 @@ from pathlib import Path
 import structlog
 import typer
 
+from pipeline.cli_compose import compose_app
 from pipeline.cli_metadata import metadata_app
 from pipeline.cli_proofread import proofread_app
 from pipeline.cli_storyboard import storyboard_app
@@ -32,6 +33,7 @@ app.add_typer(publish_app, name="publish")
 app.add_typer(metadata_app, name="metadata")
 app.add_typer(gallery_app, name="gallery")
 app.add_typer(proofread_app, name="proofread")
+app.add_typer(compose_app, name="compose")
 
 
 def _channel_config_path() -> Path:
@@ -160,6 +162,11 @@ def produce(
             typer.echo(
                 f'  uv run pipeline produce --url "{url}" --locale {locale} '
                 f"--project-id {project_id} --start-from tts"
+            )
+            typer.echo(
+                f"  # compose-only re-render (skips TTS):\n"
+                f"  uv run pipeline produce --url \"{url}\" --locale {locale} "
+                f"--project-id {project_id} --start-from compose"
             )
             return
 
