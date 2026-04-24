@@ -6,6 +6,7 @@ from pipeline.stages.tts import (
     _build_subtitle_entries,
     _split_text_for_subtitles,
     _visual_width,
+    _wrap_english_two_lines,
     _wrap_subtitle_line,
     extract_narration_segments,
 )
@@ -366,3 +367,66 @@ async def test_tts_passes_scene_id_to_engine(sample_context):
         await stage.run(sample_context)
 
     assert seen_scene_ids == ["hook_1", "ctx_1"]
+
+
+# --- English subtitle splitting ---
+
+
+def test_split_english_long_narration_produces_multiple_chunks():
+    """Regression: 189-char English scene produces multiple short chunks, not 1 mega-block."""
+    text = (
+        "Aisle seven. The cart. The yogurt pouch they wanted and then didn't want. "
+        "The scream that seems to come from a much bigger body than theirs. "
+        "Everyone is looking. You feel your face go hot."
+    )
+    chunks = _split_text_for_subtitles(text, max_width=36)
+    assert len(chunks) >= 2, f"Expected 2+ chunks for {len(text)}-char English text, got {len(chunks)}"
+    for chunk in chunks:
+        lines = chunk.split("\n")
+        assert len(lines) <= 2, f"Chunk has {len(lines)} lines: {chunk!r}"
+        for line in lines:
+            assert len(line) <= 45, f"Line too long ({len(line)} chars): {line!r}"
+
+
+def test_split_english_very_long_sentence():
+    """Very long single English sentence (>84 chars) splits into multiple valid chunks."""
+    text = (
+        "And what the researchers found is that these are the toddlers whose parents most "
+        "often reach for a screen when a meltdown starts. Which makes total sense. "
+        "It works in the moment. But here is the thing."
+    )
+    chunks = _split_text_for_subtitles(text, max_width=36)
+    assert len(chunks) >= 2
+    for chunk in chunks:
+        lines = chunk.split("\n")
+        assert len(lines) <= 2
+        for line in lines:
+            assert len(line) <= 45
+
+
+def test_wrap_english_two_lines_short_text():
+    """Short English text stays on one line."""
+    result = _wrap_english_two_lines("Short text.", chars_per_line=42)
+    assert result == "Short text."
+    assert "\n" not in result
+
+
+def test_wrap_english_two_lines_wraps_at_word_boundary():
+    """English text > chars_per_line wraps at a word boundary."""
+    text = "The scream that seems to come from a much bigger body than theirs."
+    result = _wrap_english_two_lines(text, chars_per_line=42)
+    lines = result.split("\n")
+    assert len(lines) == 2
+    for line in lines:
+        assert len(line) <= 42
+    # No word should be split across lines
+    assert "".join(result.split()) == "".join(text.split())
+
+
+def test_split_english_preserves_cjk_path():
+    """Predominantly CJK text still uses original CJK splitting logic."""
+    text = "這是第一句話。這是第二句話。這是第三句話。"
+    chunks = _split_text_for_subtitles(text, max_width=20)
+    assert len(chunks) >= 2
+    for chunk in chunks:
+        assert len(chunk) <= 40

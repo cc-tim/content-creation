@@ -14,6 +14,10 @@ from pipeline.storyboard import Storyboard
 logger = structlog.get_logger()
 
 LOCALE_INSTRUCTIONS = {
+    "en": (
+        "Write in clear, conversational English. "
+        "Use an authoritative but warm narrator voice appropriate for long-form YouTube content."
+    ),
     "zh-TW": (
         "Write in Traditional Chinese (zh-TW), Taiwan usage conventions. "
         "Explain US-specific context (legal system, geography, policing norms) "
@@ -37,7 +41,7 @@ def build_direct_prompt(
     tone: str = "dramatic",
 ) -> str:
     """Build Claude prompt to generate a storyboard from knowledge."""
-    locale_instruction = LOCALE_INSTRUCTIONS.get(locale, LOCALE_INSTRUCTIONS["zh-TW"])
+    locale_instruction = LOCALE_INSTRUCTIONS.get(locale) or LOCALE_INSTRUCTIONS["en"]
     knowledge_json = json.dumps(knowledge.to_dict(), indent=2, ensure_ascii=False)
 
     if fmt == "short":
@@ -52,8 +56,17 @@ Use 2-4 scenes only. Target 45 seconds total."""
             "Use clip only if a specific moment is visually compelling."
         )
     else:
-        structure = """VIDEO STRUCTURE (standard format, 10-15 minutes):
-- hook (0-30s): Most dramatic moment out of context
+        hook_guidance = (
+            "Drop viewers into the tensest moment mid-action, no setup."
+            if tone == "dramatic"
+            else (
+                "Pose a counterintuitive question or reveal something surprising that "
+                "the viewer cannot answer yet — force them to stay. "
+                "Do NOT summarize the topic or start with background."
+            )
+        )
+        structure = f"""VIDEO STRUCTURE (standard format, 10-15 minutes):
+- hook (0-30s): {hook_guidance}
 - context (30s-2min): Map, people, setting, background
 - rising (2-6min): Escalation of events
 - climax (6-8min): Peak tension

@@ -23,9 +23,8 @@
     thead tr { border-bottom: 1px solid #1e1e1e; }
     th { text-align: left; padding: 8px 16px; font-size: 10px; text-transform: uppercase;
          letter-spacing: .05em; color: #4a5568; font-weight: 500; }
-    tbody tr { border-bottom: 1px solid #141414; }
-    tbody tr.clickable { cursor: pointer; transition: background .1s; }
-    tbody tr.clickable:hover, tbody tr.active { background: #161616; }
+    tbody tr { border-bottom: 1px solid #141414; transition: background .1s; }
+    tbody tr.active { background: #161616; }
     tbody tr.dimmed { opacity: .45; }
     td { padding: 10px 16px; vertical-align: middle; }
 
@@ -38,12 +37,20 @@
     .s-new        { background: #374151; }
 
     .t-main { color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
-    .t-id   { color: #374151; font-size: 10px; margin-top: 2px; }
+    .t-id   { color: #4a5568; font-size: 10px; margin-top: 3px; font-family: monospace; user-select: all; }
     .t-miss { color: #4a5568; font-style: italic; }
     a { color: #3b82f6; text-decoration: none; }
     a:hover { text-decoration: underline; }
     a.yt { color: #16a34a; }
     .nil { color: #2d3748; }
+
+    .btn-preview {
+      font-size: 11px; padding: 3px 10px; border-radius: 4px; border: 1px solid #2d3748;
+      background: #1a1a2e; color: #94a3b8; cursor: pointer; white-space: nowrap;
+      transition: background .1s, color .1s;
+    }
+    .btn-preview:hover { background: #1e293b; color: #e2e8f0; }
+    .btn-preview.active { background: #1e293b; color: #e2e8f0; border-color: #3b82f6; }
 
     .detail-row td { padding: 0; }
     .detail-panel { padding: 16px 20px; background: #111; border-bottom: 1px solid #1e1e1e; }
@@ -75,6 +82,7 @@
     <th>Source</th>
     <th>YouTube</th>
     <th>Date</th>
+    <th></th>
   </tr></thead>
   <tbody id="tbody"></tbody>
 </table>
@@ -112,15 +120,13 @@ function render(data) {
   tbody.innerHTML = '';
 
   data.forEach(p => {
-    const canClick = p.has_video;
-    const isActive = canClick && p.project_id === prevActive;
+    const canPreview = p.has_video;
+    const isActive = canPreview && p.project_id === prevActive;
     const srcId = ytId(p.source_url);
 
     const tr = document.createElement('tr');
     tr.dataset.id = p.project_id;
-    tr.className = canClick
-      ? ('clickable' + (isActive ? ' active' : ''))
-      : 'dimmed';
+    tr.className = isActive ? 'active' : (p.status === 'new' ? 'dimmed' : '');
 
     tr.innerHTML = `
       <td><span class="badge s-${p.status}">● ${p.status}</span></td>
@@ -135,13 +141,23 @@ function render(data) {
       <td>${p.youtube_video_id
         ? `<a class="yt" href="https://www.youtube.com/watch?v=${p.youtube_video_id}" target="_blank">${p.youtube_video_id} ↗</a>`
         : '<span class="nil">—</span>'}</td>
-      <td style="color:#4a5568;font-size:11px">${fmtDate(p.published_at)}</td>`;
+      <td style="color:#4a5568;font-size:11px">${fmtDate(p.published_at)}</td>
+      <td>${canPreview
+        ? `<button class="btn-preview${isActive ? ' active' : ''}" data-id="${p.project_id}">▶ Preview</button>`
+        : '<span class="nil">—</span>'}</td>`;
 
-    if (canClick) tr.addEventListener('click', () => toggleDetail(p));
     tbody.appendChild(tr);
-
     if (isActive) tbody.appendChild(makeDetailRow(p));
   });
+
+  // Attach click handlers to preview buttons (event delegation)
+  tbody.addEventListener('click', e => {
+    const btn = e.target.closest('.btn-preview');
+    if (!btn) return;
+    const pid = btn.dataset.id;
+    const allData = data.find(p => p.project_id === pid);
+    if (allData) toggleDetail(allData);
+  }, {once: true});
 }
 
 function makeDetailRow(p) {
@@ -150,19 +166,27 @@ function makeDetailRow(p) {
   dr.dataset.detailFor = p.project_id;
   const srcId = ytId(p.source_url);
   const tags = p.tags.slice(0, 5).join(', ') + (p.tags.length > 5 ? '…' : '');
-  dr.innerHTML = `<td colspan="6"><div class="detail-panel">
+  dr.innerHTML = `<td colspan="7"><div class="detail-panel">
     <video controls src="${p.final_video_url_path || ''}"></video>
     <div class="meta-grid">
-      <div><span class="lbl">Title: </span>${p.title || '—'}</div>
+      <div><span class="lbl">Project ID: </span><span style="font-family:monospace;color:#94a3b8">${p.project_id}</span></div>
       <div><span class="lbl">Locale: </span>${p.locale}${p.niche ? ' · '+p.niche : ''}</div>
+      <div><span class="lbl">Title: </span>${p.title || '—'}</div>
+      <div><span class="lbl">Published: </span>${fmtDate(p.published_at)}</div>
       <div><span class="lbl">YouTube: </span>${p.youtube_video_id
         ? `<a class="yt" href="https://www.youtube.com/watch?v=${p.youtube_video_id}" target="_blank">${p.youtube_video_id} ↗</a>`
         : '—'}</div>
-      <div><span class="lbl">Published: </span>${fmtDate(p.published_at)}</div>
-      <div><span class="lbl">Tags: </span><span style="color:#475569">${tags || '—'}</span></div>
       <div><span class="lbl">Source: </span>${srcId
         ? `<a href="https://www.youtube.com/watch?v=${srcId}" target="_blank">${srcId} ↗</a>`
         : '—'}</div>
+      <div style="grid-column:1/-1"><span class="lbl">Tags: </span><span style="color:#475569">${tags || '—'}</span></div>
+      ${p.session_logs && p.session_logs.length
+        ? `<div style="grid-column:1/-1;margin-top:4px"><span class="lbl">Sessions: </span>${
+            p.session_logs.map(s =>
+              `<span style="font-family:monospace;font-size:11px;color:#6366f1;margin-right:12px" title="${s.summary || ''}">${s.session_id}</span>`
+            ).join('')
+          }</div>`
+        : ''}
     </div>
   </div></td>`;
   return dr;
@@ -172,7 +196,8 @@ function toggleDetail(p) {
   const existing = document.querySelector(`tr[data-detail-for="${p.project_id}"]`);
   if (existing) {
     existing.remove();
-    document.querySelector(`tr[data-id="${p.project_id}"]`).classList.remove('active');
+    document.querySelector(`tr[data-id="${p.project_id}"]`)?.classList.remove('active');
+    document.querySelector(`.btn-preview[data-id="${p.project_id}"]`)?.classList.remove('active');
     activeId = null;
     return;
   }
@@ -182,11 +207,13 @@ function toggleDetail(p) {
     const prevId = open.dataset.detailFor;
     open.remove();
     document.querySelector(`tr[data-id="${prevId}"]`)?.classList.remove('active');
+    document.querySelector(`.btn-preview[data-id="${prevId}"]`)?.classList.remove('active');
   }
   // Open new panel
   const tr = document.querySelector(`tr[data-id="${p.project_id}"]`);
-  tr.classList.add('active');
-  tr.insertAdjacentElement('afterend', makeDetailRow(p));
+  tr?.classList.add('active');
+  document.querySelector(`.btn-preview[data-id="${p.project_id}"]`)?.classList.add('active');
+  tr?.insertAdjacentElement('afterend', makeDetailRow(p));
   activeId = p.project_id;
 }
 

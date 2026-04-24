@@ -151,6 +151,78 @@ def _visual_width(text: str) -> int:
     return width
 
 
+def _wrap_english_two_lines(text: str, chars_per_line: int = 42) -> str:
+    """Wrap English text to at most 2 lines at a word boundary, line 1 \u2264 chars_per_line."""
+    if len(text) <= chars_per_line:
+        return text
+    words = text.split()
+    line1 = ""
+    for i, word in enumerate(words):
+        candidate = (line1 + " " + word).strip() if line1 else word
+        if len(candidate) <= chars_per_line:
+            line1 = candidate
+        else:
+            line2 = " ".join(words[i:])
+            return line1 + "\n" + line2
+    return line1
+
+
+def _split_long_sentence(text: str, max_chars: int) -> list[str]:
+    """Split a long English sentence into pieces of \u2264 max_chars at word boundaries."""
+    words = text.split()
+    chunks: list[str] = []
+    current = ""
+    for word in words:
+        candidate = (current + " " + word).strip() if current else word
+        if len(candidate) <= max_chars:
+            current = candidate
+        else:
+            if current:
+                chunks.append(current)
+            current = word
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def _split_english_subtitles(text: str, chars_per_line: int = 42) -> list[str]:
+    """Split English narration into subtitle chunks of max 2 lines \u00d7 chars_per_line.
+
+    Splits first on sentence boundaries, accumulates into ~84-char chunks,
+    then wraps each chunk to 2 lines.
+    """
+    import re
+
+    max_chunk = chars_per_line * 2
+
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+
+    raw_chunks: list[str] = []
+    current = ""
+
+    for sent in sentences:
+        sent = sent.strip()
+        if not sent:
+            continue
+        if len(sent) > max_chunk:
+            if current:
+                raw_chunks.append(current)
+                current = ""
+            raw_chunks.extend(_split_long_sentence(sent, max_chunk))
+        else:
+            candidate = (current + " " + sent).strip() if current else sent
+            if len(candidate) <= max_chunk:
+                current = candidate
+            else:
+                raw_chunks.append(current)
+                current = sent
+
+    if current:
+        raw_chunks.append(current)
+
+    return [_wrap_english_two_lines(c, chars_per_line) for c in raw_chunks if c.strip()]
+
+
 def _wrap_subtitle_line(text: str, max_width: int = 36) -> str:
     """Insert newline breaks into a subtitle chunk, respecting word boundaries.
 
@@ -190,8 +262,23 @@ def _split_text_for_subtitles(text: str, max_width: int = 36) -> list[str]:
     then by visual width if still too long. Max 2 lines per subtitle.
     Uses visual width (CJK=2, Latin=1) so lines look balanced on screen.
     Latin/English words are never broken mid-word.
+    For predominantly English text, delegates to _split_english_subtitles.
     """
     import re
+
+    # Route predominantly English text (< 20% CJK chars) to the English splitter.
+    non_space = text.replace(" ", "")
+    if non_space:
+        cjk_count = sum(
+            1
+            for ch in non_space
+            if "⺀" <= ch <= "鿿"
+            or "豈" <= ch <= "﫿"
+            or "︰" <= ch <= "﹏"
+            or "＀" <= ch <= "￯"
+        )
+        if cjk_count / len(non_space) < 0.2:
+            return _split_english_subtitles(text)
 
     # Split on CJK sentence-ending punctuation
     parts = re.split(r"([。！？；])", text)

@@ -19,6 +19,7 @@ class ProjectInfo:
     has_video: bool
     final_video_url_path: str | None
     tags: list[str] = field(default_factory=list)
+    session_logs: list[dict[str, str]] = field(default_factory=list)
 
 
 def scan_projects(output_dir: Path) -> list[ProjectInfo]:
@@ -53,6 +54,12 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
         if final_mp4 is not None:
             final_video_url_path = "/output/" + str(final_mp4.relative_to(output_dir))
 
+        session_logs: list[dict[str, str]] = []
+        sessions_file = project_dir / "sessions.json"
+        if sessions_file.exists():
+            with contextlib.suppress(json.JSONDecodeError, OSError):
+                session_logs = json.loads(sessions_file.read_text())
+
         results.append(
             ProjectInfo(
                 project_id=project_dir.name,
@@ -66,6 +73,7 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
                 has_video=has_video,
                 final_video_url_path=final_video_url_path,
                 tags=meta.get("tags", []),  # type: ignore[arg-type]
+                session_logs=session_logs,
             )
         )
 
