@@ -62,7 +62,8 @@ def test_status_analyzed(tmp_path: Path) -> None:
 
 def test_status_storyboard(tmp_path: Path) -> None:
     _make_project(
-        tmp_path, "1003",
+        tmp_path,
+        "1003",
         files=["source/video.mp4", "knowledge.json", "storyboard.json"],
     )
     [p] = scan_projects(tmp_path / "output")
@@ -71,9 +72,9 @@ def test_status_storyboard(tmp_path: Path) -> None:
 
 def test_status_rendered(tmp_path: Path) -> None:
     _make_project(
-        tmp_path, "1004",
-        files=["source/video.mp4", "knowledge.json", "storyboard.json",
-               "compose/final_zh-TW.mp4"],
+        tmp_path,
+        "1004",
+        files=["source/video.mp4", "knowledge.json", "storyboard.json", "compose/final_zh-TW.mp4"],
     )
     [p] = scan_projects(tmp_path / "output")
     assert p.status == "rendered"
@@ -83,7 +84,8 @@ def test_status_rendered(tmp_path: Path) -> None:
 
 def test_status_published(tmp_path: Path) -> None:
     _make_project(
-        tmp_path, "1005",
+        tmp_path,
+        "1005",
         ctx_extra={"youtube_video_id": "xyz999", "published_at": "2026-04-23T00:00:00+00:00"},
         files=["compose/final_zh-TW.mp4"],
     )
@@ -95,7 +97,8 @@ def test_status_published(tmp_path: Path) -> None:
 
 def test_title_and_tags_from_metadata(tmp_path: Path) -> None:
     _make_project(
-        tmp_path, "1006",
+        tmp_path,
+        "1006",
         meta={"title": "My Video Title", "tags": ["tag1", "tag2"]},
     )
     [p] = scan_projects(tmp_path / "output")
@@ -137,11 +140,18 @@ def test_project_with_invalid_metadata_json_falls_back(tmp_path: Path) -> None:
     _make_project(tmp_path, "good")
     bad_dir = tmp_path / "output" / "projects" / "bad2"
     bad_dir.mkdir(parents=True)
-    (bad_dir / "context.json").write_text(json.dumps({
-        "project_id": "bad2", "locale": "zh-TW",
-        "source_url": None, "niche": None,
-        "youtube_video_id": None, "published_at": None,
-    }))
+    (bad_dir / "context.json").write_text(
+        json.dumps(
+            {
+                "project_id": "bad2",
+                "locale": "zh-TW",
+                "source_url": None,
+                "niche": None,
+                "youtube_video_id": None,
+                "published_at": None,
+            }
+        )
+    )
     (bad_dir / "metadata.json").write_text("{not json}")
     results = scan_projects(tmp_path / "output")
     bad = next(p for p in results if p.project_id == "bad2")
@@ -157,8 +167,20 @@ def test_scenes_empty_when_no_storyboard(tmp_path: Path) -> None:
 
 def test_scenes_loaded_from_scenes_json(tmp_path: Path) -> None:
     scenes = [
-        {"id": "s1", "section": "hook", "start_sec": 0.0, "duration_sec": 5.0, "narration": "Hello"},
-        {"id": "s2", "section": "context", "start_sec": 5.0, "duration_sec": 8.0, "narration": "World"},
+        {
+            "id": "s1",
+            "section": "hook",
+            "start_sec": 0.0,
+            "duration_sec": 5.0,
+            "narration": "Hello",
+        },
+        {
+            "id": "s2",
+            "section": "context",
+            "start_sec": 5.0,
+            "duration_sec": 8.0,
+            "narration": "World",
+        },
     ]
     project_dir = _make_project(tmp_path, "2002")
     compose_dir = project_dir / "compose"
@@ -171,21 +193,63 @@ def test_scenes_loaded_from_scenes_json(tmp_path: Path) -> None:
 def test_scenes_estimated_from_storyboard_fallback(tmp_path: Path) -> None:
     storyboard = {
         "scenes": [
-            {"id": "s1", "section": "hook", "narration": "First", "narration_est_sec": 10.0, "pause_after_sec": 0.5},
-            {"id": "s2", "section": "context", "narration": "Second", "narration_est_sec": 20.0, "pause_after_sec": 0.0},
+            {
+                "id": "s1",
+                "section": "hook",
+                "narration": "First",
+                "narration_est_sec": 10.0,
+                "pause_after_sec": 0.5,
+            },
+            {
+                "id": "s2",
+                "section": "context",
+                "narration": "Second",
+                "narration_est_sec": 20.0,
+                "pause_after_sec": 0.0,
+            },
         ]
     }
     project_dir = _make_project(tmp_path, "2003")
     (project_dir / "storyboard.json").write_text(json.dumps(storyboard))
     [p] = scan_projects(tmp_path / "output")
     assert len(p.scenes) == 2
-    assert p.scenes[0] == {"id": "s1", "section": "hook", "start_sec": 0.0, "duration_sec": 10.5, "narration": "First"}
-    assert p.scenes[1] == {"id": "s2", "section": "context", "start_sec": 10.5, "duration_sec": 20.0, "narration": "Second"}
+    assert p.scenes[0] == {
+        "id": "s1",
+        "section": "hook",
+        "start_sec": 0.0,
+        "duration_sec": 10.5,
+        "narration": "First",
+    }
+    assert p.scenes[1] == {
+        "id": "s2",
+        "section": "context",
+        "start_sec": 10.5,
+        "duration_sec": 20.0,
+        "narration": "Second",
+    }
 
 
 def test_scenes_json_takes_priority_over_storyboard(tmp_path: Path) -> None:
-    scenes_json = [{"id": "s1", "section": "hook", "start_sec": 0.0, "duration_sec": 5.0, "narration": "From file"}]
-    storyboard = {"scenes": [{"id": "s1", "section": "hook", "narration": "From storyboard", "narration_est_sec": 99.0, "pause_after_sec": 0}]}
+    scenes_json = [
+        {
+            "id": "s1",
+            "section": "hook",
+            "start_sec": 0.0,
+            "duration_sec": 5.0,
+            "narration": "From file",
+        }
+    ]
+    storyboard = {
+        "scenes": [
+            {
+                "id": "s1",
+                "section": "hook",
+                "narration": "From storyboard",
+                "narration_est_sec": 99.0,
+                "pause_after_sec": 0,
+            }
+        ]
+    }
     project_dir = _make_project(tmp_path, "2004")
     (project_dir / "storyboard.json").write_text(json.dumps(storyboard))
     compose_dir = project_dir / "compose"

@@ -18,6 +18,7 @@ class ProjectInfo:
     published_at: str | None
     has_video: bool
     video_variants: list[dict[str, str]]
+    final_video_url_path: str | None
     tags: list[str] = field(default_factory=list)
     session_logs: list[dict[str, str]] = field(default_factory=list)
     scenes: list[dict[str, object]] = field(default_factory=list)
@@ -70,6 +71,8 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
         elif (project_dir / "storyboard.json").exists():
             scenes = _estimate_scenes_from_storyboard(project_dir / "storyboard.json")
 
+        final_video_url_path = video_variants[0]["url"] if video_variants else None
+
         results.append(
             ProjectInfo(
                 project_id=project_dir.name,
@@ -82,6 +85,7 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
                 published_at=ctx.get("published_at"),
                 has_video=has_video,
                 video_variants=video_variants,
+                final_video_url_path=final_video_url_path,
                 tags=meta.get("tags", []),  # type: ignore[arg-type]
                 session_logs=session_logs,
                 scenes=scenes,
@@ -114,7 +118,7 @@ def _find_all_final_videos(project_dir: Path, locale: str) -> list[tuple[str, Pa
     prefix = f"final_{locale}"
     results = []
     for path in sorted(compose_dir.glob(f"{prefix}*.mp4")):
-        suffix = path.stem[len(prefix):].lstrip("_")
+        suffix = path.stem[len(prefix) :].lstrip("_")
         label = suffix or "final"
         results.append((label, path))
     # canonical "final" variant first
@@ -129,13 +133,15 @@ def _estimate_scenes_from_storyboard(sb_path: Path) -> list[dict[str, object]]:
         result: list[dict[str, object]] = []
         for scene in data.get("scenes", []):
             dur = float(scene.get("narration_est_sec", 0)) + float(scene.get("pause_after_sec", 0))
-            result.append({
-                "id": scene["id"],
-                "section": scene.get("section", ""),
-                "start_sec": start,
-                "duration_sec": dur,
-                "narration": scene.get("narration", ""),
-            })
+            result.append(
+                {
+                    "id": scene["id"],
+                    "section": scene.get("section", ""),
+                    "start_sec": start,
+                    "duration_sec": dur,
+                    "narration": scene.get("narration", ""),
+                }
+            )
             start += dur
         return result
     return []
