@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Content Pipeline — Workflow Reference</title>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'dark', flowchart: { curve: 'basis' } });
+</script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 22px; color: #fff; margin-bottom: 4px; }
+  h2 { font-size: 16px; color: var(--accent); margin: 36px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 6px; text-transform: uppercase; letter-spacing: .08em; }
+  h3 { font-size: 13px; color: var(--muted); margin: 20px 0 8px; text-transform: uppercase; letter-spacing: .06em; }
+  .meta { color: var(--muted); font-size: 12px; margin-bottom: 32px; }
+  .meta code { background: var(--surface); padding: 1px 6px; border-radius: 4px; font-size: 11px; color: var(--accent); }
+  .diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin: 16px 0; overflow-x: auto; }
+  pre.mermaid { text-align: center; }
+
+  /* Component table */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th { background: var(--surface); color: var(--muted); font-weight: 600; padding: 8px 12px; text-align: left; border-bottom: 2px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(255,255,255,.03); }
+
+  /* Stage label pill */
+  .stage { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: .05em; }
+  .s-acquire  { background: #1a2f1a; color: #3fb950; }
+  .s-analyze  { background: #1a1f2e; color: #58a6ff; }
+  .s-direct   { background: #251f2e; color: #bc8cff; }
+  .s-tts      { background: #2e2218; color: #d29922; }
+  .s-compose  { background: #2e1c1c; color: #f85149; }
+  .s-publish  { background: #1a2a2e; color: #39c5cf; }
+  .s-external { background: #2a2420; color: #e3b341; }
+  .s-monitor  { background: #1e2a1e; color: #56d364; }
+
+  /* Status badges */
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .b-stable   { background: #0d2a0d; color: #3fb950; border: 1px solid #1f5f1f; }
+  .b-wip      { background: #2a200d; color: #d29922; border: 1px solid #5f480d; }
+  .b-planned  { background: #1a1a2e; color: #8b949e; border: 1px solid #2e2e4a; }
+  .b-new      { background: #2a1a00; color: #e3b341; border: 1px solid #5a3800; }
+
+  /* File tree */
+  .filetree { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; font-family: 'Consolas', 'Monaco', monospace; font-size: 12px; line-height: 1.8; margin: 12px 0; }
+  .filetree .dir  { color: var(--accent); }
+  .filetree .file { color: var(--text); }
+  .filetree .note { color: var(--muted); }
+  .filetree .edit { color: #e3b341; }
+
+  /* Command blocks */
+  .cmd { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; font-family: monospace; font-size: 12px; margin: 10px 0; line-height: 1.9; overflow-x: auto; }
+  .cmd .flag { color: #79c0ff; }
+  .cmd .comment { color: var(--muted); }
+
+  /* Resume table */
+  .resume-table td:first-child { color: var(--muted); font-style: italic; }
+  .resume-table td:nth-child(2) { font-family: monospace; font-size: 12px; color: #79c0ff; }
+
+  /* Isolation table */
+  .iso-table td:nth-child(2) { font-family: monospace; font-size: 12px; color: #e3b341; }
+  .iso-table td:nth-child(3) { font-family: monospace; font-size: 12px; color: #79c0ff; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  /* Legend */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0 20px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<h1>Content Pipeline — Workflow Reference</h1>
+<div class="meta">
+  Open from terminal: <code>xdg-open docs/workflows.html</code>
+  &nbsp;·&nbsp;
+  Last updated: 2026-04-24
+  &nbsp;·&nbsp;
+  Update this file as new components are added
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<h2>System Overview</h2>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  DISC["🔍 Discovery Engine\nsrc/discovery/\nTrending EN videos + gap analysis"]
+  QUEUE[["📋 Candidate Queue\nHuman picks stories"]]
+  PIPE["🎬 Production Pipeline\nsrc/pipeline/\nAcquire → Analyze → Direct → TTS → Compose"]
+  YT["📺 YouTube\nUpload + Analytics"]
+  OBS["📊 Observability\nsrc/observe/\nMetrics → insights → scoring boost"]
+  DASH["🖥 Dashboard\nlocalhost:8765\nProject status + video preview"]
+
+  DISC --> QUEUE --> PIPE --> YT --> OBS --> DISC
+  PIPE --> DASH
+</pre>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<h2>Use Case 1 — Produce a Video</h2>
+
+<div class="cmd">
+uv run pipeline produce \<br>
+&nbsp;&nbsp;<span class="flag">--url</span> "https://youtube.com/watch?v=…" \&nbsp;&nbsp;&nbsp;<span class="comment"># required</span><br>
+&nbsp;&nbsp;<span class="flag">--locale</span> zh-TW \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># zh-TW | ja | es-MX</span><br>
+&nbsp;&nbsp;<span class="flag">--niche</span> parenting \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># auto-detected from channels.toml; "none" to skip metadata</span><br>
+&nbsp;&nbsp;<span class="flag">--voice</span> tim-zhtw \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># optional; auto-selects per locale from voices/registry.json</span><br>
+&nbsp;&nbsp;<span class="flag">--start-from</span> tts \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># resume from a specific stage</span><br>
+&nbsp;&nbsp;<span class="flag">--skip-review</span> \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># bypass human review gate (auto-apply proofread fixes)</span><br>
+&nbsp;&nbsp;<span class="flag">--subtitles</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># burn subtitles into final video</span>
+</div>
+
+<h3>Stage Flow + Components</h3>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+  URL(["🔗 YouTube URL\n+ locale + niche + voice"])
+
+  subgraph ACQ["① ACQUIRE"]
+    direction LR
+    A1["yt-dlp\n720p video"]
+    A2["youtube-transcript-api\nfree subtitles"]
+    A3["faster-whisper\nfallback transcription"]
+    A1 ~~~ A2 ~~~ A3
+  end
+
+  subgraph ANA["② ANALYZE"]
+    B1["Claude Sonnet\nknowledge graph\nentities · timeline · context_bridges"]
+  end
+
+  subgraph DIR["③ DIRECT"]
+    direction LR
+    C1["Claude Sonnet\nstoryboard.json\nscene-by-scene plan"]
+    C2["Claude API\nmetadata.json\ntitle · tags · description"]
+    C3["channels.toml\nniche→profile routing"]
+    C1 ~~~ C2 ~~~ C3
+  end
+
+  REVIEW{{"⏸ HUMAN REVIEW GATE\nEdit: storyboard.json · script.md · metadata.json\nThen: pipeline produce --start-from tts"}}
+
+  GEN_IMG(["🎨 generate-image skill\ndraft $0.003 → production $0.040\nKeyframes · title cards · maps\n→ place in compose/assets/"])
+
+  subgraph TTS_S["④ TTS"]
+    direction LR
+    T0["voices/registry.json\nroutes --voice → engine"]
+    T1["edge-tts\nfree · primary"]
+    T2["Google Cloud TTS\nNeural2 · 1M/mo free"]
+    T3["OpenAI TTS\n$0.015/1K chars"]
+    T4["Prerecorded Engine\nvoices/prerecorded/…/*.wav\n+ edge fallback"]
+    T5["Cloned Voice\nvoices/cloned/\nfuture"]
+    T0 ~~~ T1 ~~~ T2 ~~~ T3 ~~~ T4 ~~~ T5
+  end
+
+  subgraph COMP["⑤ COMPOSE"]
+    direction LR
+    V1["FFmpeg\nvideo assembly"]
+    V2["Subtitle burn\nNoto CJK fonts"]
+    V1 ~~~ V2
+  end
+
+  subgraph PUB["⑥ PUBLISH  (explicit — never auto)"]
+    direction LR
+    P1["Phase A\nvideos.insert\n→ youtube_video_id"]
+    P2["Phase B\nthumbnails.set"]
+    P3["Phase C\nsynthetic disclosure"]
+    P1 ~~~ P2 ~~~ P3
+  end
+
+  OUTPUT(["✅ compose/final_zh-TW.mp4"])
+
+  URL --> ACQ --> ANA --> DIR --> REVIEW --> TTS_S --> COMP --> OUTPUT --> PUB
+  GEN_IMG --> COMP
+</pre>
+</div>
+
+<h3>Component Status</h3>
+
+<div class="legend">
+  <div class="legend-item"><span class="badge b-stable">stable</span> working in production</div>
+  <div class="legend-item"><span class="badge b-new">new</span> just added, verify on next run</div>
+  <div class="legend-item"><span class="badge b-wip">in progress</span> built but not fully wired</div>
+  <div class="legend-item"><span class="badge b-planned">planned</span> not yet built</div>
+</div>
+
+<table>
+  <thead>
+    <tr><th>Stage</th><th>Component</th><th>Tool / Path</th><th>Cost</th><th>Status</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <!-- ACQUIRE -->
+    <tr>
+      <td><span class="stage s-acquire">ACQUIRE</span></td>
+      <td>YouTube download</td><td><code>yt-dlp</code></td><td>free</td>
+      <td><span class="badge b-stable">stable</span></td><td>720p, with audio</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-acquire">ACQUIRE</span></td>
+      <td>Transcript extraction</td><td><code>youtube-transcript-api</code></td><td>free</td>
+      <td><span class="badge b-stable">stable</span></td><td>Uses existing captions</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-acquire">ACQUIRE</span></td>
+      <td>Transcription fallback</td><td><code>faster-whisper</code></td><td>CPU only</td>
+      <td><span class="badge b-stable">stable</span></td><td>When no captions exist</td>
+    </tr>
+    <!-- ANALYZE -->
+    <tr>
+      <td><span class="stage s-analyze">ANALYZE</span></td>
+      <td>Knowledge graph</td><td>Claude Sonnet API</td><td>~$0.02/video</td>
+      <td><span class="badge b-stable">stable</span></td><td>Entities, timeline, context bridges for target locale</td>
+    </tr>
+    <!-- DIRECT -->
+    <tr>
+      <td><span class="stage s-direct">DIRECT</span></td>
+      <td>Storyboard generation</td><td>Claude Sonnet API</td><td>~$0.05/video</td>
+      <td><span class="badge b-stable">stable</span></td><td>Scene plan with narration + visual hints</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-direct">DIRECT</span></td>
+      <td>Metadata generation</td><td>Claude API + <code>channels.toml</code></td><td>~$0.01/video</td>
+      <td><span class="badge b-stable">stable</span></td><td>Title, description, tags; skipped if <code>--niche none</code></td>
+    </tr>
+    <!-- EXTERNAL: generate-image -->
+    <tr>
+      <td><span class="stage s-external">VISUAL MATERIAL</span></td>
+      <td>Image generation — draft</td><td><code>gen-image.py --tier draft</code> (Flux Schnell)</td><td>$0.003/img</td>
+      <td><span class="badge b-new">new</span></td><td>Always start here. Review, then promote to production.</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-external">VISUAL MATERIAL</span></td>
+      <td>Image generation — production</td><td><code>gen-image.py --tier production</code> (Flux 1.1 Pro)</td><td>$0.040/img</td>
+      <td><span class="badge b-new">new</span></td><td>Approved draft → regenerate at this tier</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-external">VISUAL MATERIAL</span></td>
+      <td>Image generation — premium</td><td><code>gen-image.py --tier premium</code> (GPT-Image-1.5)</td><td>$0.133/img</td>
+      <td><span class="badge b-new">new</span></td><td>Hero images / text-in-image precision</td>
+    </tr>
+    <!-- TTS -->
+    <tr>
+      <td><span class="stage s-tts">TTS</span></td>
+      <td>Voice registry</td><td><code>voices/registry.json</code></td><td>—</td>
+      <td><span class="badge b-stable">stable</span></td><td>Maps <code>--voice id</code> → engine + params</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-tts">TTS</span></td>
+      <td>edge-tts (primary)</td><td><code>voices/edge/</code></td><td>free</td>
+      <td><span class="badge b-stable">stable</span></td><td>zh-TW · ja · es-MX · en voices</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-tts">TTS</span></td>
+      <td>Google Cloud TTS Neural2</td><td>GCP API</td><td>1M chars/mo free</td>
+      <td><span class="badge b-stable">stable</span></td><td>Premium quality; swap via voice registry</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-tts">TTS</span></td>
+      <td>OpenAI TTS</td><td>OpenAI API</td><td>$0.015/1K chars</td>
+      <td><span class="badge b-stable">stable</span></td><td>Special narration; swap via voice registry</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-tts">TTS</span></td>
+      <td>Prerecorded voice</td><td><code>voices/prerecorded/&lt;id&gt;/&lt;scene&gt;.wav</code></td><td>free</td>
+      <td><span class="badge b-wip">in progress</span></td><td>Drop .wav → engine uses it; falls back to edge-tts for missing scenes</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-tts">TTS</span></td>
+      <td>Cloned voice</td><td><code>voices/cloned/</code></td><td>TBD</td>
+      <td><span class="badge b-planned">planned</span></td><td>Creator voice clone; not yet wired</td>
+    </tr>
+    <!-- COMPOSE -->
+    <tr>
+      <td><span class="stage s-compose">COMPOSE</span></td>
+      <td>FFmpeg video assembly</td><td>FFmpeg</td><td>free</td>
+      <td><span class="badge b-stable">stable</span></td><td>Stitches scenes, mixes audio, applies clips</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-compose">COMPOSE</span></td>
+      <td>Subtitle burn</td><td>FFmpeg + Noto Sans CJK</td><td>free</td>
+      <td><span class="badge b-stable">stable</span></td><td>Enabled via <code>--subtitles</code></td>
+    </tr>
+    <!-- PUBLISH -->
+    <tr>
+      <td><span class="stage s-publish">PUBLISH</span></td>
+      <td>Video upload (resumable)</td><td>YouTube Data API v3</td><td>free (quota)</td>
+      <td><span class="badge b-stable">stable</span></td><td>Phase A; stores <code>youtube_video_id</code> in context</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-publish">PUBLISH</span></td>
+      <td>Thumbnail upload</td><td>YouTube Data API</td><td>free</td>
+      <td><span class="badge b-stable">stable</span></td><td>Phase B; requires <code>thumbnail.png</code> ≤ 2MB in project dir</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-publish">PUBLISH</span></td>
+      <td>Synthetic disclosure</td><td>YouTube Data API</td><td>free</td>
+      <td><span class="badge b-stable">stable</span></td><td>Phase C; mandatory for AI voiceover (2026 policy)</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<h2>Output Files Per Project</h2>
+
+<div class="filetree">
+output/projects/<span class="dir">{project_id}/</span><br>
+├── <span class="file">context.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← pipeline state · enables --start-from resume</span><br>
+├── <span class="edit">metadata.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← YouTube title, description, tags · EDIT BEFORE PUBLISH</span><br>
+├── <span class="dir">source/</span><br>
+│&nbsp;&nbsp; ├── <span class="file">video.mp4</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← downloaded source (ACQUIRE)</span><br>
+│&nbsp;&nbsp; └── <span class="file">transcript.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← raw captions with timing</span><br>
+├── <span class="file">knowledge.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← facts, entities, context_bridges (ANALYZE)</span><br>
+├── <span class="edit">storyboard.json</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← scene plan · MAIN EDIT TARGET</span><br>
+├── <span class="dir">script/</span><br>
+│&nbsp;&nbsp; └── <span class="edit">script_zh-TW.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← narration text · edit before TTS</span><br>
+├── <span class="dir">audio/</span><br>
+│&nbsp;&nbsp; ├── <span class="file">segment_000.mp3 …</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← per-scene clips (TTS)</span><br>
+│&nbsp;&nbsp; ├── <span class="file">narration_zh-TW.mp3</span>&nbsp;&nbsp;<span class="note">← full concatenated audio</span><br>
+│&nbsp;&nbsp; └── <span class="file">subtitles_zh-TW.srt</span>&nbsp;&nbsp;<span class="note">← subtitle timing file</span><br>
+└── <span class="dir">compose/</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp; ├── <span class="dir">scenes/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← intermediate scene renders</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp; ├── <span class="file">raw.mp4</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← scenes joined, no subtitles</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp; └── <span class="file">final_zh-TW.mp4</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← ✅ FINAL OUTPUT</span>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<h2>Resume / Re-run Reference</h2>
+
+<table class="resume-table">
+  <thead><tr><th>I want to redo…</th><th>Command</th></tr></thead>
+  <tbody>
+    <tr><td>Everything from scratch</td><td>uv run pipeline produce --url "…" --locale zh-TW</td></tr>
+    <tr><td>From analyze onward</td><td>… --project-id &lt;ID&gt; --start-from analyze</td></tr>
+    <tr><td>Re-write the storyboard/script</td><td>… --project-id &lt;ID&gt; --start-from direct</td></tr>
+    <tr><td>Re-voice after editing storyboard</td><td>… --project-id &lt;ID&gt; --start-from tts</td></tr>
+    <tr><td>Re-render only (composition change)</td><td>… --project-id &lt;ID&gt; --start-from compose</td></tr>
+    <tr><td>Edit one scene's text in-place</td><td>uv run pipeline storyboard set scene_003 narration="…"&nbsp;&nbsp;then --start-from tts</td></tr>
+    <tr><td>Fix metadata before upload</td><td>uv run pipeline metadata set title="新標題" --work-dir output/projects/&lt;ID&gt;</td></tr>
+    <tr><td>Re-generate metadata</td><td>uv run pipeline metadata regenerate --work-dir output/projects/&lt;ID&gt;</td></tr>
+    <tr><td>Re-generate one image (draft→production)</td><td>python3 ~/.claude/bin/gen-image.py "…" --tier production --output compose/assets/scene_003.png</td></tr>
+  </tbody>
+</table>
+
+<h3>Problem → Edit → Re-run (Isolation Map)</h3>
+
+<table class="iso-table">
+  <thead><tr><th>Problem</th><th>Edit this</th><th>Re-run from</th></tr></thead>
+  <tbody>
+    <tr><td>Wrong facts / missing context</td><td>knowledge.json</td><td>--start-from direct</td></tr>
+    <tr><td>Bad scene structure / story arc</td><td>storyboard.json</td><td>--start-from tts</td></tr>
+    <tr><td>Wrong narration text</td><td>storyboard.json or script/script_zh-TW.md</td><td>--start-from tts</td></tr>
+    <tr><td>Wrong voice / audio pacing</td><td>voices/registry.json or --voice flag</td><td>--start-from tts</td></tr>
+    <tr><td>Bad image / visual card</td><td>Regenerate with gen-image.py → replace file</td><td>--start-from compose</td></tr>
+    <tr><td>Bad video composition / subtitles</td><td>compose config or --subtitles flag</td><td>--start-from compose</td></tr>
+    <tr><td>Wrong YouTube title/tags</td><td>metadata.json</td><td>pipeline metadata set … then re-publish</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<h2>Use Case 2 — Dashboard: Check &amp; Preview</h2>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  subgraph START["How to open"]
+    S1["./scripts/start-dashboard.sh\n→ port 8765 + Cloudflare tunnel\n→ prints public URL"]
+    S2["./scripts/start-dashboard.sh --local-only\n→ localhost only"]
+  end
+
+  subgraph SCANNER["Scanner  (auto-refresh 30s)"]
+    SC1["context.json\n→ status · locale · youtube_video_id"]
+    SC2["metadata.json\n→ title · tags (first 5)"]
+    SC3["compose/final_*.mp4\n→ video variants"]
+  end
+
+  subgraph STATUS["Status progression"]
+    direction LR
+    ST1["new"] --> ST2["acquired"] --> ST3["analyzed"] --> ST4["storyboard"] --> ST5["rendered"] --> ST6["published"]
+  end
+
+  subgraph PREVIEW["▶ Preview (click any rendered row)"]
+    P1["Inline &lt;video&gt; player\nHTTP Range requests\nseeking works through tunnel"]
+    P2["Variant tabs\nfinal_zh-TW.mp4\nfinal_zh-TW_no_subtitles.mp4 …"]
+    P1 ~~~ P2
+  end
+
+  START --> SCANNER --> STATUS
+  STATUS --> PREVIEW
+</pre>
+</div>
+
+<div class="cmd">
+<span class="comment"># Remote access (recommended — prints tunnel URL for mobile/remote review)</span><br>
+./scripts/start-dashboard.sh<br><br>
+<span class="comment"># Local only (no tunnel)</span><br>
+./scripts/start-dashboard.sh --local-only<br><br>
+<span class="comment"># Custom port</span><br>
+./scripts/start-dashboard.sh --port 9000<br><br>
+<span class="comment"># Direct FastAPI only (no auto-browser)</span><br>
+uv run pipeline dashboard --no-browser --port 8765
+</div>
+
+<hr>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<h2>Storyboard Editing Commands</h2>
+
+<div class="cmd">
+uv run pipeline storyboard show&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># list all scenes</span><br>
+uv run pipeline storyboard show --scene scene_003&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># one scene detail</span><br>
+uv run pipeline storyboard recordings --voice tim-zhtw&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># recording status per scene</span><br>
+uv run pipeline storyboard set scene_003 narration="新文字"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># edit field in-place</span><br>
+uv run pipeline storyboard set scene_003 pause_after_sec=2.5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># timing tweak</span>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<h2>Image Generation (generate-image skill)</h2>
+
+<div class="cmd">
+<span class="comment"># Step 1 — always draft first</span><br>
+python3 ~/.claude/bin/gen-image.py "場景描述 — title card, dark background, zh-TW text" \<br>
+&nbsp;&nbsp;<span class="flag">--tier draft</span> --size landscape --output output/projects/&lt;ID&gt;/compose/assets/scene_003.png<br><br>
+<span class="comment"># Step 2 — approved? regenerate at production quality</span><br>
+python3 ~/.claude/bin/gen-image.py "same prompt" \<br>
+&nbsp;&nbsp;<span class="flag">--tier production</span> --size landscape --output output/projects/&lt;ID&gt;/compose/assets/scene_003.png<br><br>
+<span class="comment"># Fixed seed — reproducible result across tiers</span><br>
+python3 ~/.claude/bin/gen-image.py "…" --tier draft --seed 42<br><br>
+<span class="comment"># Check key status / reset exhausted key</span><br>
+python3 ~/.claude/bin/keymanager.py status<br>
+python3 ~/.claude/bin/keymanager.py reset fal tim
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<h2>Publish Commands</h2>
+
+<div class="cmd">
+<span class="comment"># Upload (unlisted by default)</span><br>
+uv run pipeline publish &lt;project-id&gt;<br>
+uv run pipeline publish &lt;project-id&gt; --profile ideal-parents-tw<br>
+uv run pipeline publish &lt;project-id&gt; --schedule 2026-04-25T19:00:00+08:00<br>
+uv run pipeline publish &lt;project-id&gt; --dry-run<br><br>
+<span class="comment"># Auth (one-time per channel)</span><br>
+uv run pipeline publish auth --profile ideal-parents-tw<br><br>
+<span class="comment"># Status</span><br>
+uv run pipeline publish status &lt;project-id&gt;<br>
+uv run pipeline publish status &lt;project-id&gt; --remote
+</div>
+
+</body>
+</html>
