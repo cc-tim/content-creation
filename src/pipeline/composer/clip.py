@@ -48,19 +48,39 @@ def render_clip(
     end = max(start + 1, min(end, source_dur))
     clip_duration = end - start
 
-    # If clip is shorter than scene duration, we'll let it be short
-    # (compose stage pads with last frame via -shortest)
     output = work_dir / f"{scene_id}_visual.mp4"
 
-    # Determine crop filter for aspect ratio
+    # crop_bottom_pct: strip the bottom N% of the frame before scaling.
+    # Use 0.20 for illustration-style source videos with burned-in subtitles,
+    # so only the illustration area is shown.
+    crop_bottom_pct = float(visual.get("crop_bottom_pct", 0.0))
+    crop_bottom_pct = max(0.0, min(crop_bottom_pct, 0.5))  # clamp to sane range
+
     if width < height:
-        # 9:16 — center-crop from 16:9 source
-        vf = f"crop=ih*{width}/{height}:ih,scale={width}:{height}"
+        # 9:16 portrait — center-crop from 16:9 source
+        if crop_bottom_pct > 0:
+            keep_h = 1.0 - crop_bottom_pct
+            vf = (
+                f"crop=iw:ih*{keep_h:.3f}:0:0,"
+                f"crop=ih*{keep_h:.3f}*{width}/{height}:ih*{keep_h:.3f}:(iw-ih*{keep_h:.3f}*{width}/{height})/2:0,"
+                f"scale={width}:{height}"
+            )
+        else:
+            vf = f"crop=ih*{width}/{height}:ih,scale={width}:{height}"
     else:
-        vf = (
-            f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
-            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2"
-        )
+        if crop_bottom_pct > 0:
+            keep_h = 1.0 - crop_bottom_pct
+            # Crop bottom, then scale-to-fill (no black bars) by overscaling + center-crop
+            vf = (
+                f"crop=iw:ih*{keep_h:.3f}:0:0,"
+                f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+                f"crop={width}:{height}"
+            )
+        else:
+            vf = (
+                f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+                f"crop={width}:{height}"
+            )
 
     run_ffmpeg(
         [

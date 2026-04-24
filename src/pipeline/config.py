@@ -16,6 +16,14 @@ class PipelineConfig(BaseSettings):
         default=None,
         validation_alias=AliasChoices("GEMINI_API_KEY", "PIPELINE_GEMINI_API_KEY"),
     )
+    PEXELS_API_KEY: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("PEXELS_API_KEY", "PIPELINE_PEXELS_API_KEY"),
+    )
+    PIXABAY_API_KEY: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("PIXABAY_API_KEY", "PIPELINE_PIXABAY_API_KEY"),
+    )
 
     # Image generation
     IMAGE_PROVIDERS: str = "gemini,dalle"

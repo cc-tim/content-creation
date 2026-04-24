@@ -102,7 +102,19 @@ def render_scene(
             prompt = visual["prompt"]
             if image_style not in prompt:
                 visual = {**visual, "prompt": f"{prompt}. Style: {image_style}"}
-        return render_generated_image(visual, duration_sec, width, height, work_dir, scene_id)
+        gallery_path = Path("output/gallery/gallery_index.json")
+        return render_generated_image(
+            visual,
+            duration_sec,
+            width,
+            height,
+            work_dir,
+            scene_id,
+            gallery_path=gallery_path,
+            niche=theme.get("niche"),
+            scene_narration=scene.get("narration", ""),
+            theme=theme,
+        )
 
     elif visual_type == "slide":
         from pipeline.composer.slide import render_slide

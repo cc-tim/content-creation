@@ -244,10 +244,11 @@ def search_gallery(
     pexels_api_key: str | None = None,
     pixabay_api_key: str | None = None,
 ) -> GalleryResult:
-    """Public API for gallery lookup. Reads keys from env when not provided."""
-    import os
-    pexels_key = pexels_api_key or os.getenv("PEXELS_API_KEY")
-    pixabay_key = pixabay_api_key or os.getenv("PIXABAY_API_KEY")
+    """Public API for gallery lookup. Reads keys from PipelineConfig (.env) when not provided."""
+    from pipeline.config import PipelineConfig
+    cfg = PipelineConfig()
+    pexels_key = pexels_api_key or cfg.PEXELS_API_KEY
+    pixabay_key = pixabay_api_key or cfg.PIXABAY_API_KEY
     searcher = GallerySearcher(
         pexels_api_key=pexels_key,
         pixabay_api_key=pixabay_key,

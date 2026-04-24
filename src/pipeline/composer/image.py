@@ -55,6 +55,7 @@ def render_generated_image(
     gallery_path: Path | None = None,
     niche: str | None = None,
     scene_narration: str = "",
+    theme: dict | None = None,
 ) -> Path:
     """Generate an image via the configured provider chain, convert to video.
 
@@ -88,7 +89,7 @@ def render_generated_image(
         if not providers:
             logger.warning("image.no_providers, falling back to text card")
             return _fallback_text_card(
-                prompt, duration_sec, width, height, work_dir, scene_id
+                scene_narration or prompt, duration_sec, width, height, work_dir, scene_id, theme
             )
 
         try:
@@ -116,7 +117,7 @@ def render_generated_image(
         except ProviderError as exc:
             logger.warning("image.generation_failed", error=str(exc))
             return _fallback_text_card(
-                prompt, duration_sec, width, height, work_dir, scene_id
+                scene_narration or prompt, duration_sec, width, height, work_dir, scene_id, theme
             )
 
     image_to_video(cached_png, output, duration_sec, width, height)
@@ -124,22 +125,26 @@ def render_generated_image(
 
 
 def _fallback_text_card(
-    prompt: str,
+    text: str,
     duration_sec: float,
     width: int,
     height: int,
     work_dir: Path,
     scene_id: str,
+    theme: dict | None = None,
 ) -> Path:
     from pipeline.composer.text_card import render_text_card
 
+    t = theme or {}
+    bg = t.get("secondary_bg") or t.get("background") or "#f0e8d8"
     return render_text_card(
-        {"type": "text_card", "text": prompt[:100], "background": "#1a1a2e"},
+        {"type": "text_card", "text": text[:200], "background": bg},
         duration_sec,
         width,
         height,
         work_dir,
         scene_id,
+        t,
     )
 
 

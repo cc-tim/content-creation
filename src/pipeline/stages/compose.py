@@ -19,6 +19,35 @@ from pipeline.utils.ffmpeg import check_ffmpeg_available, run_ffmpeg
 logger = structlog.get_logger()
 
 
+def _hex_to_ass_color(hex_color: str) -> str:
+    """Convert #RRGGBB hex to ASS &H00BBGGRR color format for FFmpeg force_style."""
+    h = hex_color.lstrip("#")
+    if len(h) == 6:
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        return f"&H00{b:02X}{g:02X}{r:02X}"
+    return "&H00FFFFFF"
+
+
+def _build_subtitle_style(theme_dict: dict[str, str]) -> str:
+    """Build FFmpeg force_style string from theme colors and font."""
+    font = theme_dict.get("font", "Noto Sans CJK TC")
+    text_color = theme_dict.get("text_color", "#f8fafc")
+    primary = _hex_to_ass_color(text_color)
+    # White outline on light themes, black on dark themes — auto-detect by luminance
+    h = text_color.lstrip("#")
+    if len(h) == 6:
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        luminance = 0.299 * r + 0.587 * g + 0.114 * b
+        outline_color = "&H00FFFFFF" if luminance < 128 else "&H00000000"
+    else:
+        outline_color = "&H00000000"
+    return (
+        f"FontName={font},FontSize=28,Bold=1,"
+        f"PrimaryColour={primary},OutlineColour={outline_color},"
+        f"Outline=2,Shadow=0,Alignment=2,MarginV=20"
+    )
+
+
 def _get_duration_sec(path: Path) -> float:
     """Get media duration in seconds via ffprobe."""
     result = subprocess.run(
@@ -90,6 +119,7 @@ class ComposeStage(PipelineStage):
                 "visual": scene.visual,
                 "overlay": scene.overlay,
                 "compartment": scene.compartment,
+                "narration": scene.narration,
             }
 
             # Get audio for this scene
@@ -237,7 +267,7 @@ class ComposeStage(PipelineStage):
         final_path = compose_dir / f"final_{ctx.locale}.mp4"
         if ctx.burn_subtitles:
             escaped_sub = str(ctx.subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
-            subtitle_style = "FontName=Noto Sans CJK TC,FontSize=24"
+            subtitle_style = _build_subtitle_style(theme_dict)
             run_ffmpeg(
                 [
                     "ffmpeg",
@@ -294,7 +324,8 @@ class ComposeStage(PipelineStage):
         ]
         if ctx.burn_subtitles:
             escaped_sub = str(ctx.subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
-            subtitle_style = "FontName=Noto Sans CJK TC,FontSize=24"
+            from pipeline.storyboard import Theme
+            subtitle_style = _build_subtitle_style(Theme().to_dict())
             cmd += ["-vf", f"subtitles={escaped_sub}:force_style='{subtitle_style}'"]
         cmd += [
             "-c:v",

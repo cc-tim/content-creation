@@ -188,7 +188,17 @@ If user approves, proceed.
 
 ### Step 3b: Gallery lookup + AssetEvaluator sub-agent
 
-Before writing the storyboard, consult the gallery for candidate assets per story section.
+**Source visual style check (do this FIRST):** Look at the keyframes already extracted (`source/keyframes/`). Determine the source video's visual language:
+
+- **Real footage** (bodycam, dashcam, news, documentary): use all gallery tiers — local → Pexels → Pixabay → generate. Pexels photos and Pixabay clips are appropriate.
+- **Illustration / animation** (hand-drawn, pencil sketch, cartoon, anime, stock art): **skip Pexels and Pixabay entirely** — their photorealistic output will clash with the aesthetic and be hard-rejected by the AssetEvaluator. Go straight to Tier 3 (generate) and prefix every image prompt with the matched style (e.g. `"pencil sketch illustration, warm cream background, soft charcoal lines"`).
+
+Set a `gallery_mode` variable before searching:
+```bash
+# gallery_mode = "realistic"   → search Pexels/Pixabay
+# gallery_mode = "illustration" → skip to generate, use style-matched prompts
+gallery_mode = "illustration"  # or "realistic" based on keyframe inspection
+```
 
 For each of the 6 story sections (hook, context, rising, climax, aftermath, analysis), run:
 
@@ -260,6 +270,7 @@ Create the storyboard directly based on the knowledge base:
 3. Choose visual type per scene — IMPORTANT visual guidelines:
    - **Prefer designed visuals over clips** (text_card, slide, article_image, generated_image > clip)
    - Use clips ONLY for moments you're confident the source video visually matches the narration
+   - For illustration/animation sources with burned-in English subtitles: add `"crop_bottom_pct": 0.20` to the clip visual dict — this strips the subtitle zone before scaling, making source clips usable
    - Use **article_image** for scenes where a source article image directly illustrates the point (provide `path` to the local image file in `source/images/`)
    - Use slide for explaining concepts, structures, comparisons
    - Use text_card for key quotes, statistics, dramatic statements
