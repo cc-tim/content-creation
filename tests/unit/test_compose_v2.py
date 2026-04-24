@@ -289,6 +289,7 @@ def test_preferred_variant_persists_in_context(tmp_path):
 def test_preferred_variant_selects_correct_final_path(monkeypatch, tmp_path):
     """When preferred_variant is set, compose returns that variant's path."""
     from pathlib import Path
+
     from pipeline.stages.base import PipelineContext
     from pipeline.stages.compose import ComposeStage
     from pipeline.storyboard import Scene, Storyboard

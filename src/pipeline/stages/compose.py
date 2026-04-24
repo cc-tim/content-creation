@@ -50,7 +50,9 @@ def _build_subtitle_style(theme_dict: dict[str, str]) -> str:
     )
 
 
-def _burn_subtitle_pass(src: Path, dst: Path, subtitle_path: Path, theme_dict: dict) -> None:
+def _burn_subtitle_pass(
+    src: Path, dst: Path, subtitle_path: Path, theme_dict: dict[str, str]
+) -> None:
     """Burn subtitles from subtitle_path into src, writing to dst."""
     escaped_sub = str(subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
     subtitle_style = _build_subtitle_style(theme_dict)
@@ -292,14 +294,14 @@ class ComposeStage(PipelineStage):
             shutil.copyfile(raw_no_overlay_path, subs_no_ov)
 
         # Return the variant the rest of the pipeline expects
-        _VARIANT_MAP = {
+        variant_map = {
             "plain": plain,
             "no_overlay": plain_no_ov,
             "subtitles": subs,
             "subtitles_no_overlay": subs_no_ov,
         }
-        if ctx.preferred_variant and ctx.preferred_variant in _VARIANT_MAP:
-            final_path = _VARIANT_MAP[ctx.preferred_variant]
+        if ctx.preferred_variant and ctx.preferred_variant in variant_map:
+            final_path = variant_map[ctx.preferred_variant]
         else:
             final_path = subs if ctx.burn_subtitles else plain
         return final_path
