@@ -39,22 +39,64 @@ ls -lh output/projects/<ID>/metadata.json 2>/dev/null || echo "MISSING: metadata
 
 **If thumbnail missing:** tell user to create one (1280×720 PNG, ≤ 2MB) and save at `output/projects/<ID>/thumbnail.png`.
 
-**If metadata.json missing:** run `pipeline metadata regenerate` (see Step 2).
+**If metadata.json missing:** generate it yourself in Step 2 — no API call needed.
 
 ### Step 2: Review / generate metadata
 
-Show current metadata:
+Show current metadata if it exists:
 
 ```bash
 uv run pipeline metadata show --work-dir output/projects/<ID>
 ```
 
-If metadata.json is missing or the user wants to refresh it:
+**If metadata.json is missing**, read storyboard + knowledge and write it yourself:
 
 ```bash
-uv run pipeline metadata regenerate --work-dir output/projects/<ID>
-uv run pipeline metadata show --work-dir output/projects/<ID>
+# Read context for niche/locale/source_url
+uv run python3 -c "
+import json; from pathlib import Path
+ctx = json.loads(Path('output/projects/<ID>/context.json').read_text())
+print('niche:', ctx.get('niche')); print('locale:', ctx.get('locale')); print('source_url:', ctx.get('source_url'))
+"
+
+# Read storyboard narrations for title/tag inspiration
+cat output/projects/<ID>/storyboard.json | python3 -c "
+import json, sys
+sb = json.load(sys.stdin)
+for s in sb.get('scenes', [])[:5]:
+    print(f\"{s['id']}: {s.get('narration','')[:100]}\")
+"
 ```
+
+Then YOU write `metadata.json` directly (no API):
+
+```bash
+uv run python3 -c "
+import json, datetime
+from pathlib import Path
+
+ctx = json.loads(Path('output/projects/<ID>/context.json').read_text())
+metadata = {
+    'title': '<WRITE_TITLE_IN_ZH_TW_MAX_100_CHARS>',
+    'description': '',
+    'tags': ['育兒', '親子', '<ADD_TOPIC_TAGS>'],
+    'category_id': 27,
+    'default_language': 'zh-TW',
+    'default_audio_language': 'zh-TW',
+    'made_for_kids': False,
+    'altered_or_synthetic_content': 'none',
+    '_generated_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    '_source_url': ctx.get('source_url', ''),
+    '_profile': ctx.get('publish_profile') or 'ideal-parents-tw',
+}
+path = Path('output/projects/<ID>/metadata.json')
+path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False))
+print('metadata.json written:', metadata['title'])
+"
+```
+
+**If the user wants a refresh** of existing metadata, do the same — read the storyboard
+and rewrite the file. No need to call `pipeline metadata regenerate`.
 
 Ask the user: "Title, tags, and description look good? Anything to edit before upload?"
 

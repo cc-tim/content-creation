@@ -429,6 +429,88 @@ Present the storyboard summary. Ask: "Ready to render, or want to adjust anythin
 
 Wait for user feedback. Apply edits using /storyboard operations.
 
+### Step 5b: Patch niche + generate metadata (YOU do this — no API cost)
+
+**Step 5b-1: Auto-detect and patch niche into context.json**
+
+```bash
+uv run python3 -c "
+import json
+from pathlib import Path
+from pipeline.publish.channels import auto_detect_niche, load_channel_config
+
+ctx_path = Path('output/projects/<ID>/context.json')
+ctx = json.loads(ctx_path.read_text())
+locale = ctx.get('locale', 'zh-TW')
+
+cfg_path = Path('configs/youtube_channels.toml')
+if cfg_path.exists():
+    niche = auto_detect_niche(load_channel_config(cfg_path), locale=locale)
+    ctx['niche'] = niche
+    ctx_path.write_text(json.dumps(ctx, indent=2, ensure_ascii=False))
+    print(f'niche set to: {niche}')
+else:
+    print('WARNING: no channel config found, niche not set')
+"
+```
+
+**Step 5b-2: Read storyboard + knowledge to generate metadata yourself**
+
+Read these two files:
+```bash
+cat output/projects/<ID>/storyboard.json | python3 -c "
+import json, sys
+sb = json.load(sys.stdin)
+for s in sb.get('scenes', []):
+    print(f\"{s['id']}: {s.get('narration','')[:100]}\")
+"
+cat output/projects/<ID>/knowledge.json | python3 -c "
+import json, sys
+k = json.load(sys.stdin)
+print('Facts:', [f['text'][:80] for f in k.get('facts', [])[:6]])
+"
+```
+
+Then write `metadata.json` directly — YOU are the copywriter, no API call needed:
+
+```bash
+uv run python3 -c "
+import json, datetime
+from pathlib import Path
+
+ctx = json.loads(Path('output/projects/<ID>/context.json').read_text())
+profile_name = 'ideal-parents-tw'  # adjust if different niche
+
+metadata = {
+    'title': '<WRITE_TITLE_IN_ZH_TW_MAX_100_CHARS>',
+    'description': '',
+    'tags': ['<TAG1>', '<TAG2>'],   # 10-20 zh-TW tags, mix broad + specific
+    'category_id': 27,
+    'default_language': 'zh-TW',
+    'default_audio_language': 'zh-TW',
+    'made_for_kids': False,
+    'altered_or_synthetic_content': 'none',
+    '_generated_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    '_source_url': ctx.get('source_url', ''),
+    '_profile': profile_name,
+}
+path = Path('output/projects/<ID>/metadata.json')
+path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False))
+print('metadata.json written')
+print('title:', metadata['title'])
+"
+```
+
+**Title guidelines for zh-TW parenting channel:**
+- Lead with a relatable tension or question (e.g. 「為什麼孩子...」「你有沒有發現...」)
+- Max 30 zh chars (YouTube shows ~32 on mobile)
+- Avoid clickbait — the channel builds trust
+
+**Tag guidelines:**
+- Start with channel default tags: 育兒, 親子, 幼兒教育, 兒童發展
+- Add topic-specific: key people/concepts/locations from the video
+- 15-25 tags total
+
 ### Step 6: Render
 
 Run TTS + compose:
