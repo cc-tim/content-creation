@@ -222,6 +222,31 @@ uv run pipeline storyboard set scene_003 narration="新文字"  # edit a safe fi
 #   "change scene X's pause to Ns"      → storyboard set X pause_after_sec=N
 ```
 
+## Dashboard (project monitoring)
+
+```bash
+# Start dashboard + Cloudflare tunnel (remote access)
+./scripts/start-dashboard.sh                    # port 8765, prints tunnel URL
+./scripts/start-dashboard.sh --port 9000        # custom port
+./scripts/start-dashboard.sh --local-only       # no tunnel, localhost only
+
+# Or run the server directly (no tunnel)
+uv run pipeline dashboard                       # opens browser, port 8765
+uv run pipeline dashboard --no-browser --port 8765
+```
+
+The dashboard reads `output/projects/` live — no restart needed after new renders.
+Video files stream via HTTP Range requests; seeking works through the tunnel.
+
+```
+# Natural-language triggers (for the assistant):
+#   "show me the dashboard"           → run ./scripts/start-dashboard.sh, share tunnel URL
+#   "open dashboard locally"          → run ./scripts/start-dashboard.sh --local-only
+#   "start dashboard"                 → run ./scripts/start-dashboard.sh, share tunnel URL
+#   "check video status"              → run ./scripts/start-dashboard.sh, share tunnel URL
+#   "what projects are rendered?"     → run ./scripts/start-dashboard.sh, share tunnel URL
+```
+
 ## Publish and metadata workflow
 
 ```bash
