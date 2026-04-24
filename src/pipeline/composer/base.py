@@ -121,6 +121,11 @@ def render_scene(
 
         return render_slide(visual, duration_sec, width, height, work_dir, scene_id, theme)
 
+    elif visual_type == "rich_slide":
+        from pipeline.composer.rich_slide import render_rich_slide
+
+        return render_rich_slide(visual, duration_sec, width, height, work_dir, scene_id, theme)
+
     elif visual_type == "article_image":
         img_path = Path(visual.get("path", ""))
         if not img_path.exists():
