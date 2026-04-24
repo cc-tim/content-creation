@@ -17,7 +17,7 @@ class ProjectInfo:
     youtube_video_id: str | None
     published_at: str | None
     has_video: bool
-    final_video_url_path: str | None
+    video_variants: list[dict[str, str]]
     tags: list[str] = field(default_factory=list)
     session_logs: list[dict[str, str]] = field(default_factory=list)
 
@@ -48,11 +48,12 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
                 meta = json.loads(meta_file.read_text())
 
         locale: str = ctx.get("locale", "")
-        final_mp4 = _find_final_video(project_dir, locale)
-        has_video = final_mp4 is not None
-        final_video_url_path: str | None = None
-        if final_mp4 is not None:
-            final_video_url_path = "/output/" + str(final_mp4.relative_to(output_dir))
+        variants = _find_all_final_videos(project_dir, locale)
+        has_video = len(variants) > 0
+        video_variants = [
+            {"label": label, "url": "/output/" + str(path.relative_to(output_dir))}
+            for label, path in variants
+        ]
 
         session_logs: list[dict[str, str]] = []
         sessions_file = project_dir / "sessions.json"
@@ -71,7 +72,7 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
                 youtube_video_id=ctx.get("youtube_video_id"),
                 published_at=ctx.get("published_at"),
                 has_video=has_video,
-                final_video_url_path=final_video_url_path,
+                video_variants=video_variants,
                 tags=meta.get("tags", []),  # type: ignore[arg-type]
                 session_logs=session_logs,
             )
@@ -83,7 +84,7 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
 def _derive_status(ctx: dict[str, object], project_dir: Path, locale: str) -> str:
     if ctx.get("youtube_video_id"):
         return "published"
-    if _find_final_video(project_dir, locale) is not None:
+    if _find_all_final_videos(project_dir, locale):
         return "rendered"
     if (project_dir / "storyboard.json").exists():
         return "storyboard"
@@ -94,14 +95,21 @@ def _derive_status(ctx: dict[str, object], project_dir: Path, locale: str) -> st
     return "new"
 
 
-def _find_final_video(project_dir: Path, locale: str) -> Path | None:
+def _find_all_final_videos(project_dir: Path, locale: str) -> list[tuple[str, Path]]:
     if not locale:
-        return None
+        return []
     compose_dir = project_dir / "compose"
     if not compose_dir.exists():
-        return None
-    specific = compose_dir / f"final_{locale}.mp4"
-    return specific if specific.exists() else None
+        return []
+    prefix = f"final_{locale}"
+    results = []
+    for path in sorted(compose_dir.glob(f"{prefix}*.mp4")):
+        suffix = path.stem[len(prefix):].lstrip("_")
+        label = suffix or "final"
+        results.append((label, path))
+    # canonical "final" variant first
+    results.sort(key=lambda x: (x[0] != "final", x[0]))
+    return results
 
 
 def _sort_key(project_id: str) -> tuple[int, str]:

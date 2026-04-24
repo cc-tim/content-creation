@@ -39,7 +39,7 @@ def _to_dict(p: ProjectInfo) -> dict[str, object]:
         "youtube_video_id": p.youtube_video_id,
         "published_at": p.published_at,
         "has_video": p.has_video,
-        "final_video_url_path": p.final_video_url_path,
+        "video_variants": p.video_variants,
         "tags": p.tags,
         "session_logs": p.session_logs[-3:],  # latest 3 only
     }

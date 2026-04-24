@@ -55,6 +55,11 @@
     .detail-row td { padding: 0; }
     .detail-panel { padding: 16px 20px; background: #111; border-bottom: 1px solid #1e1e1e; }
     video { width: 100%; max-width: 720px; border-radius: 4px; background: #000; display: block; margin-bottom: 14px; }
+    .variant-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+    .btn-variant { font-size: 11px; padding: 3px 10px; border-radius: 4px; border: 1px solid #2d3748;
+      background: #1a1a2e; color: #94a3b8; cursor: pointer; transition: background .1s, color .1s; }
+    .btn-variant:hover { background: #1e293b; color: #e2e8f0; }
+    .btn-variant.active { background: #1e293b; color: #e2e8f0; border-color: #3b82f6; }
     .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: #64748b; }
     .meta-grid .lbl { color: #475569; }
   </style>
@@ -166,8 +171,16 @@ function makeDetailRow(p) {
   dr.dataset.detailFor = p.project_id;
   const srcId = ytId(p.source_url);
   const tags = p.tags.slice(0, 5).join(', ') + (p.tags.length > 5 ? '…' : '');
+  const variants = p.video_variants || [];
+  const firstUrl = variants.length ? variants[0].url : '';
+  const tabsHtml = variants.length > 1
+    ? `<div class="variant-tabs">${variants.map((v, i) =>
+        `<button class="btn-variant${i===0?' active':''}" data-url="${v.url}">${v.label}</button>`
+      ).join('')}</div>`
+    : '';
   dr.innerHTML = `<td colspan="7"><div class="detail-panel">
-    <video controls src="${p.final_video_url_path || ''}"></video>
+    ${tabsHtml}
+    <video controls src="${firstUrl}"></video>
     <div class="meta-grid">
       <div><span class="lbl">Project ID: </span><span style="font-family:monospace;color:#94a3b8">${p.project_id}</span></div>
       <div><span class="lbl">Locale: </span>${p.locale}${p.niche ? ' · '+p.niche : ''}</div>
@@ -213,7 +226,17 @@ function toggleDetail(p) {
   const tr = document.querySelector(`tr[data-id="${p.project_id}"]`);
   tr?.classList.add('active');
   document.querySelector(`.btn-preview[data-id="${p.project_id}"]`)?.classList.add('active');
-  tr?.insertAdjacentElement('afterend', makeDetailRow(p));
+  const detailRow = makeDetailRow(p);
+  tr?.insertAdjacentElement('afterend', detailRow);
+  // Wire variant tab clicks
+  detailRow.querySelectorAll('.btn-variant').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const vid = detailRow.querySelector('video');
+      if (vid) { vid.src = btn.dataset.url; vid.load(); vid.play(); }
+      detailRow.querySelectorAll('.btn-variant').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
   activeId = p.project_id;
 }
 
