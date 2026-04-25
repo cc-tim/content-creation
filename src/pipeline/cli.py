@@ -261,6 +261,7 @@ def shorts(
 def dashboard(
     port: int = typer.Option(8765, "--port", help="Port to serve on"),
     no_browser: bool = typer.Option(False, "--no-browser", help="Skip auto-opening browser"),
+    dev: bool = typer.Option(False, "--dev", help="Enable hot-reload for static/ files"),
 ) -> None:
     """Start the read-only project monitoring dashboard."""
     import webbrowser
@@ -270,7 +271,7 @@ def dashboard(
     from pipeline.dashboard.server import create_app
 
     config = PipelineConfig()
-    server_app = create_app(config.OUTPUT_DIR)
+    server_app = create_app(config.OUTPUT_DIR, dev_mode=dev)
 
     url = f"http://localhost:{port}"
     typer.echo(f"Dashboard → {url}  (Ctrl+C to stop)")

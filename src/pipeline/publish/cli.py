@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -116,8 +117,25 @@ def upload(
         dry_run=dry_run,
     )
 
-    pipeline_ctx = stage.publish(pipeline_ctx, profile_override=profile)
-    pipeline_ctx.save()
+    from pipeline.session_log import SessionEntry, append_session, new_session_id
+
+    entry = SessionEntry(
+        session_id=new_session_id(),
+        timestamp=datetime.now().isoformat(timespec="seconds"),
+        command=f"publish{' --dry-run' if dry_run else ''}",
+    )
+    try:
+        pipeline_ctx = stage.publish(pipeline_ctx, profile_override=profile)
+        pipeline_ctx.save()
+        entry.summary = f"published → {pipeline_ctx.youtube_video_id or 'dry-run'}"
+    except Exception as exc:
+        entry.outcome = "failed"
+        entry.error = str(exc)[:200]
+        entry.summary = f"publish failed at {PublishStage._current_phase(pipeline_ctx)}"
+        append_session(work_dir, entry)
+        raise
+    if not dry_run:
+        append_session(work_dir, entry)
 
     if not dry_run and pipeline_ctx.youtube_video_id:
         typer.echo(f"\n✓ Published {pipeline_ctx.youtube_video_id}")

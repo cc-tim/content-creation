@@ -54,23 +54,28 @@
 
     .detail-row td { padding: 0; }
     .detail-panel { padding: 16px 20px; background: #111; border-bottom: 1px solid #1e1e1e; }
-    video { width: 100%; max-width: 720px; border-radius: 4px; background: #000; display: block; margin-bottom: 14px; }
+    video { width: 100%; max-width: 720px; border-radius: 4px; background: #000; display: block; margin: 0 auto 14px; }
     .variant-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
     .btn-variant { font-size: 11px; padding: 3px 10px; border-radius: 4px; border: 1px solid #2d3748;
       background: #1a1a2e; color: #94a3b8; cursor: pointer; transition: background .1s, color .1s; }
     .btn-variant:hover { background: #1e293b; color: #e2e8f0; }
     .btn-variant.active { background: #1e293b; color: #e2e8f0; border-color: #3b82f6; }
-    .scene-strip { display:flex; gap:5px; overflow-x:auto; padding:10px 0 6px; scrollbar-width:thin; scroll-behavior:smooth; }
+    .scene-strip { display:flex; gap:5px; overflow-x:auto; padding:10px 0 6px; scrollbar-width:thin;
+      scroll-behavior:smooth; cursor:grab; user-select:none; }
+    .scene-strip.dragging { cursor:grabbing; scroll-behavior:auto; }
     .scene-chip { flex-shrink:0; padding:4px 10px; border-radius:4px; font-size:10px; font-family:monospace;
       cursor:pointer; background:#1e1e1e; color:#4a5568; border:1px solid #2d3748;
       white-space:nowrap; transition:background .1s, color .1s; }
     .scene-chip:hover { background:#1e293b; color:#94a3b8; }
     .scene-chip.sc-past { background:#161616; color:#374151; border-color:#161616; }
     .scene-chip.sc-active { background:#1e3a5f; color:#93c5fd; border-color:#3b82f6; }
-    .scene-narration { margin-top:2px; background:#1e293b; border:1px solid #334155; border-radius:6px;
-      padding:10px 14px; font-size:12px; color:#cbd5e1; line-height:1.7; user-select:text; cursor:text;
-      margin-bottom:10px; }
+    .scene-panels { display:flex; flex-direction:column; gap:8px; margin-top:2px; margin-bottom:10px; }
+    .scene-narration, .scene-subtitle { background:#1e293b; border:1px solid #334155; border-radius:6px;
+      padding:10px 14px; font-size:12px; color:#cbd5e1; line-height:1.7; user-select:text; cursor:text; }
+    .scene-panel-label { font-size:9px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+      color:#475569; margin-bottom:4px; }
     .scene-nar-hdr { font-size:10px; color:#6366f1; font-family:monospace; margin-bottom:6px; }
+    .scene-sub-hdr { font-size:10px; color:#0ea5e9; font-family:monospace; margin-bottom:6px; }
     .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: #64748b; }
     .meta-grid .lbl { color: #475569; }
   </style>
@@ -188,9 +193,17 @@ function buildSceneStrip(scenes) {
   ).join('');
   return `
     <div class="scene-strip">${chips}</div>
-    <div class="scene-narration" style="display:none">
-      <div class="scene-nar-hdr"></div>
-      <div class="scene-nar-text"></div>
+    <div class="scene-panels">
+      <div class="scene-narration">
+        <div class="scene-panel-label">旁白 Narration</div>
+        <div class="scene-nar-hdr"></div>
+        <div class="scene-nar-text"></div>
+      </div>
+      <div class="scene-subtitle">
+        <div class="scene-panel-label">字幕 Subtitle</div>
+        <div class="scene-sub-hdr"></div>
+        <div class="scene-sub-text"></div>
+      </div>
     </div>`;
 }
 
@@ -225,9 +238,13 @@ function makeDetailRow(p) {
       <div style="grid-column:1/-1"><span class="lbl">Tags: </span><span style="color:#475569">${tags || '—'}</span></div>
       ${p.session_logs && p.session_logs.length
         ? `<div style="grid-column:1/-1;margin-top:4px"><span class="lbl">Sessions: </span>${
-            p.session_logs.map(s =>
-              `<span style="font-family:monospace;font-size:11px;color:#6366f1;margin-right:12px" title="${s.summary || ''}">${s.session_id}</span>`
-            ).join('')
+            p.session_logs.map(s => {
+              const color = s.outcome === 'failed' ? '#ef4444' : '#6366f1';
+              const tip = [s.session_id, s.command, s.summary, s.timestamp].filter(Boolean).join(' | ');
+              // UUID (36 chars with dashes) → show first 8 chars; timestamp IDs show in full
+              const label = /^[0-9a-f]{8}-/.test(s.session_id) ? s.session_id.slice(0, 8) : s.session_id;
+              return `<span style="font-family:monospace;font-size:11px;color:${color};margin-right:12px;cursor:default" title="${tip}">${label}</span>`;
+            }).join('')
           }</div>`
         : ''}
     </div>
@@ -258,7 +275,31 @@ function toggleDetail(p) {
   document.querySelector(`.btn-preview[data-id="${p.project_id}"]`)?.classList.add('active');
   const detailRow = makeDetailRow(p);
   tr?.insertAdjacentElement('afterend', detailRow);
-  let openSc = -1;
+  // Scroll video to viewport center once layout settles
+  setTimeout(() => {
+    const video = detailRow.querySelector('video');
+    if (video) {
+      const rect = video.getBoundingClientRect();
+      const targetTop = window.scrollY + rect.top + rect.height / 2 - window.innerHeight / 2;
+      window.scrollTo({ top: Math.max(0, targetTop), left: 0, behavior: 'smooth' });
+    }
+  }, 80);
+  const narHdr  = detailRow.querySelector('.scene-nar-hdr');
+  const narText = detailRow.querySelector('.scene-nar-text');
+  const subHdr  = detailRow.querySelector('.scene-sub-hdr');
+  const subText = detailRow.querySelector('.scene-sub-text');
+
+  function showSceneNar(idx) {
+    const scene = p.scenes[idx];
+    const mm = Math.floor(scene.start_sec / 60);
+    const ss = String(Math.floor(scene.start_sec % 60)).padStart(2, '0');
+    const stamp = `${scene.id} · ${scene.section} · ${mm}:${ss}`;
+    narHdr.textContent = stamp;
+    narText.textContent = scene.narration;
+    subHdr.textContent = stamp;
+    subText.textContent = scene.subtitle || '—';
+  }
+
   // Wire variant tab clicks
   detailRow.querySelectorAll('.btn-variant').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -268,15 +309,23 @@ function toggleDetail(p) {
       btn.classList.add('active');
       // Reset scene strip — timeupdate will re-sync once video loads
       detailRow.querySelectorAll('.scene-chip').forEach(c => c.classList.remove('sc-active', 'sc-past'));
-      const narPanel = detailRow.querySelector('.scene-narration');
-      if (narPanel) narPanel.style.display = 'none';
-      openSc = -1;
+      showSceneNar(0);
     });
   });
+
   // Wire scene strip
   const vid = detailRow.querySelector('video');
   const strip = detailRow.querySelector('.scene-strip');
   if (vid && strip && p.scenes && p.scenes.length) {
+    showSceneNar(0);
+
+    function stripScrollTo(idx) {
+      const chip = strip.querySelectorAll('.scene-chip')[idx];
+      if (!chip) return;
+      const left = chip.offsetLeft - strip.clientWidth / 2 + chip.offsetWidth / 2;
+      strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+    }
+
     let activeSc = -1;
     vid.addEventListener('timeupdate', () => {
       const t = vid.currentTime;
@@ -290,29 +339,38 @@ function toggleDetail(p) {
         c.classList.toggle('sc-past', i < idx);
         c.classList.toggle('sc-active', i === idx);
       });
-      strip.querySelectorAll('.scene-chip')[idx]?.scrollIntoView({inline: 'nearest', behavior: 'smooth'});
+      stripScrollTo(idx);
+      showSceneNar(idx);
+    });
+
+    // Click-drag to scroll the strip — listeners on document so fast moves don't lose the drag
+    let dragState = null, wasDragged = false;
+    strip.addEventListener('mousedown', e => {
+      dragState = { x: e.pageX, scrollLeft: strip.scrollLeft };
+      wasDragged = false;
+      strip.classList.add('dragging');
+      const onMove = ev => {
+        const dx = ev.pageX - dragState.x;
+        if (Math.abs(dx) > 4) wasDragged = true;
+        strip.scrollLeft = dragState.scrollLeft - dx;
+      };
+      const onUp = () => {
+        dragState = null;
+        strip.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
     });
 
     strip.addEventListener('click', e => {
+      if (wasDragged) { wasDragged = false; return; }
       const chip = e.target.closest('.scene-chip');
       if (!chip) return;
       const idx = +chip.dataset.idx;
-      const scene = p.scenes[idx];
-      vid.currentTime = scene.start_sec;
-      const narPanel = detailRow.querySelector('.scene-narration');
-      const narHdr   = detailRow.querySelector('.scene-nar-hdr');
-      const narText  = detailRow.querySelector('.scene-nar-text');
-      if (openSc === idx) {
-        narPanel.style.display = 'none';
-        openSc = -1;
-      } else {
-        const mm = Math.floor(scene.start_sec / 60);
-        const ss = String(Math.floor(scene.start_sec % 60)).padStart(2, '0');
-        narHdr.textContent = `${scene.id} · ${scene.section} · ${mm}:${ss}`;
-        narText.textContent = scene.narration;
-        narPanel.style.display = 'block';
-        openSc = idx;
-      }
+      vid.currentTime = p.scenes[idx].start_sec;
+      showSceneNar(idx);
     });
   }
   activeId = p.project_id;
@@ -344,6 +402,11 @@ document.getElementById('tbody').addEventListener('click', e => {
 
 refresh();
 setInterval(refresh, 30000);
+</script>
+<script>
+  const _hmr = new EventSource('/_hmr');
+  _hmr.onmessage = () => location.reload();
+  _hmr.onerror = () => _hmr.close();
 </script>
 </body>
 </html>

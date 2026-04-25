@@ -228,6 +228,10 @@ def _wrap_subtitle_line(text: str, max_width: int = 36) -> str:
 
     CJK characters can break anywhere, but Latin/digit words must stay whole.
     Uses visual width (CJK=2, Latin=1) so lines look balanced on screen.
+    Prefers semantic break points over pure character-count midpoint:
+      - before 「 (opens direct speech)    bonus 10
+      - after ，/、 (natural pause)        bonus 4
+      - after —— (em-dash clause boundary) bonus 14
     Returns text with actual newlines for SRT format (max 2 lines).
     """
     import re
@@ -235,9 +239,39 @@ def _wrap_subtitle_line(text: str, max_width: int = 36) -> str:
     if _visual_width(text) <= max_width:
         return text
 
-    # Tokenize into CJK chars and Latin words
     tokens: list[str] = re.findall(r"[A-Za-z0-9]+|.", text)
 
+    # Build cumulative visual widths after each token
+    cum: list[int] = []
+    w = 0
+    for t in tokens:
+        w += _visual_width(t)
+        cum.append(w)
+    total = w
+    half = total / 2
+
+    # Score each potential break (after token i): dist from half minus semantic bonus
+    best_pos = None
+    best_score = float("inf")
+    for i in range(len(tokens) - 1):
+        dist = abs(cum[i] - half)
+        if i + 1 < len(tokens) and tokens[i + 1] == "「":
+            bonus = 10
+        elif tokens[i] in ("，", "、"):
+            bonus = 5
+        elif tokens[i] == "—" and i >= 1 and tokens[i - 1] == "—":
+            bonus = 14
+        else:
+            bonus = 0
+        score = dist - bonus
+        if score < best_score:
+            best_score = score
+            best_pos = i
+
+    if best_pos is not None:
+        return "".join(tokens[: best_pos + 1]) + "\n" + "".join(tokens[best_pos + 1 :])
+
+    # Fallback: greedy fill to max_width
     line = ""
     lines: list[str] = []
     for token in tokens:
@@ -249,7 +283,6 @@ def _wrap_subtitle_line(text: str, max_width: int = 36) -> str:
     if line:
         lines.append(line)
 
-    # Max 2 lines per subtitle — use real newlines (SRT format)
     if len(lines) <= 2:
         return "\n".join(lines)
     return "\n".join(["".join(lines[: len(lines) // 2]), "".join(lines[len(lines) // 2 :])])
@@ -324,7 +357,27 @@ def _split_text_for_subtitles(text: str, max_width: int = 36) -> list[str]:
             if sub_current.strip():
                 result.append(_wrap_subtitle_line(sub_current.strip(), max_width))
 
-    return [r for r in result if r]
+    # Move leading closing-quote chars to the end of the preceding chunk.
+    # Prevents orphaned 」entries from sentence-ending patterns like 。」
+    fixed: list[str] = []
+    for chunk in result:
+        raw = chunk.replace("\n", "")
+        m = re.match(r"^([」』）\]]+)(.*)", raw, re.DOTALL)
+        if fixed and m:
+            closing, rest = m.group(1), m.group(2).strip()
+            prev = fixed[-1]
+            if "\n" in prev:
+                prev_lines = prev.split("\n")
+                prev_lines[-1] += closing
+                fixed[-1] = "\n".join(prev_lines)
+            else:
+                fixed[-1] = prev + closing
+            if rest:
+                fixed.append(_wrap_subtitle_line(rest, max_width))
+        else:
+            fixed.append(chunk)
+
+    return [r for r in fixed if r]
 
 
 def _build_subtitle_entries(

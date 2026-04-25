@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import typer
@@ -196,3 +197,11 @@ def set_field(
     sb_path = work_dir / "storyboard.json"
     sb.save(sb_path)
     typer.echo(f"updated {scene_id}.{field}")
+
+    from pipeline.session_log import SessionEntry, append_session, new_session_id
+    append_session(work_dir, SessionEntry(
+        session_id=new_session_id(),
+        timestamp=datetime.now().isoformat(timespec="seconds"),
+        command=f"storyboard set {scene_id} {field}=...",
+        summary=f"storyboard set: {scene_id}.{field}",
+    ))

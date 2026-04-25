@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -197,6 +198,13 @@ def run(
     if apply:
         n = apply_issues(storyboard_path, issues)
         _console.print(f"\n[green]Applied {n}/{len(issues)} fixes.[/green]")
+        from pipeline.session_log import SessionEntry, append_session, new_session_id
+        append_session(work_dir, SessionEntry(
+            session_id=new_session_id(),
+            timestamp=datetime.now().isoformat(timespec="seconds"),
+            command="proofread run --apply",
+            summary=f"proofread: applied {n}/{len(issues)} fixes",
+        ))
     else:
         _console.print(
             f"\n[dim]Found {len(issues)} issue(s). "

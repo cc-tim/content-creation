@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -70,6 +71,12 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
                 scenes = json.loads(scenes_file.read_text(encoding="utf-8"))
         elif (project_dir / "storyboard.json").exists():
             scenes = _estimate_scenes_from_storyboard(project_dir / "storyboard.json")
+
+        if scenes:
+            srt_path = project_dir / "audio" / f"subtitles_{locale}.srt"
+            srt_entries = _parse_srt(srt_path)
+            if srt_entries:
+                _attach_subtitles(scenes, srt_entries)
 
         final_video_url_path = video_variants[0]["url"] if video_variants else None
 
@@ -145,6 +152,52 @@ def _estimate_scenes_from_storyboard(sb_path: Path) -> list[dict[str, object]]:
             start += dur
         return result
     return []
+
+
+def _srt_timestamp_to_sec(ts: str) -> float:
+    """Convert SRT timestamp HH:MM:SS,mmm to seconds."""
+    m = re.fullmatch(r"(\d+):(\d{2}):(\d{2})[,.](\d+)", ts.strip())
+    if not m:
+        return 0.0
+    h, mn, s, ms = int(m[1]), int(m[2]), int(m[3]), int(m[4])
+    return h * 3600 + mn * 60 + s + ms / 1000.0
+
+
+def _parse_srt(path: Path) -> list[tuple[float, float, str]]:
+    """Return list of (start_sec, end_sec, text) from an SRT file."""
+    entries: list[tuple[float, float, str]] = []
+    with contextlib.suppress(OSError):
+        blocks = re.split(r"\n\s*\n", path.read_text(encoding="utf-8").strip())
+        for block in blocks:
+            lines = block.strip().splitlines()
+            if len(lines) < 3:
+                continue
+            arrow = next((i for i, l in enumerate(lines) if "-->" in l), None)
+            if arrow is None:
+                continue
+            parts = lines[arrow].split("-->")
+            start = _srt_timestamp_to_sec(parts[0])
+            end = _srt_timestamp_to_sec(parts[1])
+            text = " ".join(l.strip() for l in lines[arrow + 1:] if l.strip())
+            if text:
+                entries.append((start, end, text))
+    return entries
+
+
+def _attach_subtitles(
+    scenes: list[dict[str, object]],
+    srt_entries: list[tuple[float, float, str]],
+) -> list[dict[str, object]]:
+    """Add a 'subtitle' key to each scene dict with matching SRT lines joined."""
+    for i, scene in enumerate(scenes):
+        start = float(scene["start_sec"])
+        dur = float(scene.get("duration_sec", 0))
+        end = start + dur if dur > 0 else (
+            float(scenes[i + 1]["start_sec"]) if i + 1 < len(scenes) else start + 9999
+        )
+        lines = [text for s, e, text in srt_entries if s >= start and s < end]
+        scene["subtitle"] = " ".join(lines)
+    return scenes
 
 
 def _sort_key(project_id: str) -> tuple[int, str]:

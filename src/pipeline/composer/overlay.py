@@ -55,6 +55,8 @@ def apply_overlay(
         return _render_text_left(visual_path, overlay, width, height, work_dir, scene_id, theme)
     if overlay_type == "text_emphasis":
         return _render_text_emphasis(visual_path, overlay, width, height, work_dir, scene_id, theme)
+    if overlay_type == "corner_label":
+        return _render_corner_label(visual_path, overlay, width, height, work_dir, scene_id, theme)
 
     raise ValueError(f"unknown overlay type: {overlay_type!r}")
 
@@ -147,6 +149,34 @@ def _render_text_left(visual_path, overlay, width, height, work_dir, scene_id, t
         f"drawbox=x=iw*0.04:y=ih*0.25:w=iw*0.32:h=ih*0.50:color=black@0.40:t=fill,"
         f"drawtext=text='{text}':fontsize={font_size}:fontcolor={color}:font='{font}'"
         f":x=w*0.06:y=h*0.30:text_align=left"
+        f":shadowcolor=black@0.5:shadowx=2:shadowy=2"
+    )
+    return _render_with_filter(visual_path, vf, out)
+
+
+def _render_corner_label(visual_path, overlay, width, height, work_dir, scene_id, theme):
+    """Small compact label anchored to top-right or top-left corner."""
+    text = _escape_drawtext(overlay.get("text", ""))
+    font = _default_font(theme)
+    color = overlay.get("color", theme.get("accent", "#6b62c5"))
+    font_size = overlay.get("font_size", 34)
+    corner = overlay.get("corner", "top-right")
+    out = _out_path(work_dir, scene_id)
+    # Backing box: 40% wide × 11% tall in the specified corner
+    box_y = "ih*0.03"
+    box_h = "ih*0.11"
+    box_w = "iw*0.42"
+    if corner == "top-right":
+        box_x = "iw*0.56"
+        text_x = "iw*0.58"
+    else:  # top-left
+        box_x = "iw*0.02"
+        text_x = "iw*0.04"
+    text_y = "h*0.06"
+    vf = (
+        f"drawbox=x={box_x}:y={box_y}:w={box_w}:h={box_h}:color=black@0.45:t=fill,"
+        f"drawtext=text='{text}':fontsize={font_size}:fontcolor={color}:font='{font}'"
+        f":x={text_x}:y={text_y}"
         f":shadowcolor=black@0.5:shadowx=2:shadowy=2"
     )
     return _render_with_filter(visual_path, vf, out)

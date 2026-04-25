@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from pathlib import Path
 
 import structlog
 import typer
 
 from pipeline.config import PipelineConfig
+from pipeline.session_log import SessionEntry, append_session, new_session_id
 from pipeline.stages.base import PipelineContext
 from pipeline.stages.compose import ComposeStage, _burn_subtitle_pass
 
@@ -35,6 +37,12 @@ def set_variant(
     ctx.preferred_variant = variant
     ctx.save()
     typer.echo(f"preferred_variant → {variant}")
+    append_session(work_dir, SessionEntry(
+        session_id=new_session_id(),
+        timestamp=datetime.now().isoformat(timespec="seconds"),
+        command=f"compose set-variant --variant {variant}",
+        summary=f"preferred_variant → {variant}",
+    ))
 
 
 @compose_app.command("rescene")
@@ -53,8 +61,24 @@ def rescene(
                 logger.info("compose.rescene.deleted", path=str(p))
     typer.echo(f"Invalidated: {', '.join(scenes)} — re-rendering...")
     ctx = PipelineContext.load(work_dir / "context.json")
-    asyncio.run(ComposeStage().run(ctx))
-    typer.echo("Done.")
+    scene_list = ", ".join(scenes)
+    entry = SessionEntry(
+        session_id=new_session_id(),
+        timestamp=datetime.now().isoformat(timespec="seconds"),
+        command=f"compose rescene {scene_list}",
+    )
+    try:
+        asyncio.run(ComposeStage().run(ctx))
+        entry.stages = ["compose"]
+        entry.summary = f"rescene: {scene_list}"
+        typer.echo("Done.")
+    except Exception as exc:
+        entry.outcome = "failed"
+        entry.error = str(exc)[:200]
+        entry.summary = f"rescene failed: {scene_list}"
+        append_session(work_dir, entry)
+        raise
+    append_session(work_dir, entry)
 
 
 @compose_app.command("reburn")
@@ -104,5 +128,19 @@ def reburn(
         raise typer.Exit(code=1)
 
     typer.echo(f"Burning subtitles: {src.name} → {dst.name}")
-    _burn_subtitle_pass(src, dst, ctx.subtitle_path, theme_dict)
-    typer.echo(f"Done → {dst}")
+    entry = SessionEntry(
+        session_id=new_session_id(),
+        timestamp=datetime.now().isoformat(timespec="seconds"),
+        command=f"compose reburn --variant {variant}",
+    )
+    try:
+        _burn_subtitle_pass(src, dst, ctx.subtitle_path, theme_dict)
+        entry.summary = f"reburn: {variant}"
+        typer.echo(f"Done → {dst}")
+    except Exception as exc:
+        entry.outcome = "failed"
+        entry.error = str(exc)[:200]
+        entry.summary = f"reburn failed: {variant}"
+        append_session(work_dir, entry)
+        raise
+    append_session(work_dir, entry)
