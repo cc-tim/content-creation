@@ -24,6 +24,7 @@ dependencies = [
     "google-genai>=0.3.0",
     "pillow>=12.2.0",
     "selectolax>=0.3.21",
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]

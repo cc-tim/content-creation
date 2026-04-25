@@ -53,6 +53,10 @@ class PipelineContext:
     published_at: str | None = None   # ISO8601
     publish_profile: str | None = None
 
+    # Locale framing (optional, set manually or by analyze stage)
+    source_locale: str | None = None
+    reference_storyboard_path: Path | None = None
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize to JSON-safe dict. Converts Path to str."""
         data: dict[str, Any] = {}
@@ -76,6 +80,7 @@ class PipelineContext:
             "final_video_path",
             "knowledge_path",
             "storyboard_path",
+            "reference_storyboard_path",
         }
         cleaned = {}
         for k, v in data.items():

@@ -59,3 +59,19 @@ def test_context_new_path_fields(tmp_path: Path):
     loaded = PipelineContext.from_dict(data)
     assert loaded.knowledge_path == ctx.knowledge_path
     assert loaded.storyboard_path == ctx.storyboard_path
+
+
+def test_context_roundtrips_source_locale_and_reference_storyboard(tmp_path):
+    ctx = PipelineContext(
+        project_id=1,
+        source_url="original",
+        locale="ja",
+        work_dir=tmp_path,
+        source_locale="US",
+        reference_storyboard_path=tmp_path / "storyboard_en.json",
+    )
+
+    round = PipelineContext.from_dict(ctx.to_dict())
+
+    assert round.source_locale == "US"
+    assert round.reference_storyboard_path == tmp_path / "storyboard_en.json"

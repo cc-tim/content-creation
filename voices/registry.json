@@ -28,6 +28,13 @@
       "display_name": "Nanami (edge, default)"
     },
     {
+      "id": "ja-default-m",
+      "engine": "edge",
+      "locale": "ja",
+      "params": {"voice": "ja-JP-KeitaNeural"},
+      "display_name": "Keita (edge)"
+    },
+    {
       "id": "es-MX-default-f",
       "engine": "edge",
       "locale": "es-MX",

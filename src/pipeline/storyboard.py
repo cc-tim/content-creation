@@ -84,11 +84,13 @@ class Storyboard:
     aspect_ratio: str = "16:9"  # 16:9 | 9:16
     scenes: list[Scene] = field(default_factory=list)
     theme: Theme = field(default_factory=Theme)
+    title: str | None = None
+    description: str | None = None
 
     # --- Serialization ---
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        out: dict[str, Any] = {
             "version": self.version,
             "format": self.format,
             "target_duration_sec": self.target_duration_sec,
@@ -96,6 +98,11 @@ class Storyboard:
             "theme": self.theme.to_dict(),
             "scenes": [s.to_dict() for s in self.scenes],
         }
+        if self.title is not None:
+            out["title"] = self.title
+        if self.description is not None:
+            out["description"] = self.description
+        return out
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Storyboard:
@@ -109,6 +116,8 @@ class Storyboard:
             aspect_ratio=data.get("aspect_ratio", "16:9"),
             scenes=scenes,
             theme=theme,
+            title=data.get("title"),
+            description=data.get("description"),
         )
 
     def save(self, path: Path) -> None:

@@ -101,3 +101,39 @@ def test_get_scene():
     assert sb.get_scene("s1") is not None
     assert sb.get_scene("s1").section == "hook"
     assert sb.get_scene("s99") is None
+
+
+def test_storyboard_roundtrips_title_and_description():
+    sb = Storyboard.from_dict({
+        "version": 1,
+        "format": "standard",
+        "target_duration_sec": 720,
+        "aspect_ratio": "16:9",
+        "title": "アメリカの大学研究：子供の癇癪",
+        "description": "ブリガム・ヤング大学の研究者による2021年の研究…",
+        "scenes": [],
+    })
+
+    assert sb.title == "アメリカの大学研究：子供の癇癪"
+    assert sb.description.startswith("ブリガム・ヤング大学")
+
+    data = sb.to_dict()
+    assert data["title"] == sb.title
+    assert data["description"] == sb.description
+
+
+def test_storyboard_without_title_description_roundtrips():
+    sb = Storyboard.from_dict({
+        "version": 1,
+        "format": "standard",
+        "target_duration_sec": 720,
+        "aspect_ratio": "16:9",
+        "scenes": [],
+    })
+
+    assert sb.title is None
+    assert sb.description is None
+    data = sb.to_dict()
+    # Absent fields should NOT be emitted when None (to keep existing files stable)
+    assert "title" not in data
+    assert "description" not in data

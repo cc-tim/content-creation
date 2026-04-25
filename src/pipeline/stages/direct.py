@@ -39,6 +39,8 @@ def build_direct_prompt(
     locale: str,
     fmt: str = "standard",
     tone: str = "dramatic",
+    strategies_text: str = "",
+    reference_storyboard_json: str | None = None,  # wired up in Task 9; accept here
 ) -> str:
     """Build Claude prompt to generate a storyboard from knowledge."""
     locale_instruction = LOCALE_INSTRUCTIONS.get(locale) or LOCALE_INSTRUCTIONS["en"]
@@ -79,6 +81,14 @@ Use 15-25 scenes. Target 12 minutes total."""
             "namecard for introductions, text_card for key facts, generated_image for mood."
         )
 
+    strategies_block = f"\n{strategies_text}\n" if strategies_text else ""
+    reference_block = (
+        f"\nREFERENCE STORYBOARD (preserve scene count, ids, facts_ref, visual, overlay; "
+        f"rewrite only narration in target locale):\n```json\n{reference_storyboard_json}\n```\n"
+        if reference_storyboard_json
+        else ""
+    )
+
     return f"""You are a video director. Create a scene-by-scene storyboard \
 from the knowledge below.
 This is NOT a translation — it is a cultural adaptation creating ORIGINAL content.
@@ -86,7 +96,7 @@ This is NOT a translation — it is a cultural adaptation creating ORIGINAL cont
 LOCALE: {locale}
 LANGUAGE: {locale_instruction}
 TONE: {tone}
-
+{strategies_block}{reference_block}
 {structure}
 
 VISUAL TYPES (assign one per scene):
@@ -109,6 +119,8 @@ Each scene references fact IDs from the knowledge base.
 
 Return ONLY valid JSON:
 {{
+  "title": "YouTube title in target locale, ~60 chars, applying loaded strategies",
+  "description": "YouTube description in target locale, 2-3 paragraphs, crediting sources",
   "scenes": [
     {{
       "id": "s1",
@@ -382,15 +394,27 @@ class DirectStage(PipelineStage):
 
         logger.info("direct.start", locale=ctx.locale, format=self.fmt)
 
+        from pipeline.strategies import load_strategies
+
+        strategies_text = load_strategies(ctx)
+
+        reference_storyboard_json: str | None = None
+        if ctx.reference_storyboard_path and ctx.reference_storyboard_path.exists():
+            reference_storyboard_json = ctx.reference_storyboard_path.read_text(encoding="utf-8")
+
         knowledge = Knowledge.load(ctx.knowledge_path)
         client = get_anthropic_client()
         config = PipelineConfig()
 
-        prompt = build_direct_prompt(knowledge, ctx.locale, self.fmt, self.tone)
+        prompt = build_direct_prompt(
+            knowledge, ctx.locale, self.fmt, self.tone,
+            strategies_text=strategies_text,
+            reference_storyboard_json=reference_storyboard_json,
+        )
 
         response = client.messages.create(
             model=config.CLAUDE_MODEL,
-            max_tokens=8192,
+            max_tokens=16000,
             messages=[{"role": "user", "content": prompt}],
         )
 
@@ -407,12 +431,32 @@ class DirectStage(PipelineStage):
                 "format": self.fmt,
                 "target_duration_sec": 60 if self.fmt == "short" else 720,
                 "aspect_ratio": "9:16" if self.fmt == "short" else "16:9",
-                **result,
+                "title": result.get("title"),
+                "description": result.get("description"),
+                **{k: v for k, v in result.items() if k not in ("title", "description")},
             }
         )
 
+        if reference_storyboard_json is not None:
+            ref_scenes = json.loads(reference_storyboard_json).get("scenes", [])
+            if len(ref_scenes) != len(storyboard.scenes):
+                logger.warning(
+                    "direct.scene_drift",
+                    reference_count=len(ref_scenes),
+                    produced_count=len(storyboard.scenes),
+                )
+            else:
+                ref_ids = [s.get("id") for s in ref_scenes]
+                new_ids = [s.id for s in storyboard.scenes]
+                if ref_ids != new_ids:
+                    logger.warning(
+                        "direct.scene_id_mismatch",
+                        reference_ids=ref_ids,
+                        produced_ids=new_ids,
+                    )
+
         # Save storyboard
-        storyboard_path = ctx.work_dir / "storyboard.json"
+        storyboard_path = ctx.work_dir / f"storyboard_{ctx.locale}.json"
         storyboard.save(storyboard_path)
         ctx.storyboard_path = storyboard_path
 
