@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import cast
 
 import structlog
 import typer
@@ -141,11 +142,11 @@ def produce(
     post_review = {"tts", "compose"}
 
     if start_from and start_from in post_review:
-        stages = [s for s in all_stages if s.name in post_review]
+        stages = cast(list[PipelineStage], [s for s in all_stages if s.name in post_review])
         orch = Orchestrator(stages=stages)
         result = asyncio.run(orch.run(ctx, start_from=start_from))
     else:
-        stages = [s for s in all_stages if s.name in pre_review]
+        stages = cast(list[PipelineStage], [s for s in all_stages if s.name in pre_review])
         orch = Orchestrator(stages=stages)
         result = asyncio.run(orch.run(ctx, start_from=start_from))
 
@@ -244,7 +245,7 @@ def produce(
                 except Exception as exc:
                     typer.echo(f"  (storytell skipped: {exc})")
 
-            phase2 = [s for s in all_stages if s.name in post_review]
+            phase2 = cast(list[PipelineStage], [s for s in all_stages if s.name in post_review])
             orch = Orchestrator(stages=phase2)
             result = asyncio.run(orch.run(result.ctx))
 
