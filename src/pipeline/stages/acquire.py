@@ -4,6 +4,7 @@ import csv
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import structlog
 
@@ -34,7 +35,7 @@ def download_video(url: str, output_dir: Path, resolution: str = "720p") -> Path
     raise FileNotFoundError(f"No video file found in {output_dir}")
 
 
-def extract_transcript(url: str) -> tuple[str, list[dict]]:
+def extract_transcript(url: str) -> tuple[str, list[dict[str, Any]]]:
     """Extract transcript. Tries youtube-transcript-api first, falls back to yt-dlp subs."""
     video_id = _extract_video_id(url)
     try:
@@ -46,7 +47,7 @@ def extract_transcript(url: str) -> tuple[str, list[dict]]:
             {"text": entry.text, "start": entry.start, "duration": entry.duration}
             for entry in transcript
         ]
-        full_text = " ".join(entry["text"] for entry in transcript_data)
+        full_text = " ".join(str(entry["text"]) for entry in transcript_data)
         return full_text, transcript_data
     except Exception as e:
         logger.warning("youtube-transcript-api failed, trying yt-dlp subs", error=str(e))
@@ -62,7 +63,7 @@ def _extract_video_id(url: str) -> str:
     raise ValueError(f"Cannot extract video ID from: {url}")
 
 
-def _extract_via_ytdlp(url: str) -> tuple[str, list[dict]]:
+def _extract_via_ytdlp(url: str) -> tuple[str, list[dict[str, Any]]]:
     """Fallback: use yt-dlp to download auto-subs."""
     import tempfile
 
@@ -88,7 +89,7 @@ def _extract_via_ytdlp(url: str) -> tuple[str, list[dict]]:
     raise RuntimeError("No transcript available via any method")
 
 
-def parse_transcript_file(path: Path) -> tuple[str, list[dict]]:
+def parse_transcript_file(path: Path) -> tuple[str, list[dict[str, Any]]]:
     """Parse a local transcript file into (full_text, raw_data).
 
     Supports:
@@ -97,11 +98,13 @@ def parse_transcript_file(path: Path) -> tuple[str, list[dict]]:
     """
     if path.suffix == ".csv":
         return _parse_csv_transcript(path)
-    return _parse_txt_transcript(path)
+    if path.suffix == ".txt":
+        return _parse_txt_transcript(path)
+    raise ValueError(f"Unsupported transcript format: {path.suffix!r}. Expected .csv or .txt")
 
 
-def _parse_csv_transcript(path: Path) -> tuple[str, list[dict]]:
-    rows: list[dict] = []
+def _parse_csv_transcript(path: Path) -> tuple[str, list[dict[str, Any]]]:
+    rows: list[dict[str, Any]] = []
     with path.open(encoding="utf-8", newline="") as f:
         for row in csv.reader(f):
             if len(row) < 4:
@@ -119,8 +122,8 @@ def _parse_csv_transcript(path: Path) -> tuple[str, list[dict]]:
     return full_text, rows
 
 
-def _parse_txt_transcript(path: Path) -> tuple[str, list[dict]]:
-    entries: list[dict] = []
+def _parse_txt_transcript(path: Path) -> tuple[str, list[dict[str, Any]]]:
+    entries: list[dict[str, Any]] = []
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line or len(line) < 6 or line[2] != ":":
