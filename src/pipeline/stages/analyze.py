@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import anthropic
 import structlog
 
 from pipeline.config import PipelineConfig
@@ -12,10 +13,8 @@ from pipeline.stages.base import PipelineContext, PipelineStage
 logger = structlog.get_logger()
 
 
-def get_anthropic_client():
+def get_anthropic_client() -> anthropic.Anthropic:
     """Create Anthropic client from config."""
-    import anthropic
-
     config = PipelineConfig()
     return anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 
