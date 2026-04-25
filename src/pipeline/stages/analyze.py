@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import structlog
 
@@ -19,8 +20,53 @@ def get_anthropic_client():
     return anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 
 
-def build_analysis_prompt(transcript: str, source_url: str, title: str) -> str:
+_SENTENCE_ENDINGS = frozenset([".", "?", "!", "…"])  # . ? ! …
+
+
+def _format_timestamped_transcript(transcript_data: list[dict[str, Any]]) -> str:
+    """Format structured transcript as [start–end] text, merging mid-sentence splits."""
+    merged: list[str] = []
+    buf_text: list[str] = []
+    buf_start: float | None = None
+    buf_end: float = 0.0
+
+    for entry in transcript_data:
+        text = entry.get("text", "").strip()
+        if not text:
+            continue
+        start = float(entry["start"])
+        end = start + float(entry.get("duration", 0.0))
+
+        if buf_start is None:
+            buf_start = start
+        buf_text.append(text)
+        buf_end = end
+
+        if text[-1] in _SENTENCE_ENDINGS:
+            merged.append(f"[{buf_start:.2f}s–{buf_end:.2f}s] {' '.join(buf_text)}")
+            buf_text = []
+            buf_start = None
+
+    if buf_text and buf_start is not None:
+        merged.append(f"[{buf_start:.2f}s–{buf_end:.2f}s] {' '.join(buf_text)}")
+
+    return "\n".join(merged)
+
+
+def build_analysis_prompt(
+    transcript: str,
+    source_url: str,
+    title: str,
+    transcript_data: list[dict[str, Any]] | None = None,
+) -> str:
     """Build the Claude prompt for knowledge extraction."""
+    if transcript_data is not None:
+        transcript_body = _format_timestamped_transcript(transcript_data)
+        transcript_label = "TRANSCRIPT (with source timestamps in seconds):"
+    else:
+        transcript_body = transcript
+        transcript_label = "TRANSCRIPT:"
+
     return f"""Analyze this video transcript and extract structured knowledge.
 
 Extract:
@@ -51,8 +97,8 @@ Return ONLY valid JSON:
 SOURCE: {source_url}
 TITLE: {title}
 
-TRANSCRIPT:
-{transcript}"""
+{transcript_label}
+{transcript_body}"""
 
 
 class AnalyzeStage(PipelineStage):
