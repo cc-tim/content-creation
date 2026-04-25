@@ -148,6 +148,7 @@ def produce(
                 typer.echo("\nProofreading storyboard text (Claude Haiku)...")
                 try:
                     from pipeline.cli_proofread import print_issues_table, proofread_storyboard
+
                     issues = proofread_storyboard(result.ctx.storyboard_path)
                     if issues:
                         print_issues_table(issues)
@@ -168,6 +169,7 @@ def produce(
                         print_storytell_table,
                         storytell_storyboard,
                     )
+
                     st_issues = storytell_storyboard(result.ctx.storyboard_path)
                     if st_issues:
                         print_storytell_table(st_issues)
@@ -187,7 +189,7 @@ def produce(
             )
             typer.echo(
                 f"  # compose-only re-render (skips TTS):\n"
-                f"  uv run pipeline produce --url \"{url}\" --locale {locale} "
+                f'  uv run pipeline produce --url "{url}" --locale {locale} '
                 f"--project-id {project_id} --start-from compose"
             )
             return
@@ -197,6 +199,7 @@ def produce(
             if result.ctx.storyboard_path and result.ctx.storyboard_path.exists():
                 try:
                     from pipeline.cli_proofread import apply_issues, proofread_storyboard
+
                     issues = proofread_storyboard(result.ctx.storyboard_path)
                     if issues:
                         n = apply_issues(result.ctx.storyboard_path, issues)
@@ -213,6 +216,7 @@ def produce(
                         apply_storytell_issues,
                         storytell_storyboard,
                     )
+
                     st_issues = storytell_storyboard(result.ctx.storyboard_path)
                     minor = [i for i in st_issues if i["severity"] == "MINOR"]
                     if minor:

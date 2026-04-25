@@ -1,4 +1,5 @@
 """pipeline storytell — narrative flow review for storyboard scenes."""
+
 from __future__ import annotations
 
 import json
@@ -47,7 +48,7 @@ def _format_for_storytell(storyboard_path: Path) -> str:
     return "\n".join(lines)
 
 
-def _parse_storytell_issues(raw: str) -> list[dict]:
+def _parse_storytell_issues(raw: str) -> list[dict[str, str]]:
     issues = []
     for line in raw.splitlines():
         line = line.strip()
@@ -68,7 +69,7 @@ def _parse_storytell_issues(raw: str) -> list[dict]:
     return issues
 
 
-def apply_storytell_issues(storyboard_path: Path, issues: list[dict]) -> int:
+def apply_storytell_issues(storyboard_path: Path, issues: list[dict[str, str]]) -> int:
     """Apply a list of storytell issues to storyboard.json. Returns count applied."""
     data = json.loads(storyboard_path.read_text(encoding="utf-8"))
     applied = 0
@@ -81,13 +82,11 @@ def apply_storytell_issues(storyboard_path: Path, issues: list[dict]) -> int:
                 # first match only
                 s["narration"] = narration.replace(iss["original"], iss["suggested"], 1)
                 applied += 1
-    storyboard_path.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    storyboard_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     return applied
 
 
-def print_storytell_table(issues: list[dict], console: Console | None = None) -> None:
+def print_storytell_table(issues: list[dict[str, str]], console: Console | None = None) -> None:
     c = console or _console
     table = Table(box=box.ROUNDED, show_lines=True)
     table.add_column("Scene", style="cyan", width=6)
@@ -120,9 +119,10 @@ def _get_api_key() -> str:
     return key
 
 
-def storytell_storyboard(storyboard_path: Path) -> list[dict]:
+def storytell_storyboard(storyboard_path: Path) -> list[dict[str, str]]:
     """Run Claude Haiku on storyboard narrations. Returns list of issue dicts."""
     import anthropic
+
     review_text = _format_for_storytell(storyboard_path)
     client = anthropic.Anthropic(api_key=_get_api_key())
     msg = client.messages.create(
@@ -131,13 +131,21 @@ def storytell_storyboard(storyboard_path: Path) -> list[dict]:
         system=_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": review_text}],
     )
-    raw = msg.content[0].text.strip()
+    block = msg.content[0]
+    raw = block.text.strip() if hasattr(block, "text") else ""
     if raw == "OK":
         return []
     issues = _parse_storytell_issues(raw)
     if not issues:
-        issues = [{"scene_id": "?", "severity": "NOTE", "original": "",
-                   "suggested": "", "reason": raw[:200]}]
+        issues = [
+            {
+                "scene_id": "?",
+                "severity": "NOTE",
+                "original": "",
+                "suggested": "",
+                "reason": raw[:200],
+            }
+        ]
     return issues
 
 
@@ -149,6 +157,7 @@ def run(
 ) -> None:
     """Review narrative flow and scene transitions using Claude Haiku."""
     from pipeline.config import PipelineConfig
+
     config = PipelineConfig()
 
     if work_dir is None:

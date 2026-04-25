@@ -1,4 +1,5 @@
 """pipeline proofread — proofreads narration and overlay text in a storyboard."""
+
 from __future__ import annotations
 
 import os
@@ -7,9 +8,9 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
 
 from pipeline.config import PipelineConfig
 
@@ -70,6 +71,7 @@ def _get_api_key() -> str:
 
 def _format_for_review(storyboard_path: Path) -> str:
     from pipeline.storyboard import Storyboard
+
     sb = Storyboard.load(storyboard_path)
     lines = []
     has_overlay = False
@@ -94,21 +96,25 @@ def _parse_issues(raw: str) -> list[dict]:
         parts = line.split("|", 5)
         if len(parts) == 6:
             _, scene_id, field_type, original, suggested, reason = parts
-            issues.append({
-                "scene_id": scene_id.strip(),
-                "type": field_type.strip(),
-                "original": original.strip(),
-                "suggested": suggested.strip(),
-                "reason": reason.strip(),
-            })
+            issues.append(
+                {
+                    "scene_id": scene_id.strip(),
+                    "type": field_type.strip(),
+                    "original": original.strip(),
+                    "suggested": suggested.strip(),
+                    "reason": reason.strip(),
+                }
+            )
     return issues
 
 
 # ── Public API (importable by cli.py and other modules) ──────────────────────
 
+
 def proofread_storyboard(storyboard_path: Path) -> list[dict]:
     """Run Claude Haiku on storyboard text. Returns list of issue dicts (empty = clean)."""
     import anthropic
+
     guide = _load_guide()
     system = _SYSTEM_PROMPT + (f"\n\n校稿參考資料：\n{guide}" if guide else "")
     review_text = _format_for_review(storyboard_path)
@@ -125,13 +131,16 @@ def proofread_storyboard(storyboard_path: Path) -> list[dict]:
     issues = _parse_issues(raw)
     if not issues:
         # Claude returned something but not structured — surface it as a single note
-        issues = [{"scene_id": "?", "type": "NOTE", "original": "", "suggested": "", "reason": raw[:200]}]
+        issues = [
+            {"scene_id": "?", "type": "NOTE", "original": "", "suggested": "", "reason": raw[:200]}
+        ]
     return issues
 
 
 def apply_issues(storyboard_path: Path, issues: list[dict]) -> int:
     """Apply a list of issues to storyboard.json. Returns count of applied fixes."""
     import json
+
     data = json.loads(storyboard_path.read_text(encoding="utf-8"))
     applied = 0
     for iss in issues:
@@ -163,11 +172,14 @@ def print_issues_table(issues: list[dict], console: Console | None = None) -> No
     table.add_column("Suggested", style="green", max_width=35)
     table.add_column("Reason", max_width=30)
     for iss in issues:
-        table.add_row(iss["scene_id"], iss["type"], iss["original"], iss["suggested"], iss["reason"])
+        table.add_row(
+            iss["scene_id"], iss["type"], iss["original"], iss["suggested"], iss["reason"]
+        )
     c.print(table)
 
 
 # ── CLI command ───────────────────────────────────────────────────────────────
+
 
 @proofread_app.command()
 def run(
@@ -203,12 +215,16 @@ def run(
         n = apply_issues(storyboard_path, issues)
         _console.print(f"\n[green]Applied {n}/{len(issues)} fixes.[/green]")
         from pipeline.session_log import SessionEntry, append_session, new_session_id
-        append_session(work_dir, SessionEntry(
-            session_id=new_session_id(),
-            timestamp=datetime.now().isoformat(timespec="seconds"),
-            command="proofread run --apply",
-            summary=f"proofread: applied {n}/{len(issues)} fixes",
-        ))
+
+        append_session(
+            work_dir,
+            SessionEntry(
+                session_id=new_session_id(),
+                timestamp=datetime.now().isoformat(timespec="seconds"),
+                command="proofread run --apply",
+                summary=f"proofread: applied {n}/{len(issues)} fixes",
+            ),
+        )
     else:
         _console.print(
             f"\n[dim]Found {len(issues)} issue(s). "
