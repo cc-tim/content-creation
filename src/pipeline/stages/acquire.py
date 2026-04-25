@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import subprocess
 from pathlib import Path
@@ -85,6 +86,62 @@ def _extract_via_ytdlp(url: str) -> tuple[str, list[dict]]:
                 return text, []
 
     raise RuntimeError("No transcript available via any method")
+
+
+def parse_transcript_file(path: Path) -> tuple[str, list[dict]]:
+    """Parse a local transcript file into (full_text, raw_data).
+
+    Supports:
+    - .csv  →  MM:SS, start_sec, duration_sec, text
+    - .txt  →  MM:SS text  (duration inferred from gap to next entry)
+    """
+    if path.suffix == ".csv":
+        return _parse_csv_transcript(path)
+    return _parse_txt_transcript(path)
+
+
+def _parse_csv_transcript(path: Path) -> tuple[str, list[dict]]:
+    rows: list[dict] = []
+    with path.open(encoding="utf-8", newline="") as f:
+        for row in csv.reader(f):
+            if len(row) < 4:
+                continue
+            text = ",".join(row[3:]).strip()
+            if not text:
+                continue
+            try:
+                start = float(row[1])
+                duration = float(row[2])
+            except ValueError:
+                continue
+            rows.append({"text": text, "start": start, "duration": duration})
+    full_text = " ".join(r["text"] for r in rows)
+    return full_text, rows
+
+
+def _parse_txt_transcript(path: Path) -> tuple[str, list[dict]]:
+    entries: list[dict] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or len(line) < 6 or line[2] != ":":
+            continue
+        try:
+            mm = int(line[:2])
+            ss = int(line[3:5])
+            text = line[6:].strip()
+        except ValueError:
+            continue
+        if not text:
+            continue
+        entries.append({"text": text, "start": float(mm * 60 + ss), "duration": 0.0})
+
+    for i in range(len(entries) - 1):
+        entries[i]["duration"] = entries[i + 1]["start"] - entries[i]["start"]
+    if entries:
+        entries[-1]["duration"] = 2.0
+
+    full_text = " ".join(e["text"] for e in entries)
+    return full_text, entries
 
 
 class AcquireStage(PipelineStage):
