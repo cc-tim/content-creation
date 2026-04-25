@@ -55,6 +55,7 @@
   .s-publish  { background: #1a2a2e; color: #39c5cf; }
   .s-external { background: #2a2420; color: #e3b341; }
   .s-monitor  { background: #1e2a1e; color: #56d364; }
+  .s-review   { background: #2e1a2e; color: #e879f9; }
 
   /* Status badges */
   .badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
@@ -129,7 +130,7 @@ uv run pipeline produce \<br>
 &nbsp;&nbsp;<span class="flag">--niche</span> parenting \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># auto-detected from channels.toml; "none" to skip metadata</span><br>
 &nbsp;&nbsp;<span class="flag">--voice</span> tim-zhtw \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># optional; auto-selects per locale from voices/registry.json</span><br>
 &nbsp;&nbsp;<span class="flag">--start-from</span> tts \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># resume from a specific stage</span><br>
-&nbsp;&nbsp;<span class="flag">--skip-review</span> \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># bypass human review gate (auto-apply proofread fixes)</span><br>
+&nbsp;&nbsp;<span class="flag">--skip-review</span> \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># bypass human review gate (auto-apply proofread + storytell MINOR fixes)</span><br>
 &nbsp;&nbsp;<span class="flag">--subtitles</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># burn subtitles into final video</span>
 </div>
 
@@ -160,7 +161,13 @@ flowchart TD
     C1 ~~~ C2 ~~~ C3
   end
 
-  REVIEW{{"⏸ HUMAN REVIEW GATE\nEdit: storyboard.json · script.md · metadata.json\nThen: pipeline produce --start-from tts"}}
+  subgraph RGATE["⏸ HUMAN REVIEW GATE"]
+    direction LR
+    RG1["🤖 proofread\nClaude Haiku\ntext + grammar issues"]
+    RG2["🤖 storytell\nClaude Haiku\nnarrative flow · MINOR auto-apply"]
+    RG3["✏️ Human edit\nstoryboard.json · metadata.json\nthen --start-from tts"]
+    RG1 ~~~ RG2 ~~~ RG3
+  end
 
   GEN_IMG(["🎨 generate-image skill\ndraft $0.003 → production $0.040\nKeyframes · title cards · maps\n→ place in compose/assets/"])
 
@@ -192,7 +199,7 @@ flowchart TD
 
   OUTPUT(["✅ compose/final_zh-TW.mp4"])
 
-  URL --> ACQ --> ANA --> DIR --> REVIEW --> TTS_S --> COMP --> OUTPUT --> PUB
+  URL --> ACQ --> ANA --> DIR --> RGATE --> TTS_S --> COMP --> OUTPUT --> PUB
   GEN_IMG --> COMP
 </pre>
 </div>
@@ -243,6 +250,17 @@ flowchart TD
       <td><span class="stage s-direct">DIRECT</span></td>
       <td>Metadata generation</td><td>Claude API + <code>channels.toml</code></td><td>~$0.01/video</td>
       <td><span class="badge b-stable">stable</span></td><td>Title, description, tags; skipped if <code>--niche none</code></td>
+    </tr>
+    <!-- REVIEW GATE -->
+    <tr>
+      <td><span class="stage s-review">REVIEW</span></td>
+      <td>Proofread</td><td><code>pipeline proofread run</code></td><td>~$0.001/video</td>
+      <td><span class="badge b-stable">stable</span></td><td>Claude Haiku text/grammar check; auto-runs at review gate; <code>--skip-review</code> auto-applies all fixes</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-review">REVIEW</span></td>
+      <td>Storytell — narrative flow review</td><td><code>pipeline storytell run</code></td><td>~$0.001/video</td>
+      <td><span class="badge b-new">new</span></td><td>Claude Haiku narrative-flow check; MINOR auto-applied in <code>--skip-review</code>; MAJOR surfaced for human confirmation</td>
     </tr>
     <!-- EXTERNAL: generate-image -->
     <tr>
@@ -443,6 +461,20 @@ uv run pipeline storyboard show --scene scene_003&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&
 uv run pipeline storyboard recordings --voice tim-zhtw&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># recording status per scene</span><br>
 uv run pipeline storyboard set scene_003 narration="新文字"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># edit field in-place</span><br>
 uv run pipeline storyboard set scene_003 pause_after_sec=2.5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># timing tweak</span>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<h2>Review Gate Commands</h2>
+
+<div class="cmd">
+<span class="comment"># Proofread — text + grammar issues</span><br>
+uv run pipeline proofread run <span class="flag">--project-id</span> &lt;ID&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># show issues</span><br>
+uv run pipeline proofread run <span class="flag">--project-id</span> &lt;ID&gt; <span class="flag">--apply</span>&nbsp;<span class="comment"># show + apply all fixes</span><br><br>
+<span class="comment"># Storytell — narrative flow + scene transitions</span><br>
+uv run pipeline storytell run <span class="flag">--project-id</span> &lt;ID&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># show issues</span><br>
+uv run pipeline storytell run <span class="flag">--project-id</span> &lt;ID&gt; <span class="flag">--apply</span>&nbsp;<span class="comment"># MINOR auto-apply, MAJOR prompt for confirmation</span><br><br>
+<span class="comment"># Both run automatically at the review gate. --skip-review auto-applies proofread +</span><br>
+<span class="comment"># storytell MINOR fixes before TTS; MAJOR storytell issues are skipped and printed.</span>
 </div>
 
 <!-- ════════════════════════════════════════════════════════ -->
