@@ -65,6 +65,14 @@ def produce(
         help="Niche (parenting/tech/drama/...). Auto-detected from routing when omitted. "
         "Use --niche none to opt out.",
     ),
+    local_transcript: str | None = typer.Option(
+        None, "--transcript",
+        help="Path to local transcript file (.csv or .txt). Skips YouTube transcript fetch.",
+    ),
+    local_video: str | None = typer.Option(
+        None, "--video",
+        help="Path to local video file. Skips yt-dlp download.",
+    ),
 ) -> None:
     """Run the full production pipeline for a video or web article."""
     config = PipelineConfig()
@@ -115,7 +123,10 @@ def produce(
 
         acquire = AcquireWebStage()
     else:
-        acquire = AcquireStage()
+        acquire = AcquireStage(
+            local_transcript=Path(local_transcript) if local_transcript else None,
+            local_video=Path(local_video) if local_video else None,
+        )
 
     all_stages = [
         acquire,
@@ -246,6 +257,14 @@ def produce(
 @app.command()
 def acquire(
     url: str = typer.Option(..., "--url", help="YouTube video URL"),
+    local_transcript: str | None = typer.Option(
+        None, "--transcript",
+        help="Path to local transcript file (.csv or .txt). Skips YouTube transcript fetch.",
+    ),
+    local_video: str | None = typer.Option(
+        None, "--video",
+        help="Path to local video file. Skips yt-dlp download.",
+    ),
 ) -> None:
     """Download video and extract transcript only."""
     config = PipelineConfig()
@@ -262,7 +281,16 @@ def acquire(
         work_dir=work_dir,
     )
 
-    result = asyncio.run(Orchestrator(stages=[AcquireStage()]).run(ctx))
+    result = asyncio.run(
+        Orchestrator(
+            stages=[
+                AcquireStage(
+                    local_transcript=Path(local_transcript) if local_transcript else None,
+                    local_video=Path(local_video) if local_video else None,
+                )
+            ]
+        ).run(ctx)
+    )
     if result.success:
         typer.echo(f"Acquired: {result.ctx.video_path}")
         typer.echo(f"Transcript: {result.ctx.transcript_path}")
