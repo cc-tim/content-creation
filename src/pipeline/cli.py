@@ -10,6 +10,7 @@ from pipeline.cli_compose import compose_app
 from pipeline.cli_metadata import metadata_app
 from pipeline.cli_proofread import proofread_app
 from pipeline.cli_storyboard import storyboard_app
+from pipeline.cli_storyteller import storytell_app
 from pipeline.cli_voice import voice_app
 from pipeline.config import PipelineConfig
 from pipeline.gallery_cli import gallery_app
@@ -33,6 +34,7 @@ app.add_typer(publish_app, name="publish")
 app.add_typer(metadata_app, name="metadata")
 app.add_typer(gallery_app, name="gallery")
 app.add_typer(proofread_app, name="proofread")
+app.add_typer(storytell_app, name="storytell")
 app.add_typer(compose_app, name="compose")
 
 
@@ -158,6 +160,26 @@ def produce(
                 except Exception as exc:
                     typer.echo(f"  (proofread skipped: {exc})")
 
+            # Auto-storytell: narrative flow review at the review gate
+            if result.ctx.storyboard_path and result.ctx.storyboard_path.exists():
+                typer.echo("\nReviewing narrative flow (Claude Haiku)...")
+                try:
+                    from pipeline.cli_storyteller import (
+                        print_storytell_table,
+                        storytell_storyboard,
+                    )
+                    st_issues = storytell_storyboard(result.ctx.storyboard_path)
+                    if st_issues:
+                        print_storytell_table(st_issues)
+                        typer.echo(
+                            f"\nFound {len(st_issues)} narrative issue(s). Apply before resuming:\n"
+                            f"  uv run pipeline storytell run --project-id {project_id} --apply"
+                        )
+                    else:
+                        typer.echo("  ✓ No narrative issues found.")
+                except Exception as exc:
+                    typer.echo(f"  (storytell skipped: {exc})")
+
             typer.echo("\nReview the files above, then resume with:")
             typer.echo(
                 f'  uv run pipeline produce --url "{url}" --locale {locale} '
@@ -181,6 +203,23 @@ def produce(
                         typer.echo(f"  proofread: auto-applied {n}/{len(issues)} fix(es)")
                 except Exception as exc:
                     typer.echo(f"  (proofread skipped: {exc})")
+
+            # Auto-apply storytell MINOR fixes in --skip-review. MAJOR issues are skipped
+            # because they may require scene reordering or hook rewrites — changes that need
+            # human review even in automated mode (mirrors the interactive path in cli_storyteller).
+            if result.ctx.storyboard_path and result.ctx.storyboard_path.exists():
+                try:
+                    from pipeline.cli_storyteller import (
+                        apply_storytell_issues,
+                        storytell_storyboard,
+                    )
+                    st_issues = storytell_storyboard(result.ctx.storyboard_path)
+                    minor = [i for i in st_issues if i["severity"] == "MINOR"]
+                    if minor:
+                        n = apply_storytell_issues(result.ctx.storyboard_path, minor)
+                        typer.echo(f"  storytell: auto-applied {n}/{len(minor)} MINOR fix(es)")
+                except Exception as exc:
+                    typer.echo(f"  (storytell skipped: {exc})")
 
             phase2 = [s for s in all_stages if s.name in post_review]
             orch = Orchestrator(stages=phase2)
