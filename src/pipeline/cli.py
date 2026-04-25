@@ -12,10 +12,10 @@ from pipeline.cli_proofread import proofread_app
 from pipeline.cli_storyboard import storyboard_app
 from pipeline.cli_voice import voice_app
 from pipeline.config import PipelineConfig
+from pipeline.gallery_cli import gallery_app
 from pipeline.orchestrator import Orchestrator
 from pipeline.publish.channels import auto_detect_niche, load_channel_config
 from pipeline.publish.cli import publish_app
-from pipeline.gallery_cli import gallery_app
 from pipeline.research.cli import app as research_app
 from pipeline.stages.acquire import AcquireStage
 from pipeline.stages.analyze import AnalyzeStage

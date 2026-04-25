@@ -48,7 +48,9 @@ def set_variant(
 @compose_app.command("rescene")
 def rescene(
     project_id: int = typer.Option(..., "--project-id"),
-    scenes: list[str] = typer.Option(..., "--scene", help="Scene ID to invalidate (repeat for multiple)"),
+    scenes: list[str] = typer.Option(
+        ..., "--scene", help="Scene ID to invalidate (repeat for multiple)"
+    ),
 ) -> None:
     """Delete named scene finals and re-run compose (only those scenes re-render)."""
     work_dir = _resolve_work_dir(project_id)
@@ -109,20 +111,23 @@ def reburn(
     raw = compose_dir / "raw.mp4"
     raw_no_ov = compose_dir / "raw_no_overlay.mp4"
 
-    _REBURN_MAP = {
+    reburn_map = {
         "subtitles": (raw, compose_dir / f"final_{locale}_subtitles.mp4"),
-        "subtitles_no_overlay": (raw_no_ov, compose_dir / f"final_{locale}_subtitles_no_overlay.mp4"),
+        "subtitles_no_overlay": (
+            raw_no_ov,
+            compose_dir / f"final_{locale}_subtitles_no_overlay.mp4",
+        ),
     }
 
-    if variant not in _REBURN_MAP:
+    if variant not in reburn_map:
         typer.echo(
             f"reburn only supports subtitle variants. Got '{variant}'. "
-            f"Choose from: {', '.join(_REBURN_MAP)}",
+            f"Choose from: {', '.join(reburn_map)}",
             err=True,
         )
         raise typer.Exit(code=1)
 
-    src, dst = _REBURN_MAP[variant]
+    src, dst = reburn_map[variant]
     if not src.exists():
         typer.echo(f"Raw not found: {src}", err=True)
         raise typer.Exit(code=1)
