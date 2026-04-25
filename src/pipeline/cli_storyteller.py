@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from rich import box
@@ -76,7 +78,8 @@ def apply_storytell_issues(storyboard_path: Path, issues: list[dict]) -> int:
                 continue
             narration = s.get("narration", "")
             if iss["original"] in narration:
-                s["narration"] = narration.replace(iss["original"], iss["suggested"], 1)  # first match only
+                # first match only
+                s["narration"] = narration.replace(iss["original"], iss["suggested"], 1)
                 applied += 1
     storyboard_path.write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -101,3 +104,99 @@ def print_storytell_table(issues: list[dict], console: Console | None = None) ->
             iss["reason"],
         )
     c.print(table)
+
+
+def _get_api_key() -> str:
+    key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("PIPELINE_ANTHROPIC_API_KEY")
+    if not key:
+        env_path = Path(".env")
+        if env_path.exists():
+            for line in env_path.read_text().splitlines():
+                if line.startswith("PIPELINE_ANTHROPIC_API_KEY="):
+                    key = line.split("=", 1)[1].strip()
+                    break
+    if not key:
+        raise RuntimeError("No ANTHROPIC_API_KEY. Set PIPELINE_ANTHROPIC_API_KEY in .env.")
+    return key
+
+
+def storytell_storyboard(storyboard_path: Path) -> list[dict]:
+    """Run Claude Haiku on storyboard narrations. Returns list of issue dicts."""
+    import anthropic
+    review_text = _format_for_storytell(storyboard_path)
+    client = anthropic.Anthropic(api_key=_get_api_key())
+    msg = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=2000,
+        system=_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": review_text}],
+    )
+    raw = msg.content[0].text.strip()
+    if raw == "OK":
+        return []
+    issues = _parse_storytell_issues(raw)
+    if not issues:
+        issues = [{"scene_id": "?", "severity": "NOTE", "original": "",
+                   "suggested": "", "reason": raw[:200]}]
+    return issues
+
+
+@storytell_app.command()
+def run(
+    work_dir: Annotated[Path | None, typer.Option("--work-dir")] = None,
+    project_id: Annotated[int, typer.Option("--project-id")] = 0,
+    apply: Annotated[bool, typer.Option("--apply/--no-apply")] = False,
+) -> None:
+    """Review narrative flow and scene transitions using Claude Haiku."""
+    from pipeline.config import PipelineConfig
+    config = PipelineConfig()
+
+    if work_dir is None:
+        if project_id == 0:
+            _console.print("[red]Provide --work-dir or --project-id[/red]")
+            raise typer.Exit(1)
+        work_dir = config.OUTPUT_DIR / "projects" / str(project_id)
+
+    storyboard_path = work_dir / "storyboard.json"
+    if not storyboard_path.exists():
+        _console.print(f"[red]No storyboard.json in {work_dir}[/red]")
+        raise typer.Exit(1)
+
+    _console.print(f"[cyan]Reviewing narrative flow[/cyan] {storyboard_path}")
+    with _console.status("Calling Claude Haiku..."):
+        issues = storytell_storyboard(storyboard_path)
+
+    if not issues:
+        _console.print("[green]✓ No narrative issues found.[/green]")
+        return
+
+    print_storytell_table(issues)
+
+    if not apply:
+        _console.print(
+            f"\n[dim]Found {len(issues)} issue(s). "
+            f"Re-run with [cyan]--apply[/cyan] to apply fixes.[/dim]"
+        )
+        return
+
+    minor = [i for i in issues if i["severity"] == "MINOR"]
+    major = [i for i in issues if i["severity"] == "MAJOR"]
+
+    # Auto-apply MINOR issues
+    if minor:
+        n = apply_storytell_issues(storyboard_path, minor)
+        _console.print(f"\n[green]Auto-applied {n}/{len(minor)} MINOR fix(es).[/green]")
+
+    # Confirm each MAJOR issue
+    confirmed = []
+    for iss in major:
+        _console.print(f"\n[yellow]MAJOR[/yellow] [{iss['scene_id']}] {iss['reason']}")
+        _console.print(f"  Original:  {iss['original']}")
+        _console.print(f"  Suggested: {iss['suggested']}")
+        answer = typer.prompt("Apply? [y/N]", default="N")
+        if answer.strip().lower() == "y":
+            confirmed.append(iss)
+
+    if confirmed:
+        n = apply_storytell_issues(storyboard_path, confirmed)
+        _console.print(f"[green]Applied {n}/{len(confirmed)} confirmed MAJOR fix(es).[/green]")
