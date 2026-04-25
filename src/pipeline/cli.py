@@ -219,9 +219,16 @@ def produce(
 
                     st_issues = storytell_storyboard(result.ctx.storyboard_path)
                     minor = [i for i in st_issues if i["severity"] == "MINOR"]
+                    major = [i for i in st_issues if i["severity"] == "MAJOR"]
                     if minor:
                         n = apply_storytell_issues(result.ctx.storyboard_path, minor)
                         typer.echo(f"  storytell: auto-applied {n}/{len(minor)} MINOR fix(es)")
+                    if major:
+                        typer.echo(
+                            f"  storytell: skipped {len(major)} MAJOR issue(s) — run "
+                            f"  uv run pipeline storytell run --project-id {project_id} --apply"
+                            "  to review"
+                        )
                 except Exception as exc:
                     typer.echo(f"  (storytell skipped: {exc})")
 
