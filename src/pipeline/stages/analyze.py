@@ -113,10 +113,22 @@ class AnalyzeStage(PipelineStage):
 
         client = get_anthropic_client()
         config = PipelineConfig()
+
+        # Load structured transcript if available (gives Claude precise timestamps)
+        transcript_data: list[dict[str, Any]] | None = None
+        if ctx.transcript_path and ctx.transcript_path.exists():
+            try:
+                raw = json.loads(ctx.transcript_path.read_text(encoding="utf-8"))
+                if raw and isinstance(raw[0], dict) and "start" in raw[0]:
+                    transcript_data = [e for e in raw if e.get("text", "").strip()]
+            except (json.JSONDecodeError, IndexError, KeyError):
+                pass
+
         prompt = build_analysis_prompt(
             ctx.transcript_text,
             ctx.source_url,
             getattr(ctx, "source_title", "Untitled"),
+            transcript_data=transcript_data,
         )
 
         response = client.messages.create(

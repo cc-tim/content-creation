@@ -113,3 +113,42 @@ def test_build_analysis_prompt_without_transcript_data_unchanged():
     )
     assert "Plain text transcript." in prompt
     assert "timestamps in seconds" not in prompt
+
+
+async def test_analyze_uses_structured_transcript_when_available(
+    sample_context, analysis_fixture, tmp_path
+):
+    """AnalyzeStage passes transcript_data to build_analysis_prompt when transcript.json exists."""
+    # Set up transcript.json in the project dir
+    source_dir = sample_context.work_dir / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    transcript_path = source_dir / "transcript.json"
+    transcript_data = [
+        {"text": "Officer Johnson arrested the suspect.", "start": 1.0, "duration": 3.0},
+        {"text": "He was charged with theft.", "start": 4.0, "duration": 2.5},
+    ]
+    transcript_path.write_text(
+        json.dumps(transcript_data, ensure_ascii=False), encoding="utf-8"
+    )
+    sample_context.transcript_text = "Officer Johnson arrested the suspect. He was charged with theft."
+    sample_context.transcript_path = transcript_path
+
+    stage = AnalyzeStage()
+
+    captured_prompt: list[str] = []
+
+    def mock_create(**kwargs):
+        captured_prompt.append(kwargs["messages"][0]["content"])
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text=json.dumps(analysis_fixture))]
+        return mock_response
+
+    with patch("pipeline.stages.analyze.get_anthropic_client") as mock_client_fn:
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = mock_create
+        mock_client_fn.return_value = mock_client
+        await stage.run(sample_context)
+
+    prompt = captured_prompt[0]
+    assert "[1.00s–4.00s]" in prompt          # structured format used
+    assert "timestamps in seconds" in prompt
