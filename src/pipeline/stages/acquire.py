@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -148,6 +149,14 @@ def _parse_txt_transcript(path: Path) -> tuple[str, list[dict[str, Any]]]:
 
 
 class AcquireStage(PipelineStage):
+    def __init__(
+        self,
+        local_transcript: Path | None = None,
+        local_video: Path | None = None,
+    ) -> None:
+        self.local_transcript = local_transcript
+        self.local_video = local_video
+
     @property
     def name(self) -> str:
         return "acquire"
@@ -158,20 +167,29 @@ class AcquireStage(PipelineStage):
         source_dir = ctx.work_dir / "source"
         source_dir.mkdir(parents=True, exist_ok=True)
 
-        # Download video
-        ctx.video_path = download_video(ctx.source_url, source_dir, resolution="720p")
-        logger.info("acquire.video_downloaded", path=str(ctx.video_path))
+        # Video
+        if self.local_video:
+            dest = source_dir / self.local_video.name
+            shutil.copy2(self.local_video, dest)
+            ctx.video_path = dest
+            logger.info("acquire.video_local", path=str(dest))
+        else:
+            ctx.video_path = download_video(ctx.source_url, source_dir, resolution="720p")
+            logger.info("acquire.video_downloaded", path=str(ctx.video_path))
 
-        # Extract transcript
-        full_text, raw_data = extract_transcript(ctx.source_url)
+        # Transcript
+        if self.local_transcript:
+            full_text, raw_data = parse_transcript_file(self.local_transcript)
+            logger.info("acquire.transcript_local", chars=len(full_text))
+        else:
+            full_text, raw_data = extract_transcript(ctx.source_url)
+            logger.info("acquire.transcript_extracted", chars=len(full_text))
+
         ctx.transcript_text = full_text
-
-        # Save transcript for reference
         transcript_path = source_dir / "transcript.json"
         transcript_path.write_text(
             json.dumps(raw_data, indent=2, ensure_ascii=False), encoding="utf-8"
         )
         ctx.transcript_path = transcript_path
-        logger.info("acquire.transcript_extracted", chars=len(full_text))
 
         return ctx
