@@ -26,7 +26,7 @@ _SYSTEM_PROMPT = """\
 - OVERLAY（畫面標題）：會顯示在影片畫面上的文字
 
 校稿重點：
-1. OVERLAY 標題（最重要）：
+1. 如有 OVERLAY，審閱標題語法：
    - 語法是否正確、結構是否完整
    - 是否簡潔有力、易於快速閱讀
    - 是否符合台灣繁體中文用法
@@ -72,12 +72,16 @@ def _format_for_review(storyboard_path: Path) -> str:
     from pipeline.storyboard import Storyboard
     sb = Storyboard.load(storyboard_path)
     lines = []
+    has_overlay = False
     for s in sb.scenes:
         lines.append(f"[{s.id}] NARRATION: {s.narration}")
         if s.overlay:
             text = s.overlay.get("text", "")
             if text:
+                has_overlay = True
                 lines.append(f"[{s.id}] OVERLAY: {text}")
+    if not has_overlay:
+        lines.append("（本腳本無 OVERLAY 文字，請只審閱 NARRATION）")
     return "\n".join(lines)
 
 
