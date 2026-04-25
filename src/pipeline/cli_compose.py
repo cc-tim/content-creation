@@ -61,8 +61,13 @@ def rescene(
             if p.exists():
                 p.unlink()
                 logger.info("compose.rescene.deleted", path=str(p))
-    typer.echo(f"Invalidated: {', '.join(scenes)} — re-rendering...")
     ctx = PipelineContext.load(work_dir / "context.json")
+    if ctx.preferred_variant:
+        typer.echo(
+            f"Invalidated: {', '.join(scenes)} — re-rendering... [focused: {ctx.preferred_variant}]"
+        )
+    else:
+        typer.echo(f"Invalidated: {', '.join(scenes)} — re-rendering all variants...")
     scene_list = ", ".join(scenes)
     entry = SessionEntry(
         session_id=new_session_id(),
@@ -87,14 +92,18 @@ def rescene(
 def reburn(
     project_id: int = typer.Option(..., "--project-id"),
     variant: str = typer.Option(
-        "subtitles_no_overlay",
+        "",
         "--variant",
-        help=f"Variant to rebuild from raws. One of: {', '.join(_VARIANTS)}",
+        help=(
+            f"Variant to rebuild from raws. One of: {', '.join(_VARIANTS)}. "
+            "Defaults to preferred_variant in context.json, then subtitles_no_overlay."
+        ),
     ),
 ) -> None:
     """Re-burn subtitles from existing raw.mp4 / raw_no_overlay.mp4 without re-rendering scenes."""
     work_dir = _resolve_work_dir(project_id)
     ctx = PipelineContext.load(work_dir / "context.json")
+    variant = variant or ctx.preferred_variant or "subtitles_no_overlay"
     compose_dir = work_dir / "compose"
     locale = ctx.locale
 

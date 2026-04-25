@@ -285,16 +285,27 @@ uv run pipeline storyboard set scene_003 narration="新文字"  # edit a safe fi
 #   "change scene X's pause to Ns"      → storyboard set X pause_after_sec=N
 
 # Compose iteration (after the storyboard-review loop)
+#
+# Variant-focus workflow:
+#   Phase 1 — initial produce: all 4 variants built for comparison (preferred_variant=null)
+#   Phase 2 — pick a winner: run set-variant to lock it; rescene/reburn now ONLY build that variant
+#   Phase 3 — edit loop (across sessions): rescene + reburn operate on the locked variant only
+#
 uv run pipeline compose set-variant --project-id <ID> --variant subtitles_no_overlay  # lock preferred variant
-uv run pipeline compose rescene --project-id <ID> --scene s9 [--scene s12]            # re-render named scenes only
-uv run pipeline compose reburn --project-id <ID> [--variant subtitles_no_overlay]     # re-burn subtitles from existing raws (seconds)
+uv run pipeline compose rescene --project-id <ID> --scene s9 [--scene s12]            # re-render named scenes (focused if variant locked)
+uv run pipeline compose reburn --project-id <ID>                                       # re-burn from raws (uses preferred_variant, default: subtitles_no_overlay)
+
+# Overlay vs. no_overlay: overlay text (type: text_top, text_emphasis) appears ONLY in the
+# overlay variants (plain, subtitles). The no_overlay variants strip per-scene overlays.
+# To make text visible in subtitles_no_overlay, use visual_text in the storyboard instead of overlay.
 
 # Natural-language triggers (for the assistant):
 #   "s9 overlay is unclear / wrong"          → edit storyboard.json, then compose rescene --project-id X --scene s9
 #   "fix wording in scene X"                 → storyboard set + compose rescene --project-id X --scene X
 #   "subtitles too small / wrong color"      → edit theme in storyboard.json, then compose reburn --project-id X
-#   "focus on subtitles_no_overlay variant"  → pipeline compose set-variant --project-id X --variant subtitles_no_overlay
-#   "rebuild only the chosen variant"        → compose reburn --project-id X --variant <preferred>
+#   "lock this variant / I've decided"       → pipeline compose set-variant --project-id X --variant <name>
+#   "what variant is locked?"                → check context.json preferred_variant field
+#   "unlock variant / build all 4 again"     → pipeline compose set-variant with null is not supported; edit context.json preferred_variant to null
 #   "re-render just the compose step"        → produce --project-id X --url <url> --start-from compose
 
 # Proofreading (runs automatically at the review gate; also callable standalone)

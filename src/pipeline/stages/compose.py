@@ -283,34 +283,48 @@ class ComposeStage(PipelineStage):
         self._concat_scenes(scene_finals, raw_path)
         self._concat_scenes(scene_finals_no_overlay, raw_no_overlay_path)
 
-        # Step 6: Produce all 4 final variants (main + no_overlay) × (plain + subtitles)
+        # Step 6: Produce final variants.
+        # When preferred_variant is locked, only build that one (others kept stale on disk).
         locale = ctx.locale
         plain        = compose_dir / f"final_{locale}.mp4"
         plain_no_ov  = compose_dir / f"final_{locale}_no_overlay.mp4"
         subs         = compose_dir / f"final_{locale}_subtitles.mp4"
         subs_no_ov   = compose_dir / f"final_{locale}_subtitles_no_overlay.mp4"
 
-        shutil.copyfile(raw_path, plain)
-        shutil.copyfile(raw_no_overlay_path, plain_no_ov)
-
-        if ctx.subtitle_path and ctx.subtitle_path.exists():
-            _burn_subtitle_pass(raw_path, subs, ctx.subtitle_path, theme_dict)
-            _burn_subtitle_pass(raw_no_overlay_path, subs_no_ov, ctx.subtitle_path, theme_dict)
-        else:
-            shutil.copyfile(raw_path, subs)
-            shutil.copyfile(raw_no_overlay_path, subs_no_ov)
-
-        # Return the variant the rest of the pipeline expects
         variant_map = {
             "plain": plain,
             "no_overlay": plain_no_ov,
             "subtitles": subs,
             "subtitles_no_overlay": subs_no_ov,
         }
-        if ctx.preferred_variant and ctx.preferred_variant in variant_map:
-            final_path = variant_map[ctx.preferred_variant]
+        preferred = ctx.preferred_variant
+
+        if preferred and preferred in variant_map:
+            # Focused mode: only produce the locked variant.
+            logger.info("compose.focused_variant", variant=preferred)
+            uses_no_overlay = "no_overlay" in preferred
+            uses_subtitles = "subtitles" in preferred
+            src_raw = raw_no_overlay_path if uses_no_overlay else raw_path
+            dst = variant_map[preferred]
+            if uses_subtitles and ctx.subtitle_path and ctx.subtitle_path.exists():
+                _burn_subtitle_pass(src_raw, dst, ctx.subtitle_path, theme_dict)
+            else:
+                shutil.copyfile(src_raw, dst)
+            final_path = dst
         else:
+            # Full mode: produce all 4 variants.
+            shutil.copyfile(raw_path, plain)
+            shutil.copyfile(raw_no_overlay_path, plain_no_ov)
+
+            if ctx.subtitle_path and ctx.subtitle_path.exists():
+                _burn_subtitle_pass(raw_path, subs, ctx.subtitle_path, theme_dict)
+                _burn_subtitle_pass(raw_no_overlay_path, subs_no_ov, ctx.subtitle_path, theme_dict)
+            else:
+                shutil.copyfile(raw_path, subs)
+                shutil.copyfile(raw_no_overlay_path, subs_no_ov)
+
             final_path = subs if ctx.burn_subtitles else plain
+
         return final_path
 
     async def _compose_mvp(self, ctx: PipelineContext, compose_dir: Path) -> Path:
@@ -455,7 +469,10 @@ class ComposeStage(PipelineStage):
 
         Re-encodes to ensure consistent format across all segments.
         """
-        filelist = output.parent / "concat_list.txt"
+        # Derive a per-output filename so raw.mp4 → concat_list.txt and
+        # raw_no_overlay.mp4 → concat_list_no_overlay.txt stay independent.
+        suffix = output.stem[len("raw"):]  # "" or "_no_overlay"
+        filelist = output.parent / f"concat_list{suffix}.txt"
         filelist.write_text(
             "\n".join(f"file '{p.resolve()}'" for p in scene_paths),
             encoding="utf-8",
