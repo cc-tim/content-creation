@@ -20,7 +20,7 @@ from pipeline.publish.cli import publish_app
 from pipeline.research.cli import app as research_app
 from pipeline.stages.acquire import AcquireStage
 from pipeline.stages.analyze import AnalyzeStage
-from pipeline.stages.base import PipelineContext
+from pipeline.stages.base import PipelineContext, PipelineStage
 from pipeline.stages.compose import ComposeStage
 from pipeline.stages.direct import DirectStage
 from pipeline.stages.tts import TtsStage
@@ -118,6 +118,7 @@ def produce(
         )
 
     # Select acquire stage based on source type
+    acquire: PipelineStage
     if source_type == "web":
         from pipeline.stages.acquire_web import AcquireWebStage
 
