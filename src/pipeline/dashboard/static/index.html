@@ -60,10 +60,8 @@
       background: #1a1a2e; color: #94a3b8; cursor: pointer; transition: background .1s, color .1s; }
     .btn-variant:hover { background: #1e293b; color: #e2e8f0; }
     .btn-variant.active { background: #1e293b; color: #e2e8f0; border-color: #3b82f6; }
-    .scene-strip { display:flex; gap:5px; overflow-x:auto; padding:10px 0 6px; scrollbar-width:thin;
-      scroll-behavior:smooth; cursor:grab; user-select:none; min-width:0; }
-    .scene-strip.dragging { cursor:grabbing; scroll-behavior:auto; }
-    .scene-chip { flex-shrink:0; padding:4px 10px; border-radius:4px; font-size:10px; font-family:monospace;
+    .scene-strip { display:flex; flex-wrap:wrap; gap:5px; padding:10px 0 6px; min-width:0; }
+    .scene-chip { padding:4px 10px; border-radius:4px; font-size:10px; font-family:monospace;
       cursor:pointer; background:#1e1e1e; color:#4a5568; border:1px solid #2d3748;
       white-space:nowrap; transition:background .1s, color .1s; }
     .scene-chip:hover { background:#1e293b; color:#94a3b8; }
@@ -320,13 +318,6 @@ function toggleDetail(p) {
   if (vid && strip && p.scenes && p.scenes.length) {
     showSceneNar(0);
 
-    function stripScrollTo(idx) {
-      const chip = strip.querySelectorAll('.scene-chip')[idx];
-      if (!chip) return;
-      const left = chip.offsetLeft - strip.clientWidth / 2 + chip.offsetWidth / 2;
-      strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
-    }
-
     let activeSc = -1;
     vid.addEventListener('timeupdate', () => {
       const t = vid.currentTime;
@@ -336,37 +327,16 @@ function toggleDetail(p) {
       }
       if (idx === activeSc) return;
       activeSc = idx;
-      strip.querySelectorAll('.scene-chip').forEach((c, i) => {
+      const chips = strip.querySelectorAll('.scene-chip');
+      chips.forEach((c, i) => {
         c.classList.toggle('sc-past', i < idx);
         c.classList.toggle('sc-active', i === idx);
       });
-      stripScrollTo(idx);
+      chips[idx]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       showSceneNar(idx);
     });
 
-    // Click-drag to scroll the strip — listeners on document so fast moves don't lose the drag
-    let dragState = null, wasDragged = false;
-    strip.addEventListener('mousedown', e => {
-      dragState = { x: e.pageX, scrollLeft: strip.scrollLeft };
-      wasDragged = false;
-      strip.classList.add('dragging');
-      const onMove = ev => {
-        const dx = ev.pageX - dragState.x;
-        if (Math.abs(dx) > 4) wasDragged = true;
-        strip.scrollLeft = dragState.scrollLeft - dx;
-      };
-      const onUp = () => {
-        dragState = null;
-        strip.classList.remove('dragging');
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-      };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-    });
-
     strip.addEventListener('click', e => {
-      if (wasDragged) { wasDragged = false; return; }
       const chip = e.target.closest('.scene-chip');
       if (!chip) return;
       const idx = +chip.dataset.idx;
