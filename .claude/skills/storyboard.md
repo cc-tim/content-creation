@@ -1,3 +1,8 @@
+---
+name: storyboard
+description: Use when the user asks to view, list, edit, regenerate, or compare the storyboard for a project; when asking about specific scenes, visual types, or narration in the storyboard; when managing scene structure, recordings, or storyboard versions.
+---
+
 # Storyboard Manager
 
 View, edit, and regenerate the Layer 2 storyboard for a project.

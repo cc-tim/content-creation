@@ -1,3 +1,8 @@
+---
+name: evaluate-video
+description: Evaluate whether a YouTube video is worth porting to a target locale. Scores niche match, portability, recency, view velocity, and narrative quality.
+---
+
 # Evaluate Video for Porting
 
 Evaluate whether a YouTube video is worth porting to a target locale.

@@ -1,3 +1,8 @@
+---
+name: status
+description: Use when the user asks about the current state, progress, or stage of a pipeline project; when checking what artifacts exist, what's been completed, or what step comes next; when asking "where are we on project X" or "what's done so far".
+---
+
 # Project Status
 
 Show the current state of a pipeline project.

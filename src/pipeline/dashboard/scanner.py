@@ -62,7 +62,16 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
         sessions_file = project_dir / "sessions.json"
         if sessions_file.exists():
             with contextlib.suppress(json.JSONDecodeError, OSError):
-                session_logs = json.loads(sessions_file.read_text())
+                raw: list[dict[str, str]] = json.loads(sessions_file.read_text())
+                # Deduplicate by session_id, keeping the entry with the latest timestamp
+                seen: dict[str, dict[str, str]] = {}
+                for entry in raw:
+                    sid = entry.get("session_id", "")
+                    if sid and seen.get(sid, {}).get("timestamp", "") <= entry.get("timestamp", ""):
+                        seen[sid] = entry
+                    elif not sid:
+                        session_logs.append(entry)
+                session_logs = list(seen.values())
 
         scenes: list[dict[str, object]] = []
         scenes_file = project_dir / "compose" / "scenes.json"

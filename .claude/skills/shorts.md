@@ -1,3 +1,8 @@
+---
+name: shorts
+description: Generate YouTube Shorts storyboards from an existing project knowledge base. Selects the most interesting standalone facts and creates mini-storyboards (45-60s, 9:16).
+---
+
 # Generate Shorts
 
 Create YouTube Shorts storyboards from an existing knowledge base. The agent selects the most interesting standalone facts and creates mini-storyboards.

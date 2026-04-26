@@ -1,3 +1,8 @@
+---
+name: publish
+description: Upload a produced project to YouTube with preflight checks, metadata review, OAuth verification, and the 3-phase upload sequence (video → thumbnail → disclosure).
+---
+
 # Publish Video
 
 Upload a produced project to YouTube. Handles preflight checks, metadata review, OAuth verification, and the 3-phase upload sequence (video → thumbnail → disclosure).

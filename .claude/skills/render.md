@@ -1,3 +1,8 @@
+---
+name: render
+description: Compose video from an existing storyboard. Runs TTS + compose stages (pipeline produce --start-from tts).
+---
+
 # Render Video
 
 Compose video from an existing storyboard. Runs TTS + compose stages.

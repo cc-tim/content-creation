@@ -1,3 +1,8 @@
+---
+name: knowledge
+description: View and edit the Layer 1 knowledge base (facts, entities, timeline, context bridges) for a pipeline project.
+---
+
 # Knowledge Base Manager
 
 View and edit the Layer 1 knowledge base for a project.

@@ -1,3 +1,8 @@
+---
+name: produce
+description: Use when the user wants to run the full production pipeline for a video; when starting a new porting project from a YouTube URL; when producing a video end-to-end (acquire → analyze → storyboard → TTS → compose); when the user says "produce this", "port this video", or "let's make a video from X".
+---
+
 # Produce Video (Agent-Driven)
 
 Full pipeline from URL to video. The agent does the creative work (analysis, storyboard creation) directly in conversation — no separate API calls needed.
