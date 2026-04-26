@@ -40,7 +40,8 @@ def build_direct_prompt(
     fmt: str = "standard",
     tone: str = "dramatic",
     strategies_text: str = "",
-    reference_storyboard_json: str | None = None,  # wired up in Task 9; accept here
+    reference_storyboard_json: str | None = None,
+    constraints_text: str = "",
 ) -> str:
     """Build Claude prompt to generate a storyboard from knowledge."""
     locale_instruction = LOCALE_INSTRUCTIONS.get(locale) or LOCALE_INSTRUCTIONS["en"]
@@ -67,6 +68,7 @@ Use 2-4 scenes only. Target 45 seconds total."""
                 "Do NOT summarize the topic or start with background."
             )
         )
+        duration_line = constraints_text if constraints_text else "Target 12 minutes total."
         structure = f"""VIDEO STRUCTURE (standard format, 10-15 minutes):
 - hook (0-30s): {hook_guidance}
 - context (30s-2min): Map, people, setting, background
@@ -75,7 +77,7 @@ Use 2-4 scenes only. Target 45 seconds total."""
 - aftermath (8-10min): Resolution, consequences
 - analysis (10-12min): Commentary, broader implications
 
-Use 15-25 scenes. Target 12 minutes total."""
+Use 15-25 scenes. {duration_line}"""
         visual_note = (
             "Mix visual types for variety: clip for action moments, map for geography, "
             "namecard for introductions, text_card for key facts, generated_image for mood."
@@ -402,6 +404,13 @@ class DirectStage(PipelineStage):
         if ctx.reference_storyboard_path and ctx.reference_storyboard_path.exists():
             reference_storyboard_json = ctx.reference_storyboard_path.read_text(encoding="utf-8")
 
+        from pipeline.constraints import ProjectConstraints
+
+        constraints = ProjectConstraints.load(ctx.work_dir)
+        constraints_text = constraints.duration_instruction() if constraints else ""
+        if constraints_text:
+            logger.info("direct.constraints_active", instruction=constraints_text)
+
         knowledge = Knowledge.load(ctx.knowledge_path)
         client = get_anthropic_client()
         config = PipelineConfig()
@@ -410,6 +419,7 @@ class DirectStage(PipelineStage):
             knowledge, ctx.locale, self.fmt, self.tone,
             strategies_text=strategies_text,
             reference_storyboard_json=reference_storyboard_json,
+            constraints_text=constraints_text,
         )
 
         response = client.messages.create(

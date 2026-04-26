@@ -82,6 +82,12 @@ def produce(
         "--reference-storyboard",
         help="Path to an existing storyboard JSON used as parallel-locale reference",
     ),
+    min_duration: float | None = typer.Option(
+        None, "--min-duration", help="Minimum video duration in minutes (stored in constraints.json)"
+    ),
+    max_duration: float | None = typer.Option(
+        None, "--max-duration", help="Maximum video duration in minutes (stored in constraints.json)"
+    ),
 ) -> None:
     """Run the full production pipeline for a video or web article."""
     config = PipelineConfig()
@@ -106,8 +112,20 @@ def produce(
                 err=True,
             )
 
+    from pipeline.constraints import ProjectConstraints
+
     work_dir = config.OUTPUT_DIR / "projects" / str(project_id)
     work_dir.mkdir(parents=True, exist_ok=True)
+
+    if min_duration is not None or max_duration is not None:
+        existing = ProjectConstraints.load(work_dir)
+        merged = existing or ProjectConstraints()
+        if min_duration is not None:
+            merged.duration_min_minutes = min_duration
+        if max_duration is not None:
+            merged.duration_max_minutes = max_duration
+        merged.save(work_dir)
+        typer.echo(f"constraints: duration {min_duration}–{max_duration} min saved")
 
     context_file = work_dir / "context.json"
     if start_from and context_file.exists():
@@ -171,6 +189,29 @@ def produce(
             typer.echo(f"Knowledge: {result.ctx.knowledge_path}")
             typer.echo(f"Storyboard: {result.ctx.storyboard_path}")
             typer.echo(f"Script: {result.ctx.script_path}")
+
+            # Constraint check — load, remind, and flag violations
+            constraints = ProjectConstraints.load(work_dir)
+            if constraints:
+                typer.echo(f"\n{constraints.format_reminder()}")
+                if result.ctx.storyboard_path and result.ctx.storyboard_path.exists():
+                    try:
+                        from pipeline.storyboard import Storyboard
+
+                        sb = Storyboard.load(result.ctx.storyboard_path)
+                        dur_sec = sb.estimated_duration_sec()
+                        violations = constraints.check_storyboard(dur_sec)
+                        if violations:
+                            for v in violations:
+                                typer.echo(f"  *** CONSTRAINT VIOLATION: {v} ***")
+                            typer.echo(
+                                "  Fix: rebuild storyboard to meet the duration requirement "
+                                "before proceeding to TTS."
+                            )
+                        else:
+                            typer.echo(f"  ✓ Duration {dur_sec/60:.1f} min — within constraints.")
+                    except Exception as exc:
+                        typer.echo(f"  (constraint check skipped: {exc})")
 
             # Auto-proofread storyboard at the review gate (before TTS)
             if result.ctx.storyboard_path and result.ctx.storyboard_path.exists():
