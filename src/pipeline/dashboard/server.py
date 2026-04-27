@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+import tomllib
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from pipeline.dashboard.scanner import ProjectInfo, scan_projects
 
 _STATIC_DIR = Path(__file__).parent / "static"
+_CHANNELS_TOML = Path("configs/youtube_channels.toml")
+_CHANNELS_DIR = Path("configs/channels")
 
 
 def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
@@ -23,6 +26,43 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     @app.get("/")
     def index() -> FileResponse:
         return FileResponse(_STATIC_DIR / "index.html")
+
+    @app.get("/channels")
+    def channels_page() -> FileResponse:
+        return FileResponse(_STATIC_DIR / "channels.html")
+
+    @app.get("/api/channels")
+    def get_channels() -> JSONResponse:
+        profiles: list[dict] = []
+        if _CHANNELS_TOML.exists():
+            data = tomllib.loads(_CHANNELS_TOML.read_text(encoding="utf-8"))
+            for name, raw in (data.get("profiles") or {}).items():
+                outro_path = _CHANNELS_DIR / name / "outro.mp4"
+                profile_png = _CHANNELS_DIR / name / "profile.png"
+                profiles.append({
+                    "name": name,
+                    "display_name": raw.get("display_name", ""),
+                    "tagline": raw.get("tagline", ""),
+                    "locale": raw.get("locale", ""),
+                    "niche": raw.get("niche", ""),
+                    "channel_id": raw.get("channel_id", ""),
+                    "outro_enabled": bool(raw.get("outro_enabled", False)),
+                    "outro_built": outro_path.exists(),
+                    "outro_url": f"/configs-static/{name}/outro.mp4"
+                    if outro_path.exists() else None,
+                    "profile_png_url": f"/configs-static/{name}/profile.png"
+                    if profile_png.exists() else None,
+                    "outro_size_kb": outro_path.stat().st_size // 1024
+                    if outro_path.exists() else None,
+                })
+        return JSONResponse(profiles)
+
+    if _CHANNELS_DIR.exists():
+        app.mount(
+            "/configs-static",
+            StaticFiles(directory=str(_CHANNELS_DIR)),
+            name="configs",
+        )
 
     if dev_mode:
 

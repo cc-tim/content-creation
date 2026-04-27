@@ -1,15 +1,26 @@
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 
 import httpx
+from PIL import Image, ImageDraw
 
 from pipeline.config import PipelineConfig
 from pipeline.publish.channels import ChannelProfile
 from pipeline.utils.ffmpeg import run_ffmpeg
 
-_NOTO_BOLD = "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc"
-_NOTO_REGULAR = "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"
+_NOTO_BOLD = "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"
+_NOTO_REGULAR = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+
+
+def _make_circle_png(src: Path, size: int, dest: Path) -> None:
+    """Crop src image to a circle of given size and save as RGBA PNG."""
+    img = Image.open(src).convert("RGBA").resize((size, size), Image.LANCZOS)
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, size - 1, size - 1), fill=255)
+    img.putalpha(mask)
+    img.save(dest, "PNG")
 
 
 def build_outro(
@@ -40,6 +51,11 @@ def build_outro(
     display = profile.display_name or profile.name
     tagline = profile.tagline
 
+    # Pre-process avatar into a circular RGBA PNG — more reliable than FFmpeg geq on packed RGBA
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as _tmp:
+        circle_png = Path(_tmp.name)
+    _make_circle_png(profile_png_path, av, circle_png)
+
     # ------------------------------------------------------------------ #
     # Audio: 4-note C major arpeggio ident                                #
     # C4=262Hz E4=330Hz G4=392Hz C5=523Hz, starting at 0/1/2.5/4 s       #
@@ -55,12 +71,12 @@ def build_outro(
     for freq, _ in notes:
         audio_input_args.extend(["-f", "lavfi", "-i", f"sine=frequency={freq}:duration=20"])
 
-    # Number the sine inputs: they start at input index 2 (0=bg colour, 1=profile.png)
+    # Sine inputs start at index 1 (0=circle_png, 1..4=sines)
     audio_fc_parts = []
     for i, (_, start_s) in enumerate(notes):
         delay_ms = int(start_s * 1000)
         audio_fc_parts.append(
-            f"[{2 + i}:a]"
+            f"[{1 + i}:a]"
             f"atrim=start={start_s}:end={start_s + 0.8},"
             f"asetpts=PTS-STARTPTS,"
             f"afade=in:st=0:d=0.1,"
@@ -79,20 +95,15 @@ def build_outro(
     # Video filter complex                                                 #
     # ------------------------------------------------------------------ #
     # Background: amber vertical gradient (#fff8f0 top → #ffe4c4 bottom)
-    # Using geq with R=255, G=248→228, B=240→196
+    # format=rgb24 MUST come before geq so r/g/b params map to R/G/B planes, not Y/Cb/Cr
     bg = (
-        f"color=c=#fff8f0:s={w}x{h}:d=20[bg_flat];"
+        f"color=c=#fff8f0:s={w}x{h}:d=20,format=rgb24[bg_flat];"
         f"[bg_flat]geq=r=255:g='248-20*(Y/{h})':b='240-44*(Y/{h})'[bg]"
     )
 
-    # Avatar: circular crop + fade in 0→1s
-    av_r = av // 2
+    # Avatar: Pillow-generated circular RGBA PNG is input 0; just fade it in
     avatar = (
-        f"[1:v]scale={av}:{av},format=rgba,"
-        f"geq="
-        f"lum='p(X,Y)':"
-        f"a='if(lt(sqrt(pow(X-{av_r},2)+pow(Y-{av_r},2)),{av_r}),255,0)'[av_circ];"
-        f"[av_circ]fade=in:st=0:d=1[av_fade];"
+        f"[0:v]fade=in:st=0:d=1[av_fade];"
         f"[bg][av_fade]overlay={av_x}:{av_y}[v1]"
     )
 
@@ -148,11 +159,9 @@ def build_outro(
 
     cmd = [
         "ffmpeg", "-y",
-        # Input 0: background colour source (used by geq)
-        "-f", "lavfi", "-i", f"color=c=#fff8f0:s={w}x{h}:d=20:rate={fps}",
-        # Input 1: profile image
-        "-i", str(profile_png_path),
-        # Inputs 2+: sine audio sources
+        # Input 0: circular RGBA avatar PNG (Pillow pre-processed, looped as still image)
+        "-loop", "1", "-i", str(circle_png),
+        # Inputs 1+: sine audio sources
         *audio_input_args,
         "-filter_complex", filter_complex,
         "-map", "[vout]",
@@ -164,7 +173,10 @@ def build_outro(
         "-t", "20",
         str(output_path),
     ]
-    run_ffmpeg(cmd)
+    try:
+        run_ffmpeg(cmd)
+    finally:
+        circle_png.unlink(missing_ok=True)
 
 
 def fetch_profile_png(channel_id: str, dest: Path) -> None:

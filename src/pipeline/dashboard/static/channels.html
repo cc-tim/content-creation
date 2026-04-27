@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Channel Config — Content Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0f0f0f; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; font-size: 14px; }
+
+    .header { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-bottom: 1px solid #1e1e1e; }
+    .header-title { font-size: 16px; font-weight: 600; }
+    .header a { color: #4a5568; font-size: 12px; text-decoration: none; }
+    .header a:hover { color: #94a3b8; }
+
+    .page { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+
+    .channel-card {
+      background: #141414; border: 1px solid #1e1e1e; border-radius: 8px;
+      margin-bottom: 24px; overflow: hidden;
+    }
+    .card-header {
+      display: flex; align-items: center; gap: 14px;
+      padding: 16px 20px; border-bottom: 1px solid #1e1e1e;
+    }
+    .avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; background: #1e1e1e; flex-shrink: 0; }
+    .avatar-placeholder { width: 52px; height: 52px; border-radius: 50%; background: #1e1e1e; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #374151; font-size: 20px; }
+    .channel-name { font-size: 16px; font-weight: 600; color: #e2e8f0; }
+    .channel-meta { font-size: 11px; color: #4a5568; margin-top: 3px; }
+    .channel-meta span { margin-right: 10px; }
+    .badge { font-size: 9px; padding: 2px 7px; border-radius: 10px; color: #fff; }
+    .badge-on  { background: #16a34a; }
+    .badge-off { background: #374151; color: #9ca3af; }
+    .badge-built   { background: #d97706; }
+    .badge-missing { background: #374151; color: #9ca3af; }
+
+    .card-body { padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 700px) { .card-body { grid-template-columns: 1fr; } }
+
+    .info-block h3 { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #475569; margin-bottom: 10px; }
+    .info-row { display: flex; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+    .info-row .lbl { color: #4a5568; min-width: 90px; flex-shrink: 0; }
+    .info-row .val { color: #94a3b8; word-break: break-all; }
+    .info-row .val a { color: #3b82f6; text-decoration: none; }
+    .info-row .val a:hover { text-decoration: underline; }
+
+    .outro-block { grid-column: 1 / -1; }
+    .outro-block h3 { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #475569; margin-bottom: 10px; }
+    .outro-missing { padding: 20px; background: #111; border: 1px dashed #2d3748; border-radius: 6px; color: #4a5568; font-size: 12px; text-align: center; }
+    .outro-missing code { color: #6366f1; font-family: monospace; }
+    video.outro-preview {
+      width: 100%; max-width: 640px; border-radius: 6px; background: #000; display: block;
+      border: 1px solid #2d3748;
+    }
+    .outro-info { margin-top: 8px; font-size: 11px; color: #4a5568; display: flex; gap: 12px; }
+
+    .empty { padding: 40px; text-align: center; color: #374151; }
+    .loading { padding: 40px; text-align: center; color: #4a5568; }
+  </style>
+</head>
+<body>
+<div class="header">
+  <a href="/">← Projects</a>
+  <span class="header-title">Channel Config</span>
+</div>
+
+<div class="page">
+  <div id="root"><div class="loading">Loading channels…</div></div>
+</div>
+
+<script>
+async function load() {
+  const res = await fetch('/api/channels');
+  const profiles = await res.json();
+  const root = document.getElementById('root');
+
+  if (!profiles.length) {
+    root.innerHTML = '<div class="empty">No channel profiles configured in configs/youtube_channels.toml</div>';
+    return;
+  }
+
+  root.innerHTML = profiles.map(p => card(p)).join('');
+}
+
+function card(p) {
+  const avatarHtml = p.profile_png_url
+    ? `<img class="avatar" src="${p.profile_png_url}" alt="avatar">`
+    : `<div class="avatar-placeholder">📺</div>`;
+
+  const enabledBadge = p.outro_enabled
+    ? `<span class="badge badge-on">outro on</span>`
+    : `<span class="badge badge-off">outro off</span>`;
+
+  const builtBadge = p.outro_built
+    ? `<span class="badge badge-built">✓ built · ${p.outro_size_kb}KB</span>`
+    : `<span class="badge badge-missing">✗ not built</span>`;
+
+  const ytUrl = p.channel_id
+    ? `<a href="https://www.youtube.com/channel/${p.channel_id}" target="_blank">${p.channel_id}</a>`
+    : `<span style="color:#374151">—</span>`;
+
+  const outroSection = p.outro_built
+    ? `<video class="outro-preview" src="${p.outro_url}" controls preload="metadata"></video>
+       <div class="outro-info">
+         <span>${p.outro_size_kb}KB · 20s · 30fps/48kHz</span>
+         <span>Rebuild: <code>pipeline outro build --profile ${p.name} --force</code></span>
+       </div>`
+    : `<div class="outro-missing">
+         No outro.mp4 yet — run:<br>
+         <code>pipeline outro build --profile ${p.name}</code>
+       </div>`;
+
+  return `
+    <div class="channel-card">
+      <div class="card-header">
+        ${avatarHtml}
+        <div>
+          <div class="channel-name">${p.display_name || p.name}</div>
+          <div class="channel-meta">
+            <span>${p.name}</span>
+            <span>${p.locale} · ${p.niche}</span>
+            ${enabledBadge}
+            ${builtBadge}
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="info-block">
+          <h3>Profile</h3>
+          <div class="info-row"><span class="lbl">Display name</span><span class="val">${p.display_name || '—'}</span></div>
+          <div class="info-row"><span class="lbl">Tagline</span><span class="val">${p.tagline || '—'}</span></div>
+          <div class="info-row"><span class="lbl">Locale</span><span class="val">${p.locale}</span></div>
+          <div class="info-row"><span class="lbl">Niche</span><span class="val">${p.niche}</span></div>
+          <div class="info-row"><span class="lbl">Channel ID</span><span class="val">${ytUrl}</span></div>
+        </div>
+        <div class="info-block">
+          <h3>Outro Config</h3>
+          <div class="info-row"><span class="lbl">outro_enabled</span><span class="val">${p.outro_enabled}</span></div>
+          <div class="info-row"><span class="lbl">Built</span><span class="val">${p.outro_built ? 'Yes' : 'No'}</span></div>
+          <div class="info-row"><span class="lbl">profile.png</span><span class="val">${p.profile_png_url ? '✓ present' : '✗ missing'}</span></div>
+        </div>
+        <div class="outro-block">
+          <h3>Outro Preview</h3>
+          ${outroSection}
+        </div>
+      </div>
+    </div>`;
+}
+
+load();
+</script>
+</body>
+</html>
