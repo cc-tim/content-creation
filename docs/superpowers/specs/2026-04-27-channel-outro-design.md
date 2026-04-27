@@ -86,7 +86,7 @@ pipeline outro build --profile ideal-parents-tw
 pipeline outro status
 ```
 
-`pipeline outro build` errors clearly if `profile.png` is missing — tells the operator exactly where to drop it.
+`pipeline outro build` auto-fetches `profile.png` from the YouTube Data API (`channels.list?part=snippet&id=<channel_id>` → `snippet.thumbnails.high.url`) if the file doesn't exist locally. If `channel_id` is blank in the TOML, falls back to asking the operator to drop the file manually.
 
 ## Publish Preflight Integration (`stage.py`)
 
@@ -117,7 +117,7 @@ if channel_config.outro_enabled:
 
 | Scenario | Behaviour |
 |---|---|
-| `profile.png` missing at build time | `pipeline outro build` exits with clear error: "Drop profile.png at configs/channels/<profile>/profile.png" |
+| `profile.png` missing at build time | Auto-fetched from YouTube API via `channel_id`; if `channel_id` blank, exits with clear error |
 | `outro.mp4` missing at publish time | Warning logged, upload continues without outro |
 | FFmpeg concat fails | `PreflightError` raised, upload blocked, error shown |
 | `outro_enabled` absent from TOML | Treated as `false`, outro silently skipped |
