@@ -97,7 +97,7 @@
 <div class="meta">
   Open from terminal: <code>xdg-open docs/workflows.html</code>
   &nbsp;·&nbsp;
-  Last updated: 2026-04-27
+  Last updated: 2026-04-28
   &nbsp;·&nbsp;
   Update this file as new components are added
 </div>
@@ -283,7 +283,7 @@ flowchart TD
     <tr>
       <td><span class="stage s-tts">TTS</span></td>
       <td>Voice registry</td><td><code>voices/registry.json</code></td><td>—</td>
-      <td><span class="badge b-stable">stable</span></td><td>Maps <code>--voice id</code> → engine + params</td>
+      <td><span class="badge b-stable">stable</span></td><td>Maps <code>--voice id</code> → engine + params; each entry has <code>meta</code> block (gender, pace, register, fits/avoid). Fish Audio voices: fetch metadata from <code>https://fish.audio/app/m/{reference_id}/</code></td>
     </tr>
     <tr>
       <td><span class="stage s-tts">TTS</span></td>
@@ -309,6 +309,17 @@ flowchart TD
       <td><span class="stage s-tts">TTS</span></td>
       <td>Cloned voice</td><td><code>voices/cloned/</code></td><td>TBD</td>
       <td><span class="badge b-planned">planned</span></td><td>Creator voice clone; not yet wired</td>
+    </tr>
+    <!-- TTS: Fish Audio cloned voice -->
+    <tr>
+      <td><span class="stage s-tts">TTS</span></td>
+      <td>Fish Audio cloned voice</td><td>Fish Audio API</td><td>~$0.015/1K chars</td>
+      <td><span class="badge b-new">new</span></td><td>Custom voice clone (e.g. <code>tim-zhtw-fish</code>); engine <code>fish_audio</code> in registry; reference_id links to model page</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-tts">TTS</span></td>
+      <td>Voice variant build</td><td><code>pipeline compose voice-variant</code></td><td>TTS cost only</td>
+      <td><span class="badge b-new">new</span></td><td>Forks a project with a different voice → <code>{parent_id}_{voice}/</code>; runs TTS+compose; P/D/K prompt at end. <code>promote-voice</code> copies audio back to parent + reburns (no re-render).</td>
     </tr>
     <!-- COMPOSE -->
     <tr>
