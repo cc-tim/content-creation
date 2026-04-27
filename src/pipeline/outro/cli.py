@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
+
+if TYPE_CHECKING:
+    from pipeline.publish.channels import ChannelConfig
 
 outro_app = typer.Typer(help="Manage per-channel outro clips.")
 
@@ -10,7 +14,7 @@ _CHANNELS_DIR = Path("configs/channels")
 _CHANNELS_TOML = Path("configs/youtube_channels.toml")
 
 
-def _load_config():
+def _load_config() -> "ChannelConfig":
     from pipeline.publish.channels import load_channel_config
 
     return load_channel_config(_CHANNELS_TOML)
@@ -45,9 +49,9 @@ def build(
         try:
             fetch_profile_png(channel_id=prof.channel_id, dest=profile_png)
             typer.echo("✓ Downloaded profile.png")
-        except (ValueError, EnvironmentError) as exc:
+        except (OSError, ValueError) as exc:
             typer.echo(f"Error: {exc}", err=True)
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from None
 
     typer.echo(f"Building outro for '{profile}' ({aspect_ratio})...")
     from pipeline.outro.builder import build_outro

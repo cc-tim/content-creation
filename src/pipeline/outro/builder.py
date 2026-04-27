@@ -138,7 +138,7 @@ def build_outro(
     )
 
     # Static hold: freeze last frame from 6s → 20s (14s padding)
-    hold = f"[v4]tpad=stop_mode=clone:stop_duration=14[vout]"
+    hold = "[v4]tpad=stop_mode=clone:stop_duration=14[vout]"
 
     video_fc = ";".join([bg, avatar, name, tagline_filter, pill, hold])
     audio_fc = ";".join(audio_fc_parts) + ";" + audio_mix
@@ -179,7 +179,7 @@ def fetch_profile_png(channel_id: str, dest: Path) -> None:
         )
     api_key = os.environ.get("YOUTUBE_API_KEY", "")
     if not api_key:
-        raise EnvironmentError(
+        raise OSError(
             "YOUTUBE_API_KEY not set — cannot auto-fetch profile.png. "
             "Drop it manually at: " + str(dest)
         )

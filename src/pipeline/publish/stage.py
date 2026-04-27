@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pipeline.publish.channels import ChannelConfig, ChannelProfile
@@ -80,7 +81,7 @@ def run_preflight(
             raise PreflightError(f"--schedule must be ISO8601: {exc}") from exc
         if when.tzinfo is None:
             raise PreflightError("--schedule must include timezone (e.g. +08:00)")
-        if when <= datetime.now(tz=timezone.utc):
+        if when <= datetime.now(tz=UTC):
             raise PreflightError(f"--schedule is in the past: {schedule_iso}")
 
     logger.info("publish.preflight.ok", project_id=ctx.project_id)
@@ -95,7 +96,7 @@ class PublishStage:
     """
 
     client_factory: Callable[[Any], Any]
-    channel_config: "ChannelConfig"
+    channel_config: ChannelConfig
     privacy: str = "private"
     schedule_iso: str | None = None
     force_metadata: bool = False
@@ -105,11 +106,13 @@ class PublishStage:
     def _attach_outro(
         self,
         ctx: PipelineContext,
-        profile: "ChannelProfile",
+        profile: ChannelProfile,
         channels_dir: Path | None = None,
     ) -> None:
-        """Concat outro.mp4 onto ctx.final_video_path when outro_enabled. Non-blocking on missing."""
+        """Concat outro.mp4 onto final_video_path when outro_enabled. Non-blocking on missing."""
         if not profile.outro_enabled:
+            return
+        if ctx.final_video_path is None:
             return
         base = channels_dir or Path("configs/channels")
         outro_path = base / profile.name / "outro.mp4"
@@ -177,11 +180,11 @@ class PublishStage:
             )
             raise
 
-        ctx.published_at = datetime.now(tz=timezone.utc).isoformat()
+        ctx.published_at = datetime.now(tz=UTC).isoformat()
         ctx.save()
         return ctx
 
-    def _build_upload_body(self, metadata: "Metadata") -> dict[str, Any]:
+    def _build_upload_body(self, metadata: Metadata) -> dict[str, Any]:
         body: dict[str, Any] = {
             "snippet": {
                 "title": metadata.title,
@@ -230,7 +233,7 @@ class PublishStage:
         ctx.save()
         logger.info("publish.thumbnail.complete", video_id=ctx.youtube_video_id)
 
-    def _phase_c_disclosure(self, client: Any, ctx: PipelineContext, metadata: "Metadata") -> None:
+    def _phase_c_disclosure(self, client: Any, ctx: PipelineContext, metadata: Metadata) -> None:
         if ctx.disclosure_set:
             return
         body = {
