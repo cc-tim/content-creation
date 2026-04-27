@@ -77,4 +77,10 @@ class VoiceRegistry:
             from pipeline.voices.prerecorded_engine import PrerecordedEngine
 
             return PrerecordedEngine(registry=self)
+        if profile.engine == "fish_audio":
+            from pipeline.config import PipelineConfig
+            from pipeline.voices.fish_audio_engine import FishAudioEngine
+
+            return FishAudioEngine(api_key=PipelineConfig().FISH_AUDIO_API_KEY)
+        # TODO: elevenlabs engine
         raise VoiceNotFound(f"unknown engine '{profile.engine}' for voice {profile.id}")

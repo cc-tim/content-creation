@@ -12,6 +12,7 @@ class PipelineConfig(BaseSettings):
     OPENAI_API_KEY: str = ""   # used only for OpenAI TTS; image gen uses gen-image.py
     YOUTUBE_API_KEY: str = ""
     GOOGLE_CLOUD_TTS_KEY: str = ""
+    FISH_AUDIO_API_KEY: str = ""
     PEXELS_API_KEY: str | None = Field(
         default=None,
         validation_alias=AliasChoices("PEXELS_API_KEY", "PIPELINE_PEXELS_API_KEY"),
