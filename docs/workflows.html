@@ -97,7 +97,7 @@
 <div class="meta">
   Open from terminal: <code>xdg-open docs/workflows.html</code>
   &nbsp;·&nbsp;
-  Last updated: 2026-04-25
+  Last updated: 2026-04-27
   &nbsp;·&nbsp;
   Update this file as new components are added
 </div>
@@ -191,10 +191,11 @@ flowchart TD
 
   subgraph PUB["⑥ PUBLISH  (explicit — never auto)"]
     direction LR
+    P0["Outro attach\nffmpeg concat\n(pre-preflight)"]
     P1["Phase A\nvideos.insert\n→ youtube_video_id"]
     P2["Phase B\nthumbnails.set"]
     P3["Phase C\nsynthetic disclosure"]
-    P1 ~~~ P2 ~~~ P3
+    P0 ~~~ P1 ~~~ P2 ~~~ P3
   end
 
   OUTPUT(["✅ compose/final_zh-TW.mp4"])
@@ -326,6 +327,11 @@ flowchart TD
       <td><span class="badge b-stable">stable</span></td><td>Enabled via <code>--subtitles</code></td>
     </tr>
     <!-- PUBLISH -->
+    <tr>
+      <td><span class="stage s-publish">PUBLISH</span></td>
+      <td>Channel outro attach</td><td>FFmpeg concat demux</td><td>free</td>
+      <td><span class="badge b-stable">stable</span></td><td>Pre-preflight; appends <code>configs/channels/&lt;profile&gt;/outro.mp4</code> when <code>outro_enabled=true</code>; non-blocking if missing. Build: <code>pipeline outro build --profile X</code></td>
+    </tr>
     <tr>
       <td><span class="stage s-publish">PUBLISH</span></td>
       <td>Video upload (resumable)</td><td>YouTube Data API v3</td><td>free (quota)</td>
