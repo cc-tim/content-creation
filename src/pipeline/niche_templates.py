@@ -38,7 +38,7 @@ def load_niche_template(niche: str) -> NicheTemplate | None:
 
 def save_niche_template(template: NicheTemplate) -> None:
     """Append or update *template* in the TOML file."""
-    existing: dict = {}
+    existing: dict[str, dict[str, str]] = {}
     if TEMPLATES_PATH.exists():
         with open(TEMPLATES_PATH, "rb") as f:
             existing = tomllib.load(f)
@@ -55,7 +55,7 @@ def save_niche_template(template: NicheTemplate) -> None:
     TEMPLATES_PATH.write_text(_to_toml(existing), encoding="utf-8")
 
 
-def _to_toml(data: dict) -> str:
+def _to_toml(data: dict[str, dict[str, str]]) -> str:
     """Simple TOML serializer for flat string-value sections."""
     lines: list[str] = []
     for section, fields in data.items():
