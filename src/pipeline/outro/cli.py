@@ -20,6 +20,26 @@ def _load_config() -> "ChannelConfig":
     return load_channel_config(_CHANNELS_TOML)
 
 
+def _fetch_profile_png_via_oauth(channel_id: str, dest: Path, profile_name: str) -> None:
+    """Fetch channel avatar using stored OAuth token for the profile."""
+    from pipeline.publish.auth import DEFAULT_CONFIG_DIR, load_credentials, token_path_for
+    from pipeline.publish.client import YouTubeClient
+
+    token_path = token_path_for(profile_name, base=DEFAULT_CONFIG_DIR)
+    creds = load_credentials(token_path)
+    client = YouTubeClient.from_credentials(credentials=creds)
+    items = client.channels_list_mine(part="snippet")
+    if not items:
+        raise RuntimeError("No channel returned from YouTube API")
+    thumb_url = items[0]["snippet"]["thumbnails"]["high"]["url"]
+    import httpx
+
+    resp = httpx.get(thumb_url, timeout=30)
+    resp.raise_for_status()
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(resp.content)
+
+
 @outro_app.command("build")
 def build(
     profile: str = typer.Option(..., "--profile", help="Profile name from youtube_channels.toml"),
@@ -43,14 +63,13 @@ def build(
         raise typer.Exit()
 
     if not profile_png.exists():
-        typer.echo(f"profile.png not found at {profile_png} — fetching from YouTube API...")
-        from pipeline.outro.builder import fetch_profile_png
-
+        typer.echo(f"profile.png not found at {profile_png} — fetching via OAuth credentials...")
         try:
-            fetch_profile_png(channel_id=prof.channel_id, dest=profile_png)
+            _fetch_profile_png_via_oauth(prof.channel_id, profile_png, profile)
             typer.echo("✓ Downloaded profile.png")
-        except (OSError, ValueError) as exc:
-            typer.echo(f"Error: {exc}", err=True)
+        except Exception as exc:
+            typer.echo(f"Error fetching profile.png: {exc}", err=True)
+            typer.echo(f"Drop it manually at: {profile_png}", err=True)
             raise typer.Exit(code=1) from None
 
     typer.echo(f"Building outro for '{profile}' ({aspect_ratio})...")
