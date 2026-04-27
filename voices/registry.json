@@ -7,7 +7,17 @@
       "params": {
         "voice": "zh-TW-HsiaoChenNeural"
       },
-      "display_name": "HsiaoChen (edge, default)"
+      "display_name": "HsiaoChen (edge, default)",
+      "meta": {
+        "gender": "female",
+        "age": "young-adult",
+        "pace": "medium",
+        "register": "warm",
+        "emotional_range": "medium",
+        "fits": ["parenting", "emotional", "educational", "storytelling", "narrative", "psychology"],
+        "avoid": ["crime", "suspense"],
+        "notes": "Default zh-TW voice. Warm and clear — reads as trusted guide. Best all-rounder for knowledge/parenting content."
+      }
     },
     {
       "id": "zh-TW-default-m",
@@ -16,7 +26,36 @@
       "params": {
         "voice": "zh-TW-YunJheNeural"
       },
-      "display_name": "YunJhe (edge)"
+      "display_name": "YunJhe (edge)",
+      "meta": {
+        "gender": "male",
+        "age": "young-adult",
+        "pace": "medium",
+        "register": "neutral",
+        "emotional_range": "low",
+        "fits": ["factual", "news", "educational", "explainer"],
+        "avoid": ["parenting", "emotional", "psychology", "warmth-required"],
+        "notes": "Neutral and businesslike. Works for factual/news explainer but lacks warmth for content requiring emotional closeness."
+      }
+    },
+    {
+      "id": "zh-TW-default-f2",
+      "engine": "edge",
+      "locale": "zh-TW",
+      "params": {
+        "voice": "zh-TW-HsiaoYuNeural"
+      },
+      "display_name": "HsiaoYu (edge)",
+      "meta": {
+        "gender": "female",
+        "age": "young-adult",
+        "pace": "medium",
+        "register": "neutral",
+        "emotional_range": "low-medium",
+        "fits": ["educational", "factual", "explainer"],
+        "avoid": ["high-emotional", "parenting-intimate"],
+        "notes": "Second female zh-TW voice. Cleaner and more formal than HsiaoChen — better for news/explainer, less suited for emotionally warm content."
+      }
     },
     {
       "id": "ja-default-f",
@@ -25,14 +64,36 @@
       "params": {
         "voice": "ja-JP-NanamiNeural"
       },
-      "display_name": "Nanami (edge, default)"
+      "display_name": "Nanami (edge, default)",
+      "meta": {
+        "gender": "female",
+        "age": "young-adult",
+        "pace": "medium",
+        "register": "warm",
+        "emotional_range": "medium",
+        "fits": ["educational", "storytelling", "emotional", "narrative", "documentary"],
+        "avoid": ["crime-heavy"],
+        "notes": "Default ja voice. Warm and clear — works well for psychological and human-interest content."
+      }
     },
     {
       "id": "ja-default-m",
       "engine": "edge",
       "locale": "ja",
-      "params": {"voice": "ja-JP-KeitaNeural"},
-      "display_name": "Keita (edge)"
+      "params": {
+        "voice": "ja-JP-KeitaNeural"
+      },
+      "display_name": "Keita (edge)",
+      "meta": {
+        "gender": "male",
+        "age": "young-adult",
+        "pace": "medium",
+        "register": "neutral",
+        "emotional_range": "low",
+        "fits": ["factual", "news", "explainer", "documentary"],
+        "avoid": ["emotional", "parenting", "psychology"],
+        "notes": "Crisp and neutral. Good for dry factual narration; not suited for content that requires emotional resonance."
+      }
     },
     {
       "id": "es-MX-default-f",
@@ -41,7 +102,17 @@
       "params": {
         "voice": "es-MX-DaliaNeural"
       },
-      "display_name": "Dalia (edge, default)"
+      "display_name": "Dalia (edge, default)",
+      "meta": {
+        "gender": "female",
+        "age": "young-adult",
+        "pace": "medium-fast",
+        "register": "warm",
+        "emotional_range": "medium-high",
+        "fits": ["storytelling", "emotional", "educational", "narrative", "parenting"],
+        "avoid": [],
+        "notes": "Default es-MX voice. Energetic and warm — best all-rounder for LatAm content. Handles both suspense and warmth well."
+      }
     },
     {
       "id": "en-US-jenny",
@@ -50,7 +121,38 @@
       "params": {
         "voice": "en-US-JennyNeural"
       },
-      "display_name": "Jenny (edge, calm)"
+      "display_name": "Jenny (edge, calm)",
+      "meta": {
+        "gender": "female",
+        "age": "young-adult",
+        "pace": "medium",
+        "register": "warm-neutral",
+        "emotional_range": "medium",
+        "fits": ["educational", "storytelling", "conversational", "explainer"],
+        "avoid": ["suspense", "crime"],
+        "notes": "Conversational and calm. Designed for customer-service style delivery — adapts well to narrative but not dramatic."
+      }
+    },
+    {
+      "id": "tim-zhtw-fish",
+      "engine": "fish_audio",
+      "locale": "zh-TW",
+      "params": {
+        "reference_id": "f0b970ec3a6748569f514e835eb7e4a1"
+      },
+      "display_name": "Tim (Fish Audio, custom)",
+      "meta": {
+        "gender": "male",
+        "age": "middle-aged",
+        "pace": "fast",
+        "register": "warm-neutral",
+        "emotional_range": "low",
+        "template_duration_sec": 60,
+        "source_tags": ["Male", "Middle Aged", "Narration", "Educational", "Medium", "Clear", "Calm", "Measured", "Professional", "Confident", "Smooth", "Neutral Tone", "Expressive", "Storytelling", "Narrative", "Conversational", "Warm"],
+        "fits": ["educational", "factual", "narrative", "explainer", "crime-documentary"],
+        "avoid": ["parenting-warmth", "high-emotional", "psychology-intimate"],
+        "notes": "Short 60s template constrains emotional range — voice sounds flat despite 'Expressive/Warm' tags on FishAudio. Re-record with 3-5min varied reference (calm narration + tense + reflective passages) to unlock full potential. Natural pace ~17% faster than edge-tts on same text."
+      }
     }
   ]
 }
