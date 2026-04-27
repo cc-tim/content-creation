@@ -45,6 +45,7 @@ def build(
     aspect_ratio: str = typer.Option("16:9", "--aspect-ratio", help="16:9 or 9:16"),
     fps: int = typer.Option(30, "--fps", help="Frame rate — must match main video"),
     sample_rate: int = typer.Option(48000, "--sample-rate", help="Audio sample rate Hz"),
+    music: str | None = typer.Option(None, "--music", help="Path to audio file (mp3/wav/m4a)"),
     force: bool = typer.Option(False, "--force", help="Rebuild even if outro.mp4 already exists"),
 ) -> None:
     """Build (or rebuild) the outro clip for a channel profile."""
@@ -76,6 +77,22 @@ def build(
     typer.echo(f"Building outro for '{profile}' ({aspect_ratio})...")
     from pipeline.outro.builder import build_outro
 
+    # Resolve music: explicit --music flag > auto-discover outro_music.* in channel dir > None
+    if music:
+        music_path = Path(music)
+        if not music_path.exists():
+            typer.echo(f"Error: music file not found: {music_path}", err=True)
+            raise typer.Exit(code=1)
+    else:
+        discovered = next(
+            (channel_dir / f for f in ["outro_music.mp3", "outro_music.wav", "outro_music.m4a"]
+             if (channel_dir / f).exists()),
+            None,
+        )
+        music_path = discovered
+        if music_path:
+            typer.echo(f"Using music: {music_path.name}")
+
     build_outro(
         profile=prof,
         profile_png_path=profile_png,
@@ -83,6 +100,7 @@ def build(
         aspect_ratio=aspect_ratio,
         fps=fps,
         sample_rate=sample_rate,
+        music_path=music_path,
     )
     typer.echo(f"✓ outro.mp4 written to {output}")
 

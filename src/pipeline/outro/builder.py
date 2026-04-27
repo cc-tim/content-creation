@@ -30,6 +30,7 @@ def build_outro(
     aspect_ratio: str = "16:9",
     fps: int = 30,
     sample_rate: int = 48000,
+    music_path: Path | None = None,
 ) -> None:
     """Render a 20s outro clip. fps/sample_rate must match main video for concat compatibility."""
     if aspect_ratio == "9:16":
@@ -57,39 +58,55 @@ def build_outro(
     _make_circle_png(profile_png_path, av, circle_png)
 
     # ------------------------------------------------------------------ #
-    # Audio: 4-note C major arpeggio ident                                #
-    # C4=262Hz E4=330Hz G4=392Hz C5=523Hz, starting at 0/1/2.5/4 s       #
+    # Audio                                                               #
     # ------------------------------------------------------------------ #
-    notes = [
-        (262, 0.0),
-        (330, 1.0),
-        (392, 2.5),
-        (523, 4.0),
-    ]
-    # Each sine source is injected as a lavfi input (-f lavfi -i "sine=...")
-    audio_input_args: list[str] = []
-    for freq, _ in notes:
-        audio_input_args.extend(["-f", "lavfi", "-i", f"sine=frequency={freq}:duration=20"])
-
-    # Sine inputs start at index 1 (0=circle_png, 1..4=sines)
-    audio_fc_parts = []
-    for i, (_, start_s) in enumerate(notes):
-        delay_ms = int(start_s * 1000)
-        audio_fc_parts.append(
-            f"[{1 + i}:a]"
-            f"atrim=start={start_s}:end={start_s + 0.8},"
+    if music_path is not None:
+        # Custom music file: pad to 20s, fade in/out, resample + mixdown to mono
+        audio_input_args = ["-i", str(music_path)]
+        # Input 1 = music file; fade out at 14s so it's silent before clip end
+        audio_mix = (
+            f"[1:a]"
+            f"apad=whole_dur=20,"
+            f"atrim=end=20,"
             f"asetpts=PTS-STARTPTS,"
-            f"afade=in:st=0:d=0.1,"
-            f"afade=out:st=0.7:d=0.1,"
-            f"adelay={delay_ms}|{delay_ms}[a{i}]"
+            f"afade=in:st=0:d=0.5,"
+            f"afade=out:st=14:d=1.5,"
+            f"volume=-14dB,"
+            f"aresample={sample_rate},"
+            f"pan=mono|c0=0.5*FL+0.5*FR"
+            f"[aout]"
         )
-    note_labels = "".join(f"[a{i}]" for i in range(len(notes)))
-    audio_mix = (
-        f"{note_labels}amix=inputs={len(notes)}:normalize=0,"
-        f"volume=-18dB,"
-        f"afade=out:st=5.5:d=0.5,"
-        f"apad=whole_dur=20[aout]"
-    )
+        audio_fc_parts: list[str] = []
+    else:
+        # Fallback: 4-note C major arpeggio via sine generators
+        notes = [
+            (262, 0.0),   # C4
+            (330, 1.0),   # E4
+            (392, 2.5),   # G4
+            (523, 4.0),   # C5
+        ]
+        audio_input_args = []
+        for freq, _ in notes:
+            audio_input_args.extend(["-f", "lavfi", "-i", f"sine=frequency={freq}:duration=20"])
+
+        audio_fc_parts = []
+        for i, (_, start_s) in enumerate(notes):
+            delay_ms = int(start_s * 1000)
+            audio_fc_parts.append(
+                f"[{1 + i}:a]"
+                f"atrim=start={start_s}:end={start_s + 0.8},"
+                f"asetpts=PTS-STARTPTS,"
+                f"afade=in:st=0:d=0.1,"
+                f"afade=out:st=0.7:d=0.1,"
+                f"adelay={delay_ms}|{delay_ms}[a{i}]"
+            )
+        note_labels = "".join(f"[a{i}]" for i in range(len(notes)))
+        audio_mix = (
+            f"{note_labels}amix=inputs={len(notes)}:normalize=0,"
+            f"volume=-18dB,"
+            f"afade=out:st=5.5:d=0.5,"
+            f"apad=whole_dur=20[aout]"
+        )
 
     # ------------------------------------------------------------------ #
     # Video filter complex                                                 #
@@ -154,7 +171,7 @@ def build_outro(
     hold = "[v4]tpad=stop_mode=clone:stop_duration=14[vout]"
 
     video_fc = ";".join([bg, avatar, name, tagline_filter, pill, hold])
-    audio_fc = ";".join(audio_fc_parts) + ";" + audio_mix
+    audio_fc = (";".join(audio_fc_parts) + ";" if audio_fc_parts else "") + audio_mix
     filter_complex = video_fc + ";" + audio_fc
 
     cmd = [
