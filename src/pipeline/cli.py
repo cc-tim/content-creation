@@ -8,6 +8,7 @@ import structlog
 import typer
 
 from pipeline.cli_compose import compose_app
+from pipeline.outro.cli import outro_app
 from pipeline.cli_metadata import metadata_app
 from pipeline.cli_proofread import proofread_app
 from pipeline.cli_storyboard import storyboard_app
@@ -37,6 +38,7 @@ app.add_typer(gallery_app, name="gallery")
 app.add_typer(proofread_app, name="proofread")
 app.add_typer(storytell_app, name="storytell")
 app.add_typer(compose_app, name="compose")
+app.add_typer(outro_app, name="outro")
 
 
 def _channel_config_path() -> Path:
