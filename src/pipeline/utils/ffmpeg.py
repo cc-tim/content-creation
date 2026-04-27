@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from pathlib import Path
 
 
 def check_ffmpeg_available() -> bool:
@@ -75,6 +76,19 @@ def build_concat_cmd(
         "copy",
         output_path,
     ]
+
+
+def ffmpeg_concat(inputs: list[Path], output: Path) -> None:
+    """Stream-copy concatenate video files using the concat demuxer (no re-encode)."""
+    list_file = output.parent / f"_concat_{output.stem}.txt"
+    list_file.write_text(
+        "\n".join(f"file '{p.resolve()}'" for p in inputs),
+        encoding="utf-8",
+    )
+    try:
+        run_ffmpeg(build_concat_cmd(str(list_file), str(output)))
+    finally:
+        list_file.unlink(missing_ok=True)
 
 
 def run_ffmpeg(cmd: list[str], timeout: int = 600) -> subprocess.CompletedProcess[str]:

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
-    from pipeline.publish.channels import ChannelConfig
+    from pipeline.publish.channels import ChannelConfig, ChannelProfile
     from pipeline.publish.metadata import Metadata
 
 import structlog
@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from pipeline.publish.metadata import load_metadata
 from pipeline.stages.base import PipelineContext
+from pipeline.utils.ffmpeg import ffmpeg_concat
 
 logger = structlog.get_logger()
 
@@ -101,6 +102,27 @@ class PublishStage:
     force_thumbnail: bool = False
     dry_run: bool = False
 
+    def _attach_outro(
+        self,
+        ctx: PipelineContext,
+        profile: "ChannelProfile",
+        channels_dir: Path | None = None,
+    ) -> None:
+        """Concat outro.mp4 onto ctx.final_video_path when outro_enabled. Non-blocking on missing."""
+        if not profile.outro_enabled:
+            return
+        base = channels_dir or Path("configs/channels")
+        outro_path = base / profile.name / "outro.mp4"
+        if not outro_path.exists():
+            logger.warning("publish.outro_missing", expected=str(outro_path))
+            return
+        out = ctx.work_dir / "compose" / "final_with_outro.mp4"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        ffmpeg_concat([ctx.final_video_path, outro_path], out)
+        ctx.final_video_path = out
+        ctx.save()
+        logger.info("publish.outro_attached", outro=str(outro_path))
+
     def publish(
         self,
         ctx: PipelineContext,
@@ -111,8 +133,7 @@ class PublishStage:
         from pipeline.notify.telegram import notify_failure
         from pipeline.publish.channels import resolve_profile
 
-        run_preflight(ctx=ctx, privacy=self.privacy, schedule_iso=self.schedule_iso)
-
+        # Resolve profile first — needed for outro attachment before preflight validation
         profile = resolve_profile(
             self.channel_config,
             niche=ctx.niche,
@@ -125,6 +146,11 @@ class PublishStage:
             profile=profile.name,
             channel_id=profile.channel_id,
         )
+
+        # Attach outro before preflight so preflight validates the merged file
+        self._attach_outro(ctx, profile)
+
+        run_preflight(ctx=ctx, privacy=self.privacy, schedule_iso=self.schedule_iso)
 
         metadata = load_metadata(ctx.work_dir / "metadata.json")
         upload_body = self._build_upload_body(metadata)
