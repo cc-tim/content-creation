@@ -57,6 +57,10 @@ class PipelineContext:
     source_locale: str | None = None
     reference_storyboard_path: Path | None = None
 
+    # Voice variant tracking (set when this project is a voice fork of another)
+    parent_project_id: int | None = None
+    variant_label: str | None = None
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize to JSON-safe dict. Converts Path to str."""
         data: dict[str, Any] = {}
