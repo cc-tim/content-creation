@@ -12,7 +12,7 @@ class ProjectConstraints:
     duration_min_minutes: float | None = None
     duration_max_minutes: float | None = None
     max_source_clip_pct: float = 0.60
-    source_suitability: str = ""  # "high" | "medium" | "low" | ""
+    source_suitability: str = ""  # set by StyleAnchorExtractor; read by DirectStage
     notes: str = ""
 
     @classmethod
@@ -29,7 +29,7 @@ class ProjectConstraints:
         path.write_text(json.dumps(asdict(self), indent=2, ensure_ascii=False), encoding="utf-8")
 
     def clip_budget_instruction(self, scene_count: int) -> str:
-        max_clips = int(scene_count * self.max_source_clip_pct)
+        max_clips = max(1, int(scene_count * self.max_source_clip_pct))
         pct = int(self.max_source_clip_pct * 100)
         return (
             f"VISUAL BUDGET: At most {max_clips} of {scene_count} scenes may use type "
@@ -43,7 +43,7 @@ class ProjectConstraints:
             1 for s in scenes
             if (s.get("visual") or {}).get("type") in source_types
         )
-        max_clips = int(len(scenes) * self.max_source_clip_pct)
+        max_clips = max(1, int(len(scenes) * self.max_source_clip_pct))
         if clip_count > max_clips:
             return [
                 f"Clip budget: {clip_count}/{len(scenes)} scenes use source clips "
