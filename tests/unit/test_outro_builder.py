@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pipeline.outro.builder import build_outro
+from pipeline.outro.builder import build_outro, fetch_profile_png
 from pipeline.publish.channels import ChannelProfile
 
 
@@ -123,3 +123,46 @@ def test_build_outro_output_codec(tmp_path: Path) -> None:
     cmd = mock_run.call_args[0][0]
     assert "libx264" in cmd
     assert "aac" in cmd
+
+
+# ---------------------------------------------------------------------------
+# fetch_profile_png
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_profile_png_downloads_when_missing(tmp_path: Path) -> None:
+    dest = tmp_path / "profile.png"
+
+    api_resp = MagicMock()
+    api_resp.raise_for_status = MagicMock()
+    api_resp.json.return_value = {
+        "items": [
+            {"snippet": {"thumbnails": {"high": {"url": "https://example.com/img.jpg"}}}}
+        ]
+    }
+    img_resp = MagicMock()
+    img_resp.raise_for_status = MagicMock()
+    img_resp.content = b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
+
+    with patch("pipeline.outro.builder.httpx.get", side_effect=[api_resp, img_resp]):
+        with patch.dict("os.environ", {"YOUTUBE_API_KEY": "fake-key"}):
+            fetch_profile_png(channel_id="UC123", dest=dest)
+
+    assert dest.exists()
+    assert dest.read_bytes() == img_resp.content
+
+
+def test_fetch_profile_png_skips_when_exists(tmp_path: Path) -> None:
+    dest = tmp_path / "profile.png"
+    dest.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 50)
+
+    with patch("pipeline.outro.builder.httpx.get") as mock_get:
+        fetch_profile_png(channel_id="UC123", dest=dest)
+
+    mock_get.assert_not_called()
+
+
+def test_fetch_profile_png_raises_when_no_channel_id(tmp_path: Path) -> None:
+    dest = tmp_path / "profile.png"
+    with pytest.raises(ValueError, match="channel_id"):
+        fetch_profile_png(channel_id="", dest=dest)
