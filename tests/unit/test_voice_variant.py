@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+from typer.testing import CliRunner
 
+from pipeline.cli_compose import compose_app
 from pipeline.stages.base import PipelineContext
 
 
@@ -44,3 +48,138 @@ def test_from_dict_ignores_missing_variant_fields(tmp_path):
     loaded = PipelineContext.from_dict(d)
     assert loaded.parent_project_id is None
     assert loaded.variant_label is None
+
+
+def _make_parent_project(tmp_path: Path) -> Path:
+    """Minimal fully-built parent project directory."""
+    work_dir = tmp_path / "projects" / "1776997800"
+    (work_dir / "audio").mkdir(parents=True)
+    (work_dir / "compose" / "scenes").mkdir(parents=True)
+    (work_dir / "script").mkdir(parents=True)
+
+    (work_dir / "storyboard.json").write_text(
+        '{"scenes": [], "aspect_ratio": "16:9", "theme": {}}'
+    )
+    (work_dir / "knowledge.json").write_text("{}")
+    (work_dir / "script" / "script_zh-TW.md").write_text("narration")
+    (work_dir / "metadata.json").write_text("{}")
+    (work_dir / "thumbnail.png").write_bytes(b"png")
+
+    srt = work_dir / "audio" / "subs.srt"
+    srt.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n")
+
+    ctx = PipelineContext(
+        project_id=1776997800,
+        source_url="https://youtube.com/watch?v=abc",
+        locale="zh-TW",
+        work_dir=work_dir,
+        niche="parenting",
+        storyboard_path=work_dir / "storyboard.json",
+        script_path=work_dir / "script" / "script_zh-TW.md",
+        knowledge_path=work_dir / "knowledge.json",
+        subtitle_path=srt,
+        preferred_variant="subtitles_no_overlay",
+        segment_timings=[{"path": str(work_dir / "audio" / "s1.wav"),
+                          "text": "Hello", "start_ms": 0, "duration_ms": 1000}],
+    )
+    ctx.save()
+    return work_dir
+
+
+def test_voice_variant_creates_dir_structure(tmp_path):
+    """voice-variant creates {parent}_{voice} directory with copied assets."""
+    parent_dir = _make_parent_project(tmp_path)
+    variant_dir = tmp_path / "projects" / "1776997800_tim-zhtw-fish"
+
+    runner = CliRunner()
+    with (
+        patch("pipeline.cli_compose._resolve_projects_dir", return_value=tmp_path / "projects"),
+        patch("pipeline.cli_compose.asyncio.run"),  # skip TTS+compose
+    ):
+        result = runner.invoke(compose_app, [
+            "voice-variant",
+            "--from-project", "1776997800",
+            "--voice", "tim-zhtw-fish",
+        ])
+
+    assert result.exit_code == 0, result.output
+    assert (variant_dir / "storyboard.json").exists()
+    assert (variant_dir / "knowledge.json").exists()
+    assert (variant_dir / "script" / "script_zh-TW.md").exists()
+    assert (variant_dir / "metadata.json").exists()
+    assert (variant_dir / "thumbnail.png").exists()
+
+
+def test_voice_variant_context_json(tmp_path):
+    """voice-variant writes correct context.json overrides."""
+    parent_dir = _make_parent_project(tmp_path)
+    variant_dir = tmp_path / "projects" / "1776997800_tim-zhtw-fish"
+
+    runner = CliRunner()
+    with (
+        patch("pipeline.cli_compose._resolve_projects_dir", return_value=tmp_path / "projects"),
+        patch("pipeline.cli_compose.asyncio.run"),
+    ):
+        runner.invoke(compose_app, [
+            "voice-variant",
+            "--from-project", "1776997800",
+            "--voice", "tim-zhtw-fish",
+        ])
+
+    ctx = PipelineContext.load(variant_dir / "context.json")
+    assert ctx.voice_id == "tim-zhtw-fish"
+    assert ctx.parent_project_id == 1776997800
+    assert ctx.variant_label == "tim-zhtw-fish"
+    assert ctx.segment_timings is None
+    assert ctx.subtitle_path is None
+    assert ctx.narration_path is None
+    assert ctx.final_video_path is None
+    assert ctx.youtube_video_id is None
+    # storyboard/script/knowledge point INSIDE the variant dir
+    assert ctx.storyboard_path is not None
+    assert str(ctx.storyboard_path).startswith(str(variant_dir))
+    assert ctx.script_path is not None
+    assert str(ctx.script_path).startswith(str(variant_dir))
+
+
+def test_voice_variant_errors_if_exists(tmp_path):
+    """voice-variant exits with error if variant dir already exists."""
+    parent_dir = _make_parent_project(tmp_path)
+    variant_dir = tmp_path / "projects" / "1776997800_tim-zhtw-fish"
+    variant_dir.mkdir(parents=True)
+
+    runner = CliRunner()
+    with patch("pipeline.cli_compose._resolve_projects_dir", return_value=tmp_path / "projects"):
+        result = runner.invoke(compose_app, [
+            "voice-variant",
+            "--from-project", "1776997800",
+            "--voice", "tim-zhtw-fish",
+        ])
+
+    assert result.exit_code != 0
+    assert "already exists" in result.output
+
+
+def test_voice_variant_force_overwrites(tmp_path):
+    """voice-variant --force removes existing variant dir before creating."""
+    parent_dir = _make_parent_project(tmp_path)
+    variant_dir = tmp_path / "projects" / "1776997800_tim-zhtw-fish"
+    variant_dir.mkdir(parents=True)
+    stale = variant_dir / "stale.txt"
+    stale.write_text("stale")
+
+    runner = CliRunner()
+    with (
+        patch("pipeline.cli_compose._resolve_projects_dir", return_value=tmp_path / "projects"),
+        patch("pipeline.cli_compose.asyncio.run"),
+    ):
+        result = runner.invoke(compose_app, [
+            "voice-variant",
+            "--from-project", "1776997800",
+            "--voice", "tim-zhtw-fish",
+            "--force",
+        ])
+
+    assert result.exit_code == 0, result.output
+    assert not stale.exists()
+    assert (variant_dir / "storyboard.json").exists()
