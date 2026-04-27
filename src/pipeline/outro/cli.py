@@ -43,6 +43,8 @@ def _fetch_profile_png_via_oauth(channel_id: str, dest: Path, profile_name: str)
 def build(
     profile: str = typer.Option(..., "--profile", help="Profile name from youtube_channels.toml"),
     aspect_ratio: str = typer.Option("16:9", "--aspect-ratio", help="16:9 or 9:16"),
+    fps: int = typer.Option(30, "--fps", help="Frame rate — must match main video"),
+    sample_rate: int = typer.Option(48000, "--sample-rate", help="Audio sample rate Hz"),
     force: bool = typer.Option(False, "--force", help="Rebuild even if outro.mp4 already exists"),
 ) -> None:
     """Build (or rebuild) the outro clip for a channel profile."""
@@ -79,6 +81,8 @@ def build(
         profile_png_path=profile_png,
         output_path=output,
         aspect_ratio=aspect_ratio,
+        fps=fps,
+        sample_rate=sample_rate,
     )
     typer.echo(f"✓ outro.mp4 written to {output}")
 

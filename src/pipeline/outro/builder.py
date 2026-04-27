@@ -17,8 +17,10 @@ def build_outro(
     profile_png_path: Path,
     output_path: Path,
     aspect_ratio: str = "16:9",
+    fps: int = 30,
+    sample_rate: int = 48000,
 ) -> None:
-    """Render a 20s outro clip. Raises subprocess.CalledProcessError on FFmpeg failure."""
+    """Render a 20s outro clip. fps/sample_rate must match main video for concat compatibility."""
     if aspect_ratio == "9:16":
         w, h = 1080, 1920
     else:
@@ -147,7 +149,7 @@ def build_outro(
     cmd = [
         "ffmpeg", "-y",
         # Input 0: background colour source (used by geq)
-        "-f", "lavfi", "-i", f"color=c=#fff8f0:s={w}x{h}:d=20",
+        "-f", "lavfi", "-i", f"color=c=#fff8f0:s={w}x{h}:d=20:rate={fps}",
         # Input 1: profile image
         "-i", str(profile_png_path),
         # Inputs 2+: sine audio sources
@@ -155,8 +157,8 @@ def build_outro(
         "-filter_complex", filter_complex,
         "-map", "[vout]",
         "-map", "[aout]",
-        "-c:v", "libx264", "-crf", "18", "-preset", "fast",
-        "-c:a", "aac", "-b:a", "128k",
+        "-c:v", "libx264", "-crf", "18", "-preset", "fast", "-r", str(fps),
+        "-c:a", "aac", "-b:a", "128k", "-ar", str(sample_rate),
         "-pix_fmt", "yuv420p",
         "-movflags", "+faststart",
         "-t", "20",
