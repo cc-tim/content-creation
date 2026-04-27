@@ -23,6 +23,7 @@ dependencies = [
     "openai>=2.30.0",
     "google-genai>=0.3.0",
     "pillow>=12.2.0",
+    "imagehash>=4.3",
     "selectolax>=0.3.21",
     "pyyaml>=6.0",
 ]

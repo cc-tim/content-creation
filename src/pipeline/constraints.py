@@ -11,6 +11,8 @@ _FILENAME = "constraints.json"
 class ProjectConstraints:
     duration_min_minutes: float | None = None
     duration_max_minutes: float | None = None
+    max_source_clip_pct: float = 0.60
+    source_suitability: str = ""  # "high" | "medium" | "low" | ""
     notes: str = ""
 
     @classmethod
@@ -25,6 +27,29 @@ class ProjectConstraints:
     def save(self, work_dir: Path) -> None:
         path = work_dir / _FILENAME
         path.write_text(json.dumps(asdict(self), indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def clip_budget_instruction(self, scene_count: int) -> str:
+        max_clips = int(scene_count * self.max_source_clip_pct)
+        pct = int(self.max_source_clip_pct * 100)
+        return (
+            f"VISUAL BUDGET: At most {max_clips} of {scene_count} scenes may use type "
+            f"'clip' or 'still_frame' from source ({pct}% soft limit). "
+            f"Prefer generated_image for explanation, analysis, and concept scenes."
+        )
+
+    def check_clip_budget(self, scenes: list[dict]) -> list[str]:
+        source_types = {"clip", "still_frame"}
+        clip_count = sum(
+            1 for s in scenes
+            if (s.get("visual") or {}).get("type") in source_types
+        )
+        max_clips = int(len(scenes) * self.max_source_clip_pct)
+        if clip_count > max_clips:
+            return [
+                f"Clip budget: {clip_count}/{len(scenes)} scenes use source clips "
+                f"(soft limit: {max_clips})"
+            ]
+        return []
 
     def format_reminder(self) -> str:
         lines = ["PROJECT CONSTRAINTS (set at initial produce — must be preserved):"]
