@@ -17,6 +17,11 @@ def _cache_key(prompt: str) -> str:
     return hashlib.md5(prompt.encode()).hexdigest()[:12]
 
 
+def _cache_key_with_seed(prompt: str, seed: int | None) -> str:
+    raw = f"{prompt}|{seed}" if seed is not None else prompt
+    return hashlib.md5(raw.encode()).hexdigest()[:12]
+
+
 def _size_arg(width: int, height: int) -> str:
     """Map pixel dimensions to gen-image.py size argument."""
     if width > height:
@@ -48,6 +53,9 @@ def render_generated_image(
     niche: str | None = None,
     scene_narration: str = "",
     theme: dict | None = None,
+    style_prefix: str = "",
+    seed: int | None = None,
+    anchor_image: Path | None = None,
 ) -> Path:
     """Generate an image via gen-image.py, convert to video segment.
 
@@ -56,11 +64,17 @@ def render_generated_image(
     Falls back to a themed text card if generation fails.
     """
     prompt = visual.get("prompt", "abstract background")
-    tier = visual.get("image_tier", "draft")
+
+    # Prepend niche style prefix (takes priority over scene prompt)
+    if style_prefix:
+        prompt = f"{style_prefix}, {prompt}".strip(", ")
+
+    # Upgrade to production tier when style anchor is active for better adherence
+    tier = visual.get("image_tier", "production" if style_prefix else "draft")
 
     cache_dir = work_dir / "image_cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    cache_name = _cache_key(prompt)
+    cache_name = _cache_key_with_seed(prompt, seed)
     cached_png = cache_dir / f"{cache_name}.png"
     output = work_dir / f"{scene_id}_visual.mp4"
 
@@ -86,7 +100,7 @@ def render_generated_image(
                 logger.warning("image.dark_retry", scene=scene_id)
                 cached_png.unlink()
                 light_prompt = f"{prompt}, white background, bright cream paper, no dark areas"
-                light_key = _cache_key(light_prompt)
+                light_key = _cache_key_with_seed(light_prompt, seed)
                 light_png = cache_dir / f"{light_key}.png"
                 size = _size_arg(width, height)
                 try_chain([provider], prompt=light_prompt, out_path=light_png, size=size)

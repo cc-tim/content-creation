@@ -128,12 +128,27 @@ def render_scene(
     elif visual_type == "generated_image":
         from pipeline.composer.image import render_generated_image
 
-        # Append theme image_style to prompt if not already styled
+        # Style prefix: niche visual identity injected via theme (takes priority over image_style)
+        style_prefix = theme.get("style_prefix", "")
         image_style = theme.get("image_style", "")
-        if image_style and "prompt" in visual:
+
+        if "prompt" in visual:
             prompt = visual["prompt"]
-            if image_style not in prompt:
-                visual = {**visual, "prompt": f"{prompt}. Style: {image_style}"}
+            parts: list[str] = []
+            if style_prefix:
+                parts.append(style_prefix)
+            parts.append(prompt)
+            # image_style (from storyboard theme) appended per spec:
+            # priority = niche_profile + source_hints + story_tone, all contribute
+            if image_style and image_style not in prompt:
+                parts.append(f"Style: {image_style}")
+            visual = {**visual, "prompt": ", ".join(p for p in parts if p)}
+
+        seed_raw = theme.get("_seed")
+        seed: int | None = int(seed_raw) if seed_raw is not None else None
+        anchor_raw = theme.get("_anchor_image")
+        anchor_image: Path | None = Path(anchor_raw) if anchor_raw else None
+
         gallery_path = Path("output/gallery/gallery_index.json")
         return render_generated_image(
             visual,
@@ -146,6 +161,9 @@ def render_scene(
             niche=theme.get("niche"),
             scene_narration=scene.get("narration", ""),
             theme=theme,
+            style_prefix=style_prefix,
+            seed=seed,
+            anchor_image=anchor_image,
         )
 
     elif visual_type == "slide":
