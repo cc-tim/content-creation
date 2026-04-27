@@ -59,7 +59,7 @@ def _burn_subtitle_pass(
     run_ffmpeg([
         "ffmpeg", "-y", "-i", str(src),
         "-vf", f"subtitles={escaped_sub}:force_style='{subtitle_style}'",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "23", "-c:a", "copy",
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23", "-c:a", "copy",
         str(dst),
     ])
 
@@ -159,6 +159,15 @@ class ComposeStage(PipelineStage):
                 logger.info("compose.scene.cached", scene_id=scene.id)
                 if i < len(audio_segments):
                     duration = audio_segments[i]["duration_ms"] / 1000.0
+                    actual = _get_duration_sec(scene_final)
+                    if actual < duration - 0.5:
+                        logger.warning(
+                            "compose.scene.duration_mismatch",
+                            scene_id=scene.id,
+                            cached_sec=round(actual, 2),
+                            expected_sec=round(duration, 2),
+                            hint="Delete cached scene files and rescene to fix subtitle drift",
+                        )
                 else:
                     duration = _get_duration_sec(scene_final)
             else:
@@ -277,11 +286,16 @@ class ComposeStage(PipelineStage):
             encoding="utf-8",
         )
 
-        # Step 5: Concatenate both scene lists
+        # Step 5: Concatenate scene lists — skip whichever raw the locked variant won't use.
         raw_path = compose_dir / "raw.mp4"
         raw_no_overlay_path = compose_dir / "raw_no_overlay.mp4"
-        self._concat_scenes(scene_finals, raw_path)
-        self._concat_scenes(scene_finals_no_overlay, raw_no_overlay_path)
+        _pref = ctx.preferred_variant
+        need_plain = _pref is None or "no_overlay" not in _pref
+        need_no_overlay = _pref is None or "no_overlay" in _pref
+        if need_plain:
+            self._concat_scenes(scene_finals, raw_path)
+        if need_no_overlay:
+            self._concat_scenes(scene_finals_no_overlay, raw_no_overlay_path)
 
         # Step 6: Produce final variants.
         # When preferred_variant is locked, only build that one (others kept stale on disk).
@@ -465,10 +479,7 @@ class ComposeStage(PipelineStage):
         return output
 
     def _concat_scenes(self, scene_paths: list[Path], output: Path) -> None:
-        """Concatenate scene segments using ffmpeg concat demuxer.
-
-        Re-encodes to ensure consistent format across all segments.
-        """
+        """Concatenate scene segments using ffmpeg concat demuxer (stream-copy video)."""
         # Derive a per-output filename so raw.mp4 → concat_list.txt and
         # raw_no_overlay.mp4 → concat_list_no_overlay.txt stay independent.
         suffix = output.stem[len("raw"):]  # "" or "_no_overlay"
@@ -477,7 +488,7 @@ class ComposeStage(PipelineStage):
             "\n".join(f"file '{p.resolve()}'" for p in scene_paths),
             encoding="utf-8",
         )
-        # Use concat protocol with re-encode for format consistency
+        # Stream-copy video (already H.264); re-encode audio to normalize sample rates
         run_ffmpeg(
             [
                 "ffmpeg",
@@ -489,13 +500,11 @@ class ComposeStage(PipelineStage):
                 "-i",
                 str(filelist),
                 "-c:v",
-                "libx264",
-                "-preset",
-                "medium",
-                "-crf",
-                "23",
+                "copy",
                 "-c:a",
                 "aac",
+                "-ar",
+                "48000",
                 "-b:a",
                 "128k",
                 str(output),

@@ -320,6 +320,7 @@ def test_compose_skips_existing_scene_finals(monkeypatch, tmp_path):
     monkeypatch.setattr("pipeline.stages.compose.run_ffmpeg",
         lambda cmd: Path(cmd[-1]).write_bytes(b"mp4"))
     monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
+    monkeypatch.setattr("pipeline.stages.compose._get_duration_sec", lambda p: 1.0)
 
     import asyncio
     asyncio.run(ComposeStage().run(ctx))

@@ -17,6 +17,12 @@ logger = structlog.get_logger()
 compose_app = typer.Typer(name="compose", help="Compose iteration commands")
 
 _VARIANTS = ("plain", "no_overlay", "subtitles", "subtitles_no_overlay")
+_VARIANT_SUFFIXES = {
+    "plain": "",
+    "no_overlay": "_no_overlay",
+    "subtitles": "_subtitles",
+    "subtitles_no_overlay": "_subtitles_no_overlay",
+}
 
 
 def _resolve_work_dir(project_id: int) -> Path:
@@ -164,6 +170,54 @@ def reburn(
         append_session(work_dir, entry)
         raise
     append_session(work_dir, entry)
+
+
+@compose_app.command("clean")
+def clean(
+    project_id: int = typer.Option(..., "--project-id"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="List files that would be removed without deleting."),
+) -> None:
+    """Delete final variant files that are not the preferred_variant.
+
+    Keeps the locked preferred_variant final on disk; removes the other three
+    to reduce clutter. Safe to re-run — only deletes what exists.
+    """
+    work_dir = _resolve_work_dir(project_id)
+    ctx = PipelineContext.load(work_dir / "context.json")
+    preferred = ctx.preferred_variant
+    if not preferred:
+        typer.echo("No preferred_variant set — nothing to clean. Run set-variant first.", err=True)
+        raise typer.Exit(code=1)
+
+    locale = ctx.locale
+    compose_dir = work_dir / "compose"
+    removed: list[str] = []
+
+    for variant, suffix in _VARIANT_SUFFIXES.items():
+        if variant == preferred:
+            continue
+        path = compose_dir / f"final_{locale}{suffix}.mp4"
+        if path.exists():
+            if dry_run:
+                typer.echo(f"[dry-run] would remove: {path.name}")
+            else:
+                path.unlink()
+                removed.append(path.name)
+                logger.info("compose.clean.removed", path=str(path))
+
+    if dry_run:
+        return
+
+    if removed:
+        typer.echo(f"Removed: {', '.join(removed)}")
+        append_session(work_dir, SessionEntry(
+            session_id=new_session_id(),
+            timestamp=datetime.now().isoformat(timespec="seconds"),
+            command=f"compose clean",
+            summary=f"clean: removed {', '.join(removed)}",
+        ))
+    else:
+        typer.echo("Nothing to remove.")
 
 
 def _do_promote(variant_name: str, projects_dir: Path, ask_delete: bool = False) -> None:

@@ -45,8 +45,9 @@ def render_clip(
     # Clip duration always follows audio duration, not storyboard's end_sec estimate.
     # end_sec in the storyboard was generated from narration_est_sec which is often wrong.
     start = max(0, min(start, source_dur - 1))
-    end = max(start + 1, min(start + duration_sec, source_dur))
-    clip_duration = end - start
+    # available_clip may be shorter than duration_sec when the source ends first;
+    # we freeze the last frame to fill the remaining time (see tpad below).
+    available_clip = max(1.0, min(source_dur - start, source_dur))
 
     output = work_dir / f"{scene_id}_visual.mp4"
 
@@ -82,6 +83,11 @@ def render_clip(
                 f"crop={width}:{height}"
             )
 
+    # If source ends before duration_sec, freeze the last frame to fill the gap
+    # so the muxed scene always matches the audio length.
+    if available_clip < duration_sec - 0.1:
+        vf = vf + ",tpad=stop_mode=clone:stop=-1"
+
     run_ffmpeg(
         [
             "ffmpeg",
@@ -90,10 +96,10 @@ def render_clip(
             str(start),
             "-i",
             str(source_video),
-            "-t",
-            str(clip_duration),
             "-vf",
             vf,
+            "-t",
+            str(duration_sec),
             "-c:v",
             "libx264",
             "-preset",

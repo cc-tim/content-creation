@@ -30,10 +30,27 @@ def image_to_video(
     width: int = 1280,
     height: int = 720,
 ) -> Path:
-    """Convert a static image to a video segment of given duration.
+    """Convert a static image to a video segment with a slow Ken Burns zoom-in.
 
-    Scales/pads the image to exactly width x height, then loops for duration.
+    Zooms from 1.0x to at most 1.10x at a constant per-frame rate of 0.0001.
+    Scales the image to 1.3x first so zoompan has room without resampling.
     """
+    fps = 30
+    frames = max(1, int(duration_sec * fps))
+    # Constant zoom speed: 0.0001 per frame → reaches 10% zoom after ~33s
+    zoom_per_frame = 0.0001
+    zoom_max = 1.10
+    scaled_w = int(width * 1.3)
+    scaled_h = int(height * 1.3)
+    vf = (
+        f"scale={scaled_w}:{scaled_h}:force_original_aspect_ratio=increase,"
+        f"crop={scaled_w}:{scaled_h},"
+        f"zoompan="
+        f"z='min(zoom+{zoom_per_frame},{zoom_max})':"
+        f"x='iw/2-(iw/zoom/2)':"
+        f"y='ih/2-(ih/zoom/2)':"
+        f"d={frames}:s={width}x{height}:fps={fps}"
+    )
     run_ffmpeg(
         [
             "ffmpeg",
@@ -45,8 +62,7 @@ def image_to_video(
             "-t",
             str(duration_sec),
             "-vf",
-            f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
-            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black",
+            vf,
             "-c:v",
             "libx264",
             "-preset",
@@ -56,7 +72,7 @@ def image_to_video(
             "-pix_fmt",
             "yuv420p",
             "-r",
-            "30",
+            str(fps),
             str(output_path),
         ]
     )
@@ -92,6 +108,22 @@ def render_scene(
         from pipeline.composer.text_card import render_text_card
 
         return render_text_card(visual, duration_sec, width, height, work_dir, scene_id, theme)
+
+    elif visual_type == "image_sequence":
+        from pipeline.composer.image_sequence import render_image_sequence
+
+        return render_image_sequence(
+            visual,
+            duration_sec,
+            width,
+            height,
+            work_dir,
+            scene_id,
+            gallery_path=Path("output/gallery/gallery_index.json"),
+            niche=theme.get("niche") if theme else None,
+            scene_narration=scene.get("narration", ""),
+            theme=theme,
+        )
 
     elif visual_type == "generated_image":
         from pipeline.composer.image import render_generated_image

@@ -229,9 +229,9 @@ def _render_quote_layout(draw, visual, width, height, pad_x, text_w, accent, whi
         line_heights.append(lh)
         total_h += lh + line_gap
 
-    # Vertically centre in lower 55% of frame
+    # Vertically centre in lower 55% of frame; leave 25% at bottom for subtitles.
     zone_top = int(height * 0.42)
-    zone_h   = height - zone_top - int(height * 0.06)
+    zone_h   = height - zone_top - int(height * 0.25)
     y = zone_top + max(0, (zone_h - total_h) // 2)
 
     # Decorative left rule
