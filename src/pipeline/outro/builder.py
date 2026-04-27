@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import httpx
 
+from pipeline.config import PipelineConfig
 from pipeline.publish.channels import ChannelProfile
 from pipeline.utils.ffmpeg import run_ffmpeg
 
@@ -166,9 +166,10 @@ def build_outro(
 
 
 def fetch_profile_png(channel_id: str, dest: Path) -> None:
-    """Download channel profile image from YouTube Data API if dest doesn't exist.
+    """Download channel profile image via YouTube Data API (API key) if dest doesn't exist.
 
-    Requires YOUTUBE_API_KEY env var. Raises ValueError if channel_id is blank.
+    Reads PIPELINE_YOUTUBE_API_KEY from config/env. Raises ValueError if channel_id blank.
+    Use the CLI `pipeline outro build` for automatic OAuth fallback.
     """
     if dest.exists():
         return
@@ -177,10 +178,10 @@ def fetch_profile_png(channel_id: str, dest: Path) -> None:
             "channel_id is blank in configs/youtube_channels.toml — "
             "either fill it in or drop profile.png manually at: " + str(dest)
         )
-    api_key = os.environ.get("YOUTUBE_API_KEY", "")
+    api_key = PipelineConfig().YOUTUBE_API_KEY
     if not api_key:
         raise OSError(
-            "YOUTUBE_API_KEY not set — cannot auto-fetch profile.png. "
+            "PIPELINE_YOUTUBE_API_KEY not set — cannot auto-fetch profile.png. "
             "Drop it manually at: " + str(dest)
         )
     api_url = (

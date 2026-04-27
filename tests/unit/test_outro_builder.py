@@ -144,9 +144,12 @@ def test_fetch_profile_png_downloads_when_missing(tmp_path: Path) -> None:
     img_resp.raise_for_status = MagicMock()
     img_resp.content = b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
 
-    with patch("pipeline.outro.builder.httpx.get", side_effect=[api_resp, img_resp]):
-        with patch.dict("os.environ", {"YOUTUBE_API_KEY": "fake-key"}):
-            fetch_profile_png(channel_id="UC123", dest=dest)
+    with (
+        patch("pipeline.outro.builder.httpx.get", side_effect=[api_resp, img_resp]),
+        patch("pipeline.outro.builder.PipelineConfig") as mock_cfg,
+    ):
+        mock_cfg.return_value.YOUTUBE_API_KEY = "fake-key"
+        fetch_profile_png(channel_id="UC123", dest=dest)
 
     assert dest.exists()
     assert dest.read_bytes() == img_resp.content

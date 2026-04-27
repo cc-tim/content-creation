@@ -3,7 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import httpx
 import typer
+
+from pipeline.publish.auth import DEFAULT_CONFIG_DIR, load_credentials, token_path_for
+from pipeline.publish.client import YouTubeClient
 
 if TYPE_CHECKING:
     from pipeline.publish.channels import ChannelConfig
@@ -14,7 +18,7 @@ _CHANNELS_DIR = Path("configs/channels")
 _CHANNELS_TOML = Path("configs/youtube_channels.toml")
 
 
-def _load_config() -> "ChannelConfig":
+def _load_config() -> ChannelConfig:
     from pipeline.publish.channels import load_channel_config
 
     return load_channel_config(_CHANNELS_TOML)
@@ -22,9 +26,6 @@ def _load_config() -> "ChannelConfig":
 
 def _fetch_profile_png_via_oauth(channel_id: str, dest: Path, profile_name: str) -> None:
     """Fetch channel avatar using stored OAuth token for the profile."""
-    from pipeline.publish.auth import DEFAULT_CONFIG_DIR, load_credentials, token_path_for
-    from pipeline.publish.client import YouTubeClient
-
     token_path = token_path_for(profile_name, base=DEFAULT_CONFIG_DIR)
     creds = load_credentials(token_path)
     client = YouTubeClient.from_credentials(credentials=creds)
@@ -32,8 +33,6 @@ def _fetch_profile_png_via_oauth(channel_id: str, dest: Path, profile_name: str)
     if not items:
         raise RuntimeError("No channel returned from YouTube API")
     thumb_url = items[0]["snippet"]["thumbnails"]["high"]["url"]
-    import httpx
-
     resp = httpx.get(thumb_url, timeout=30)
     resp.raise_for_status()
     dest.parent.mkdir(parents=True, exist_ok=True)
