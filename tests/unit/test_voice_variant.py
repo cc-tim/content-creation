@@ -183,3 +183,109 @@ def test_voice_variant_force_overwrites(tmp_path):
     assert result.exit_code == 0, result.output
     assert not stale.exists()
     assert (variant_dir / "storyboard.json").exists()
+
+
+def _make_variant_project(tmp_path: Path, parent_dir: Path) -> Path:
+    """Minimal rendered variant project."""
+    variant_dir = tmp_path / "projects" / "1776997800_tim-zhtw-fish"
+    audio_dir = variant_dir / "audio"
+    scenes_dir = variant_dir / "compose" / "scenes"
+    audio_dir.mkdir(parents=True)
+    scenes_dir.mkdir(parents=True)
+    (variant_dir / "script").mkdir()
+
+    srt = audio_dir / "subs.srt"
+    srt.write_text("1\n00:00:00,000 --> 00:00:01,000\nHello\n")
+    narration = audio_dir / "narration.wav"
+    narration.write_bytes(b"wav")
+    s1 = audio_dir / "s1.wav"
+    s1.write_bytes(b"s1wav")
+
+    (scenes_dir / "s1_final.mp4").write_bytes(b"s1final")
+    (scenes_dir / "s1_final_no_overlay.mp4").write_bytes(b"s1final_no_ov")
+
+    ctx = PipelineContext(
+        project_id=9001,
+        source_url="https://youtube.com/watch?v=abc",
+        locale="zh-TW",
+        work_dir=variant_dir,
+        parent_project_id=1776997800,
+        variant_label="tim-zhtw-fish",
+        voice_id="tim-zhtw-fish",
+        subtitle_path=srt,
+        narration_path=narration,
+        niche="parenting",
+        preferred_variant="subtitles_no_overlay",
+        segment_timings=[{
+            "path": str(s1),
+            "text": "Hello",
+            "start_ms": 0,
+            "duration_ms": 1000,
+        }],
+        storyboard_path=parent_dir / "storyboard.json",
+    )
+    ctx.save()
+    return variant_dir
+
+
+def test_promote_voice_copies_scenes_and_audio(tmp_path):
+    """promote-voice copies variant's scenes + audio to parent dir."""
+    parent_dir = _make_parent_project(tmp_path)
+    variant_dir = _make_variant_project(tmp_path, parent_dir)
+
+    runner = CliRunner()
+    with (
+        patch("pipeline.cli_compose._resolve_projects_dir", return_value=tmp_path / "projects"),
+        patch("pipeline.cli_compose.asyncio.run"),  # skip ComposeStage
+    ):
+        result = runner.invoke(compose_app, [
+            "promote-voice",
+            "--from-project", "1776997800_tim-zhtw-fish",
+        ])
+
+    assert result.exit_code == 0, result.output
+    assert (parent_dir / "compose" / "scenes" / "s1_final.mp4").read_bytes() == b"s1final"
+    assert (parent_dir / "compose" / "scenes" / "s1_final_no_overlay.mp4").read_bytes() == b"s1final_no_ov"
+    assert (parent_dir / "audio" / "narration.wav").exists()
+
+
+def test_promote_voice_updates_parent_context(tmp_path):
+    """promote-voice patches parent context.json with variant's voice + timings."""
+    parent_dir = _make_parent_project(tmp_path)
+    variant_dir = _make_variant_project(tmp_path, parent_dir)
+
+    runner = CliRunner()
+    with (
+        patch("pipeline.cli_compose._resolve_projects_dir", return_value=tmp_path / "projects"),
+        patch("pipeline.cli_compose.asyncio.run"),
+    ):
+        runner.invoke(compose_app, [
+            "promote-voice",
+            "--from-project", "1776997800_tim-zhtw-fish",
+        ])
+
+    parent_ctx = PipelineContext.load(parent_dir / "context.json")
+    assert parent_ctx.voice_id == "tim-zhtw-fish"
+    assert parent_ctx.segment_timings is not None
+    assert parent_ctx.subtitle_path is not None
+    assert str(parent_ctx.subtitle_path).startswith(str(parent_dir))
+
+
+def test_promote_voice_errors_without_parent_project_id(tmp_path):
+    """promote-voice exits with error if variant has no parent_project_id."""
+    orphan_dir = tmp_path / "projects" / "orphan"
+    orphan_dir.mkdir(parents=True)
+    ctx = PipelineContext(
+        project_id=9002,
+        source_url="x",
+        locale="zh-TW",
+        work_dir=orphan_dir,
+    )
+    ctx.save()
+
+    runner = CliRunner()
+    with patch("pipeline.cli_compose._resolve_projects_dir", return_value=tmp_path / "projects"):
+        result = runner.invoke(compose_app, ["promote-voice", "--from-project", "orphan"])
+
+    assert result.exit_code != 0
+    assert "not a voice variant" in result.output.lower() or "parent_project_id" in result.output.lower()
