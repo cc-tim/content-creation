@@ -5,9 +5,12 @@
 #   pipeline publish auth --profile <profile-name>
 
 [profiles.ideal-parents-tw]
-niche      = "parenting"
-locale     = "zh-TW"
-channel_id = "UCOzL_agyMJLknQtXgLMIyyA"
+niche         = "parenting"
+locale        = "zh-TW"
+channel_id    = "UCOzL_agyMJLknQtXgLMIyyA"
+display_name  = "理想父母"
+tagline       = "陪你走過每個育兒時刻"
+outro_enabled = true
 voice_guide = """
 Warm, reassuring parental tone. Avoid clickbait.
 Lead with empathy. Title pattern: scenario + outcome

@@ -14,6 +14,9 @@ class ChannelProfile:
     voice_guide: str
     default_tags: list[str]
     category_id: int
+    display_name: str = ""
+    tagline: str = ""
+    outro_enabled: bool = False
 
 
 @dataclass(frozen=True)
@@ -38,6 +41,9 @@ def load_channel_config(path: Path) -> ChannelConfig:
             voice_guide=raw.get("voice_guide", ""),
             default_tags=list(raw.get("default_tags", [])),
             category_id=int(raw["category_id"]),
+            display_name=raw.get("display_name", ""),
+            tagline=raw.get("tagline", ""),
+            outro_enabled=bool(raw.get("outro_enabled", False)),
         )
 
     routing = dict(data.get("routing") or {})
