@@ -1,0 +1,13 @@
+[parenting]
+intro_type = "generated_image"
+intro_prompt_hint = "parent and child in a warm home moment, sketch style, relatable, no text"
+visual_style = "clean educational sketch, minimal line art, simple warm tones, no clutter, conceptual"
+anchor_prompt = "parent and child in a calm home setting, sketch illustration, minimal color, friendly"
+rationale = "Parenting source videos reuse the same illustration panels; our hook must be original and our style defined by the story"
+
+[true-crime]
+intro_type = "text_card"
+intro_prompt_hint = "Dark background, bold white hook text — one sentence, drop viewer mid-action, no setup"
+visual_style = "cinematic still, dramatic lighting, documentary aesthetic, high contrast, desaturated"
+anchor_prompt = "empty corridor at night, single dim light source, tense atmosphere, photorealistic"
+rationale = "True-crime hooks land harder as stark text; cinematic style builds dread"
