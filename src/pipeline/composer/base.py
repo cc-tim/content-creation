@@ -128,21 +128,13 @@ def render_scene(
     elif visual_type == "generated_image":
         from pipeline.composer.image import render_generated_image
 
-        # Style prefix: niche visual identity injected via theme (takes priority over image_style)
-        style_prefix = theme.get("style_prefix", "")
-        image_style = theme.get("image_style", "")
+        # Style hierarchy: theme.visual_style > theme.style_prefix (niche template) > fallback
+        base_style = theme.get("visual_style") or theme.get("style_prefix", "")
+        modifier = visual.get("style_modifier", "")
+        content = visual.get("prompt", "abstract background")
 
-        if "prompt" in visual:
-            prompt = visual["prompt"]
-            parts: list[str] = []
-            if style_prefix:
-                parts.append(style_prefix)
-            parts.append(prompt)
-            # image_style (from storyboard theme) appended per spec:
-            # priority = niche_profile + source_hints + story_tone, all contribute
-            if image_style and image_style not in prompt:
-                parts.append(f"Style: {image_style}")
-            visual = {**visual, "prompt": ", ".join(p for p in parts if p)}
+        parts = [p for p in [base_style, modifier, content] if p]
+        visual = {**visual, "prompt": ", ".join(parts)}
 
         seed_raw = theme.get("_seed")
         seed: int | None = int(seed_raw) if seed_raw is not None else None
@@ -161,7 +153,7 @@ def render_scene(
             niche=theme.get("niche"),
             scene_narration=scene.get("narration", ""),
             theme=theme,
-            style_prefix=style_prefix,
+            style_prefix=base_style,
             seed=seed,
             anchor_image=anchor_image,
         )

@@ -135,3 +135,75 @@ def test_theme_from_dict_ignores_unknown_fields():
     from pipeline.storyboard import Theme
     t = Theme.from_dict({"background": "#fff", "visual_style": "warm", "unknown_field": "x"})
     assert t.visual_style == "warm"
+
+
+def test_visual_style_overrides_style_prefix(tmp_path):
+    """theme.visual_style wins over theme.style_prefix (niche template)."""
+    from unittest.mock import patch, MagicMock
+    captured = {}
+
+    def fake_render(visual, duration, width, height, work_dir, scene_id, **kwargs):
+        captured["prompt"] = visual.get("prompt", "")
+        out = work_dir / f"{scene_id}_visual.mp4"
+        out.write_bytes(b"fake")
+        return out
+
+    with patch("pipeline.composer.image.render_generated_image", side_effect=fake_render):
+        from pipeline.composer.base import render_scene
+        render_scene(
+            {"id": "s1", "visual": {"type": "generated_image", "prompt": "parent and child"}},
+            5.0, "16:9", tmp_path,
+            theme={"visual_style": "warm semi-realistic", "style_prefix": "clean sketch"},
+        )
+    assert "warm semi-realistic" in captured["prompt"]
+    assert "clean sketch" not in captured["prompt"]
+    assert "parent and child" in captured["prompt"]
+
+
+def test_style_modifier_appended_after_base_style(tmp_path):
+    from unittest.mock import patch, MagicMock
+    captured = {}
+
+    def fake_render(visual, duration, width, height, work_dir, scene_id, **kwargs):
+        captured["prompt"] = visual.get("prompt", "")
+        out = work_dir / f"{scene_id}_visual.mp4"
+        out.write_bytes(b"fake")
+        return out
+
+    with patch("pipeline.composer.image.render_generated_image", side_effect=fake_render):
+        from pipeline.composer.base import render_scene
+        render_scene(
+            {"id": "s7", "visual": {
+                "type": "generated_image",
+                "prompt": "parent at door",
+                "style_modifier": "darker, tense atmosphere",
+            }},
+            5.0, "16:9", tmp_path,
+            theme={"visual_style": "warm semi-realistic"},
+        )
+    p = captured["prompt"]
+    assert "warm semi-realistic" in p
+    assert "darker, tense atmosphere" in p
+    assert "parent at door" in p
+    # order: base_style, modifier, content
+    assert p.index("warm semi-realistic") < p.index("darker, tense atmosphere") < p.index("parent at door")
+
+
+def test_fallback_to_style_prefix_when_no_visual_style(tmp_path):
+    from unittest.mock import patch, MagicMock
+    captured = {}
+
+    def fake_render(visual, duration, width, height, work_dir, scene_id, **kwargs):
+        captured["prompt"] = visual.get("prompt", "")
+        out = work_dir / f"{scene_id}_visual.mp4"
+        out.write_bytes(b"fake")
+        return out
+
+    with patch("pipeline.composer.image.render_generated_image", side_effect=fake_render):
+        from pipeline.composer.base import render_scene
+        render_scene(
+            {"id": "s1", "visual": {"type": "generated_image", "prompt": "content here"}},
+            5.0, "16:9", tmp_path,
+            theme={"style_prefix": "clean educational sketch"},
+        )
+    assert "clean educational sketch" in captured["prompt"]
