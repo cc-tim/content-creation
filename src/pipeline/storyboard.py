@@ -58,6 +58,7 @@ class Theme:
     secondary_bg: str = "#334155"  # slate-700
     font: str = "Noto Sans CJK TC"
     image_style: str = "flat minimalist illustration, simple clean lines, limited color palette"
+    visual_style: str = ""  # per-video style override; takes priority over niche template
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -67,6 +68,7 @@ class Theme:
             "secondary_bg": self.secondary_bg,
             "font": self.font,
             "image_style": self.image_style,
+            "visual_style": self.visual_style,
         }
 
     @classmethod

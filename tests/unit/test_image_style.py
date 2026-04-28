@@ -115,3 +115,23 @@ def test_draft_tier_used_without_style_prefix(tmp_path):
          patch("pipeline.composer.image.image_to_video"):
         render_generated_image(visual, 5.0, 1280, 720, tmp_path, "s4")
     assert "draft" in created_tiers
+
+
+def test_theme_visual_style_roundtrip():
+    from pipeline.storyboard import Theme
+    t = Theme(visual_style="warm semi-realistic, soft digital painting")
+    d = t.to_dict()
+    assert d["visual_style"] == "warm semi-realistic, soft digital painting"
+    t2 = Theme.from_dict(d)
+    assert t2.visual_style == "warm semi-realistic, soft digital painting"
+
+
+def test_theme_visual_style_default_empty():
+    from pipeline.storyboard import Theme
+    assert Theme().visual_style == ""
+
+
+def test_theme_from_dict_ignores_unknown_fields():
+    from pipeline.storyboard import Theme
+    t = Theme.from_dict({"background": "#fff", "visual_style": "warm", "unknown_field": "x"})
+    assert t.visual_style == "warm"
