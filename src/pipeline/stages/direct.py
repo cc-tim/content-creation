@@ -34,6 +34,39 @@ LOCALE_INSTRUCTIONS = {
 }
 
 
+def _intro_template_block(template) -> str:
+    """Build the s1 constraint block for the Claude storyboard prompt."""
+    if template is None:
+        return (
+            "INTRO CONSTRAINT (Scene s1):\n"
+            "- s1 must NOT use type 'clip' or 'still_frame' from source.\n"
+            "- Use 'generated_image', 'text_card', or 'slide' for s1.\n"
+            "- No niche intro template found; choose a visually original opening."
+        )
+    return (
+        f"INTRO CONSTRAINT (Scene s1 — niche: {template.niche}):\n"
+        f"- s1 MUST use visual type '{template.intro_type}'.\n"
+        f"- Never use 'clip' or 'still_frame' for s1.\n"
+        f"- Prompt hint for s1: {template.intro_prompt_hint}"
+    )
+
+
+def _validate_clip_budget(scenes: list[dict], max_pct: float = 0.60) -> list[str]:
+    """Return list of warning strings if clip budget exceeded (soft, never blocks)."""
+    source_types = {"clip", "still_frame"}
+    clip_count = sum(
+        1 for s in scenes
+        if (s.get("visual") or {}).get("type") in source_types
+    )
+    max_clips = max(1, int(len(scenes) * max_pct))
+    if clip_count > max_clips:
+        return [
+            f"Clip budget warning: {clip_count}/{len(scenes)} scenes use source clips "
+            f"(soft limit: {max_clips} at {int(max_pct * 100)}%)."
+        ]
+    return []
+
+
 def build_direct_prompt(
     knowledge: Knowledge,
     locale: str,
@@ -42,6 +75,8 @@ def build_direct_prompt(
     strategies_text: str = "",
     reference_storyboard_json: str | None = None,
     constraints_text: str = "",
+    clip_budget_text: str = "",
+    intro_template_text: str = "",
 ) -> str:
     """Build Claude prompt to generate a storyboard from knowledge."""
     locale_instruction = LOCALE_INSTRUCTIONS.get(locale) or LOCALE_INSTRUCTIONS["en"]
@@ -91,6 +126,18 @@ Use 15-25 scenes. {duration_line}"""
         else ""
     )
 
+    constraints_parts = []
+    if constraints_text:
+        constraints_parts.append(constraints_text)
+    if clip_budget_text:
+        constraints_parts.append(clip_budget_text)
+    if intro_template_text:
+        constraints_parts.append(intro_template_text)
+    if constraints_parts:
+        constraints_section = "\n\n" + "\n\n".join(constraints_parts) + "\n"
+    else:
+        constraints_section = ""
+
     return f"""You are a video director. Create a scene-by-scene storyboard \
 from the knowledge below.
 This is NOT a translation — it is a cultural adaptation creating ORIGINAL content.
@@ -100,7 +147,7 @@ LANGUAGE: {locale_instruction}
 TONE: {tone}
 {strategies_block}{reference_block}
 {structure}
-
+{constraints_section}
 VISUAL TYPES (assign one per scene):
 - clip: {{"type": "clip", "source": "primary", "start_sec": N, "end_sec": N}}
 - text_card: {{"type": "text_card", "text": "...", "background": "#1a1a2e"}}
@@ -411,6 +458,18 @@ class DirectStage(PipelineStage):
         if constraints_text:
             logger.info("direct.constraints_active", instruction=constraints_text)
 
+        from pipeline.niche_templates import load_niche_template
+
+        clip_budget_text = ""
+        if constraints:
+            estimated_count = 4 if self.fmt == "short" else 20
+            clip_budget_text = constraints.clip_budget_instruction(scene_count=estimated_count)
+
+        niche_template = None
+        if ctx.niche and ctx.niche != "none":
+            niche_template = load_niche_template(ctx.niche)
+        intro_template_text = _intro_template_block(niche_template)
+
         knowledge = Knowledge.load(ctx.knowledge_path)
         client = get_anthropic_client()
         config = PipelineConfig()
@@ -420,6 +479,8 @@ class DirectStage(PipelineStage):
             strategies_text=strategies_text,
             reference_storyboard_json=reference_storyboard_json,
             constraints_text=constraints_text,
+            clip_budget_text=clip_budget_text,
+            intro_template_text=intro_template_text,
         )
 
         response = client.messages.create(
@@ -446,6 +507,22 @@ class DirectStage(PipelineStage):
                 **{k: v for k, v in result.items() if k not in ("title", "description")},
             }
         )
+
+        scene_dicts = [s.to_dict() for s in storyboard.scenes]
+        max_pct = constraints.max_source_clip_pct if constraints else 0.60
+        budget_warnings = _validate_clip_budget(scene_dicts, max_pct)
+        for w in budget_warnings:
+            logger.warning("direct.clip_budget", warning=w)
+
+        if storyboard.scenes:
+            s1_type = storyboard.scenes[0].visual.get("type", "")
+            if s1_type in ("clip", "still_frame"):
+                logger.warning(
+                    "direct.intro_constraint_violated",
+                    scene="s1",
+                    visual_type=s1_type,
+                    hint="Claude ignored intro constraint — edit s1 visual manually or rescene",
+                )
 
         if reference_storyboard_json is not None:
             ref_scenes = json.loads(reference_storyboard_json).get("scenes", [])
