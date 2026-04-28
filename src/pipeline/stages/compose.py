@@ -4,6 +4,7 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import structlog
 
@@ -84,6 +85,75 @@ def _get_duration_sec(path: Path) -> float:
     return float(result.stdout.strip())
 
 
+def _extract_clip_thumbnail(source: Path, timestamp: float, out_path: Path) -> None:
+    """Extract one frame from *source* at *timestamp* seconds via ffmpeg."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["ffmpeg", "-ss", str(timestamp), "-i", str(source),
+         "-vframes", "1", "-q:v", "5", str(out_path), "-y"],
+        check=True, capture_output=True,
+    )
+
+
+def _phash_image(img_path: Path):
+    """Return perceptual hash of *img_path*. Requires imagehash + Pillow."""
+    import imagehash
+    from PIL import Image
+    return imagehash.phash(Image.open(img_path))
+
+
+def _is_duplicate_frame(new_hash, seen_hashes: set, threshold: int = 8) -> bool:
+    return any(new_hash - h <= threshold for h in seen_hashes)
+
+
+def _apply_duplicate_guard(
+    scene: dict[str, Any],
+    source_video: Path | None,
+    seen_hashes: set,
+    style_descriptor: str,
+) -> tuple[dict[str, Any], set]:
+    """Check if *scene* is a duplicate clip. Return (possibly-replaced scene, updated seen_hashes).
+
+    Storyboard/render divergence is intentional: storyboard reflects creative intent,
+    render reflects reality. Replacements are logged for traceability.
+    """
+    visual = scene.get("visual", {})
+    if visual.get("type") not in ("clip", "still_frame"):
+        return scene, seen_hashes
+    if source_video is None or not source_video.exists():
+        return scene, seen_hashes
+
+    timestamp = float(visual.get("start_sec", visual.get("timestamp_sec", 0)))
+    thumb = source_video.parent / f"_thumb_{scene.get('id', 'x')}.jpg"
+
+    try:
+        _extract_clip_thumbnail(source_video, timestamp, thumb)
+        new_hash = _phash_image(thumb)
+    except Exception as exc:
+        logger.warning("compose.dup_guard.thumbnail_failed", scene=scene.get("id"), error=str(exc))
+        return scene, seen_hashes
+    finally:
+        if thumb.exists():
+            thumb.unlink(missing_ok=True)
+
+    if _is_duplicate_frame(new_hash, seen_hashes):
+        logger.warning(
+            "compose.clip.duplicate_detected",
+            scene=scene.get("id"),
+            replaced_with="generated_image",
+        )
+        narration = scene.get("narration", "")
+        replacement_prompt = f"{style_descriptor}, {narration[:80]}".strip(", ")
+        replaced = {
+            **scene,
+            "visual": {"type": "generated_image", "prompt": replacement_prompt},
+        }
+        return replaced, seen_hashes  # don't add duplicate hash to seen
+    else:
+        seen_hashes = seen_hashes | {new_hash}
+        return scene, seen_hashes
+
+
 class ComposeStage(PipelineStage):
     @property
     def name(self) -> str:
@@ -120,6 +190,37 @@ class ComposeStage(PipelineStage):
         storyboard = Storyboard.load(ctx.storyboard_path)
         width, height = get_resolution(storyboard.aspect_ratio)
         theme_dict = storyboard.theme.to_dict()
+
+        # --- Style anchor: source suitability → niche style → anchor image ---
+        from pipeline.composer.style_anchor import extract_style_anchor
+        from pipeline.niche_templates import load_niche_template
+
+        niche = ctx.niche if ctx.niche and ctx.niche != "none" else None
+        niche_template = load_niche_template(niche) if niche else None
+        style_anchor = extract_style_anchor(
+            project_id=str(ctx.project_id),
+            niche=niche,
+            template=niche_template,
+            source_video=ctx.video_path,
+            work_dir=compose_dir,
+        )
+
+        # Persist suitability back to constraints for DirectStage re-runs
+        if style_anchor.suitability:
+            from pipeline.constraints import ProjectConstraints
+            _c = ProjectConstraints.load(ctx.work_dir) or ProjectConstraints()
+            if _c.source_suitability != style_anchor.suitability:
+                _c.source_suitability = style_anchor.suitability
+                _c.save(ctx.work_dir)
+
+        # Inject style anchor data into theme_dict (flows through render_scene → image.py)
+        theme_dict["style_prefix"] = style_anchor.style_descriptor
+        theme_dict["_seed"] = style_anchor.seed
+        if style_anchor.anchor_image:
+            theme_dict["_anchor_image"] = str(style_anchor.anchor_image)
+
+        # --- Duplicate frame guard state ---
+        seen_clip_hashes: set = set()
 
         scenes_dir = compose_dir / "scenes"
         scenes_dir.mkdir(parents=True, exist_ok=True)
@@ -171,10 +272,18 @@ class ComposeStage(PipelineStage):
                 else:
                     duration = _get_duration_sec(scene_final)
             else:
+                # Apply duplicate frame guard for clip/still_frame scenes
+                scene_dict_guarded, seen_clip_hashes = _apply_duplicate_guard(
+                    scene_dict,
+                    ctx.video_path,
+                    seen_clip_hashes,
+                    style_descriptor=style_anchor.style_descriptor,
+                )
+
                 # Step 1: Render visual
                 try:
                     visual_path = render_scene(
-                        scene_dict,
+                        scene_dict_guarded,
                         duration,
                         storyboard.aspect_ratio,
                         scenes_dir,
