@@ -99,7 +99,15 @@ class Knowledge:
                 created_at=data.get("created_at", ""),
                 updated_at=data.get("updated_at", ""),
             )
-        facts = [Fact(**f) for f in data.get("facts", [])]
+        valid_fact_fields = set(Fact.__dataclass_fields__)  # type: ignore[attr-defined]
+        def _load_fact(f: dict) -> Fact:
+            d = dict(f)
+            if "timestamp_sec" in d and "timestamp" not in d:
+                d["timestamp"] = str(d.pop("timestamp_sec"))
+            else:
+                d.pop("timestamp_sec", None)
+            return Fact(**{k: v for k, v in d.items() if k in valid_fact_fields})
+        facts = [_load_fact(f) for f in data.get("facts", [])]
         entities = [
             Entity(
                 id=e["id"],

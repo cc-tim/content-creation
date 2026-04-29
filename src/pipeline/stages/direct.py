@@ -327,10 +327,19 @@ def _build_metadata_prompt(
 {profile.voice_guide}
 
 Constraints:
-- Title ≤ 100 chars
-- Description ≤ 5000 chars
+- Title ≤ 100 chars, emotionally resonant, no clickbait
+- Description ≤ 5000 chars — follow the structure below exactly
 - Tags total (sum + commas) ≤ 500 chars
 - Write in locale {locale}
+
+Description structure (in order):
+1. Open with a sharp question the target viewer is already carrying in their head — the pain or doubt they feel before watching
+2. One paragraph introducing the core research insight or reframe the video delivers, anchored to its origin (e.g. "美國兒童發展研究發現...")
+3. One sentence naming the video's structural approach (e.g. "這支影片透過三個真實案例...")
+4. A short bullet list (3 items, "你會學到：") — each item names a concrete skill or reframe the viewer walks away with
+5. Close with a single-sentence call-to-action question that mirrors the video's ending reframe
+
+Do NOT summarise the narration or retell the story. Write from the perspective of the viewer's problem, not the content's storyline.
 
 Return via the emit_metadata tool. Do not output prose."""
     user = f"""Source URL: {source_url}
@@ -346,13 +355,9 @@ Generate title, description, tags, and related metadata fields."""
 
 
 def _locale_footer(locale: str, source_url: str) -> str:
-    if locale == "zh-TW":
-        return f"\n\n資料來源:{source_url}\n\n本影片旁白由 AI 合成。"
-    if locale == "ja":
-        return f"\n\n情報源:{source_url}\n\n本動画のナレーションはAI音声です。"
-    if locale == "es-MX":
-        return f"\n\nFuente: {source_url}\n\nLa narración de este video fue generada por IA."
-    return f"\n\nSource: {source_url}\n\nThis video uses AI-generated narration."
+    # Footer removed — source credits and AI disclosure are not appended by default.
+    # Add explicitly via `pipeline metadata set` if the operator wants them.
+    return ""
 
 
 def write_metadata_for_project(

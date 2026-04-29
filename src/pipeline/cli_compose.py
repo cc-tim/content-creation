@@ -79,7 +79,7 @@ def rescene(
             f"Invalidated: {', '.join(scenes)} — re-rendering... [focused: {ctx.preferred_variant}]"
         )
     else:
-        typer.echo(f"Invalidated: {', '.join(scenes)} — re-rendering all variants...")
+        typer.echo(f"Invalidated: {', '.join(scenes)} — re-rendering... [default: subtitles_no_overlay]")
     scene_list = ", ".join(scenes)
     entry = SessionEntry(
         session_id=new_session_id(),

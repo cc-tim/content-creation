@@ -19,12 +19,11 @@ logger = structlog.get_logger()
 def extract_narration_segments(script: str) -> list[str]:
     """Extract plain narration text from a script with markers."""
     segments: list[str] = []
-    # Match all marker formats including extended ones like [HOOK - 0:00-0:30]
+    # Match section markers (any [ALL_CAPS] or [ALL_CAPS - suffix] form),
+    # plus CLIP/OVERLAY/PAUSE directives. Using a general uppercase pattern
+    # so derive_script() section names don't need to be hardcoded here.
     marker_pattern = re.compile(
-        r"^\["
-        r"(HOOK|CONTEXT|RISING|CLIMAX|AFTERMATH|ANALYSIS|RISING ACTION)"
-        r"(\s*-\s*[^\]]+)?"  # optional timestamp suffix like " - 0:00-0:30"
-        r"\]$"
+        r"^\[[A-Z][A-Z0-9_ ]*(\s*-\s*[^\]]+)?\]$"
         r"|"
         r"^\[CLIP:[^\]]+\]$"
         r"|"
@@ -50,9 +49,6 @@ class TtsStage(PipelineStage):
         return "tts"
 
     async def run(self, ctx: PipelineContext) -> PipelineContext:
-        if not ctx.script_path or not ctx.script_path.exists():
-            raise ValueError("No script available — run scriptwrite stage first")
-
         logger.info("tts.start", locale=ctx.locale)
 
         config = PipelineConfig()
@@ -62,7 +58,19 @@ class TtsStage(PipelineStage):
         else:
             engine, profile = registry.default_for_locale(ctx.locale)
 
-        script_text = ctx.script_path.read_text(encoding="utf-8")
+        # Prefer storyboard narrations over the DirectStage script — the script is
+        # generated before the operator may hand-edit the storyboard, so they can
+        # diverge. Storyboard is always authoritative when present.
+        if ctx.storyboard_path and ctx.storyboard_path.exists():
+            from pipeline.storyboard import Storyboard
+            storyboard_for_script = Storyboard.load(ctx.storyboard_path)
+            script_text = storyboard_for_script.derive_script()
+            if ctx.script_path:
+                ctx.script_path.write_text(script_text, encoding="utf-8")
+        elif ctx.script_path and ctx.script_path.exists():
+            script_text = ctx.script_path.read_text(encoding="utf-8")
+        else:
+            raise ValueError("No storyboard or script available — run direct stage first")
 
         audio_dir = ctx.work_dir / "audio"
         audio_dir.mkdir(parents=True, exist_ok=True)
