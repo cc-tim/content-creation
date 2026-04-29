@@ -305,6 +305,12 @@ class ComposeStage(PipelineStage):
                         height,
                     )
 
+                # Auto-clear edit_mode after successful render
+                if (scene.visual or {}).get("edit_mode"):
+                    scene.visual["edit_mode"] = False
+                    storyboard.save(ctx.storyboard_path)
+                    logger.info("compose.edit_mode.cleared", scene_id=scene.id)
+
                 # Step 1b: Composite compartment animation if present
                 if scene.compartment:
                     try:
@@ -398,9 +404,11 @@ class ComposeStage(PipelineStage):
         # Step 5: Concatenate scene lists — skip whichever raw the locked variant won't use.
         raw_path = compose_dir / "raw.mp4"
         raw_no_overlay_path = compose_dir / "raw_no_overlay.mp4"
-        _pref = ctx.preferred_variant
-        need_plain = _pref is None or "no_overlay" not in _pref
-        need_no_overlay = _pref is None or "no_overlay" in _pref
+        # Default to subtitles_no_overlay so first run builds one variant, not all four.
+        # Operator overrides with `compose set-variant` or passes --variant explicitly.
+        _pref = ctx.preferred_variant or "subtitles_no_overlay"
+        need_plain = "no_overlay" not in _pref
+        need_no_overlay = "no_overlay" in _pref
         if need_plain:
             self._concat_scenes(scene_finals, raw_path)
         if need_no_overlay:
@@ -420,9 +428,9 @@ class ComposeStage(PipelineStage):
             "subtitles": subs,
             "subtitles_no_overlay": subs_no_ov,
         }
-        preferred = ctx.preferred_variant
+        preferred = ctx.preferred_variant or "subtitles_no_overlay"
 
-        if preferred and preferred in variant_map:
+        if preferred in variant_map:
             # Focused mode: only produce the locked variant.
             logger.info("compose.focused_variant", variant=preferred)
             uses_no_overlay = "no_overlay" in preferred
@@ -435,18 +443,12 @@ class ComposeStage(PipelineStage):
                 shutil.copyfile(src_raw, dst)
             final_path = dst
         else:
-            # Full mode: produce all 4 variants.
-            shutil.copyfile(raw_path, plain)
-            shutil.copyfile(raw_no_overlay_path, plain_no_ov)
-
-            if ctx.subtitle_path and ctx.subtitle_path.exists():
-                _burn_subtitle_pass(raw_path, subs, ctx.subtitle_path, theme_dict)
-                _burn_subtitle_pass(raw_no_overlay_path, subs_no_ov, ctx.subtitle_path, theme_dict)
-            else:
-                shutil.copyfile(raw_path, subs)
-                shutil.copyfile(raw_no_overlay_path, subs_no_ov)
-
-            final_path = subs if ctx.burn_subtitles else plain
+            # Unreachable in normal flow: `preferred` always falls back to
+            # "subtitles_no_overlay" above, which is always in variant_map.
+            # Would only trigger on a hand-edited context.json with an unknown variant.
+            logger.warning("compose.unknown_variant", variant=preferred)
+            shutil.copyfile(raw_no_overlay_path, subs_no_ov)
+            final_path = subs_no_ov
 
         return final_path
 
