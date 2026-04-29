@@ -153,7 +153,11 @@ VISUAL TYPES (assign one per scene):
 - text_card: {{"type": "text_card", "text": "...", "background": "#1a1a2e"}}
 - map: {{"type": "map", "query": "Location", "style": "satellite"}}
 - namecard: {{"type": "namecard", "name": "...", "role": "..."}}
-- generated_image: {{"type": "generated_image", "prompt": "description", "style": "cinematic"}}
+- generated_image: {{"type": "generated_image", "prompt": "subject + action + spatial layout + mood — NO style words"}}
+  Optional: "style_modifier": "single mood modifier e.g. 'darker tone' or 'soft light'" (NOT full style descriptors)
+  RULE: visual.prompt = concept only. Style is global (theme.visual_style). Do NOT write 'watercolor', 'sketch', 'realistic', etc. in prompt.
+  Good: "exhausted parent kneeling at toddler eye level in hallway, worried expression"
+  Bad:  "warm watercolor illustration of parent kneeling"
 - slide: {{"type": "slide", "title": "...", "bullets": ["..."]}}
 - still_frame: {{"type": "still_frame", "source": "primary", "timestamp_sec": N}}
 
@@ -226,7 +230,7 @@ Structure per Short: hook (surprising statement) → content (explain) → punch
 VISUAL TYPES:
 - clip: {{"type": "clip", "source": "primary", "start_sec": N, "end_sec": N}}
 - text_card: {{"type": "text_card", "text": "...", "background": "#1a1a2e"}}
-- generated_image: {{"type": "generated_image", "prompt": "...", "style": "cinematic"}}
+- generated_image: {{"type": "generated_image", "prompt": "concept only — no style words"}}
 - slide: {{"type": "slide", "title": "...", "bullets": ["..."]}}
 
 Return ONLY valid JSON:
