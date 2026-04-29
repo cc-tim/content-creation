@@ -35,7 +35,7 @@ def test_edit_img2img_returns_provider_result(tmp_path):
 
 def test_edit_inpaint_returns_provider_result(tmp_path):
     from pipeline.providers.edit_image import EditImageProvider
-    import base64, json
+    import base64
 
     inp = tmp_path / "input.png"
     inp.write_bytes(_FAKE_PNG)
@@ -43,15 +43,14 @@ def test_edit_inpaint_returns_provider_result(tmp_path):
 
     fake_b64 = base64.b64encode(_FAKE_PNG).decode()
 
-    def fake_urlopen(req, timeout=None):
-        resp = MagicMock()
-        resp.__enter__ = lambda s: s
-        resp.__exit__ = MagicMock(return_value=False)
-        resp.read.return_value = json.dumps({"data": [{"b64_json": fake_b64}]}).encode()
-        return resp
+    mock_response = MagicMock()
+    mock_response.data = [MagicMock(b64_json=fake_b64)]
+
+    mock_client = MagicMock()
+    mock_client.images.edit.return_value = mock_response
 
     with patch("pipeline.providers.edit_image._get_key", return_value="fake-key"), \
-         patch("urllib.request.urlopen", fake_urlopen):
+         patch("pipeline.providers.edit_image.OpenAI", return_value=mock_client):
         result = EditImageProvider().edit_inpaint(inp, "fix expression", out, "1536x1024")
 
     assert out.exists()

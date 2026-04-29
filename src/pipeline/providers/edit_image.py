@@ -7,6 +7,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from openai import OpenAI
+
 from pipeline.providers.base import ProviderError, ProviderResult
 
 _KM = Path.home() / ".claude" / "bin" / "keymanager.py"
@@ -85,35 +87,22 @@ class EditImageProvider:
         out_path: Path,
         size: str = "1792x1024",
     ) -> ProviderResult:
-        """Inpaint via OpenAI images.edit (gpt-image-1) using raw HTTP."""
+        """Inpaint / restyle via OpenAI images.edit (gpt-image-1) using the SDK."""
         api_key = _get_key("openai")
         openai_size = _OPENAI_SIZE.get(size, "1536x1024")
-        img_b64 = base64.standard_b64encode(image_path.read_bytes()).decode()
-        payload = {
-            "model": "gpt-image-1",
-            "image": f"data:image/png;base64,{img_b64}",
-            "prompt": prompt,
-            "size": openai_size,
-            "response_format": "b64_json",
-            "n": 1,
-        }
-        req = urllib.request.Request(
-            "https://api.openai.com/v1/images/edits",
-            data=json.dumps(payload).encode(),
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
+        client = OpenAI(api_key=api_key)
         try:
-            with urllib.request.urlopen(req, timeout=180) as resp:
-                data = json.loads(resp.read())
-                b64_data = data["data"][0]["b64_json"]
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode()
-            raise ProviderError(f"OpenAI inpaint HTTP {exc.code}: {body[:200]}") from exc
-
+            with open(image_path, "rb") as f:
+                response = client.images.edit(
+                    model="gpt-image-1",
+                    image=f,
+                    prompt=prompt,
+                    size=openai_size,
+                    n=1,
+                )
+        except Exception as exc:
+            raise ProviderError(f"OpenAI inpaint failed: {exc}") from exc
+        b64_data = response.data[0].b64_json
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_bytes(base64.b64decode(b64_data))
         return ProviderResult(path=out_path, provider="openai-inpaint")
