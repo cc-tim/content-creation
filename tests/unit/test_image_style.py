@@ -11,7 +11,9 @@ _FAKE_PNG = (
 )
 
 
-def test_style_prefix_prepended_to_prompt(tmp_path):
+def test_style_prefix_not_double_prepended(tmp_path):
+    """render_generated_image does NOT prepend style_prefix — base.py does that upstream.
+    Style is passed in visual.prompt already; style_prefix param is for tier selection only."""
     from pipeline.composer.image import render_generated_image
 
     captured = {}
@@ -22,17 +24,16 @@ def test_style_prefix_prepended_to_prompt(tmp_path):
         out_path.write_bytes(_FAKE_PNG)
         return MagicMock(provider="test")
 
-    visual = {"type": "generated_image", "prompt": "parent and child"}
+    # Simulate what base.py does: fold style into the prompt before calling render
+    visual = {"type": "generated_image", "prompt": "clean sketch style, parent and child"}
     with patch("pipeline.composer.image.try_chain", side_effect=fake_try_chain), \
          patch("pipeline.composer.image.image_to_video"):
         render_generated_image(
             visual, 5.0, 1280, 720, tmp_path, "s1",
             style_prefix="clean sketch style",
         )
-    assert "clean sketch style" in captured["prompt"]
-    assert "parent and child" in captured["prompt"]
-    # style prefix comes before the original prompt
-    assert captured["prompt"].index("clean sketch style") < captured["prompt"].index("parent and child")
+    # prompt is used as-is; no double-prepending
+    assert captured["prompt"] == "clean sketch style, parent and child"
 
 
 def test_seed_included_in_cache_key():
@@ -207,3 +208,103 @@ def test_fallback_to_style_prefix_when_no_visual_style(tmp_path):
             theme={"style_prefix": "clean educational sketch"},
         )
     assert "clean educational sketch" in captured["prompt"]
+
+
+import shutil
+
+
+def test_sidecar_png_written_after_generation(tmp_path):
+    from pipeline.composer.image import render_generated_image
+
+    def fake_chain(providers, prompt, out_path, size):
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(_FAKE_PNG)
+        return MagicMock(provider="test")
+
+    visual = {"type": "generated_image", "prompt": "parent and child"}
+    with patch("pipeline.composer.image.try_chain", side_effect=fake_chain), \
+         patch("pipeline.composer.image.image_to_video"):
+        render_generated_image(visual, 5.0, 1280, 720, tmp_path, "s5")
+    assert (tmp_path / "s5_source.png").exists()
+
+
+def test_restore_override_used_when_present(tmp_path):
+    """If {scene_id}_restore.png exists, it's used directly without API call."""
+    from pipeline.composer.image import render_generated_image
+
+    restore = tmp_path / "s5_restore.png"
+    restore.write_bytes(_FAKE_PNG)
+    called = []
+
+    def fake_chain(*a, **kw):
+        called.append(True)
+        return MagicMock(provider="test")
+
+    with patch("pipeline.composer.image.try_chain", side_effect=fake_chain), \
+         patch("pipeline.composer.image.image_to_video"):
+        render_generated_image(
+            {"type": "generated_image", "prompt": "test"},
+            5.0, 1280, 720, tmp_path, "s5",
+        )
+    assert not called, "API should not be called when restore.png present"
+    assert not restore.exists(), "restore.png should be consumed"
+    assert (tmp_path / "s5_source.png").exists()
+
+
+def test_edit_mode_calls_edit_provider(tmp_path):
+    from pipeline.composer.image import render_generated_image
+
+    source = tmp_path / "s5_source.png"
+    source.write_bytes(_FAKE_PNG)
+    captured = {}
+
+    def fake_edit_img2img(image_path, prompt, strength, out_path, size):
+        captured["called"] = True
+        captured["strength"] = strength
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(_FAKE_PNG)
+        from pipeline.providers.base import ProviderResult
+        return ProviderResult(path=out_path, provider="fal-img2img")
+
+    mock_provider = MagicMock()
+    mock_provider.edit_img2img.side_effect = fake_edit_img2img
+
+    visual = {
+        "type": "generated_image",
+        "prompt": "parent and child",
+        "edit_mode": True,
+        "edit_type": "img2img",
+        "edit_instruction": "keep composition, fix style",
+        "edit_strength": 0.25,
+    }
+    with patch("pipeline.composer.image.EditImageProvider", return_value=mock_provider), \
+         patch("pipeline.composer.image.save_to_history"), \
+         patch("pipeline.composer.image.image_to_video"):
+        render_generated_image(visual, 5.0, 1280, 720, tmp_path, "s5")
+
+    assert captured.get("called"), "EditImageProvider.edit_img2img should be called"
+    assert captured["strength"] == 0.25
+
+
+def test_edit_mode_falls_through_when_no_source(tmp_path):
+    """With edit_mode=True but no source PNG, falls through to normal generation."""
+    from pipeline.composer.image import render_generated_image
+
+    called = []
+
+    def fake_chain(providers, prompt, out_path, size):
+        called.append(True)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(_FAKE_PNG)
+        return MagicMock(provider="test")
+
+    visual = {
+        "type": "generated_image",
+        "prompt": "test",
+        "edit_mode": True,
+        "edit_instruction": "fix it",
+    }
+    with patch("pipeline.composer.image.try_chain", side_effect=fake_chain), \
+         patch("pipeline.composer.image.image_to_video"):
+        render_generated_image(visual, 5.0, 1280, 720, tmp_path, "s5")
+    assert called, "should fall through to normal generation"

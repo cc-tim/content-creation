@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import hashlib
+import shutil
 from pathlib import Path
 from typing import Any
 
 import structlog
 
 from pipeline.composer.base import image_to_video
+from pipeline.composer.image_history import save_to_history
 from pipeline.providers.base import ProviderError, try_chain
+from pipeline.providers.edit_image import EditImageProvider
 from pipeline.providers.gen_image import GenImageProvider
 
 logger = structlog.get_logger()
@@ -42,6 +45,44 @@ def _is_too_dark(path: Path, threshold: int = 60) -> bool:
         return False
 
 
+def _find_source_png(scene_id: str, work_dir: Path) -> Path | None:
+    p = work_dir / f"{scene_id}_source.png"
+    return p if p.exists() else None
+
+
+def _edit_image(
+    visual: dict,
+    existing_png: Path,
+    combined_prompt: str,
+    work_dir: Path,
+    scene_id: str,
+    width: int,
+    height: int,
+) -> Path | None:
+    edit_type = visual.get("edit_type", "img2img")
+    instruction = visual.get("edit_instruction") or combined_prompt
+    strength = float(visual.get("edit_strength", 0.3))
+    size = _size_arg(width, height)
+
+    cache_key = _cache_key(f"edit|{edit_type}|{instruction}|{existing_png.stat().st_size}")
+    out_png = work_dir / "image_cache" / f"{cache_key}.png"
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+
+    provider = EditImageProvider()
+    try:
+        if edit_type == "img2img":
+            provider.edit_img2img(existing_png, instruction, strength, out_png, size)
+        elif edit_type == "inpaint":
+            provider.edit_inpaint(existing_png, instruction, out_png, size)
+        else:
+            logger.warning("image.edit.unknown_type", edit_type=edit_type)
+            return None
+        return out_png
+    except Exception as exc:
+        logger.warning("image.edit.failed", error=str(exc), scene=scene_id)
+        return None
+
+
 def render_generated_image(
     visual: dict[str, Any],
     duration_sec: float,
@@ -57,26 +98,47 @@ def render_generated_image(
     seed: int | None = None,
     anchor_image: Path | None = None,
 ) -> Path:
-    """Generate an image via gen-image.py, convert to video segment.
+    """Generate an image, convert to video segment.
 
-    Uses draft tier by default ($0.003/image). gen-image.py handles key
-    rotation, caching, and fallback between fal.ai and OpenAI automatically.
-    Falls back to a themed text card if generation fails.
+    Style is assembled by base.py before this call; style_prefix is kept
+    only for tier selection. Falls back to a themed text card on failure.
     """
     prompt = visual.get("prompt", "abstract background")
-
-    # Prepend niche style prefix (takes priority over scene prompt)
-    if style_prefix:
-        prompt = f"{style_prefix}, {prompt}".strip(", ")
-
-    # Upgrade to production tier when style anchor is active for better adherence
+    # style_prefix already folded into prompt by base.py; kept as param for tier selection
     tier = visual.get("image_tier", "production" if style_prefix else "draft")
 
+    output = work_dir / f"{scene_id}_visual.mp4"
+    sidecar = work_dir / f"{scene_id}_source.png"
+    restore = work_dir / f"{scene_id}_restore.png"
+
+    # --- Restore override: use history image directly, skip all generation ---
+    if restore.exists():
+        logger.info("image.restore_override", scene=scene_id)
+        shutil.move(str(restore), str(sidecar))
+        image_to_video(sidecar, output, duration_sec, width, height)
+        return output
+
+    # --- Edit mode: modify existing sidecar via img2img or inpaint ---
+    if visual.get("edit_mode"):
+        source_png = _find_source_png(scene_id, work_dir)
+        if source_png:
+            save_to_history(source_png, scene_id, work_dir)
+            edited = _edit_image(visual, source_png, prompt, work_dir, scene_id, width, height)
+            if edited and edited.exists():
+                shutil.copy2(edited, sidecar)
+                image_to_video(edited, output, duration_sec, width, height)
+                return output
+        logger.warning(
+            "image.edit_mode.fallback",
+            scene=scene_id,
+            reason="no source PNG found" if not source_png else "edit failed",
+        )
+
+    # --- Normal text-to-image generation ---
     cache_dir = work_dir / "image_cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_name = _cache_key_with_seed(prompt, seed)
     cached_png = cache_dir / f"{cache_name}.png"
-    output = work_dir / f"{scene_id}_visual.mp4"
 
     if cached_png.exists():
         if _is_too_dark(cached_png):
@@ -102,11 +164,9 @@ def render_generated_image(
                 light_prompt = f"{prompt}, white background, bright cream paper, no dark areas"
                 light_key = _cache_key_with_seed(light_prompt, seed)
                 light_png = cache_dir / f"{light_key}.png"
-                size = _size_arg(width, height)
-                try_chain([provider], prompt=light_prompt, out_path=light_png, size=size)
+                try_chain([provider], prompt=light_prompt, out_path=light_png, size=_size_arg(width, height))
                 cached_png = light_png
-                bright = not _is_too_dark(cached_png)
-                logger.info("image.dark_retry_done", scene=scene_id, bright=bright)
+                logger.info("image.dark_retry_done", scene=scene_id, bright=not _is_too_dark(cached_png))
             if gallery_path is not None:
                 _write_to_gallery(
                     image_path=cached_png,
@@ -120,6 +180,10 @@ def render_generated_image(
             return _fallback_text_card(
                 scene_narration or prompt, duration_sec, width, height, work_dir, scene_id, theme
             )
+
+    # Write sidecar for future edit mode use
+    if not sidecar.exists():
+        shutil.copy2(cached_png, sidecar)
 
     image_to_video(cached_png, output, duration_sec, width, height)
     return output
