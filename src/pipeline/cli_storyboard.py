@@ -18,6 +18,7 @@ _console = Console()
 _RECORDING_EXTS = (".wav", ".mp3", ".m4a")
 
 _ALLOWED_FIELDS = {"narration", "narration_est_sec", "pause_after_sec", "section"}
+_ALLOWED_VISUAL_FIELDS = {"style_modifier", "edit_mode", "edit_type", "edit_instruction", "edit_strength"}
 _ALLOWED_SECTIONS = {
     "hook",
     "context",
@@ -69,6 +70,28 @@ def _resolve_voice_profile(registry: VoiceRegistry, voice_id: str | None) -> Voi
     if not prerecorded:
         raise typer.BadParameter("no prerecorded voice in registry; pass --voice <id>")
     raise typer.BadParameter("multiple prerecorded voices in registry; pass --voice <id>")
+
+
+def _coerce_visual_value(field: str, raw: str) -> object:
+    if field == "edit_mode":
+        if raw.lower() in ("true", "1", "yes"):
+            return True
+        if raw.lower() in ("false", "0", "no"):
+            return False
+        raise typer.BadParameter(f"edit_mode must be true/false, got {raw!r}")
+    if field == "edit_strength":
+        try:
+            v = float(raw)
+        except ValueError as exc:
+            raise typer.BadParameter(f"edit_strength must be a float 0.0–1.0, got {raw!r}") from exc
+        if not 0.0 <= v <= 1.0:
+            raise typer.BadParameter(f"edit_strength must be 0.0–1.0, got {v}")
+        return v
+    if field == "edit_type":
+        if raw not in ("img2img", "inpaint"):
+            raise typer.BadParameter(f"edit_type must be 'img2img' or 'inpaint', got {raw!r}")
+        return raw
+    return raw
 
 
 def _coerce_value(field: str, raw: str) -> object:
@@ -174,34 +197,49 @@ def recordings(
 @storyboard_app.command("set")
 def set_field(
     scene_id: str = typer.Argument(...),
-    assignment: str = typer.Argument(..., help="field=value"),
+    assignment: str = typer.Argument(..., help="field=value or visual.subfield=value"),
     work_dir: Path = typer.Option(Path("."), "--work-dir"),
 ) -> None:
-    """Set a safe field on a scene. Use storyboard.json directly for visual/overlay/compartment."""
+    """Set a safe field on a scene. Use visual.subfield=value for visual sub-fields."""
     if "=" not in assignment:
         raise typer.BadParameter("expected field=value, got " + assignment)
     field, raw_value = assignment.split("=", 1)
-    if field not in _ALLOWED_FIELDS:
-        raise typer.BadParameter(
-            f"'{field}' is not a safe field; allowed: {sorted(_ALLOWED_FIELDS)}. "
-            "Edit storyboard.json directly for complex fields."
-        )
-    value = _coerce_value(field, raw_value)
 
     sb = _load_storyboard(work_dir)
     scene = sb.get_scene(scene_id)
     if scene is None:
         raise typer.BadParameter(f"scene '{scene_id}' not found")
-    setattr(scene, field, value)
+
+    if field.startswith("visual."):
+        subfield = field[len("visual."):]
+        if subfield not in _ALLOWED_VISUAL_FIELDS:
+            raise typer.BadParameter(
+                f"'{subfield}' is not a safe visual field; allowed: {sorted(_ALLOWED_VISUAL_FIELDS)}. "
+                "Edit storyboard.json directly for other fields."
+            )
+        value = _coerce_visual_value(subfield, raw_value)
+        if scene.visual is None:
+            scene.visual = {}
+        scene.visual[subfield] = value
+        label = f"{scene_id}.visual.{subfield}"
+    else:
+        if field not in _ALLOWED_FIELDS:
+            raise typer.BadParameter(
+                f"'{field}' is not a safe field; allowed: {sorted(_ALLOWED_FIELDS)}. "
+                "Edit storyboard.json directly for complex fields."
+            )
+        value = _coerce_value(field, raw_value)
+        setattr(scene, field, value)
+        label = f"{scene_id}.{field}"
 
     sb_path = work_dir / "storyboard.json"
     sb.save(sb_path)
-    typer.echo(f"updated {scene_id}.{field}")
+    typer.echo(f"updated {label}")
 
     from pipeline.session_log import SessionEntry, append_session, new_session_id
     append_session(work_dir, SessionEntry(
         session_id=new_session_id(),
         timestamp=datetime.now().isoformat(timespec="seconds"),
         command=f"storyboard set {scene_id} {field}=...",
-        summary=f"storyboard set: {scene_id}.{field}",
+        summary=f"storyboard set: {label}",
     ))
