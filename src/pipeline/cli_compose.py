@@ -54,6 +54,8 @@ def rescene(
 ) -> None:
     """Delete named scene finals and re-run compose (only those scenes re-render)."""
     work_dir = _resolve_work_dir(project_id)
+    from pipeline.composer.image_history import purge_old
+    purge_old(work_dir / "compose" / "scenes")
     scenes_dir = work_dir / "compose" / "scenes"
     for scene_id in scenes:
         for suffix in ("_final.mp4", "_final_no_overlay.mp4"):
@@ -102,6 +104,8 @@ def reburn(
 ) -> None:
     """Re-burn subtitles from existing raw.mp4 / raw_no_overlay.mp4 without re-rendering scenes."""
     work_dir = _resolve_work_dir(project_id)
+    from pipeline.composer.image_history import purge_old
+    purge_old(work_dir / "compose" / "scenes")
     ctx = PipelineContext.load(work_dir / "context.json")
     variant = variant or ctx.preferred_variant or "subtitles_no_overlay"
     compose_dir = work_dir / "compose"
@@ -155,6 +159,71 @@ def reburn(
         entry.outcome = "failed"
         entry.error = str(exc)[:200]
         entry.summary = f"reburn failed: {variant}"
+        append_session(work_dir, entry)
+        raise
+    append_session(work_dir, entry)
+
+
+@compose_app.command("history")
+def history(
+    project_id: int = typer.Option(..., "--project-id"),
+    scene: str = typer.Option(..., "--scene"),
+) -> None:
+    """List image history entries for a scene."""
+    from pipeline.composer.image_history import find_history
+    work_dir = _resolve_work_dir(project_id)
+    scenes_dir = work_dir / "compose" / "scenes"
+    entries = find_history(scene, scenes_dir)
+    if not entries:
+        typer.echo(f"No history for scene '{scene}'")
+        return
+    now = datetime.now()
+    for ts, path in entries:
+        age = now - ts
+        if age.days:
+            age_str = f"{age.days}d ago"
+        else:
+            age_str = f"{age.seconds // 3600}h ago" if age.seconds >= 3600 else f"{age.seconds // 60}m ago"
+        typer.echo(f"  {path.name}  ({age_str})")
+
+
+@compose_app.command("restore")
+def restore(
+    project_id: int = typer.Option(..., "--project-id"),
+    scene: str = typer.Option(..., "--scene"),
+    timestamp: str | None = typer.Option(None, "--timestamp", help="e.g. 20260428T143022"),
+) -> None:
+    """Restore most-recent (or timestamped) history entry for a scene, then re-render."""
+    from pipeline.composer.image_history import restore_scene
+    work_dir = _resolve_work_dir(project_id)
+    scenes_dir = work_dir / "compose" / "scenes"
+
+    restore_path = restore_scene(scene, scenes_dir, timestamp)
+    if restore_path is None:
+        typer.echo(f"No history entries for scene '{scene}'", err=True)
+        raise typer.Exit(code=1)
+
+    # Clear scene finals so ComposeStage re-renders this scene
+    for suffix in ("_final.mp4", "_final_no_overlay.mp4"):
+        p = scenes_dir / f"{scene}{suffix}"
+        if p.exists():
+            p.unlink()
+
+    typer.echo(f"Restored {restore_path.name} — re-rendering scene {scene}...")
+    ctx = PipelineContext.load(work_dir / "context.json")
+    entry = SessionEntry(
+        session_id=new_session_id(),
+        timestamp=datetime.now().isoformat(timespec="seconds"),
+        command=f"compose restore --scene {scene}",
+    )
+    try:
+        asyncio.run(ComposeStage().run(ctx))
+        entry.summary = f"restore: {scene}"
+        typer.echo("Done.")
+    except Exception as exc:
+        entry.outcome = "failed"
+        entry.error = str(exc)[:200]
+        entry.summary = f"restore failed: {scene}"
         append_session(work_dir, entry)
         raise
     append_session(work_dir, entry)
