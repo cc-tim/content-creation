@@ -60,7 +60,7 @@ def _burn_subtitle_pass(
     run_ffmpeg([
         "ffmpeg", "-y", "-i", str(src),
         "-vf", f"subtitles={escaped_sub}:force_style='{subtitle_style}'",
-        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23", "-c:a", "copy",
+        "-c:v", "libx264", "-preset", "medium", "-crf", "23", "-c:a", "copy",
         str(dst),
     ])
 
@@ -83,6 +83,37 @@ def _get_duration_sec(path: Path) -> float:
         check=True,
     )
     return float(result.stdout.strip())
+
+
+def _validate_bitrate(video_path: Path, min_kbps: int = 2000) -> None:
+    """Warn if video bitrate is below minimum (720p H.264 needs ~2+ Mbps).
+
+    Low bitrate indicates an encoder preset or CRF mismatch — see
+    _burn_subtitle_pass (ultrafast on still-image video can produce <200 kbps).
+    """
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-show_entries", "format=bit_rate",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(video_path)],
+            capture_output=True, text=True, check=True,
+        )
+        bitrate_bps = float(result.stdout.strip())
+        bitrate_kbps = bitrate_bps / 1000.0
+    except Exception:
+        logger.warning("compose.bitrate_check_failed", path=str(video_path))
+        return
+
+    if bitrate_kbps < min_kbps:
+        logger.warning(
+            "compose.bitrate_low",
+            kbps=round(bitrate_kbps),
+            min_kbps=min_kbps,
+            hint="Video may have visible compression artifacts. "
+                 "Check encoder preset (should be 'medium', not 'ultrafast') "
+                 "and CRF (should be 18-23).",
+        )
+    else:
+        logger.info("compose.bitrate_ok", kbps=round(bitrate_kbps))
 
 
 def _extract_clip_thumbnail(source: Path, timestamp: float, out_path: Path) -> None:
@@ -178,6 +209,10 @@ class ComposeStage(PipelineStage):
             final_path = await self._compose_mvp(ctx, compose_dir)
 
         ctx.final_video_path = final_path
+
+        # Validate output bitrate — low bitrate means encoder/preset bug
+        _validate_bitrate(final_path)
+
         logger.info("compose.complete", path=str(final_path))
         return ctx
 

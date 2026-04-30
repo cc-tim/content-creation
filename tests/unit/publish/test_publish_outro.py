@@ -65,7 +65,17 @@ def test_outro_attached_when_enabled_and_exists(tmp_path: Path) -> None:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_bytes(b"merged")
 
-    with patch("pipeline.publish.stage.ffmpeg_concat", side_effect=_fake_concat):
+    def _fake_ffprobe(args, **kwargs):
+        result = MagicMock()
+        if "ffprobe" in str(args[0]):
+            result.stdout = "567.8\n"
+            result.returncode = 0
+        return result
+
+    with (
+        patch("pipeline.publish.stage.ffmpeg_concat", side_effect=_fake_concat),
+        patch("subprocess.run", side_effect=_fake_ffprobe),
+    ):
         stage = _stage(outro_enabled=True)
         stage._attach_outro(ctx, _profile(outro_enabled=True), channels_dir=channels_dir)
 

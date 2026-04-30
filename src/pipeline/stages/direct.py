@@ -77,6 +77,7 @@ def build_direct_prompt(
     constraints_text: str = "",
     clip_budget_text: str = "",
     intro_template_text: str = "",
+    niche: str | None = None,
 ) -> str:
     """Build Claude prompt to generate a storyboard from knowledge."""
     locale_instruction = LOCALE_INSTRUCTIONS.get(locale) or LOCALE_INSTRUCTIONS["en"]
@@ -103,8 +104,28 @@ Use 2-4 scenes only. Target 45 seconds total."""
                 "Do NOT summarize the topic or start with background."
             )
         )
-        duration_line = constraints_text if constraints_text else "Target 12 minutes total."
-        structure = f"""VIDEO STRUCTURE (standard format, 10-15 minutes):
+        duration_line = constraints_text if constraints_text else "Target 10 minutes total."
+        if niche == "parenting":
+            structure = f"""VIDEO STRUCTURE (standard format, 8-12 minutes, parenting/education):
+- hook (0-45s, 2-3 scenes): {hook_guidance}
+- context (45s-3min, 3-5 scenes): Map, people, setting, background
+- rising (3-7min, 8-12 scenes): Escalation of events
+- climax (7-9min, 3-5 scenes): Peak tension
+- aftermath (9-10min, 2-3 scenes): Resolution, consequences
+- analysis (10-12min, 4-6 scenes): Commentary, broader implications
+
+Target 28-36 scenes total. Each scene narration_est_sec 10-15 (avg ~13s).
+pause_after_sec: 0.3-0.5s within a section, 0.5-0.8s between sections,
+0.8-1.2s hook→context. Never use 0.0 — even 0.3s makes breathing room. {duration_line}
+
+VISUAL CONTINUITY: Images must feel like they belong in the same visual world.
+- If the same person/setting appears in multiple scenes, describe them identically.
+- Use 2-3 settings max (e.g., "living room", "bedroom", "park"). Revisit, don't invent new ones.
+- Prompt subjects consistently for character identity across scenes.
+  Good: "parent kneeling at toddler height, worried" → "same parent beside child, patient"
+  Bad: "mother in dress" → "woman in sweater" → "parent with glasses" (three different people)"""
+        else:
+            structure = f"""VIDEO STRUCTURE (standard format, 10-15 minutes):
 - hook (0-30s): {hook_guidance}
 - context (30s-2min): Map, people, setting, background
 - rising (2-6min): Escalation of events
@@ -114,6 +135,10 @@ Use 2-4 scenes only. Target 45 seconds total."""
 
 Use 15-25 scenes. {duration_line}"""
         visual_note = (
+            "Prefer generated_image for educational content (still images + narration work best). "
+            "Mix visual types: clip for action, map for geography, "
+            "namecard for intros, text_card for key facts."
+        ) if niche == "parenting" else (
             "Mix visual types for variety: clip for action moments, map for geography, "
             "namecard for introductions, text_card for key facts, generated_image for mood."
         )
@@ -179,11 +204,11 @@ Return ONLY valid JSON:
       "id": "s1",
       "section": "hook|context|rising|climax|aftermath|analysis|content|punchline",
       "narration": "Narration text in target locale",
-      "narration_est_sec": 8,
+      "narration_est_sec": 13,
       "facts_ref": ["f1"],
       "visual": {{"type": "...", ...}},
       "overlay": null or {{"type": "...", "text": "..."}},
-      "pause_after_sec": 0
+      "pause_after_sec": 0.5
     }}
   ]
 }}
@@ -490,6 +515,7 @@ class DirectStage(PipelineStage):
             constraints_text=constraints_text,
             clip_budget_text=clip_budget_text,
             intro_template_text=intro_template_text,
+            niche=ctx.niche,
         )
 
         response = client.messages.create(

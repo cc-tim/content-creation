@@ -1,8 +1,8 @@
 [parenting]
 intro_type = "generated_image"
 intro_prompt_hint = "parent and child in a warm home moment, sketch style, relatable, no text"
-visual_style = "clean educational sketch, minimal line art, simple warm tones, no clutter, conceptual"
-anchor_prompt = "parent and child in a calm home setting, sketch illustration, minimal color, friendly"
+visual_style = "cozy domestic scenes, consistent warm family home, soft sketch lines, cream background, muted earth tones, same parent-child duo across scenes in everyday moments, hand-drawn warmth, no clutter, no text in images"
+anchor_prompt = "parent and child duo in a calm cozy home setting, soft sketch illustration, warm cream tones, hand-drawn warmth, friendly"
 rationale = "Parenting source videos reuse the same illustration panels; our hook must be original and our style defined by the story"
 
 [true-crime]

@@ -120,8 +120,39 @@ class PublishStage:
             logger.warning("publish.outro_missing", expected=str(outro_path))
             return
         out = ctx.work_dir / "compose" / "final_with_outro.mp4"
+        # Idempotency guard: publish may be re-run to resume thumbnail/disclosure.
+        # If the context already points at the merged outro file, concatenating
+        # that file into itself would truncate/corrupt the result and can leave
+        # an outro-only upload candidate.
+        if ctx.final_video_path.resolve() == out.resolve():
+            logger.info("publish.outro_already_attached", output=str(out))
+            return
         out.parent.mkdir(parents=True, exist_ok=True)
         ffmpeg_concat([ctx.final_video_path, outro_path], out)
+
+        # Validate: broken concat can produce a ~0s file (e.g., 1776997800).
+        # If the merged output is clearly too short, discard it and keep original.
+        try:
+            import subprocess as _sp
+            result = _sp.run(
+                ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
+                 "-of", "default=noprint_wrappers=1:nokey=1", str(out)],
+                capture_output=True, text=True, check=True,
+            )
+            merged_dur = float(result.stdout.strip())
+        except Exception:
+            merged_dur = 0.0
+
+        if merged_dur < 10.0:
+            logger.error(
+                "publish.outro_concat_broken",
+                expected_min=10.0,
+                actual=round(merged_dur, 2),
+                hint="Deleting broken merge; keeping original final for upload",
+            )
+            out.unlink(missing_ok=True)
+            return
+
         ctx.final_video_path = out
         ctx.save()
         logger.info("publish.outro_attached", outro=str(outro_path))

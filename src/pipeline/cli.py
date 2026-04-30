@@ -13,6 +13,7 @@ from pipeline.cli_metadata import metadata_app
 from pipeline.cli_proofread import proofread_app
 from pipeline.cli_storyboard import storyboard_app
 from pipeline.cli_storyteller import storytell_app
+from pipeline.cli_visual_review import visual_review_app
 from pipeline.cli_voice import voice_app
 from pipeline.config import PipelineConfig
 from pipeline.gallery_cli import gallery_app
@@ -37,6 +38,7 @@ app.add_typer(metadata_app, name="metadata")
 app.add_typer(gallery_app, name="gallery")
 app.add_typer(proofread_app, name="proofread")
 app.add_typer(storytell_app, name="storytell")
+app.add_typer(visual_review_app, name="visual-review")
 app.add_typer(compose_app, name="compose")
 app.add_typer(outro_app, name="outro")
 
@@ -307,6 +309,35 @@ def produce(
             phase2 = cast(list[PipelineStage], [s for s in all_stages if s.name in post_review])
             orch = Orchestrator(stages=phase2)
             result = asyncio.run(orch.run(result.ctx))
+
+    if result.success and result.ctx.final_video_path:
+        # Auto visual review after compose: check image-narration fit + continuity
+        typer.echo("\nVisual QC review (image fit + continuity, Claude Haiku)...")
+        try:
+            from pipeline.cli_visual_review import (
+                print_visual_issues_table,
+                review_visual_fit,
+            )
+
+            vis_issues = review_visual_fit(result.ctx.work_dir)
+            if vis_issues:
+                print_visual_issues_table(vis_issues)
+                major = [i for i in vis_issues if i.get("severity") == "MAJOR"]
+                typer.echo(
+                    f"\nFound {len(vis_issues)} visual issue(s) "
+                    f"({len(major)} MAJOR)."
+                )
+                if major:
+                    typer.echo(
+                        "Review before publishing. Fix by editing storyboard "
+                        "visual.prompt or overlay, then:\n"
+                        f"  uv run pipeline compose rescene --project-id {project_id} "
+                        "--scene <id>"
+                    )
+            else:
+                typer.echo("  No visual issues found.")
+        except Exception as exc:
+            typer.echo(f"  (visual review skipped: {exc})")
 
     if result.success:
         typer.echo(f"\nPipeline complete! Output: {result.ctx.final_video_path}")
