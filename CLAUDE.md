@@ -255,6 +255,29 @@ uv run pipeline publish auth --profile ideal-parents-tw
 | Linting/formatting | **Ruff** | Replaces black + isort + flake8 |
 | Testing | **pytest** | Markers: `slow`, `integration`, `network` |
 
+## Skills (project plugin)
+
+This project ships its own skills at `skills/<name>/SKILL.md`. They are read by
+two systems:
+
+- **openclaw** loads them directly from `skills/`.
+- **Claude Code** registers them via the project's `.claude-plugin/` manifest
+  (a local marketplace with one plugin: `content-creation`). Skills appear
+  as `content-creation:<skill>` in the available-skills list.
+
+**One-time activation per machine:**
+```
+/plugin marketplace add /home/tim-huang/content-creation
+/plugin install content-creation@content-creation-local
+```
+After installing, restart the Claude Code session. The skills available to the
+assistant will then include `content-creation:produce`, `content-creation:scene-update`,
+`content-creation:visual-review`, etc.
+
+The deprecated flat-form skills at `.claude/skills/*.md` are not loaded by
+either system; they remain as reference content but should be retired by
+folding any unique guidance into the matching `skills/<name>/SKILL.md`.
+
 ## Commands
 
 ```bash
@@ -295,6 +318,12 @@ uv run pipeline compose set-variant --project-id <ID> --variant subtitles_no_ove
 uv run pipeline compose rescene --project-id <ID> --scene s9 [--scene s12]            # re-render named scenes (focused if variant locked)
 uv run pipeline compose reburn --project-id <ID>                                       # re-burn from raws (uses preferred_variant, default: subtitles_no_overlay)
 
+# Safety: `compose rescene` errors if --scene covers more than half the storyboard.
+# That's almost always a misuse — use `compose reburn` for wide rebuilds (it re-uses the
+# scene cache instead of re-rendering everything). Pass --force to override if you really
+# mean it. Background: a 3-scene wording fix accidentally rescene'd all 24 scenes once
+# and burned 9 minutes of compose time.
+
 # Overlay vs. no_overlay: overlay text (type: text_top, text_emphasis) appears ONLY in the
 # overlay variants (plain, subtitles). The no_overlay variants strip per-scene overlays.
 # To make text visible in subtitles_no_overlay, use visual_text in the storyboard instead of overlay.
@@ -315,6 +344,17 @@ uv run pipeline proofread run --project-id <ID> --apply      # show + apply all 
 # Natural-language triggers (for the assistant):
 #   "proofread project X"               → pipeline proofread run --project-id X
 #   "apply proofread fixes for X"       → pipeline proofread run --project-id X --apply
+
+# Visual review — extract per-scene midpoint frames so the assistant (or a subagent) can
+# look at the rendered scenes for layout / overlap / style-drift / image-narration mismatch.
+# No extra Anthropic API call — the vision pass happens in the running CC session.
+uv run pipeline visual-review extract-frames --project-id <ID>
+
+# Natural-language triggers (for the assistant):
+#   "review the rendered video"         → pipeline visual-review extract-frames --project-id X, then invoke visual-review skill
+#   "check for visual issues"           → same as above
+#   "look at the rendered scenes"       → same as above
+#   "judge the scene image"             → same as above
 ```
 
 ### Review gate flow (with proofread integrated)

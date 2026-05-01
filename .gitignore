@@ -8,3 +8,9 @@ __pycache__/
 .ruff_cache/
 /research/
 data/
+
+# Personal user-level skills bridged into openclaw via symlinks (not project-owned)
+skills/generate-image/
+skills/generate-video/
+skills/checkpoint-commit/
+skills/workflow-scout/

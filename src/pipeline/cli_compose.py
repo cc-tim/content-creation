@@ -63,9 +63,33 @@ def rescene(
     scenes: list[str] = typer.Option(
         ..., "--scene", help="Scene ID to invalidate (repeat for multiple)"
     ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Bypass the 'too many scenes' safety check. Required when --scene "
+        "covers more than half the storyboard.",
+    ),
 ) -> None:
     """Delete named scene finals and re-run compose (only those scenes re-render)."""
     work_dir = _resolve_work_dir(project_id)
+    # Safety: a wording change usually touches 1–3 scenes. If --scene was passed
+    # for >50% of the storyboard, the caller almost certainly meant `compose
+    # reburn` (which uses the cached scenes) instead of forcing a full re-render.
+    # Past incident: project 1777354336 burned 9 minutes rescening all 24 scenes
+    # for a 3-scene wording fix.
+    storyboard_path = work_dir / "storyboard.json"
+    if storyboard_path.exists():
+        from pipeline.storyboard import Storyboard
+        total = len(Storyboard.load(storyboard_path).scenes)
+        if total > 0 and len(scenes) > total // 2 and not force:
+            typer.echo(
+                f"--scene listed {len(scenes)} of {total} scenes "
+                f"({100 * len(scenes) // total}%). For wide rebuilds use "
+                f"`compose reburn` (re-uses scene cache). Pass --force to "
+                f"override.",
+                err=True,
+            )
+            raise typer.Exit(code=2)
     from pipeline.composer.image_history import purge_old
     purge_old(work_dir / "compose" / "scenes")
     scenes_dir = work_dir / "compose" / "scenes"
