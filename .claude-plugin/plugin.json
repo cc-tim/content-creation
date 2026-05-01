@@ -1,0 +1,8 @@
+{
+  "name": "content-creation",
+  "description": "YouTube porting pipeline skills (produce, scene-update, render, publish, voice-variant, evaluate-video, knowledge, shorts, status, storyboard). Auto-loaded by Claude Code from the project's skills/ directory; same files are also consumed by openclaw.",
+  "version": "1.0.0",
+  "author": {
+    "name": "tim-huang"
+  }
+}

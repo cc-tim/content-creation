@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "content-creation-local",
+  "description": "Project-local marketplace exposing content-creation pipeline skills to Claude Code. The same skills/<name>/SKILL.md files are read directly by openclaw — this manifest only registers them with Claude Code.",
+  "owner": {
+    "name": "tim-huang"
+  },
+  "plugins": [
+    {
+      "name": "content-creation",
+      "description": "YouTube porting pipeline skills: produce, scene-update, render, publish, voice-variant, evaluate-video, knowledge, shorts, status, storyboard.",
+      "source": "./",
+      "category": "workflow"
+    }
+  ]
+}
