@@ -1,6 +1,6 @@
 ---
 name: produce
-description: Run the full YouTube porting pipeline from a URL to a rendered video. Use when the user wants to produce, port, or make a video from a YouTube URL. Covers: acquire → analyze → storyboard → TTS → compose.
+description: Run the full YouTube porting pipeline OR the wiki-explainer porting pipeline. For YouTube: pass a URL. For wiki explainers: pass a path to a `.md` file with `intent: video` frontmatter. Covers: acquire → analyze → storyboard → TTS → compose.
 version: 1.0.0
 metadata:
   openclaw:
@@ -14,7 +14,9 @@ Full pipeline from YouTube URL to rendered video. You (the agent) do the creativ
 (knowledge extraction, storyboard writing) directly — no separate API calls needed for those stages.
 
 ## Input
-- YouTube URL (required)
+- YouTube URL OR explainer path (one is required)
+  - YouTube URL → existing flow (acquire → analyze)
+  - Path to `.md` with `intent: video` frontmatter → explainer flow (manifest review → analyze)
 - Locale (default: zh-TW)
 - Project ID (optional — to resume an existing project)
 - Voice ID (optional — default uses locale default from registry)
@@ -36,6 +38,58 @@ print(text[:4000])
 "
 ```
 
+## Phase 1 (alternate) — Explainer path
+
+When the input is a path to a `.md` file (not a URL), use this branch instead.
+
+### Load the manifest
+
+```bash
+cd /home/tim-huang/content-creation
+uv run python3 -c "
+from pathlib import Path
+import json
+from pipeline.explainer import load_explainer
+ex = load_explainer(Path('<EXPLAINER_PATH>'))
+print(json.dumps({
+  'title': ex.title,
+  'domain': ex.domain,
+  'manifest': ex.manifest.model_dump(),
+}, indent=2, ensure_ascii=False))
+"
+```
+
+### Create project + copy explainer in
+
+```bash
+PROJECT_ID="$(date +%Y%m%d-%H%M%S)-$(basename '<EXPLAINER_PATH>' .md)"
+PROJ="output/projects/$PROJECT_ID"
+mkdir -p "$PROJ/source"
+cp '<EXPLAINER_PATH>' "$PROJ/source/explainer.md"
+echo "$PROJECT_ID"
+```
+
+### Interactive manifest review (in chat, no extra API)
+
+Show the user a structured summary:
+- Title, domain, intent
+- `video_brief` (full text)
+- count of: verbatim_lines, key_facts, required_images, required_clips, required_sequence
+- first 3 of each list as a sample
+
+Then raise questions where the manifest is ambiguous. Always check:
+- Required images with no `role` hint → ask role (`intro_candidate`,
+  `historical`, `comparison`, `aftermath`, etc.)
+- `verbatim_lines` longer than ~25 words → flag (will break narration cadence)
+- Conflicting `required_sequence` vs prose section order → ask which wins
+- Long explainer (>2000 words body) with empty `video_brief` → ask for direction
+- Required images with no caption → ask for one (used for storyboard scene generation)
+
+If the user wants changes, edit the manifest block(s) in the **wiki**
+explainer (the source of truth), then re-copy into `output/projects/<ID>/source/`.
+
+When the user approves, continue with Phase 2.
+
 ## Phase 2 — Analyze (you do this)
 
 Read the transcript and build a knowledge base:
@@ -45,6 +99,10 @@ Read the transcript and build a knowledge base:
 - **Context bridges** — cultural context zh-TW audience needs (explain US legal system, geography, etc.)
 
 Save as `output/projects/<ID>/knowledge.json`. Show the user a summary and ask for feedback.
+
+**For explainer-path projects:** the manifest is the analyze input. Build
+`knowledge.json` from the explainer body + manifest (entities, facts cited
+in `key_facts`, etc.) — do NOT extract from a transcript (there isn't one).
 
 ## Phase 3 — Storyboard (you do this)
 
@@ -78,6 +136,13 @@ print(f'{len(sb.scenes)} scenes, ~{sb.estimated_duration_sec():.0f}s')
 ```
 
 Show the user the storyboard summary. Ask: "Ready to render, or want to adjust anything?"
+
+**For explainer-path projects (manifest-aware):** treat the manifest as
+hard input — see `skills/storyboard/SKILL.md` "Manifest constraints" section.
+In short: every `verbatim_lines` entry must appear unmodified somewhere
+(narration/overlay/subtitle); every `required_images` path must appear in
+at least one scene's visual; `required_sequence` shapes scene order;
+`video_brief` shapes pacing and intro feel.
 
 ## Phase 4 — Render
 
