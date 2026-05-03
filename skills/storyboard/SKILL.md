@@ -84,3 +84,39 @@ Then re-render changed scenes (see `render` skill) or full reburn.
 
 Visual types: `generated_image`, `article_image`, `clip`, `text_card`, `slide`, `still_frame`
 Overlay types: `title`, `namecard`, `text_top`, `text_left`, `text_emphasis` (never `text`)
+
+## Manifest constraints (explainer-path projects only)
+
+When the project was started from a wiki explainer (i.e.
+`output/projects/<ID>/source/explainer.md` exists with `intent: video`),
+the manifest in its frontmatter is a HARD INPUT to storyboard generation:
+
+| Manifest block | Constraint when generating storyboard |
+|---|---|
+| `verbatim_lines` | Each entry must appear *unmodified* in some scene's `narration`, `overlay.text`, or subtitle text. Don't paraphrase; the user marked these as exact. |
+| `key_facts` | Each fact must be *stated* somewhere (narration is fine). Paraphrasing is OK. |
+| `required_images` | Each `path` must appear as the `visual.path` of at least one scene. Use the `role` hint to choose placement (e.g. `intro_candidate` → s1 or s2). |
+| `required_clips` | Same rule as `required_images`. |
+| `required_sequence` | Phrases are free-form; honor the implied ordering when arranging scenes. |
+| `video_brief` | Shapes pacing, transitions, intro feel. Read it before starting. Mention any constraints in your storyboard summary so the user can check. |
+
+After writing the storyboard, do a self-check pass:
+
+```bash
+uv run python3 -c "
+import json
+from pathlib import Path
+from pipeline.explainer import load_explainer
+from pipeline.verifier import run_auto_checks
+proj = Path('output/projects/<ID>')
+ex = load_explainer(proj / 'source/explainer.md')
+sb = json.loads((proj / 'storyboard.json').read_text())
+result = run_auto_checks(ex.manifest, sb)
+for it in result.items:
+    if it.status == 'missing' and it.auto_checked:
+        print(f'MISSING: {it.category} — {it.label}')
+print(f'used={result.used_count} missing={result.missing_count}')
+"
+```
+
+If any auto-checked item is `MISSING`, surface it to the user before proceeding to TTS.
