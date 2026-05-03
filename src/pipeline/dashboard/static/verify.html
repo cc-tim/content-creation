@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Verify — Content Dashboard</title>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 0; background: #0f172a; color: #f1f5f9; }
+    header { padding: 12px 20px; border-bottom: 1px solid #334155; display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+    header h1 { font-size: 18px; margin: 0; }
+    header .summary { color: #94a3b8; font-size: 13px; }
+    header .badge { padding: 2px 8px; border-radius: 4px; margin-right: 8px; }
+    .ok { background: #166534; color: #f0fdf4; }
+    .miss { background: #991b1b; color: #fef2f2; }
+    .skip { background: #475569; color: #f1f5f9; }
+    main { display: grid; grid-template-columns: minmax(360px, 1fr) 2fr; min-height: calc(100vh - 50px); }
+    section { padding: 16px 20px; overflow-y: auto; }
+    section.left { border-right: 1px solid #334155; }
+    h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-top: 24px; }
+    .brief { white-space: pre-wrap; font-size: 13px; background: #1e293b; padding: 12px; border-radius: 6px; }
+    .item { padding: 8px 10px; border-radius: 6px; background: #1e293b; margin-bottom: 6px; display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+    .item .label { flex: 1; word-break: break-word; }
+    .item .status { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #334155; align-self: flex-start; }
+    .item.used { border-left: 4px solid #16a34a; }
+    .item.missing { border-left: 4px solid #dc2626; }
+    .item.user_skipped { border-left: 4px solid #64748b; opacity: 0.7; }
+    .item button { background: #334155; color: #f1f5f9; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+    .item button:hover { background: #475569; }
+    video { width: 100%; max-height: 60vh; background: #000; border-radius: 6px; }
+    .empty { color: #64748b; font-size: 13px; font-style: italic; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Verify <span id="proj"></span></h1>
+  <div class="summary">
+    <span class="badge ok"><span id="cnt-used">0</span> used</span>
+    <span class="badge miss"><span id="cnt-missing">0</span> missing</span>
+    <span class="badge skip"><span id="cnt-skipped">0</span> skipped</span>
+  </div>
+</header>
+<main>
+  <section class="left">
+    <h2>Directorial brief</h2>
+    <div id="brief" class="brief"></div>
+
+    <h2>Verbatim lines</h2>
+    <div id="verbatim_line" class="bucket"></div>
+    <h2>Key facts</h2>
+    <div id="key_fact" class="bucket"></div>
+    <h2>Required images</h2>
+    <div id="required_image" class="bucket"></div>
+    <h2>Required clips</h2>
+    <div id="required_clip" class="bucket"></div>
+    <h2>Required sequence</h2>
+    <div id="required_sequence" class="bucket"></div>
+  </section>
+  <section class="right">
+    <h2>Final video</h2>
+    <video id="video" controls></video>
+    <h2>Scenes</h2>
+    <div id="scenes"></div>
+  </section>
+</main>
+<script>
+const projectId = location.pathname.split("/").pop();
+document.getElementById("proj").textContent = projectId;
+
+async function refresh() {
+  const res = await fetch(`/api/verify/${projectId}`);
+  if (!res.ok) {
+    const detail = (await res.json().catch(() => ({}))).detail || res.statusText;
+    document.body.innerHTML = `<p style="padding:40px">Error: ${res.status} — ${detail}</p>`;
+    return;
+  }
+  const data = await res.json();
+  document.getElementById("cnt-used").textContent = data.used_count;
+  document.getElementById("cnt-missing").textContent = data.missing_count;
+  document.getElementById("cnt-skipped").textContent = data.skipped_count;
+  document.getElementById("brief").textContent = data.manifest.video_brief || "(no brief)";
+
+  const buckets = ["verbatim_line", "key_fact", "required_image", "required_clip", "required_sequence"];
+  for (const b of buckets) document.getElementById(b).innerHTML = "";
+
+  for (const it of data.items) {
+    const el = document.createElement("div");
+    el.className = `item ${it.status}`;
+
+    const label = document.createElement("div");
+    label.className = "label";
+    label.textContent = it.label;
+
+    const statusEl = document.createElement("span");
+    statusEl.className = "status";
+    statusEl.textContent = it.status;
+
+    el.appendChild(label);
+    el.appendChild(statusEl);
+
+    if (!it.auto_checked && it.status !== "user_skipped") {
+      const manualBtn = document.createElement("button");
+      manualBtn.textContent = it.status === "used" ? "✓ unmark" : "mark used";
+      manualBtn.onclick = async () => {
+        await fetch(`/api/verify/${projectId}/manual-check`, {
+          method: "POST",
+          headers: {"content-type": "application/json"},
+          body: JSON.stringify({item_id: it.item_id, checked: it.status !== "used"}),
+        });
+        refresh();
+      };
+      el.appendChild(manualBtn);
+    }
+
+    const skipBtn = document.createElement("button");
+    skipBtn.textContent = it.status === "user_skipped" ? "un-skip" : "OK to drop";
+    skipBtn.onclick = async () => {
+      await fetch(`/api/verify/${projectId}/skip`, {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({item_id: it.item_id, skipped: it.status !== "user_skipped"}),
+      });
+      refresh();
+    };
+    el.appendChild(skipBtn);
+
+    document.getElementById(it.category).appendChild(el);
+  }
+
+  for (const b of buckets) {
+    const bucket = document.getElementById(b);
+    if (bucket.children.length === 0) {
+      bucket.innerHTML = '<div class="empty">(none)</div>';
+    }
+  }
+
+  const v = document.getElementById("video");
+  v.src = `/output/${projectId}/compose/final_zh-TW.mp4`;
+  v.onerror = () => { v.style.display = "none"; };
+}
+
+refresh();
+</script>
+</body>
+</html>
