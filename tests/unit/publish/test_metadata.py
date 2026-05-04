@@ -75,3 +75,31 @@ def test_load_and_save_roundtrip(tmp_path: Path) -> None:
 def test_load_metadata_missing_file(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         load_metadata(tmp_path / "nope.json")
+
+
+def test_metadata_localizations_roundtrip() -> None:
+    from pipeline.publish.metadata import LocalizedMeta
+    m = Metadata(
+        title="T",
+        description="D",
+        tags=[],
+        category_id=22,
+        default_language="zh-TW",
+        default_audio_language="zh-TW",
+        localizations={"en": LocalizedMeta(title="T_en", description="D_en")},
+    )
+    data = m.model_dump()
+    m2 = Metadata(**data)
+    assert m2.localizations["en"].title == "T_en"
+
+
+def test_metadata_empty_localizations_allowed() -> None:
+    m = Metadata(
+        title="T",
+        description="D",
+        tags=[],
+        category_id=22,
+        default_language="zh-TW",
+        default_audio_language="zh-TW",
+    )
+    assert m.localizations == {}

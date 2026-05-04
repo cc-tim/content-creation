@@ -84,3 +84,32 @@ class YouTubeClient:
     def videos_list(self, *, video_id: str, part: str) -> list[_Body]:
         response = self.api.videos().list(part=part, id=video_id).execute()
         return list(response.get("items", []))
+
+    def captions_insert(
+        self,
+        *,
+        video_id: str,
+        language: str,
+        name: str,
+        srt_path: Path,
+    ) -> str:
+        """Upload an SRT caption track. Returns the YouTube caption_id.
+
+        Quota cost: ~400 units per call.
+        Note: sync= parameter is deprecated as of 2026-05-04 and not passed.
+        """
+        body: _Body = {
+            "snippet": {
+                "videoId": video_id,
+                "language": language,
+                "name": name,
+                "isDraft": False,
+            }
+        }
+        media = MediaFileUpload(str(srt_path), mimetype="text/plain")
+        response = (
+            self.api.captions()
+            .insert(part="snippet", body=body, media_body=media)
+            .execute()
+        )
+        return response["id"]

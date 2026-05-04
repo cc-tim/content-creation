@@ -78,6 +78,10 @@ def produce(
         None, "--video",
         help="Path to local video file. Skips yt-dlp download.",
     ),
+    mla: bool = typer.Option(False, "--mla/--no-mla", help="Enable Multi-Language Audio (dual TTS)"),
+    secondary_locale: str | None = typer.Option(
+        None, "--secondary-locale", help="Secondary locale for MLA (e.g. en)"
+    ),
     source_locale: str | None = typer.Option(
         None, "--source-locale", help="Origin of source material (e.g. US, CA, en, ja)"
     ),
@@ -141,6 +145,10 @@ def produce(
             ctx.source_locale = source_locale
         if reference_storyboard is not None:
             ctx.reference_storyboard_path = Path(reference_storyboard)
+        if mla:
+            ctx.mla = True
+        if secondary_locale is not None:
+            ctx.secondary_locale = secondary_locale
     else:
         ctx = PipelineContext(
             project_id=project_id,
@@ -150,6 +158,8 @@ def produce(
             voice_id=voice,
             burn_subtitles=subtitles,
             niche=niche,
+            mla=mla,
+            secondary_locale=secondary_locale,
             source_locale=source_locale,
             reference_storyboard_path=(
                 Path(reference_storyboard) if reference_storyboard else None

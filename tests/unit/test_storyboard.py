@@ -137,3 +137,38 @@ def test_storyboard_without_title_description_roundtrips():
     # Absent fields should NOT be emitted when None (to keep existing files stable)
     assert "title" not in data
     assert "description" not in data
+
+
+def test_scene_narration_en_optional():
+    from pipeline.storyboard import Scene
+
+    s = Scene(
+        id="s1",
+        section="hook",
+        narration="你好",
+        narration_est_sec=2.0,
+        visual={"type": "text_card", "text": "hi"},
+    )
+    assert s.narration_en is None
+
+
+def test_scene_narration_en_roundtrips():
+    from pipeline.storyboard import Scene, Storyboard
+    import json
+    import pathlib
+    import tempfile
+
+    s = Scene(
+        id="s1",
+        section="hook",
+        narration="你好",
+        narration_est_sec=2.0,
+        visual={"type": "text_card", "text": "hi"},
+        narration_en="Hello",
+    )
+    sb = Storyboard(scenes=[s])
+    with tempfile.TemporaryDirectory() as d:
+        p = pathlib.Path(d) / "sb.json"
+        sb.save(p)
+        sb2 = Storyboard.load(p)
+    assert sb2.scenes[0].narration_en == "Hello"

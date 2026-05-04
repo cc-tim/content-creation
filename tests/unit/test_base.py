@@ -75,3 +75,22 @@ def test_context_roundtrips_source_locale_and_reference_storyboard(tmp_path):
 
     assert round.source_locale == "US"
     assert round.reference_storyboard_path == tmp_path / "storyboard_en.json"
+
+
+def test_mla_fields_roundtrip(tmp_path):
+    ctx = PipelineContext(
+        project_id=1,
+        source_url="x",
+        locale="zh-TW",
+        work_dir=tmp_path,
+        mla=True,
+        secondary_locale="en",
+        captions_uploaded={"zh-TW": "cap_abc", "en": "cap_def"},
+    )
+    data = ctx.to_dict()
+    assert data["mla"] is True
+    assert data["secondary_locale"] == "en"
+    assert data["captions_uploaded"] == {"zh-TW": "cap_abc", "en": "cap_def"}
+    ctx2 = PipelineContext.from_dict(data)
+    assert ctx2.mla is True
+    assert ctx2.captions_uploaded == {"zh-TW": "cap_abc", "en": "cap_def"}

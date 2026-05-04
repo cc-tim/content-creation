@@ -69,6 +69,16 @@ cp '<EXPLAINER_PATH>' "$PROJ/source/explainer.md"
 echo "$PROJECT_ID"
 ```
 
+```bash
+# For MLA projects, set secondary locale:
+# ctx.mla=True, ctx.secondary_locale="en" — set these in context.json after project creation
+uv run python3 -c "
+from pathlib import Path; from pipeline.stages.base import PipelineContext
+ctx = PipelineContext.load(Path('output/projects/\$PROJECT_ID/context.json'))
+ctx.mla = True; ctx.secondary_locale = 'en'; ctx.save()
+"
+```
+
 ### Interactive manifest review (in chat, no extra API)
 
 Show the user a structured summary:
@@ -165,3 +175,5 @@ After rendering, suggest:
 - `storyboard` skill to review/edit scenes
 - `publish` skill when ready to upload
 - `shorts` skill to generate a Shorts cut
+
+After publish completes, if mla=True: go to YouTube Studio → Content → [this video] → Audio tab → upload secondary_narration_path manually, set language English.

@@ -337,6 +337,18 @@ _METADATA_TOOL = {
                 "type": "string",
                 "enum": ["synthetic_voice", "altered", "none"],
             },
+            "localizations": {
+                "type": "object",
+                "properties": {
+                    "en": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "description": {"type": "string"},
+                        },
+                    },
+                },
+            },
         },
     },
 }
@@ -349,6 +361,7 @@ def _build_metadata_prompt(
     source_url: str,
     storyboard_synopsis: str,
     knowledge_facts: list[dict],
+    mla: bool = False,
 ) -> tuple[str, str]:
     facts_text = "\n".join(f"- {f.get('text', '')}" for f in knowledge_facts[:10])
     system = f"""You are writing YouTube metadata for a channel with this voice:
@@ -371,6 +384,17 @@ Description structure (in order):
 Do NOT summarise the narration or retell the story. Write from the perspective of the viewer's problem, not the content's storyline.
 
 Return via the emit_metadata tool. Do not output prose."""
+    mla_instruction = ""
+    if mla:
+        mla_instruction = """
+
+Also produce English metadata in a "localizations" key:
+{
+  "localizations": {
+    "en": { "title": "...", "description": "..." }
+  }
+}
+The English title and description should convey the same content as the primary locale metadata but written for an English-speaking audience."""
     user = f"""Source URL: {source_url}
 
 Storyboard synopsis:
@@ -379,7 +403,7 @@ Storyboard synopsis:
 Relevant facts for credit-worthy claims:
 {facts_text or "(none)"}
 
-Generate title, description, tags, and related metadata fields."""
+Generate title, description, tags, and related metadata fields.{mla_instruction}"""
     return system, user
 
 
@@ -398,6 +422,7 @@ def write_metadata_for_project(
     storyboard_synopsis: str,
     knowledge_facts: list[dict],
     regenerate: bool = False,
+    mla: bool = False,
 ) -> Path:
     """Generate (or preserve) metadata.json for a project.
 
@@ -417,6 +442,7 @@ def write_metadata_for_project(
         source_url=source_url,
         storyboard_synopsis=storyboard_synopsis,
         knowledge_facts=knowledge_facts,
+        mla=mla,
     )
 
     client = get_anthropic_client()
@@ -629,6 +655,7 @@ class DirectStage(PipelineStage):
                         knowledge_facts=[
                             {"id": f.id, "text": f.text} for f in knowledge.facts[:10]
                         ],
+                        mla=ctx.mla,
                     )
             else:
                 logger.warning(

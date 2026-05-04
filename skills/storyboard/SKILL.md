@@ -120,3 +120,12 @@ print(f'used={result.used_count} missing={result.missing_count}')
 ```
 
 If any auto-checked item is `MISSING`, surface it to the user before proceeding to TTS.
+
+### MLA projects (mla=True in context.json)
+
+When `ctx.mla=True`, every scene must also have a `narration_en` field:
+- Write EN narration for the same scene concept, targeting the **same duration** as `narration` (zh-TW)
+- EN narration is NOT a translation — it is the same idea written naturally in English
+- Duration guidance: count ~2.5 words/second for EN TTS. If zh-TW scene is 8s, aim for ~20 EN words.
+- Flag per-scene if EN word count implies >1.15× the zh-TW duration — TTS will warn on these
+- Total EN duration must be within ±2s of total zh-TW duration. Adjust scene-level EN text until this holds.
