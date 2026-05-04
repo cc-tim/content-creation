@@ -121,6 +121,7 @@ class Storyboard:
     target_duration_sec: int = 720
     aspect_ratio: str = "16:9"  # 16:9 | 9:16
     scenes: list[Scene] = field(default_factory=list)
+    transitions: list[Transition] = field(default_factory=list)
     theme: Theme = field(default_factory=Theme)
     title: str | None = None
     description: str | None = None
@@ -140,6 +141,8 @@ class Storyboard:
             out["title"] = self.title
         if self.description is not None:
             out["description"] = self.description
+        if self.transitions:
+            out["transitions"] = [t.to_dict() for t in self.transitions]
         return out
 
     @classmethod
@@ -147,6 +150,7 @@ class Storyboard:
         scenes = [Scene.from_dict(s) for s in data.get("scenes", [])]
         theme_data = data.get("theme", {})
         theme = Theme.from_dict(theme_data) if theme_data else Theme()
+        transitions = [Transition.from_dict(t) for t in data.get("transitions", [])]
         return cls(
             version=data.get("version", 1),
             format=data.get("format", "standard"),
@@ -156,6 +160,7 @@ class Storyboard:
             theme=theme,
             title=data.get("title"),
             description=data.get("description"),
+            transitions=transitions,
         )
 
     def save(self, path: Path) -> None:
