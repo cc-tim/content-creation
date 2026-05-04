@@ -582,7 +582,7 @@ def _check_secondary_durations(
     total_primary_ms = 0
     total_secondary_ms = 0
 
-    for pri, sec in zip(primary_timings, secondary_timings):
+    for pri, sec in zip(primary_timings, secondary_timings, strict=False):
         # Skip scenes where secondary was empty (no EN narration provided).
         if sec.get("skipped"):
             continue

@@ -78,7 +78,9 @@ def produce(
         None, "--video",
         help="Path to local video file. Skips yt-dlp download.",
     ),
-    mla: bool = typer.Option(False, "--mla/--no-mla", help="Enable Multi-Language Audio (dual TTS)"),
+    mla: bool = typer.Option(
+        False, "--mla/--no-mla", help="Enable Multi-Language Audio (dual TTS)"
+    ),
     secondary_locale: str | None = typer.Option(
         None, "--secondary-locale", help="Secondary locale for MLA (e.g. en)"
     ),
