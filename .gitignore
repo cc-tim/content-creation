@@ -1,5 +1,7 @@
 .superpowers/
 .worktrees/
+.claude/worktrees/
+.openclaw/
 output/
 .env
 __pycache__/
