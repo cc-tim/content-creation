@@ -1,9 +1,12 @@
 from unittest.mock import patch
 
+import pytest
+
 from pipeline.stages.base import PipelineContext
 from pipeline.stages.tts import (
     TtsStage,
     _build_subtitle_entries,
+    _check_secondary_durations,
     _split_text_for_subtitles,
     _visual_width,
     _wrap_english_two_lines,
@@ -430,3 +433,214 @@ def test_split_english_preserves_cjk_path():
     assert len(chunks) >= 2
     for chunk in chunks:
         assert len(chunk) <= 40
+
+
+# --- MLA (Multi-Language Audio) secondary TTS pass ---
+
+
+def _make_mla_storyboard(tmp_path, scenes_data):
+    """Helper: build and save a storyboard, return (storyboard_path, script_path)."""
+    scenes = [
+        Scene(
+            id=d["id"],
+            section=d.get("section", "hook"),
+            narration=d["narration"],
+            narration_en=d.get("narration_en"),
+            narration_est_sec=d.get("narration_est_sec", 3.0),
+            visual={"type": "text_card", "text": d.get("visual_text", "v")},
+            pause_after_sec=d.get("pause_after_sec", 0.0),
+        )
+        for d in scenes_data
+    ]
+    storyboard = Storyboard(scenes=scenes)
+    storyboard_path = tmp_path / "storyboard.json"
+    storyboard.save(storyboard_path)
+
+    script_dir = tmp_path / "script"
+    script_dir.mkdir()
+    script_path = script_dir / "script_zh-TW.md"
+    script_path.write_text(storyboard.derive_script(), encoding="utf-8")
+
+    return storyboard_path, script_path
+
+
+async def test_tts_produces_secondary_audio_when_mla(tmp_path):
+    """When secondary_locale is set, TTS writes secondary narration and subtitle paths."""
+    from pipeline.voices.base import VoiceProfile
+
+    storyboard_path, script_path = _make_mla_storyboard(
+        tmp_path,
+        [
+            {"id": "s1", "narration": "段落一", "narration_en": "Paragraph one."},
+            {"id": "s2", "narration": "段落二", "narration_en": "Paragraph two."},
+        ],
+    )
+
+    ctx = PipelineContext(
+        project_id=99,
+        source_url="https://example/mla",
+        locale="zh-TW",
+        work_dir=tmp_path,
+        storyboard_path=storyboard_path,
+        script_path=script_path,
+        secondary_locale="en",
+    )
+
+    synthesize_calls: list[tuple[str, str]] = []  # (locale_hint_from_profile, text)
+
+    class _StubEngine:
+        def __init__(self, locale: str):
+            self._locale = locale
+
+        @property
+        def name(self) -> str:
+            return "edge"
+
+        def synthesize(self, text, out_path, profile, scene_id=None):
+            synthesize_calls.append((self._locale, text))
+            out_path.write_bytes(b"FAKE-AUDIO")
+
+    zh_engine = _StubEngine("zh-TW")
+    en_engine = _StubEngine("en")
+
+    zh_profile = VoiceProfile(id="zh-stub", engine="edge", locale="zh-TW", params={"voice": "x"})
+    en_profile = VoiceProfile(id="en-stub", engine="edge", locale="en", params={"voice": "y"})
+
+    def fake_default_for_locale(self_reg, locale):
+        if locale == "zh-TW":
+            return zh_engine, zh_profile
+        return en_engine, en_profile
+
+    with (
+        patch(
+            "pipeline.voices.registry.VoiceRegistry.default_for_locale",
+            fake_default_for_locale,
+        ),
+        patch("pipeline.stages.tts._get_audio_duration_ms", return_value=1000),
+    ):
+        ctx = await TtsStage().run(ctx)
+
+    # Primary outputs
+    assert ctx.narration_path is not None and ctx.narration_path.exists()
+    assert ctx.subtitle_path is not None and ctx.subtitle_path.exists()
+
+    # Secondary outputs
+    assert ctx.secondary_narration_path is not None, "secondary_narration_path should be set"
+    assert ctx.secondary_narration_path.exists(), "secondary narration file must exist"
+    assert ctx.secondary_subtitle_path is not None, "secondary_subtitle_path should be set"
+    assert ctx.secondary_subtitle_path.exists(), "secondary subtitle file must exist"
+
+    # Naming convention: narration_<locale>.mp3 / subtitles_<locale>.srt
+    assert ctx.secondary_narration_path.name == "narration_en.mp3"
+    assert ctx.secondary_subtitle_path.name == "subtitles_en.srt"
+
+    # Engine was called for both locales
+    zh_calls = [c for c in synthesize_calls if c[0] == "zh-TW"]
+    en_calls = [c for c in synthesize_calls if c[0] == "en"]
+    assert len(zh_calls) == 2, f"expected 2 zh-TW synth calls, got {zh_calls}"
+    assert len(en_calls) == 2, f"expected 2 EN synth calls, got {en_calls}"
+    assert en_calls[0][1] == "Paragraph one."
+    assert en_calls[1][1] == "Paragraph two."
+
+
+async def test_tts_secondary_warns_for_missing_narration_en(tmp_path):
+    """Scenes where narration_en is None should log a warning and be skipped."""
+    from pipeline.voices.base import VoiceProfile
+
+    storyboard_path, script_path = _make_mla_storyboard(
+        tmp_path,
+        [
+            {"id": "s1", "narration": "段落一", "narration_en": "Paragraph one."},
+            # narration_en intentionally absent
+            {"id": "s2", "narration": "段落二", "narration_en": None},
+        ],
+    )
+
+    ctx = PipelineContext(
+        project_id=100,
+        source_url="https://example/mla-warn",
+        locale="zh-TW",
+        work_dir=tmp_path,
+        storyboard_path=storyboard_path,
+        script_path=script_path,
+        secondary_locale="en",
+    )
+
+    class _StubEngine:
+        @property
+        def name(self) -> str:
+            return "edge"
+
+        def synthesize(self, text, out_path, profile, scene_id=None):
+            out_path.write_bytes(b"AUDIO")
+
+    stub_profile = VoiceProfile(id="s", engine="edge", locale="en", params={"voice": "x"})
+    stub_pair = (_StubEngine(), stub_profile)
+
+    with (
+        patch(
+            "pipeline.voices.registry.VoiceRegistry.default_for_locale",
+            return_value=stub_pair,
+        ),
+        patch("pipeline.stages.tts._get_audio_duration_ms", return_value=1000),
+    ):
+        # Should NOT raise even though s2 has no narration_en.
+        ctx = await TtsStage().run(ctx)
+
+    assert ctx.secondary_narration_path is not None
+    assert ctx.secondary_narration_path.exists()
+    # Only s1 had content; s2 was skipped — the file still exists (just smaller).
+    assert ctx.secondary_narration_path.stat().st_size > 0
+
+
+def test_check_secondary_durations_warns_per_scene(monkeypatch):
+    """Per-scene warning fires when EN duration > primary × 1.15."""
+    warnings_emitted: list[str] = []
+
+    def fake_warning(event, **kw):
+        warnings_emitted.append(event)
+
+    import pipeline.stages.tts as tts_mod
+
+    monkeypatch.setattr(tts_mod.logger, "warning", fake_warning)
+
+    primary_timings = [
+        {"index": 0, "duration_ms": 1000},
+        {"index": 1, "duration_ms": 2000},
+    ]
+    secondary_timings = [
+        {"index": 0, "duration_ms": 1200},  # 20% over → warn
+        {"index": 1, "duration_ms": 2100},  # 5% over → no warn
+    ]
+
+    # Total deviation: primary=3000, secondary=3300 → 300ms → within ±2s → no raise.
+    _check_secondary_durations(primary_timings, secondary_timings, "zh-TW", "en")
+
+    # Only scene 0 (20% overage) should have triggered a warning.
+    exceed_warns = [w for w in warnings_emitted if "scene_duration_exceed" in w]
+    assert len(exceed_warns) == 1, f"Expected 1 per-scene warning, got {exceed_warns}"
+
+
+def test_check_secondary_durations_hard_fails_on_total_deviation():
+    """Hard-fail raised when total EN-vs-primary deviation exceeds ±2s."""
+    primary_timings = [{"index": 0, "duration_ms": 10_000}]
+    secondary_timings = [{"index": 0, "duration_ms": 13_000}]  # 3s over
+
+    with pytest.raises(ValueError, match="exceeds ±2s limit"):
+        _check_secondary_durations(primary_timings, secondary_timings, "zh-TW", "en")
+
+
+def test_check_secondary_durations_skips_empty_scenes():
+    """Skipped scenes (narration_en=None) are excluded from both warn and total checks."""
+    primary_timings = [
+        {"index": 0, "duration_ms": 1000},
+        {"index": 1, "duration_ms": 5000},
+    ]
+    secondary_timings = [
+        {"index": 0, "duration_ms": 1100},
+        # s2 was skipped; even though primary=5000 they won't be compared
+        {"index": 1, "duration_ms": 0, "skipped": True},
+    ]
+
+    # Should not raise: only s1 is compared; deviation = 100ms.
+    _check_secondary_durations(primary_timings, secondary_timings, "zh-TW", "en")

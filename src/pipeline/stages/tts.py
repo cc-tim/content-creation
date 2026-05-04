@@ -43,6 +43,84 @@ def extract_narration_segments(script: str) -> list[str]:
     return segments
 
 
+async def _synthesize_pass(
+    segments: list[str],
+    scene_ids: list[str | None],
+    scene_pauses_ms: list[int],
+    audio_dir: Path,
+    locale_tag: str,
+    engine: Any,
+    profile: Any,
+    seg_prefix: str = "segment",
+) -> tuple[Path, Path, list[dict[str, Any]]]:
+    """Run TTS synthesis for one pass (primary or secondary).
+
+    Segments that are empty strings are skipped — a 0ms placeholder timing
+    is inserted so the index alignment between primary and secondary is
+    preserved. Empty segments are excluded from duration-check logic.
+
+    Returns (narration_path, subtitle_path, segment_timings).
+    """
+    segment_paths: list[Path] = []
+    segment_timings: list[dict[str, Any]] = []
+    cumulative_ms = 0
+
+    for i, text in enumerate(segments):
+        scene_id = scene_ids[i] if i < len(scene_ids) else None
+        if not text:
+            # Warn about missing EN narration; insert 0ms placeholder to keep indices aligned.
+            logger.warning(
+                "tts.secondary.missing_narration_en",
+                scene_id=scene_id,
+                index=i,
+            )
+            segment_timings.append(
+                {
+                    "index": i,
+                    "text": "",
+                    "path": None,
+                    "start_ms": cumulative_ms,
+                    "duration_ms": 0,
+                    "skipped": True,
+                }
+            )
+            if i < len(scene_pauses_ms):
+                cumulative_ms += scene_pauses_ms[i]
+            continue
+
+        seg_path = audio_dir / f"{seg_prefix}_{i:03d}.mp3"
+        # Engines are sync and some (EdgeEngine) call asyncio.run internally,
+        # which blows up inside this running loop. Offload to a worker thread.
+        await asyncio.to_thread(engine.synthesize, text, seg_path, profile, scene_id=scene_id)
+
+        est_duration_ms = _get_audio_duration_ms(seg_path)
+
+        segment_timings.append(
+            {
+                "index": i,
+                "text": text,
+                "path": str(seg_path),
+                "start_ms": cumulative_ms,
+                "duration_ms": est_duration_ms,
+            }
+        )
+        segment_paths.append(seg_path)
+        cumulative_ms += est_duration_ms
+        if i < len(scene_pauses_ms):
+            cumulative_ms += scene_pauses_ms[i]
+
+    narration_path = audio_dir / f"narration_{locale_tag}.mp3"
+    _concatenate_audio(segment_paths, narration_path)
+
+    srt_entries = _build_subtitle_entries(
+        [t for t in segment_timings if not t.get("skipped")]
+    )
+    subtitle_path = audio_dir / f"subtitles_{locale_tag}.srt"
+    write_srt(srt_entries, subtitle_path)
+
+    return narration_path, subtitle_path, segment_timings
+
+
 class TtsStage(PipelineStage):
     @property
     def name(self) -> str:
@@ -84,65 +162,91 @@ class TtsStage(PipelineStage):
         # SRT subtitles aligned with the rendered video, we have to add each
         # scene's pause_after_sec into the cumulative SRT timeline.
         scene_pauses_ms: list[int] = []
+        scene_ids: list[str | None] = []
         if ctx.storyboard_path and ctx.storyboard_path.exists():
             from pipeline.storyboard import Storyboard
 
             storyboard = Storyboard.load(ctx.storyboard_path)
             scene_pauses_ms = [int(s.pause_after_sec * 1000) for s in storyboard.scenes]
+            # Scene ids align 1:1 with segments when the storyboard is present
+            # (storyboard.derive_script emits one narration line per scene).
+            scene_ids = [s.id for s in storyboard.scenes]
 
-        # Generate audio per segment
-        segment_paths: list[Path] = []
-        segment_timings: list[dict[str, Any]] = []
-        cumulative_ms = 0
+        narration_path, subtitle_path, segment_timings = await _synthesize_pass(
+            segments=segments,
+            scene_ids=scene_ids,
+            scene_pauses_ms=scene_pauses_ms,
+            audio_dir=audio_dir,
+            locale_tag=ctx.locale,
+            engine=engine,
+            profile=profile,
+            seg_prefix="segment",
+        )
 
-        # Scene ids align 1:1 with segments when the storyboard is present
-        # (storyboard.derive_script emits one narration line per scene).
-        scene_ids: list[str | None] = []
-        if ctx.storyboard_path and ctx.storyboard_path.exists():
-            from pipeline.storyboard import Storyboard
-
-            storyboard_for_ids = Storyboard.load(ctx.storyboard_path)
-            scene_ids = [s.id for s in storyboard_for_ids.scenes]
-
-        for i, text in enumerate(segments):
-            seg_path = audio_dir / f"segment_{i:03d}.mp3"
-            scene_id = scene_ids[i] if i < len(scene_ids) else None
-            # Engines are sync and some (EdgeEngine) call asyncio.run internally,
-            # which blows up inside this running loop. Offload to a worker thread.
-            await asyncio.to_thread(engine.synthesize, text, seg_path, profile, scene_id=scene_id)
-
-            # Get actual duration via ffprobe
-            est_duration_ms = _get_audio_duration_ms(seg_path)
-
-            segment_timings.append(
-                {
-                    "index": i,
-                    "text": text,
-                    "path": str(seg_path),
-                    "start_ms": cumulative_ms,
-                    "duration_ms": est_duration_ms,
-                }
-            )
-            segment_paths.append(seg_path)
-            cumulative_ms += est_duration_ms
-            # Account for the inter-scene pause that compose will insert.
-            if i < len(scene_pauses_ms):
-                cumulative_ms += scene_pauses_ms[i]
-
-        # Concatenate all segments into one file
-        narration_path = audio_dir / f"narration_{ctx.locale}.mp3"
-        _concatenate_audio(segment_paths, narration_path)
         ctx.narration_path = narration_path
-
-        # Generate SRT from segment timings — split long text into subtitle chunks
-        srt_entries = _build_subtitle_entries(segment_timings)
-        subtitle_path = audio_dir / f"subtitles_{ctx.locale}.srt"
-        write_srt(srt_entries, subtitle_path)
         ctx.subtitle_path = subtitle_path
-
         ctx.segment_timings = segment_timings
 
         logger.info("tts.complete", segments=len(segments), path=str(narration_path))
+
+        # --- Secondary (MLA) pass ---
+        if ctx.secondary_locale:
+            ctx = await self._run_secondary_tts(ctx, registry, audio_dir, scene_pauses_ms)
+
+        return ctx
+
+    async def _run_secondary_tts(
+        self,
+        ctx: PipelineContext,
+        registry: VoiceRegistry,
+        audio_dir: Path,
+        scene_pauses_ms: list[int],
+    ) -> PipelineContext:
+        """Run a second TTS pass for secondary_locale using scene.narration_en."""
+        logger.info("tts.secondary.start", locale=ctx.secondary_locale)
+
+        if not ctx.storyboard_path or not ctx.storyboard_path.exists():
+            raise ValueError(
+                "Secondary TTS pass requires a storyboard — storyboard_path is not set"
+            )
+
+        from pipeline.storyboard import Storyboard
+
+        storyboard = Storyboard.load(ctx.storyboard_path)
+        scenes = storyboard.scenes
+
+        # Collect EN narration segments; None → empty string (synthesize_pass will warn+skip).
+        en_segments = [s.narration_en if s.narration_en is not None else "" for s in scenes]
+        en_scene_ids = [s.id for s in scenes]
+
+        if ctx.secondary_voice_id:
+            sec_engine, sec_profile = registry.resolve(ctx.secondary_voice_id)
+        else:
+            sec_engine, sec_profile = registry.default_for_locale(ctx.secondary_locale)  # type: ignore[arg-type]
+
+        sec_narration_path, sec_subtitle_path, sec_timings = await _synthesize_pass(
+            segments=en_segments,
+            scene_ids=en_scene_ids,
+            scene_pauses_ms=scene_pauses_ms,
+            audio_dir=audio_dir,
+            locale_tag=ctx.secondary_locale,  # type: ignore[arg-type]
+            engine=sec_engine,
+            profile=sec_profile,
+            seg_prefix="segment_en",
+        )
+
+        ctx.secondary_narration_path = sec_narration_path
+        ctx.secondary_subtitle_path = sec_subtitle_path
+
+        # Duration checks — compare against primary segment_timings.
+        primary_timings = ctx.segment_timings or []
+        _check_secondary_durations(primary_timings, sec_timings, ctx.locale, ctx.secondary_locale)  # type: ignore[arg-type]
+
+        logger.info(
+            "tts.secondary.complete",
+            locale=ctx.secondary_locale,
+            path=str(sec_narration_path),
+        )
         return ctx
 
 
@@ -463,3 +567,49 @@ def _concatenate_audio(paths: list[Path], output: Path) -> None:
     with open(output, "wb") as out:
         for p in paths:
             out.write(p.read_bytes())
+
+
+def _check_secondary_durations(
+    primary_timings: list[dict[str, Any]],
+    secondary_timings: list[dict[str, Any]],
+    primary_locale: str,
+    secondary_locale: str,
+) -> None:
+    """Warn per scene if EN duration exceeds primary × 1.15; hard-fail if total deviation > ±2s.
+
+    Skipped segments (narration_en was None/empty) are excluded from both checks.
+    """
+    total_primary_ms = 0
+    total_secondary_ms = 0
+
+    for pri, sec in zip(primary_timings, secondary_timings):
+        # Skip scenes where secondary was empty (no EN narration provided).
+        if sec.get("skipped"):
+            continue
+
+        pri_dur = pri.get("duration_ms", 0)
+        sec_dur = sec.get("duration_ms", 0)
+
+        total_primary_ms += pri_dur
+        total_secondary_ms += sec_dur
+
+        # Per-scene warning: EN segment more than 15% longer than primary.
+        if pri_dur > 0 and sec_dur > pri_dur * 1.15:
+            logger.warning(
+                "tts.secondary.scene_duration_exceed",
+                scene_id=sec.get("index"),
+                primary_locale=primary_locale,
+                secondary_locale=secondary_locale,
+                primary_ms=pri_dur,
+                secondary_ms=sec_dur,
+                ratio=round(sec_dur / pri_dur, 3),
+            )
+
+    # Hard-fail if total deviation exceeds ±2s.
+    deviation_ms = abs(total_secondary_ms - total_primary_ms)
+    if deviation_ms > 2000:
+        raise ValueError(
+            f"Secondary TTS ({secondary_locale}) total duration deviates from primary "
+            f"({primary_locale}) by {deviation_ms / 1000:.2f}s — exceeds ±2s limit. "
+            f"primary={total_primary_ms}ms secondary={total_secondary_ms}ms"
+        )
