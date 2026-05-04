@@ -171,3 +171,76 @@ def test_hard_cut_renderer_returns_none(tmp_path: Path):
     result = renderer.render(a, b, cfg, out, width=1280, height=720, fps=30)
     assert result is None
     assert not out.exists()
+
+
+# --- XfadeRenderer ---
+
+import subprocess
+
+from pipeline.composer.transitions import XfadeRenderer
+
+
+def _make_test_clip(path: Path, *, duration: float, color: str, width: int = 320, height: int = 180, fps: int = 30) -> Path:
+    """Helper: create a small solid-color test clip with silent audio."""
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-f", "lavfi", "-i", f"color=c={color}:s={width}x{height}:r={fps}:d={duration}",
+            "-f", "lavfi", "-i", f"anullsrc=r=48000:cl=stereo",
+            "-t", str(duration),
+            "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-ar", "48000", "-b:a", "128k",
+            "-shortest", str(path),
+        ],
+        check=True,
+    )
+    return path
+
+
+def test_xfade_renderer_emits_clip_of_expected_duration(tmp_path: Path):
+    a = _make_test_clip(tmp_path / "a.mp4", duration=1.0, color="red")
+    b = _make_test_clip(tmp_path / "b.mp4", duration=1.0, color="blue")
+    out = tmp_path / "t.mp4"
+    cfg = TransitionConfig(style="fade", duration_sec=0.5, sfx=None)
+
+    renderer = XfadeRenderer(xfade_name="fade")
+    result = renderer.render(a, b, cfg, out, width=320, height=180, fps=30)
+
+    assert result == out
+    assert out.exists() and out.stat().st_size > 0
+    # ffprobe duration should be ~0.5s (allow ±0.1s for encoding rounding)
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(out)],
+        capture_output=True, text=True, check=True,
+    )
+    duration = float(probe.stdout.strip())
+    assert 0.4 <= duration <= 0.6, f"Expected ~0.5s, got {duration}s"
+
+
+def test_xfade_renderer_with_sfx_mixes_audio(tmp_path: Path):
+    """sfx file is mixed into the transition's audio track."""
+    a = _make_test_clip(tmp_path / "a.mp4", duration=1.0, color="red")
+    b = _make_test_clip(tmp_path / "b.mp4", duration=1.0, color="blue")
+    sfx = tmp_path / "sfx.wav"
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error",
+         "-f", "lavfi", "-i", "sine=frequency=440:duration=0.5",
+         "-c:a", "pcm_s16le", str(sfx)],
+        check=True,
+    )
+    out = tmp_path / "t.mp4"
+    cfg = TransitionConfig(style="fade", duration_sec=0.5, sfx=str(sfx))
+
+    renderer = XfadeRenderer(xfade_name="fade")
+    result = renderer.render(a, b, cfg, out, width=320, height=180, fps=30)
+
+    assert result == out
+    # Verify the output has an audio stream
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a",
+         "-show_entries", "stream=codec_name",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(out)],
+        capture_output=True, text=True, check=True,
+    )
+    assert probe.stdout.strip() == "aac"
