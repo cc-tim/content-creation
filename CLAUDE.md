@@ -53,6 +53,9 @@ uv run pipeline discover --trending --days 7
 # Production
 uv run pipeline produce <video-url> --locale zh-TW [--niche parenting|none]
 uv run pipeline produce <video-url> --locale zh-TW --start-from tts  # resume after review gate
+# MLA (multi-language audio) — set before TTS
+uv run pipeline produce <url/path> --locale zh-TW --mla --secondary-locale en
+# After publish: go to YouTube Studio → Audio tab → upload secondary_narration_path manually
 
 # Storyboard
 uv run pipeline storyboard show [--scene scene_003]
