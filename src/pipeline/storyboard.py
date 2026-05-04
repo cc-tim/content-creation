@@ -113,9 +113,12 @@ class Scene:
     overlay: dict[str, Any] | None = None
     pause_after_sec: float = 0
     compartment: dict[str, Any] | None = None
+    narration_source: NarrationSource | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Scene:
+        ns_raw = data.get("narration_source")
+        narration_source = NarrationSource.from_dict(ns_raw) if ns_raw else None
         return cls(
             id=data["id"],
             section=data["section"],
@@ -127,6 +130,7 @@ class Scene:
             overlay=data.get("overlay"),
             pause_after_sec=float(data.get("pause_after_sec", 0)),
             compartment=data.get("compartment"),
+            narration_source=narration_source,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -144,6 +148,8 @@ class Scene:
             out["narration_en"] = self.narration_en
         if self.compartment is not None:
             out["compartment"] = self.compartment
+        if self.narration_source is not None:
+            out["narration_source"] = self.narration_source.to_dict()
         return out
 
 
