@@ -35,6 +35,23 @@ def _resolve_projects_dir() -> Path:
     return config.OUTPUT_DIR / "projects"
 
 
+def _delete_transition_cache_for_scenes(compose_dir: Path, scene_ids: list[str]) -> None:
+    """Remove the entire transition cache directory.
+
+    Called from ``rescene`` to invalidate any transition clips that were
+    cached against the rescened scene's prior content. The transitions
+    are cheap to re-render (sub-second xfade clips), so we wipe the whole
+    cache rather than tracking per-transition dependencies. The
+    ``scene_ids`` argument is for future targeted invalidation; the v1
+    behavior wipes everything.
+    """
+    cache = compose_dir / "transitions"
+    if cache.exists():
+        import shutil
+        shutil.rmtree(cache)
+        logger.info("rescene.transition_cache_cleared", path=str(cache))
+
+
 @compose_app.command("set-variant")
 def set_variant(
     project_id: int = typer.Option(..., "--project-id"),
@@ -99,6 +116,9 @@ def rescene(
             if p.exists():
                 p.unlink()
                 logger.info("compose.rescene.deleted", path=str(p))
+    # Invalidate transition cache for adjacent seams (cheap to re-render).
+    compose_dir = work_dir / "compose"
+    _delete_transition_cache_for_scenes(compose_dir, scenes)
     ctx = PipelineContext.load(work_dir / "context.json")
     if ctx.preferred_variant:
         typer.echo(
