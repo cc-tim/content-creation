@@ -4,7 +4,11 @@ import asyncio
 import re
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pipeline.storyboard import Scene, Storyboard
+    from pipeline.voices.registry import VoiceRegistry
 
 import structlog
 
@@ -43,6 +47,61 @@ def extract_narration_segments(script: str) -> list[str]:
     return segments
 
 
+def _transcode_to_mp3(src: Path, dst: Path) -> None:
+    """Transcode any ffmpeg-readable audio file to MP3 at dst."""
+    import subprocess as _sp
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    _sp.run(
+        [
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-i", str(src),
+            "-c:a", "libmp3lame", "-q:a", "2",
+            str(dst),
+        ],
+        check=True,
+    )
+
+
+def _resolve_per_scene_engine(
+    *,
+    scene: "Scene | None",
+    registry: "VoiceRegistry | None",
+    default_engine: Any,
+    default_profile: Any,
+) -> tuple[Any, Any] | None:
+    """Resolve the (engine, profile) tuple to use for this scene's narration.
+
+    Returns:
+      - (engine, profile) — when the scene has a narration_source that resolves
+        to a TTS engine (engine=edge or fish_audio) successfully via the registry.
+      - None — signals "use direct transcode" (engine=prerecorded with file=...).
+        The caller is responsible for invoking _transcode_to_mp3 in that case.
+
+    On any resolution failure (missing scene, no narration_source, voice not in
+    registry, registry is None), returns (default_engine, default_profile) so the
+    caller falls back to the call-level defaults. A warning is logged when the
+    fallback is due to an unresolvable per-scene voice id.
+    """
+    if scene is None or scene.narration_source is None or registry is None:
+        return default_engine, default_profile
+
+    ns = scene.narration_source
+    if ns.engine == "prerecorded":
+        return None  # signal: caller should direct-transcode the file
+
+    # edge / fish_audio — resolve through registry; fall back on miss.
+    try:
+        return registry.resolve(ns.voice)  # type: ignore[arg-type]
+    except Exception as exc:  # VoiceNotFound or anything else
+        logger.warning(
+            "tts.per_scene.voice_unresolved",
+            scene_id=scene.id,
+            voice_id=ns.voice,
+            error=str(exc),
+        )
+        return default_engine, default_profile
+
+
 async def _synthesize_pass(
     segments: list[str],
     scene_ids: list[str | None],
@@ -52,6 +111,10 @@ async def _synthesize_pass(
     engine: Any,
     profile: Any,
     seg_prefix: str = "segment",
+    *,
+    registry: "VoiceRegistry | None" = None,
+    storyboard: "Storyboard | None" = None,
+    project_root: Path | None = None,
 ) -> tuple[Path, Path, list[dict[str, Any]]]:
     """Run TTS synthesis for one pass (primary or secondary).
 
@@ -89,9 +152,42 @@ async def _synthesize_pass(
             continue
 
         seg_path = audio_dir / f"{seg_prefix}_{i:03d}.mp3"
-        # Engines are sync and some (EdgeEngine) call asyncio.run internally,
-        # which blows up inside this running loop. Offload to a worker thread.
-        await asyncio.to_thread(engine.synthesize, text, seg_path, profile, scene_id=scene_id)
+        # Per-scene narration_source override (Plan 2). Resolve which engine
+        # to use for this segment.
+        scene_obj = (
+            storyboard.get_scene(scene_id) if (storyboard is not None and scene_id) else None
+        )
+        resolved = _resolve_per_scene_engine(
+            scene=scene_obj,
+            registry=registry,
+            default_engine=engine,
+            default_profile=profile,
+        )
+
+        if resolved is None:
+            # Direct-transcode path (engine="prerecorded" + file=...).
+            assert scene_obj is not None and scene_obj.narration_source is not None
+            ns = scene_obj.narration_source
+            assert ns.file is not None
+            src_path = (project_root / ns.file) if project_root else Path(ns.file)
+            if not src_path.exists():
+                logger.warning(
+                    "tts.prerecorded.missing_file_falling_back_to_default",
+                    scene_id=scene_id,
+                    file=str(src_path),
+                )
+                # Fall back: use the default engine for this segment.
+                await asyncio.to_thread(engine.synthesize, text, seg_path, profile, scene_id=scene_id)
+            else:
+                logger.info("tts.prerecorded.transcode", scene_id=scene_id, src=str(src_path))
+                await asyncio.to_thread(_transcode_to_mp3, src_path, seg_path)
+        else:
+            seg_engine, seg_profile = resolved
+            # Engines are sync and some (EdgeEngine) call asyncio.run internally,
+            # which blows up inside this running loop. Offload to a worker thread.
+            await asyncio.to_thread(
+                seg_engine.synthesize, text, seg_path, seg_profile, scene_id=scene_id,
+            )
 
         est_duration_ms = _get_audio_duration_ms(seg_path)
 
@@ -172,6 +268,12 @@ class TtsStage(PipelineStage):
             # (storyboard.derive_script emits one narration line per scene).
             scene_ids = [s.id for s in storyboard.scenes]
 
+        # Pre-load storyboard once for per-scene narration_source dispatch.
+        sb_for_dispatch = None
+        if ctx.storyboard_path and ctx.storyboard_path.exists():
+            from pipeline.storyboard import Storyboard
+            sb_for_dispatch = Storyboard.load(ctx.storyboard_path)
+
         narration_path, subtitle_path, segment_timings = await _synthesize_pass(
             segments=segments,
             scene_ids=scene_ids,
@@ -181,6 +283,9 @@ class TtsStage(PipelineStage):
             engine=engine,
             profile=profile,
             seg_prefix="segment",
+            registry=registry,
+            storyboard=sb_for_dispatch,
+            project_root=ctx.work_dir,
         )
 
         ctx.narration_path = narration_path
@@ -233,6 +338,9 @@ class TtsStage(PipelineStage):
             engine=sec_engine,
             profile=sec_profile,
             seg_prefix="segment_en",
+            registry=registry,
+            storyboard=storyboard,
+            project_root=ctx.work_dir,
         )
 
         ctx.secondary_narration_path = sec_narration_path
