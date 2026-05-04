@@ -12,6 +12,7 @@ to a PNG/webm `OverlayRenderer` later behind the same interface.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -169,3 +170,61 @@ class XfadeRenderer:
         frame_a.unlink(missing_ok=True)
         frame_b.unlink(missing_ok=True)
         return out
+
+
+REGISTRY: dict[str, TransitionRenderer] = {
+    "none":      HardCutRenderer(),
+    "fade":      XfadeRenderer(xfade_name="fade"),
+    "page-turn": XfadeRenderer(xfade_name="slideleft"),  # v1 alias; swap to OverlayRenderer later
+    "slide":     XfadeRenderer(xfade_name="slideleft"),
+    "wipe":      XfadeRenderer(xfade_name="wiperight"),
+}
+
+
+def _file_sha1_short(path: Path, *, n_bytes: int = 65536) -> str:
+    """Hash the first n_bytes of a file. Sufficient for cache invalidation
+    when the scene clip changes — full-file hash isn't needed."""
+    h = hashlib.sha1()
+    with path.open("rb") as f:
+        h.update(f.read(n_bytes))
+    return h.hexdigest()[:16]
+
+
+def transition_cache_key(scene_a: Path, scene_b: Path, cfg: TransitionConfig) -> str:
+    """Cache key from style + duration + sfx + content hashes of adjacent scenes."""
+    h = hashlib.sha1()
+    h.update(cfg.style.encode())
+    h.update(f"{cfg.duration_sec:.4f}".encode())
+    h.update((cfg.sfx or "").encode())
+    h.update(_file_sha1_short(scene_a).encode())
+    h.update(_file_sha1_short(scene_b).encode())
+    return h.hexdigest()
+
+
+def render_transition(
+    scene_a: Path,
+    scene_b: Path,
+    cfg: TransitionConfig,
+    cache_dir: Path,
+    *,
+    width: int,
+    height: int,
+    fps: int,
+) -> Path | None:
+    """Render a transition clip into the cache directory.
+
+    Returns the path to the rendered clip, or None for hard-cut transitions
+    (no clip is needed; the master concat stitches scenes directly).
+    Cache hit: returns existing path without re-rendering.
+    """
+    if cfg.style == "none":
+        return None
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    key = transition_cache_key(scene_a, scene_b, cfg)
+    out = cache_dir / f"{key}.mp4"
+    if out.exists():
+        logger.info("transition.cache_hit", key=key, style=cfg.style)
+        return out
+    logger.info("transition.render", key=key, style=cfg.style, duration=cfg.duration_sec)
+    renderer = REGISTRY[cfg.style]
+    return renderer.render(scene_a, scene_b, cfg, out, width=width, height=height, fps=fps)

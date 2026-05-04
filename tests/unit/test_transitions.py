@@ -131,8 +131,12 @@ def test_storyboard_round_trip_with_transitions(tmp_path: Path):
 
 from pipeline.composer.transitions import (
     SUPPORTED_STYLES,
+    REGISTRY,
     TransitionConfig,
     HardCutRenderer,
+    XfadeRenderer,
+    transition_cache_key,
+    render_transition,
 )
 
 
@@ -244,3 +248,69 @@ def test_xfade_renderer_with_sfx_mixes_audio(tmp_path: Path):
         capture_output=True, text=True, check=True,
     )
     assert probe.stdout.strip() == "aac"
+
+
+def test_registry_covers_all_supported_styles():
+    assert set(REGISTRY.keys()) == SUPPORTED_STYLES
+
+
+def test_registry_page_turn_is_xfade_slideleft_in_v1():
+    """v1 ships page-turn as XfadeRenderer(slideleft); document the alias."""
+    page_turn = REGISTRY["page-turn"]
+    assert isinstance(page_turn, XfadeRenderer)
+    assert page_turn.xfade_name == "slideleft"
+
+
+def test_registry_none_is_hard_cut():
+    assert isinstance(REGISTRY["none"], HardCutRenderer)
+
+
+def test_cache_key_deterministic(tmp_path: Path):
+    a = _make_test_clip(tmp_path / "a.mp4", duration=0.5, color="red")
+    b = _make_test_clip(tmp_path / "b.mp4", duration=0.5, color="blue")
+    cfg = TransitionConfig(style="fade", duration_sec=0.5, sfx=None)
+    k1 = transition_cache_key(a, b, cfg)
+    k2 = transition_cache_key(a, b, cfg)
+    assert k1 == k2
+    assert len(k1) == 40  # sha1 hex digest
+
+
+def test_cache_key_differs_with_style(tmp_path: Path):
+    a = _make_test_clip(tmp_path / "a.mp4", duration=0.5, color="red")
+    b = _make_test_clip(tmp_path / "b.mp4", duration=0.5, color="blue")
+    cfg1 = TransitionConfig(style="fade", duration_sec=0.5, sfx=None)
+    cfg2 = TransitionConfig(style="slide", duration_sec=0.5, sfx=None)
+    assert transition_cache_key(a, b, cfg1) != transition_cache_key(a, b, cfg2)
+
+
+def test_cache_key_differs_with_sfx(tmp_path: Path):
+    a = _make_test_clip(tmp_path / "a.mp4", duration=0.5, color="red")
+    b = _make_test_clip(tmp_path / "b.mp4", duration=0.5, color="blue")
+    cfg1 = TransitionConfig(style="fade", duration_sec=0.5, sfx=None)
+    cfg2 = TransitionConfig(style="fade", duration_sec=0.5, sfx="assets/sfx/whoosh.mp3")
+    assert transition_cache_key(a, b, cfg1) != transition_cache_key(a, b, cfg2)
+
+
+def test_render_transition_returns_none_for_hard_cut(tmp_path: Path):
+    """The dispatcher returns None when style='none'."""
+    a = _make_test_clip(tmp_path / "a.mp4", duration=0.5, color="red")
+    b = _make_test_clip(tmp_path / "b.mp4", duration=0.5, color="blue")
+    cfg = TransitionConfig(style="none", duration_sec=0.0, sfx=None)
+    result = render_transition(a, b, cfg, tmp_path / "cache", width=320, height=180, fps=30)
+    assert result is None
+
+
+def test_render_transition_caches_result(tmp_path: Path):
+    """Second call with same inputs returns the same cached path without re-rendering."""
+    a = _make_test_clip(tmp_path / "a.mp4", duration=0.5, color="red")
+    b = _make_test_clip(tmp_path / "b.mp4", duration=0.5, color="blue")
+    cache_dir = tmp_path / "cache"
+    cfg = TransitionConfig(style="fade", duration_sec=0.5, sfx=None)
+
+    p1 = render_transition(a, b, cfg, cache_dir, width=320, height=180, fps=30)
+    assert p1 is not None and p1.exists()
+    mtime1 = p1.stat().st_mtime
+
+    p2 = render_transition(a, b, cfg, cache_dir, width=320, height=180, fps=30)
+    assert p2 == p1
+    assert p2.stat().st_mtime == mtime1  # not re-rendered
