@@ -7,6 +7,42 @@ from typing import Any
 
 
 @dataclass
+class Transition:
+    """A transition between two adjacent scenes.
+
+    JSON uses 'from' and 'to' keys (Python keyword conflict is the reason
+    the dataclass fields are named from_scene/to_scene).
+    """
+
+    from_scene: str
+    to_scene: str
+    style: str  # none | fade | page-turn | slide | wipe
+    duration_sec: float
+    sfx: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Transition:
+        return cls(
+            from_scene=data["from"],
+            to_scene=data["to"],
+            style=data["style"],
+            duration_sec=float(data["duration_sec"]),
+            sfx=data.get("sfx"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {
+            "from": self.from_scene,
+            "to": self.to_scene,
+            "style": self.style,
+            "duration_sec": self.duration_sec,
+        }
+        if self.sfx is not None:
+            out["sfx"] = self.sfx
+        return out
+
+
+@dataclass
 class Scene:
     id: str
     section: str  # hook | context | rising | climax | aftermath | analysis | content | punchline
