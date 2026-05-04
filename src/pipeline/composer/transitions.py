@@ -66,3 +66,20 @@ class TransitionRenderer(Protocol):
         scenes directly).
         """
         ...
+
+
+class HardCutRenderer:
+    """Emits no transition clip — the master concat stitches scenes directly."""
+
+    def render(
+        self,
+        scene_a: Path,
+        scene_b: Path,
+        cfg: TransitionConfig,
+        out: Path,
+        *,
+        width: int,
+        height: int,
+        fps: int,
+    ) -> Path | None:
+        return None

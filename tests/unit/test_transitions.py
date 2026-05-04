@@ -132,6 +132,7 @@ def test_storyboard_round_trip_with_transitions(tmp_path: Path):
 from pipeline.composer.transitions import (
     SUPPORTED_STYLES,
     TransitionConfig,
+    HardCutRenderer,
 )
 
 
@@ -156,3 +157,17 @@ def test_transition_config_from_storyboard_transition():
     assert cfg.style == "page-turn"
     assert cfg.duration_sec == 0.5
     assert cfg.sfx == "assets/sfx/page_flip.mp3"
+
+
+def test_hard_cut_renderer_returns_none(tmp_path: Path):
+    """HardCutRenderer emits no clip — concat just stitches scenes directly."""
+    renderer = HardCutRenderer()
+    cfg = TransitionConfig(style="none", duration_sec=0.0, sfx=None)
+    a = tmp_path / "a.mp4"
+    b = tmp_path / "b.mp4"
+    out = tmp_path / "t.mp4"
+    a.write_bytes(b"")  # input files don't need to be real for HardCut
+    b.write_bytes(b"")
+    result = renderer.render(a, b, cfg, out, width=1280, height=720, fps=30)
+    assert result is None
+    assert not out.exists()
