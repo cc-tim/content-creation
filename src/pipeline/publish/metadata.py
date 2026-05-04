@@ -8,6 +8,13 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 
+class LocalizedMeta(BaseModel):
+    """Title and description for a single locale (used in YouTube localizations)."""
+
+    title: str = Field(max_length=100)
+    description: str = Field(max_length=5000)
+
+
 class Metadata(BaseModel):
     """YouTube video metadata. Validated against YouTube's server-side limits."""
 
@@ -19,6 +26,7 @@ class Metadata(BaseModel):
     default_audio_language: str
     made_for_kids: bool = False
     altered_or_synthetic_content: Literal["synthetic_voice", "altered", "none"] = "synthetic_voice"
+    localizations: dict[str, LocalizedMeta] = Field(default_factory=dict)
 
     @field_validator("tags")
     @classmethod

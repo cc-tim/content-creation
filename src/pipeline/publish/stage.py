@@ -234,6 +234,11 @@ class PublishStage:
             body["status"]["publishAt"] = self.schedule_iso
         else:
             body["status"]["privacyStatus"] = self.privacy
+        if metadata.localizations:
+            body["localizations"] = {
+                lang: {"title": lm.title, "description": lm.description}
+                for lang, lm in metadata.localizations.items()
+            }
         return body
 
     def _phase_a_upload(self, client: Any, ctx: PipelineContext, body: dict[str, Any]) -> None:

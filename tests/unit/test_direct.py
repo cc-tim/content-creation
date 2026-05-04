@@ -312,6 +312,52 @@ async def test_direct_handles_missing_title_description(
     assert sb.description is None
 
 
+def test_metadata_tool_schema_includes_localizations():
+    """_METADATA_TOOL schema must have localizations so Claude structured output accepts EN block."""
+    from pipeline.stages.direct import _METADATA_TOOL
+    props = _METADATA_TOOL["input_schema"]["properties"]
+    assert "localizations" in props, "localizations key missing from _METADATA_TOOL schema"
+    en_props = props["localizations"]["properties"]["en"]["properties"]
+    assert "title" in en_props
+    assert "description" in en_props
+
+
+def test_build_metadata_prompt_mla_includes_localizations_instruction():
+    """When mla=True, the user prompt must include localizations instruction."""
+    from unittest.mock import MagicMock
+    from pipeline.stages.direct import _build_metadata_prompt
+
+    profile = MagicMock()
+    profile.voice_guide = "Channel voice guide text."
+    _system, user = _build_metadata_prompt(
+        profile=profile,
+        locale="zh-TW",
+        source_url="https://youtube.com/watch?v=test",
+        storyboard_synopsis="Scene 1: hook narration",
+        knowledge_facts=[{"text": "Some fact"}],
+        mla=True,
+    )
+    assert "localizations" in user
+
+
+def test_build_metadata_prompt_no_mla_omits_localizations_instruction():
+    """When mla=False (default), the user prompt must NOT include localizations."""
+    from unittest.mock import MagicMock
+    from pipeline.stages.direct import _build_metadata_prompt
+
+    profile = MagicMock()
+    profile.voice_guide = "Channel voice guide text."
+    _system, user = _build_metadata_prompt(
+        profile=profile,
+        locale="zh-TW",
+        source_url="https://youtube.com/watch?v=test",
+        storyboard_synopsis="Scene 1: hook narration",
+        knowledge_facts=[{"text": "Some fact"}],
+        mla=False,
+    )
+    assert "localizations" not in user
+
+
 async def test_direct_warns_on_scene_count_drift(
     sample_context, direct_fixture, tmp_path, capsys
 ):
