@@ -8,6 +8,7 @@ import structlog
 import typer
 
 from pipeline.cli_compose import compose_app
+from pipeline.cli_narration import narration_app
 from pipeline.outro.cli import outro_app
 from pipeline.cli_metadata import metadata_app
 from pipeline.cli_proofread import proofread_app
@@ -36,6 +37,7 @@ app.add_typer(storyboard_app, name="storyboard")
 app.add_typer(research_app, name="research")
 app.add_typer(publish_app, name="publish")
 app.add_typer(metadata_app, name="metadata")
+app.add_typer(narration_app, name="narration")
 app.add_typer(gallery_app, name="gallery")
 app.add_typer(proofread_app, name="proofread")
 app.add_typer(storytell_app, name="storytell")
