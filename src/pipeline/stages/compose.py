@@ -222,6 +222,9 @@ class ComposeStage(PipelineStage):
         compose_dir: Path,
     ) -> Path:
         """Scene-by-scene rendering from storyboard."""
+        if ctx.mla:
+            ctx.preferred_variant = "no_overlay"
+
         storyboard = Storyboard.load(ctx.storyboard_path)
         width, height = get_resolution(storyboard.aspect_ratio)
         theme_dict = storyboard.theme.to_dict()

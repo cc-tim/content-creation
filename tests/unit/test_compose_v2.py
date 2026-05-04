@@ -373,3 +373,123 @@ def test_preferred_variant_selects_correct_final_path(monkeypatch, tmp_path):
 
     compose_dir = work_dir / "compose"
     assert result_ctx.final_video_path == compose_dir / "final_zh-TW_subtitles_no_overlay.mp4"
+
+
+def test_compose_forces_no_overlay_when_mla(monkeypatch, tmp_path):
+    """When ctx.mla=True, compose forces preferred_variant to no_overlay."""
+    from pipeline.stages.base import PipelineContext
+    from pipeline.stages.compose import ComposeStage
+    from pipeline.storyboard import Scene, Storyboard
+
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    audio_dir = work_dir / "audio"
+    audio_dir.mkdir()
+    narration = audio_dir / "narration.mp3"
+    narration.write_bytes(b"mp3")
+    subs = audio_dir / "subs.srt"
+    subs.write_text("1\n00:00:00,000 --> 00:00:01,000\nx\n", encoding="utf-8")
+
+    sb = Storyboard(scenes=[
+        Scene(id="s1", section="hook", narration="x", narration_est_sec=1.0,
+              visual={"type": "text_card", "text": "hi"})
+    ])
+    sb_path = work_dir / "storyboard.json"
+    sb.save(sb_path)
+
+    ctx = PipelineContext(
+        project_id=1,
+        source_url="x",
+        locale="zh-TW",
+        work_dir=work_dir,
+        narration_path=narration,
+        subtitle_path=subs,
+        storyboard_path=sb_path,
+        segment_timings=[{"index": 0, "text": "x", "path": str(narration),
+                          "start_ms": 0, "duration_ms": 1000}],
+        burn_subtitles=False,
+        preferred_variant=None,
+        mla=True,
+    )
+
+    monkeypatch.setattr("pipeline.stages.compose.run_ffmpeg",
+        lambda cmd: Path(cmd[-1]).write_bytes(b"mp4"))
+    monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
+    monkeypatch.setattr("pipeline.stages.compose.render_scene",
+        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None:
+            Path(work_dir) / f"{scene['id']}.mp4")
+
+    import asyncio
+    result_ctx = asyncio.run(ComposeStage().run(ctx))
+
+    # mla=True must force no_overlay variant
+    assert result_ctx.preferred_variant == "no_overlay", (
+        f"Expected preferred_variant='no_overlay', got {result_ctx.preferred_variant!r}"
+    )
+    compose_dir = work_dir / "compose"
+    assert result_ctx.final_video_path == compose_dir / "final_zh-TW_no_overlay.mp4", (
+        f"Expected no_overlay path, got {result_ctx.final_video_path}"
+    )
+    assert str(result_ctx.final_video_path).endswith("_no_overlay.mp4")
+
+
+def test_compose_mla_does_not_mux_secondary_audio(monkeypatch, tmp_path):
+    """When ctx.mla=True, the secondary_narration_path is never muxed into the final mp4."""
+    from pipeline.stages.base import PipelineContext
+    from pipeline.stages.compose import ComposeStage
+    from pipeline.storyboard import Scene, Storyboard
+
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    audio_dir = work_dir / "audio"
+    audio_dir.mkdir()
+    narration = audio_dir / "narration.mp3"
+    narration.write_bytes(b"mp3")
+    secondary = audio_dir / "secondary_narration.mp3"
+    secondary.write_bytes(b"secondary mp3")
+    subs = audio_dir / "subs.srt"
+    subs.write_text("1\n00:00:00,000 --> 00:00:01,000\nx\n", encoding="utf-8")
+
+    sb = Storyboard(scenes=[
+        Scene(id="s1", section="hook", narration="x", narration_est_sec=1.0,
+              visual={"type": "text_card", "text": "hi"})
+    ])
+    sb_path = work_dir / "storyboard.json"
+    sb.save(sb_path)
+
+    ctx = PipelineContext(
+        project_id=1,
+        source_url="x",
+        locale="zh-TW",
+        work_dir=work_dir,
+        narration_path=narration,
+        subtitle_path=subs,
+        storyboard_path=sb_path,
+        segment_timings=[{"index": 0, "text": "x", "path": str(narration),
+                          "start_ms": 0, "duration_ms": 1000}],
+        burn_subtitles=False,
+        mla=True,
+        secondary_narration_path=secondary,
+    )
+
+    ffmpeg_calls: list[list[str]] = []
+
+    def capture(cmd):
+        ffmpeg_calls.append(list(cmd))
+        if isinstance(cmd[-1], str) and cmd[-1].endswith(".mp4"):
+            Path(cmd[-1]).write_bytes(b"mp4")
+
+    monkeypatch.setattr("pipeline.stages.compose.run_ffmpeg", capture)
+    monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
+    monkeypatch.setattr("pipeline.stages.compose.render_scene",
+        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None:
+            Path(work_dir) / f"{scene['id']}.mp4")
+
+    import asyncio
+    asyncio.run(ComposeStage().run(ctx))
+
+    secondary_str = str(secondary)
+    for cmd in ffmpeg_calls:
+        assert secondary_str not in cmd, (
+            f"secondary_narration_path was muxed into ffmpeg cmd: {cmd}"
+        )
