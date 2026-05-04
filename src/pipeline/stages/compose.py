@@ -213,7 +213,7 @@ def splice_transitions(
         (t.from_scene, t.to_scene): t for t in sb.transitions
     }
     out: list[Path] = []
-    for i, (path, scene_id) in enumerate(zip(scene_paths, scene_ids)):
+    for i, (path, scene_id) in enumerate(zip(scene_paths, scene_ids, strict=True)):
         out.append(path)
         # Look at the seam to the next scene
         if i + 1 < len(scene_ids):
@@ -229,6 +229,41 @@ def splice_transitions(
             if clip is not None:
                 out.append(clip)
     return out
+
+
+def _interleave_pauses(
+    paths: list[Path],
+    pause_paths: dict[int, list[Path]],
+    scene_paths: list[Path],
+) -> list[Path]:
+    """Insert pause paths after their corresponding scene finals.
+
+    `paths` is the output of `splice_transitions` (scene finals + optional
+    transition clips in render order). `pause_paths` maps scene index to
+    pause files that should appear after that scene's final. `scene_paths`
+    is the original scene-finals list (1:1 with scenes, before splicing).
+
+    Pauses are inserted immediately after each scene's final (before any
+    transition clip to the next scene).  Returns a new list.
+    """
+    if not pause_paths:
+        return paths
+
+    result: list[Path] = []
+    scene_idx = 0
+    seen: set[int] = set()
+    for path in paths:
+        result.append(path)
+        if (
+            scene_idx < len(scene_paths)
+            and path.resolve() == scene_paths[scene_idx].resolve()
+            and scene_idx not in seen  # guard: only match once per scene
+        ):
+            seen.add(scene_idx)
+            if scene_idx in pause_paths:
+                result.extend(pause_paths[scene_idx])
+            scene_idx += 1
+    return result
 
 
 class ComposeStage(PipelineStage):
@@ -311,6 +346,8 @@ class ComposeStage(PipelineStage):
 
         scene_finals: list[Path] = []
         scene_finals_no_overlay: list[Path] = []
+        pause_paths: dict[int, list[Path]] = {}
+        pause_paths_no_overlay: dict[int, list[Path]] = {}
         scenes_data: list[dict[str, object]] = []
         running_sec = 0.0
 
@@ -455,7 +492,7 @@ class ComposeStage(PipelineStage):
             scene_finals.append(scene_final)
             scene_finals_no_overlay.append(scene_final_no_overlay)
 
-            # Step 4: Add pause if needed
+            # Step 4: Track pause paths separately (interleaved after splice_transitions)
             if scene.pause_after_sec > 0:
                 pause_path = self._silence_gap(
                     scenes_dir,
@@ -464,8 +501,8 @@ class ComposeStage(PipelineStage):
                     width,
                     height,
                 )
-                scene_finals.append(pause_path)
-                scene_finals_no_overlay.append(pause_path)
+                pause_paths[i] = [pause_path]
+                pause_paths_no_overlay[i] = [pause_path]
 
             scene_dur = duration + scene.pause_after_sec
             scenes_data.append({
@@ -511,6 +548,13 @@ class ComposeStage(PipelineStage):
             width=width,
             height=height,
             fps=30,
+        )
+        # Interleave pause paths after transition splicing
+        finals_with_transitions = _interleave_pauses(
+            finals_with_transitions, pause_paths, scene_finals,
+        )
+        finals_no_overlay_with_transitions = _interleave_pauses(
+            finals_no_overlay_with_transitions, pause_paths_no_overlay, scene_finals_no_overlay,
         )
 
         if need_plain:

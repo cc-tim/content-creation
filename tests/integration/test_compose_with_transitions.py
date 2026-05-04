@@ -10,9 +10,6 @@ from pathlib import Path
 
 import pytest
 
-from pipeline.composer.transitions import REGISTRY
-
-
 def _ffprobe_duration(path: Path) -> float:
     out = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration",
@@ -130,3 +127,46 @@ def test_splice_transitions_passthrough_when_no_transitions(tmp_path: Path):
         width=320, height=180, fps=30,
     )
     assert spliced == [s1, s2]
+
+
+def test_splice_transitions_with_pause_and_transition(tmp_path: Path):
+    """Pause paths tracked separately are interleaved correctly after splicing
+    transitions, avoiding the misalignment that would occur if pauses lived
+    in scene_finals during splice_transitions."""
+    from pipeline.stages.compose import splice_transitions, _interleave_pauses
+    from pipeline.storyboard import Storyboard, Scene, Transition
+
+    s1 = _make_solid_clip(tmp_path / "s1.mp4", duration=1.0, color="red")
+    s2 = _make_solid_clip(tmp_path / "s2.mp4", duration=1.0, color="blue")
+    pause = _make_solid_clip(tmp_path / "s1_pause.mp4", duration=0.5, color="black")
+
+    sb = Storyboard(
+        scenes=[
+            Scene(id="s1", section="content", narration="a", narration_est_sec=1.0,
+                  pause_after_sec=0.5),
+            Scene(id="s2", section="content", narration="b", narration_est_sec=1.0),
+        ],
+        transitions=[Transition("s1", "s2", "fade", 0.5, None)],
+    )
+    scene_finals = [s1, s2]  # clean: no pause paths mixed in
+    pause_paths = {0: [pause]}  # pause after scene 0
+
+    spliced = splice_transitions(
+        scene_paths=scene_finals,
+        scene_ids=["s1", "s2"],
+        sb=sb,
+        cache_dir=tmp_path / "transitions",
+        width=320, height=180, fps=30,
+    )
+    # spliced should be [s1, transition_clip, s2]
+    assert len(spliced) == 3
+    assert spliced[0] == s1
+    assert spliced[2] == s2
+
+    result = _interleave_pauses(spliced, pause_paths, scene_finals)
+    # result should be [s1, pause, transition_clip, s2]
+    assert len(result) == 4
+    assert result[0] == s1
+    assert result[1] == pause  # pause interleaved right after s1
+    assert result[2].name.endswith(".mp4")  # transition clip
+    assert result[3] == s2
