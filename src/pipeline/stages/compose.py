@@ -439,9 +439,9 @@ class ComposeStage(PipelineStage):
         # Step 5: Concatenate scene lists — skip whichever raw the locked variant won't use.
         raw_path = compose_dir / "raw.mp4"
         raw_no_overlay_path = compose_dir / "raw_no_overlay.mp4"
-        # Default to subtitles_no_overlay so first run builds one variant, not all four.
+        # Derive default from burn_subtitles when preferred_variant is not explicitly set.
         # Operator overrides with `compose set-variant` or passes --variant explicitly.
-        _pref = ctx.preferred_variant or "subtitles_no_overlay"
+        _pref = ctx.preferred_variant or ("subtitles_no_overlay" if ctx.burn_subtitles else "plain")
         need_plain = "no_overlay" not in _pref
         need_no_overlay = "no_overlay" in _pref
         if need_plain:
@@ -463,7 +463,7 @@ class ComposeStage(PipelineStage):
             "subtitles": subs,
             "subtitles_no_overlay": subs_no_ov,
         }
-        preferred = ctx.preferred_variant or "subtitles_no_overlay"
+        preferred = ctx.preferred_variant or ("subtitles_no_overlay" if ctx.burn_subtitles else "plain")
 
         if preferred in variant_map:
             # Focused mode: only produce the locked variant.
