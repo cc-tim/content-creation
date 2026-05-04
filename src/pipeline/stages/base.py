@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from abc import ABC, abstractmethod
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +46,14 @@ class PipelineContext:
     skip_overlays: bool = False
     preferred_variant: str | None = None  # e.g. "subtitles_no_overlay"
 
+    # MLA (Multi-Language Audio)
+    mla: bool = False
+    secondary_locale: str | None = None
+    secondary_voice_id: str | None = None
+    secondary_narration_path: Path | None = None
+    secondary_subtitle_path: Path | None = None
+    captions_uploaded: dict[str, str] = field(default_factory=dict)
+
     # Stage 6: Publish
     youtube_video_id: str | None = None
     thumbnail_uploaded: bool = False
@@ -85,6 +93,8 @@ class PipelineContext:
             "knowledge_path",
             "storyboard_path",
             "reference_storyboard_path",
+            "secondary_narration_path",
+            "secondary_subtitle_path",
         }
         cleaned = {}
         for k, v in data.items():

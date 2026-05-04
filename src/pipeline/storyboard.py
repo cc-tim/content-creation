@@ -12,6 +12,7 @@ class Scene:
     section: str  # hook | context | rising | climax | aftermath | analysis | content | punchline
     narration: str
     narration_est_sec: float
+    narration_en: str | None = None
     facts_ref: list[str] = field(default_factory=list)
     visual: dict[str, Any] = field(default_factory=dict)
     overlay: dict[str, Any] | None = None
@@ -25,6 +26,7 @@ class Scene:
             section=data["section"],
             narration=data["narration"],
             narration_est_sec=data["narration_est_sec"],
+            narration_en=data.get("narration_en"),
             facts_ref=list(data.get("facts_ref", [])),
             visual=dict(data.get("visual", {})),
             overlay=data.get("overlay"),
@@ -43,6 +45,8 @@ class Scene:
             "overlay": self.overlay,
             "pause_after_sec": self.pause_after_sec,
         }
+        if self.narration_en is not None:
+            out["narration_en"] = self.narration_en
         if self.compartment is not None:
             out["compartment"] = self.compartment
         return out
