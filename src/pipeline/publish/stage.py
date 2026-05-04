@@ -201,6 +201,7 @@ class PublishStage:
             self._phase_a_upload(client, ctx, upload_body)
             self._phase_b_thumbnail(client, ctx)
             self._phase_c_disclosure(client, ctx, metadata)
+            self._phase_d_captions(client, ctx)
         except Exception as exc:
             notify_failure(
                 project_id=ctx.project_id,
@@ -213,6 +214,15 @@ class PublishStage:
 
         ctx.published_at = datetime.now(tz=UTC).isoformat()
         ctx.save()
+
+        if ctx.mla and ctx.secondary_narration_path:
+            print(
+                "\n⚠ MLA manual step required:\n"
+                "  YouTube Studio → Content → [this video] → Audio tab\n"
+                f"  Upload: {ctx.secondary_narration_path}\n"
+                "  Set language: English"
+            )
+
         return ctx
 
     def _build_upload_body(self, metadata: Metadata) -> dict[str, Any]:
@@ -272,17 +282,47 @@ class PublishStage:
     def _phase_c_disclosure(self, client: Any, ctx: PipelineContext, metadata: Metadata) -> None:
         if ctx.disclosure_set:
             return
-        body = {
+        body: dict[str, Any] = {
             "id": ctx.youtube_video_id,
             "status": {
                 "containsSyntheticMedia": metadata.altered_or_synthetic_content
                 == "synthetic_voice",
             },
         }
-        client.videos_update(video_id=ctx.youtube_video_id, part="status", body=body)
+        part = "status"
+        if metadata.localizations:
+            body["localizations"] = {
+                lang: loc.model_dump()
+                for lang, loc in metadata.localizations.items()
+            }
+            part = "status,localizations"
+        client.videos_update(video_id=ctx.youtube_video_id, part=part, body=body)
         ctx.disclosure_set = True
         ctx.save()
         logger.info("publish.disclosure.complete", video_id=ctx.youtube_video_id)
+
+    def _phase_d_captions(self, client: Any, ctx: PipelineContext) -> None:
+        """Upload SRT files for all locales. Idempotent via captions_uploaded tracking."""
+        tracks = [(ctx.locale, ctx.subtitle_path)]
+        if ctx.secondary_locale and ctx.secondary_subtitle_path:
+            tracks.append((ctx.secondary_locale, ctx.secondary_subtitle_path))
+
+        for locale, srt_path in tracks:
+            if locale in ctx.captions_uploaded:
+                logger.info("publish.phase_d.skipped", locale=locale)
+                continue
+            if not srt_path or not srt_path.exists():
+                logger.warning("publish.phase_d.srt_missing", locale=locale)
+                continue
+            caption_id = client.captions_insert(
+                video_id=ctx.youtube_video_id,
+                language=locale,
+                name=f"Subtitles ({locale})",
+                srt_path=srt_path,
+            )
+            ctx.captions_uploaded[locale] = caption_id
+            ctx.save()
+            logger.info("publish.phase_d.complete", locale=locale, caption_id=caption_id)
 
     @staticmethod
     def _current_phase(ctx: PipelineContext) -> str:
@@ -292,4 +332,4 @@ class PublishStage:
             return "thumbnail"
         if not ctx.disclosure_set:
             return "disclosure"
-        return "complete"
+        return "captions"
