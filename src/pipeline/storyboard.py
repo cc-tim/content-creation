@@ -7,6 +7,42 @@ from typing import Any
 
 
 @dataclass
+class Transition:
+    """A transition between two adjacent scenes.
+
+    JSON uses 'from' and 'to' keys (Python keyword conflict is the reason
+    the dataclass fields are named from_scene/to_scene).
+    """
+
+    from_scene: str
+    to_scene: str
+    style: str  # none | fade | page-turn | slide | wipe
+    duration_sec: float
+    sfx: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Transition:
+        return cls(
+            from_scene=data["from"],
+            to_scene=data["to"],
+            style=data["style"],
+            duration_sec=float(data["duration_sec"]),
+            sfx=data.get("sfx"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {
+            "from": self.from_scene,
+            "to": self.to_scene,
+            "style": self.style,
+            "duration_sec": self.duration_sec,
+        }
+        if self.sfx is not None:
+            out["sfx"] = self.sfx
+        return out
+
+
+@dataclass
 class Scene:
     id: str
     section: str  # hook | context | rising | climax | aftermath | analysis | content | punchline
@@ -89,6 +125,7 @@ class Storyboard:
     target_duration_sec: int = 720
     aspect_ratio: str = "16:9"  # 16:9 | 9:16
     scenes: list[Scene] = field(default_factory=list)
+    transitions: list[Transition] = field(default_factory=list)
     theme: Theme = field(default_factory=Theme)
     title: str | None = None
     description: str | None = None
@@ -108,6 +145,8 @@ class Storyboard:
             out["title"] = self.title
         if self.description is not None:
             out["description"] = self.description
+        if self.transitions:
+            out["transitions"] = [t.to_dict() for t in self.transitions]
         return out
 
     @classmethod
@@ -115,6 +154,7 @@ class Storyboard:
         scenes = [Scene.from_dict(s) for s in data.get("scenes", [])]
         theme_data = data.get("theme", {})
         theme = Theme.from_dict(theme_data) if theme_data else Theme()
+        transitions = [Transition.from_dict(t) for t in data.get("transitions", [])]
         return cls(
             version=data.get("version", 1),
             format=data.get("format", "standard"),
@@ -124,6 +164,7 @@ class Storyboard:
             theme=theme,
             title=data.get("title"),
             description=data.get("description"),
+            transitions=transitions,
         )
 
     def save(self, path: Path) -> None:
