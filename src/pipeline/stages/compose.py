@@ -15,6 +15,10 @@ from pipeline.composer.compartment import (
 )
 from pipeline.composer.overlay import apply_overlay
 from pipeline.composer.overlay_rules import check_overlay_allowed
+from pipeline.composer.transitions import (
+    TransitionConfig,
+    render_transition,
+)
 from pipeline.stages.base import PipelineContext, PipelineStage
 from pipeline.storyboard import Storyboard
 from pipeline.utils.ffmpeg import check_ffmpeg_available, run_ffmpeg
@@ -183,6 +187,48 @@ def _apply_duplicate_guard(
     else:
         seen_hashes = seen_hashes | {new_hash}
         return scene, seen_hashes
+
+
+def splice_transitions(
+    *,
+    scene_paths: list[Path],
+    scene_ids: list[str],
+    sb: "Storyboard",
+    cache_dir: Path,
+    width: int,
+    height: int,
+    fps: int,
+) -> list[Path]:
+    """Return a new scene-paths list with transition clips spliced between
+    adjacent scenes that have a configured transition.
+
+    `scene_paths` and `scene_ids` are parallel lists in render order.
+    Looks up transitions in `sb.transitions` keyed by (from_scene, to_scene).
+    HardCut transitions (style='none') and missing transitions both result
+    in no inserted clip -- adjacent scenes get stitched directly by concat.
+    """
+    if not sb.transitions:
+        return list(scene_paths)
+    by_seam: dict[tuple[str, str], "Transition"] = {
+        (t.from_scene, t.to_scene): t for t in sb.transitions
+    }
+    out: list[Path] = []
+    for i, (path, scene_id) in enumerate(zip(scene_paths, scene_ids)):
+        out.append(path)
+        # Look at the seam to the next scene
+        if i + 1 < len(scene_ids):
+            next_id = scene_ids[i + 1]
+            t = by_seam.get((scene_id, next_id))
+            if t is None:
+                continue
+            cfg = TransitionConfig.from_transition(t)
+            clip = render_transition(
+                scene_paths[i], scene_paths[i + 1], cfg, cache_dir,
+                width=width, height=height, fps=fps,
+            )
+            if clip is not None:
+                out.append(clip)
+    return out
 
 
 class ComposeStage(PipelineStage):
@@ -436,7 +482,8 @@ class ComposeStage(PipelineStage):
             encoding="utf-8",
         )
 
-        # Step 5: Concatenate scene lists — skip whichever raw the locked variant won't use.
+        # Step 5: Splice transition clips between scenes, then concatenate.
+        # Skip whichever raw the locked variant won't use.
         raw_path = compose_dir / "raw.mp4"
         raw_no_overlay_path = compose_dir / "raw_no_overlay.mp4"
         # Default to subtitles_no_overlay so first run builds one variant, not all four.
@@ -444,10 +491,32 @@ class ComposeStage(PipelineStage):
         _pref = ctx.preferred_variant or "subtitles_no_overlay"
         need_plain = "no_overlay" not in _pref
         need_no_overlay = "no_overlay" in _pref
+
+        scene_id_seq = [s.id for s in storyboard.scenes]
+        transitions_cache = compose_dir / "transitions"
+        finals_with_transitions = splice_transitions(
+            scene_paths=scene_finals,
+            scene_ids=scene_id_seq,
+            sb=storyboard,
+            cache_dir=transitions_cache,
+            width=width,
+            height=height,
+            fps=30,
+        )
+        finals_no_overlay_with_transitions = splice_transitions(
+            scene_paths=scene_finals_no_overlay,
+            scene_ids=scene_id_seq,
+            sb=storyboard,
+            cache_dir=transitions_cache,
+            width=width,
+            height=height,
+            fps=30,
+        )
+
         if need_plain:
-            self._concat_scenes(scene_finals, raw_path)
+            self._concat_scenes(finals_with_transitions, raw_path)
         if need_no_overlay:
-            self._concat_scenes(scene_finals_no_overlay, raw_no_overlay_path)
+            self._concat_scenes(finals_no_overlay_with_transitions, raw_no_overlay_path)
 
         # Step 6: Produce final variants.
         # When preferred_variant is locked, only build that one (others kept stale on disk).
