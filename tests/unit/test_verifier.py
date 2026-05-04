@@ -139,3 +139,15 @@ def test_load_verifier_state_missing_file_returns_empty(tmp_path: Path):
     loaded = load_verifier_state(tmp_path / "does-not-exist.json")
     assert loaded.skipped == set()
     assert loaded.manual_checked == set()
+
+
+def test_verbatim_line_found_in_narration_en():
+    from pipeline.explainer import Manifest
+    from pipeline.verifier import run_auto_checks
+    manifest = Manifest(intent="video", verbatim_lines=["english phrase"])
+    storyboard = {"scenes": [
+        {"id": "s1", "narration": "中文旁白", "narration_en": "english phrase", "visual": {}}
+    ]}
+    result = run_auto_checks(manifest, storyboard)
+    line = next(i for i in result.items if i.item_id == "verbatim_line:0")
+    assert line.status == "used"
