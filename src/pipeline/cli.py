@@ -13,6 +13,7 @@ from pipeline.cli_metadata import metadata_app
 from pipeline.cli_proofread import proofread_app
 from pipeline.cli_storyboard import storyboard_app
 from pipeline.cli_storyteller import storytell_app
+from pipeline.cli_transition import transition_app
 from pipeline.cli_visual_review import visual_review_app
 from pipeline.cli_voice import voice_app
 from pipeline.config import PipelineConfig
@@ -41,6 +42,7 @@ app.add_typer(storytell_app, name="storytell")
 app.add_typer(visual_review_app, name="visual-review")
 app.add_typer(compose_app, name="compose")
 app.add_typer(outro_app, name="outro")
+app.add_typer(transition_app, name="transition")
 
 
 def _channel_config_path() -> Path:
