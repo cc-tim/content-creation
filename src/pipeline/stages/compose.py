@@ -20,7 +20,7 @@ from pipeline.composer.transitions import (
     render_transition,
 )
 from pipeline.stages.base import PipelineContext, PipelineStage
-from pipeline.storyboard import Storyboard
+from pipeline.storyboard import Storyboard, Transition
 from pipeline.utils.ffmpeg import check_ffmpeg_available, run_ffmpeg
 
 logger = structlog.get_logger()
@@ -193,7 +193,7 @@ def splice_transitions(
     *,
     scene_paths: list[Path],
     scene_ids: list[str],
-    sb: "Storyboard",
+    sb: Storyboard,
     cache_dir: Path,
     width: int,
     height: int,
@@ -209,7 +209,7 @@ def splice_transitions(
     """
     if not sb.transitions:
         return list(scene_paths)
-    by_seam: dict[tuple[str, str], "Transition"] = {
+    by_seam: dict[tuple[str, str], Transition] = {
         (t.from_scene, t.to_scene): t for t in sb.transitions
     }
     out: list[Path] = []
