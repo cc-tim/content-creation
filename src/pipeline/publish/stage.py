@@ -256,10 +256,12 @@ class PublishStage:
             logger.info("publish.phase_a.skipped", video_id=ctx.youtube_video_id)
             return
         if ctx.youtube_video_id is not None and self.force_metadata:
+            force_body = {"id": ctx.youtube_video_id, **body}
+            force_part = ",".join(k for k in force_body if k != "id")
             client.videos_update(
                 video_id=ctx.youtube_video_id,
-                part="snippet,status",
-                body={"id": ctx.youtube_video_id, **body},
+                part=force_part,
+                body=force_body,
             )
             logger.info("publish.phase_a.metadata_updated", video_id=ctx.youtube_video_id)
             return
@@ -332,4 +334,6 @@ class PublishStage:
             return "thumbnail"
         if not ctx.disclosure_set:
             return "disclosure"
-        return "captions"
+        if not ctx.captions_uploaded:
+            return "captions"
+        return "complete"
