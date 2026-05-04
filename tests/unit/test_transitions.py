@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from pipeline.storyboard import Transition
 
 
@@ -123,3 +125,34 @@ def test_storyboard_round_trip_with_transitions(tmp_path: Path):
     assert len(loaded.transitions) == 2
     assert loaded.transitions[0].sfx == "assets/sfx/page_flip.mp3"
     assert loaded.transitions[1].sfx is None
+
+
+# --- TransitionConfig + style validation ---
+
+from pipeline.composer.transitions import (
+    SUPPORTED_STYLES,
+    TransitionConfig,
+)
+
+
+def test_transition_config_constructs_with_valid_style():
+    cfg = TransitionConfig(style="fade", duration_sec=0.5, sfx=None)
+    assert cfg.style == "fade"
+
+
+def test_transition_config_rejects_unknown_style():
+    with pytest.raises(ValueError, match="Unknown transition style"):
+        TransitionConfig(style="ribbon", duration_sec=0.5, sfx=None)
+
+
+def test_supported_styles_set_matches_spec():
+    assert SUPPORTED_STYLES == {"none", "fade", "page-turn", "slide", "wipe"}
+
+
+def test_transition_config_from_storyboard_transition():
+    from pipeline.storyboard import Transition
+    t = Transition("s1", "s2", "page-turn", 0.5, "assets/sfx/page_flip.mp3")
+    cfg = TransitionConfig.from_transition(t)
+    assert cfg.style == "page-turn"
+    assert cfg.duration_sec == 0.5
+    assert cfg.sfx == "assets/sfx/page_flip.mp3"
