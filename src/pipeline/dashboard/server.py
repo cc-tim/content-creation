@@ -32,6 +32,7 @@ from pipeline.dashboard.sse_emitter import FileWatcher, SSEEmitter, SSEEvent
 from pipeline.dashboard.trust_gate import classify_tier
 from pipeline.explainer import load_explainer
 from pipeline.notify.telegram import LongPollListener, TelegramNotifier
+from pipeline.session_log import recent_mutations
 from pipeline.storyboard import NarrationSource, Storyboard
 from pipeline.transcribe import transcribe_audio
 from pipeline.utils.audio import normalize_to_wav
@@ -151,6 +152,24 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     @app.get("/api/projects")
     def get_projects() -> list[dict[str, object]]:
         return [_to_dict(p) for p in scan_projects(output_root)]
+
+    @app.get("/api/projects/{project_id}/recent-mutations")
+    def get_recent_mutations(project_id: str) -> JSONResponse:
+        proj = _project_root(project_id)
+        return JSONResponse([
+            {
+                "session_id": entry.session_id,
+                "timestamp": entry.timestamp,
+                "command": entry.command,
+                "outcome": entry.outcome,
+                "stages": entry.stages,
+                "summary": entry.summary,
+                "error": entry.error,
+                "mutation_id": entry.mutation_id,
+                "revert_payload": entry.revert_payload,
+            }
+            for entry in recent_mutations(proj, n=10)
+        ])
 
     @app.get("/")
     def index() -> FileResponse:
