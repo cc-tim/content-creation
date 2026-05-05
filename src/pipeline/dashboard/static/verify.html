@@ -9,6 +9,7 @@
     header h1 { font-size: 18px; margin: 0; }
     header .summary { color: #94a3b8; font-size: 13px; }
     header .badge { padding: 2px 8px; border-radius: 4px; margin-right: 8px; }
+    header .actions { margin-left: auto; }
     .ok { background: #166534; color: #f0fdf4; }
     .miss { background: #991b1b; color: #fef2f2; }
     .skip { background: #475569; color: #f1f5f9; }
@@ -27,6 +28,10 @@
     .item button:hover { background: #475569; }
     video { width: 100%; max-height: 60vh; background: #000; border-radius: 6px; }
     .empty { color: #64748b; font-size: 13px; font-style: italic; }
+    .scene-item { padding: 10px 12px; border-radius: 6px; background: #1e293b; margin-bottom: 8px; font-size: 13px; border-left: 4px solid #334155; }
+    .scene-title { color: #cbd5e1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; margin-bottom: 6px; }
+    .scene-text { color: #94a3b8; line-height: 1.5; margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+    .scene-subtitle { color: #bae6fd; }
   </style>
 </head>
 <body>
@@ -36,6 +41,9 @@
     <span class="badge ok"><span id="cnt-used">0</span> used</span>
     <span class="badge miss"><span id="cnt-missing">0</span> missing</span>
     <span class="badge skip"><span id="cnt-skipped">0</span> skipped</span>
+  </div>
+  <div class="actions">
+    <button id="edit-toggle" class="edit-mode-toggle" type="button">Edit mode</button>
   </div>
 </header>
 <main>
@@ -61,18 +69,128 @@
     <div id="scenes"></div>
   </section>
 </main>
+<script src="/static/tokens.js"></script>
+<script src="/static/cost_estimate.js"></script>
+<script src="/static/edit_draft.js"></script>
+<script src="/static/composer.js"></script>
+<script src="/static/edit_mode.js"></script>
 <script>
 const projectId = location.pathname.split("/").pop();
 document.getElementById("proj").textContent = projectId;
+const editToggle = document.getElementById("edit-toggle");
+editToggle.dataset.projectId = projectId;
+editToggle.onclick = () => window.EditMode.toggle(projectId);
+
+let sceneData = [];
+
+function sceneToken(scene, idx, suffix) {
+  const rawId = scene && scene.id ? String(scene.id) : "";
+  const sid = /^s\d+$/.test(rawId) ? rawId : `s${idx + 1}`;
+  return `@${sid}${suffix || ""}`;
+}
+
+function formatSceneStamp(scene) {
+  const parts = [scene.id || ""];
+  if (scene.section) parts.push(scene.section);
+  if (Number.isFinite(scene.start_sec)) {
+    const mm = Math.floor(scene.start_sec / 60);
+    const ss = String(Math.floor(scene.start_sec % 60)).padStart(2, "0");
+    parts.push(`${mm}:${ss}`);
+  }
+  return parts.filter(Boolean).join(" - ");
+}
+
+async function loadSceneData() {
+  const urls = [
+    `/output/${projectId}/compose/scenes.json`,
+    `/output/${projectId}/storyboard.json`,
+  ];
+  for (const url of urls) {
+    const res = await fetch(url).catch(() => null);
+    if (!res || !res.ok) continue;
+    const data = await res.json().catch(() => null);
+    const scenes = Array.isArray(data) ? data : data && Array.isArray(data.scenes) ? data.scenes : [];
+    if (scenes.length) return scenes;
+  }
+  return [];
+}
+
+function renderScenes(scenes) {
+  const host = document.getElementById("scenes");
+  host.innerHTML = "";
+  if (!scenes.length) {
+    host.innerHTML = '<div class="empty">(no scene data)</div>';
+    return;
+  }
+
+  scenes.forEach((scene, idx) => {
+    const el = document.createElement("div");
+    el.className = "scene-item";
+    el.dataset.editToken = sceneToken(scene, idx);
+
+    const title = document.createElement("div");
+    title.className = "scene-title";
+    title.textContent = formatSceneStamp(scene) || `s${idx + 1}`;
+    el.appendChild(title);
+
+    if (scene.narration) {
+      const narration = document.createElement("div");
+      narration.className = "scene-text";
+      narration.dataset.editToken = sceneToken(scene, idx, "/narration");
+      narration.textContent = scene.narration;
+      el.appendChild(narration);
+    }
+
+    if (scene.subtitle) {
+      const subtitle = document.createElement("div");
+      subtitle.className = "scene-text scene-subtitle";
+      subtitle.dataset.editToken = sceneToken(scene, idx, "/subtitle");
+      subtitle.textContent = scene.subtitle;
+      el.appendChild(subtitle);
+    }
+
+    if (Number.isFinite(scene.start_sec)) {
+      el.onclick = () => {
+        const v = document.getElementById("video");
+        v.currentTime = scene.start_sec;
+      };
+    }
+    host.appendChild(el);
+  });
+}
+
+function syncVideoSceneToken(scenes) {
+  const v = document.getElementById("video");
+  if (!scenes.length) {
+    v.removeAttribute("data-edit-token");
+    v.ontimeupdate = null;
+    return;
+  }
+
+  function setActiveSceneToken() {
+    let idx = 0;
+    for (let i = 0; i < scenes.length; i++) {
+      if (Number.isFinite(scenes[i].start_sec) && v.currentTime >= scenes[i].start_sec) idx = i;
+    }
+    v.dataset.editToken = sceneToken(scenes[idx], idx);
+  }
+
+  setActiveSceneToken();
+  v.ontimeupdate = setActiveSceneToken;
+}
 
 async function refresh() {
-  const res = await fetch(`/api/verify/${projectId}`);
+  const [res, scenes] = await Promise.all([
+    fetch(`/api/verify/${projectId}`),
+    loadSceneData(),
+  ]);
   if (!res.ok) {
     const detail = (await res.json().catch(() => ({}))).detail || res.statusText;
     document.body.innerHTML = `<p style="padding:40px">Error: ${res.status} — ${detail}</p>`;
     return;
   }
   const data = await res.json();
+  sceneData = scenes;
   document.getElementById("cnt-used").textContent = data.used_count;
   document.getElementById("cnt-missing").textContent = data.missing_count;
   document.getElementById("cnt-skipped").textContent = data.skipped_count;
@@ -84,6 +202,7 @@ async function refresh() {
   for (const it of data.items) {
     const el = document.createElement("div");
     el.className = `item ${it.status}`;
+    el.dataset.editToken = `@manifest:${it.item_id}`;
 
     const label = document.createElement("div");
     label.className = "label";
@@ -135,9 +254,12 @@ async function refresh() {
   const v = document.getElementById("video");
   v.src = `/output/${projectId}/compose/final_zh-TW.mp4`;
   v.onerror = () => { v.style.display = "none"; };
+  renderScenes(sceneData);
+  syncVideoSceneToken(sceneData);
 }
 
 refresh();
+window.EditMode.attach(projectId);
 </script>
 </body>
 </html>
