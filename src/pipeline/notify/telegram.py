@@ -42,7 +42,7 @@ class TelegramNotifier:
     chat_id: str
 
     @classmethod
-    def from_env(cls) -> "TelegramNotifier | None":
+    def from_env(cls) -> TelegramNotifier | None:
         token = os.getenv("TELEGRAM_BOT_TOKEN")
         chat_id = os.getenv("TELEGRAM_CHAT_ID")
         if not token or not chat_id:

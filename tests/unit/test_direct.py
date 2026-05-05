@@ -325,6 +325,7 @@ def test_metadata_tool_schema_includes_localizations():
 def test_build_metadata_prompt_mla_includes_localizations_instruction():
     """When mla=True, the user prompt must include localizations instruction."""
     from unittest.mock import MagicMock
+
     from pipeline.stages.direct import _build_metadata_prompt
 
     profile = MagicMock()
@@ -343,6 +344,7 @@ def test_build_metadata_prompt_mla_includes_localizations_instruction():
 def test_build_metadata_prompt_no_mla_omits_localizations_instruction():
     """When mla=False (default), the user prompt must NOT include localizations."""
     from unittest.mock import MagicMock
+
     from pipeline.stages.direct import _build_metadata_prompt
 
     profile = MagicMock()

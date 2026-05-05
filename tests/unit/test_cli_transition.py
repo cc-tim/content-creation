@@ -7,7 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from pipeline.cli_transition import transition_app
-from pipeline.storyboard import Storyboard, Scene
+from pipeline.storyboard import Scene, Storyboard
 
 
 def _write_minimal_storyboard(work_dir: Path) -> Path:

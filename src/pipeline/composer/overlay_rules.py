@@ -35,9 +35,8 @@ def check_overlay_allowed(
             "(collides with burned subtitles). Use text_top, text_left, or text_emphasis."
         )
 
-    if overlay_type and overlay_type.startswith("text"):
-        if visual.get("type") in _TEXT_VISUALS:
-            raise OverlayCollisionError(
-                f"scene {scene.get('id', '?')}: cannot apply {overlay_type!r} overlay to "
-                f"{visual.get('type')!r} visual (text-on-text is unreadable)."
-            )
+    if overlay_type and overlay_type.startswith("text") and visual.get("type") in _TEXT_VISUALS:
+        raise OverlayCollisionError(
+            f"scene {scene.get('id', '?')}: cannot apply {overlay_type!r} overlay to "
+            f"{visual.get('type')!r} visual (text-on-text is unreadable)."
+        )

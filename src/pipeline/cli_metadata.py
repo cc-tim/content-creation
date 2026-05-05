@@ -116,7 +116,7 @@ def validate(
         load_metadata(path)
     except ValidationError as exc:
         typer.echo(f"INVALID: {exc}", err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
     typer.echo("ok")
 
 

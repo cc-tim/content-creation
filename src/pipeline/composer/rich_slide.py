@@ -82,6 +82,7 @@ def _ensure_bg_image(
 ) -> Path:
     """Generate or load the background image (PNG)."""
     import hashlib
+
     from pipeline.providers.base import ProviderError, try_chain
     from pipeline.providers.gen_image import GenImageProvider
 
@@ -164,7 +165,6 @@ def render_rich_slide(
 
 def _render_slide_layout(draw, visual, width, height, pad_x, text_w, accent, white, muted):
     """Title + bullets + footer."""
-    from PIL import ImageDraw as ID
 
     title   = visual.get("title", "")
     bullets = visual.get("bullets", [])
@@ -194,7 +194,7 @@ def _render_slide_layout(draw, visual, width, height, pad_x, text_w, accent, whi
         dot_y = y + 12
         draw.ellipse([pad_x, dot_y, pad_x + 10, dot_y + 10], fill=(*accent, 255))
         lines = _wrap_text(bullet, bullet_font, text_w - 24, draw)
-        for i, line in enumerate(lines):
+        for _i, line in enumerate(lines):
             draw.text((pad_x + 22, y), line, font=bullet_font, fill=white)
             bbox = draw.textbbox((0, 0), line, font=bullet_font)
             y += bbox[3] - bbox[1] + line_gap
@@ -239,6 +239,6 @@ def _render_quote_layout(draw, visual, width, height, pad_x, text_w, accent, whi
     draw.rectangle([pad_x, y, pad_x + 4, y + rule_h], fill=(*accent, 200))
 
     text_x = pad_x + 18
-    for line, lh in zip(lines, line_heights):
+    for line, lh in zip(lines, line_heights, strict=False):
         draw.text((text_x, y), line, font=quote_font, fill=white)
         y += lh + line_gap

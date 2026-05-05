@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 from pipeline.voices.base import VoiceProfile
 from pipeline.voices.edge_engine import EdgeEngine

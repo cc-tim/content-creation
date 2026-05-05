@@ -1,12 +1,8 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from pipeline.explainer import Manifest, RequiredImage
 from pipeline.verifier import (
-    ItemStatus,
-    VerifierResult,
     load_verifier_state,
     run_auto_checks,
     save_verifier_state,

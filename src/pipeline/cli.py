@@ -8,9 +8,8 @@ import structlog
 import typer
 
 from pipeline.cli_compose import compose_app
-from pipeline.cli_narration import narration_app
-from pipeline.outro.cli import outro_app
 from pipeline.cli_metadata import metadata_app
+from pipeline.cli_narration import narration_app
 from pipeline.cli_proofread import proofread_app
 from pipeline.cli_storyboard import storyboard_app
 from pipeline.cli_storyteller import storytell_app
@@ -20,6 +19,7 @@ from pipeline.cli_voice import voice_app
 from pipeline.config import PipelineConfig
 from pipeline.gallery_cli import gallery_app
 from pipeline.orchestrator import Orchestrator
+from pipeline.outro.cli import outro_app
 from pipeline.publish.channels import auto_detect_niche, load_channel_config
 from pipeline.publish.cli import publish_app
 from pipeline.research.cli import app as research_app

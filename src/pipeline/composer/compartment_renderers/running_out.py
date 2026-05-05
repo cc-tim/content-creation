@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -26,7 +26,7 @@ def _load_font(size: int) -> ImageFont.ImageFont:
     for path in _FONT_CANDIDATES:
         try:
             return ImageFont.truetype(path, size)
-        except (OSError, IOError):
+        except OSError:
             continue
     return ImageFont.load_default()
 

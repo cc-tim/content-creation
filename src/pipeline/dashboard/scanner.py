@@ -181,13 +181,13 @@ def _parse_srt(path: Path) -> list[tuple[float, float, str]]:
             lines = block.strip().splitlines()
             if len(lines) < 3:
                 continue
-            arrow = next((i for i, l in enumerate(lines) if "-->" in l), None)
+            arrow = next((i for i, line in enumerate(lines) if "-->" in line), None)
             if arrow is None:
                 continue
             parts = lines[arrow].split("-->")
             start = _srt_timestamp_to_sec(parts[0])
             end = _srt_timestamp_to_sec(parts[1])
-            text = " ".join(l.strip() for l in lines[arrow + 1:] if l.strip())
+            text = " ".join(line.strip() for line in lines[arrow + 1:] if line.strip())
             if text:
                 entries.append((start, end, text))
     return entries

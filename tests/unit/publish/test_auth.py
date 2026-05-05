@@ -56,9 +56,11 @@ def test_load_credentials_refresh_failure_raises(tmp_path: Path) -> None:
 
     creds = MagicMock(valid=False, expired=True, refresh_token="rt")
     creds.refresh.side_effect = RuntimeError("revoked")
-    with patch("pipeline.publish.auth.Credentials.from_authorized_user_file", return_value=creds):
-        with pytest.raises(AuthError, match="token refresh failed"):
-            load_credentials(path)
+    with (
+        patch("pipeline.publish.auth.Credentials.from_authorized_user_file", return_value=creds),
+        pytest.raises(AuthError, match="token refresh failed"),
+    ):
+        load_credentials(path)
 
 
 def test_verify_channel_ownership_matches() -> None:

@@ -153,10 +153,10 @@ def test_scene_narration_en_optional():
 
 
 def test_scene_narration_en_roundtrips():
-    from pipeline.storyboard import Scene, Storyboard
-    import json
     import pathlib
     import tempfile
+
+    from pipeline.storyboard import Scene, Storyboard
 
     s = Scene(
         id="s1",

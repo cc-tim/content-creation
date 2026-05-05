@@ -4,10 +4,8 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
-import pytest
-
-from pipeline.storyboard import NarrationSource, Scene, Storyboard
 from pipeline.stages.tts import _synthesize_pass
+from pipeline.storyboard import NarrationSource, Scene, Storyboard
 
 
 class _RecordingEngine:

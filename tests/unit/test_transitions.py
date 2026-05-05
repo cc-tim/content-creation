@@ -1,8 +1,20 @@
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
+
 import pytest
 
-from pipeline.storyboard import Transition
+from pipeline.composer.transitions import (
+    REGISTRY,
+    SUPPORTED_STYLES,
+    HardCutRenderer,
+    TransitionConfig,
+    XfadeRenderer,
+    render_transition,
+    transition_cache_key,
+)
+from pipeline.storyboard import Storyboard, Transition
 
 
 def test_transition_from_dict_minimal():
@@ -42,14 +54,6 @@ def test_transition_to_dict_omits_sfx_when_none():
     t = Transition(from_scene="s1", to_scene="s2", style="fade", duration_sec=0.3, sfx=None)
     out = t.to_dict()
     assert "sfx" not in out
-
-
-# --- Storyboard transitions field ---
-
-import json
-from pathlib import Path
-
-from pipeline.storyboard import Storyboard
 
 
 def _minimal_scene_dict(scene_id: str) -> dict:
@@ -127,19 +131,6 @@ def test_storyboard_round_trip_with_transitions(tmp_path: Path):
     assert loaded.transitions[1].sfx is None
 
 
-# --- TransitionConfig + style validation ---
-
-from pipeline.composer.transitions import (
-    SUPPORTED_STYLES,
-    REGISTRY,
-    TransitionConfig,
-    HardCutRenderer,
-    XfadeRenderer,
-    transition_cache_key,
-    render_transition,
-)
-
-
 def test_transition_config_constructs_with_valid_style():
     cfg = TransitionConfig(style="fade", duration_sec=0.5, sfx=None)
     assert cfg.style == "fade"
@@ -151,7 +142,7 @@ def test_transition_config_rejects_unknown_style():
 
 
 def test_supported_styles_set_matches_spec():
-    assert SUPPORTED_STYLES == {"none", "fade", "page-turn", "slide", "wipe"}
+    assert {"none", "fade", "page-turn", "slide", "wipe"} == SUPPORTED_STYLES
 
 
 def test_transition_config_from_storyboard_transition():
@@ -177,20 +168,13 @@ def test_hard_cut_renderer_returns_none(tmp_path: Path):
     assert not out.exists()
 
 
-# --- XfadeRenderer ---
-
-import subprocess
-
-from pipeline.composer.transitions import XfadeRenderer
-
-
 def _make_test_clip(path: Path, *, duration: float, color: str, width: int = 320, height: int = 180, fps: int = 30) -> Path:
     """Helper: create a small solid-color test clip with silent audio."""
     subprocess.run(
         [
             "ffmpeg", "-y", "-loglevel", "error",
             "-f", "lavfi", "-i", f"color=c={color}:s={width}x{height}:r={fps}:d={duration}",
-            "-f", "lavfi", "-i", f"anullsrc=r=48000:cl=stereo",
+            "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
             "-t", str(duration),
             "-c:v", "libx264", "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-ar", "48000", "-b:a", "128k",

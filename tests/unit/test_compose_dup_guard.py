@@ -1,6 +1,4 @@
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import MagicMock, patch
 
 
 def test_extract_thumbnail_called_for_clip(tmp_path):
@@ -20,6 +18,7 @@ def test_extract_thumbnail_called_for_clip(tmp_path):
 
 def test_is_duplicate_detects_same_hash():
     import imagehash
+
     from pipeline.stages.compose import _is_duplicate_frame
 
     h = imagehash.hex_to_hash("0" * 16)
@@ -29,6 +28,7 @@ def test_is_duplicate_detects_same_hash():
 
 def test_is_duplicate_allows_unique_hash():
     import imagehash
+
     from pipeline.stages.compose import _is_duplicate_frame
 
     h1 = imagehash.hex_to_hash("0" * 16)
@@ -38,8 +38,9 @@ def test_is_duplicate_allows_unique_hash():
 
 
 def test_duplicate_guard_replaces_scene_visual(tmp_path):
-    from pipeline.stages.compose import _apply_duplicate_guard
     import imagehash
+
+    from pipeline.stages.compose import _apply_duplicate_guard
 
     fake_source = tmp_path / "source.mp4"
     fake_source.write_bytes(b"fake")

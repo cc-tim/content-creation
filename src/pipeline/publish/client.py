@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-_Body = dict[str, Any]
-
 import structlog
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
+
+_Body = dict[str, Any]
 
 logger = structlog.get_logger()
 
@@ -38,7 +38,7 @@ class YouTubeClient:
     api: Any  # googleapiclient.discovery.Resource
 
     @classmethod
-    def from_credentials(cls, *, credentials: Any) -> "YouTubeClient":
+    def from_credentials(cls, *, credentials: Any) -> YouTubeClient:
         api = build("youtube", "v3", credentials=credentials, cache_discovery=False)
         return cls(api=api)
 

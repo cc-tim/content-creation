@@ -1,12 +1,9 @@
 # tests/unit/test_voice_variant.py
 from __future__ import annotations
 
-import json
-import shutil
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from pipeline.cli_compose import compose_app
@@ -88,7 +85,7 @@ def _make_parent_project(tmp_path: Path) -> Path:
 
 def test_voice_variant_creates_dir_structure(tmp_path):
     """voice-variant creates {parent}_{voice} directory with copied assets."""
-    parent_dir = _make_parent_project(tmp_path)
+    _make_parent_project(tmp_path)
     variant_dir = tmp_path / "projects" / "1776997800_tim-zhtw-fish"
 
     runner = CliRunner()
@@ -112,7 +109,7 @@ def test_voice_variant_creates_dir_structure(tmp_path):
 
 def test_voice_variant_context_json(tmp_path):
     """voice-variant writes correct context.json overrides."""
-    parent_dir = _make_parent_project(tmp_path)
+    _make_parent_project(tmp_path)
     variant_dir = tmp_path / "projects" / "1776997800_tim-zhtw-fish"
 
     runner = CliRunner()
@@ -144,7 +141,7 @@ def test_voice_variant_context_json(tmp_path):
 
 def test_voice_variant_errors_if_exists(tmp_path):
     """voice-variant exits with error if variant dir already exists."""
-    parent_dir = _make_parent_project(tmp_path)
+    _make_parent_project(tmp_path)
     variant_dir = tmp_path / "projects" / "1776997800_tim-zhtw-fish"
     variant_dir.mkdir(parents=True)
 
@@ -162,7 +159,7 @@ def test_voice_variant_errors_if_exists(tmp_path):
 
 def test_voice_variant_force_overwrites(tmp_path):
     """voice-variant --force removes existing variant dir before creating."""
-    parent_dir = _make_parent_project(tmp_path)
+    _make_parent_project(tmp_path)
     variant_dir = tmp_path / "projects" / "1776997800_tim-zhtw-fish"
     variant_dir.mkdir(parents=True)
     stale = variant_dir / "stale.txt"
@@ -231,7 +228,7 @@ def _make_variant_project(tmp_path: Path, parent_dir: Path) -> Path:
 def test_promote_voice_copies_scenes_and_audio(tmp_path):
     """promote-voice copies variant's scenes + audio to parent dir."""
     parent_dir = _make_parent_project(tmp_path)
-    variant_dir = _make_variant_project(tmp_path, parent_dir)
+    _make_variant_project(tmp_path, parent_dir)
 
     runner = CliRunner()
     with (
@@ -252,7 +249,7 @@ def test_promote_voice_copies_scenes_and_audio(tmp_path):
 def test_promote_voice_updates_parent_context(tmp_path):
     """promote-voice patches parent context.json with variant's voice + timings."""
     parent_dir = _make_parent_project(tmp_path)
-    variant_dir = _make_variant_project(tmp_path, parent_dir)
+    _make_variant_project(tmp_path, parent_dir)
 
     runner = CliRunner()
     with (
