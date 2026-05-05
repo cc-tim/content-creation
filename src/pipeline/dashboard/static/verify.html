@@ -27,6 +27,15 @@
     .item button:hover { background: #475569; }
     video { width: 100%; max-height: 60vh; background: #000; border-radius: 6px; }
     .empty { color: #64748b; font-size: 13px; font-style: italic; }
+    .edit-mode-toggle { font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid #2d3748; background: #1a1a2e; color: #94a3b8; cursor: pointer; margin-left: auto; }
+    .edit-mode-toggle.on { background: #1e3a5f; color: #93c5fd; border-color: #3b82f6; }
+    .scene-row { padding: 7px 10px; border-radius: 6px; background: #1e293b; margin-bottom: 6px; display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: #cbd5e1; }
+    .scene-row .time { color: #94a3b8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+    body.edit-mode-on .item,
+    body.edit-mode-on .video-wrap,
+    body.edit-mode-on .scene-row { cursor: cell; }
+    body.edit-mode-on [data-edit-token]:hover { outline: 1px dashed #3b82f6; outline-offset: 2px; }
+    .ec-cross-flash { outline: 2px solid #3b82f6 !important; outline-offset: 2px !important; }
   </style>
 </head>
 <body>
@@ -37,6 +46,7 @@
     <span class="badge miss"><span id="cnt-missing">0</span> missing</span>
     <span class="badge skip"><span id="cnt-skipped">0</span> skipped</span>
   </div>
+  <button class="edit-mode-toggle" id="vh-edit-toggle" type="button" data-project-id="">Edit mode</button>
 </header>
 <main>
   <section class="left">
@@ -56,7 +66,9 @@
   </section>
   <section class="right">
     <h2>Final video</h2>
-    <video id="video" controls></video>
+    <div class="video-wrap" data-edit-token="" id="video-wrap">
+      <video id="video" controls></video>
+    </div>
     <h2>Scenes</h2>
     <div id="scenes"></div>
   </section>
@@ -64,6 +76,7 @@
 <script>
 const projectId = location.pathname.split("/").pop();
 document.getElementById("proj").textContent = projectId;
+document.getElementById("vh-edit-toggle").setAttribute("data-project-id", projectId);
 
 async function refresh() {
   const res = await fetch(`/api/verify/${projectId}`);
@@ -84,6 +97,7 @@ async function refresh() {
   for (const it of data.items) {
     const el = document.createElement("div");
     el.className = `item ${it.status}`;
+    el.setAttribute("data-edit-token", `@manifest:${it.item_id}`);
 
     const label = document.createElement("div");
     label.className = "label";
@@ -135,9 +149,68 @@ async function refresh() {
   const v = document.getElementById("video");
   v.src = `/output/${projectId}/compose/final_zh-TW.mp4`;
   v.onerror = () => { v.style.display = "none"; };
+  renderScenes(data.scenes_overview || []);
+  wireVideoToken(v, data.scenes_overview || []);
+}
+
+function renderScenes(scenes) {
+  const root = document.getElementById("scenes");
+  root.innerHTML = "";
+  if (!scenes.length) {
+    root.innerHTML = '<div class="empty">(none)</div>';
+    return;
+  }
+  for (const scene of scenes) {
+    const row = document.createElement("div");
+    row.className = "scene-row";
+    row.setAttribute("data-edit-token", `@${scene.id}`);
+    const mm = Math.floor((scene.start_sec || 0) / 60);
+    const ss = String(Math.floor((scene.start_sec || 0) % 60)).padStart(2, "0");
+    row.innerHTML = `<span>${scene.id} · ${scene.section || ""}</span><span class="time">${mm}:${ss}</span>`;
+    row.onclick = () => {
+      const v = document.getElementById("video");
+      v.currentTime = scene.start_sec || 0;
+      wireVideoToken(v, scenes);
+    };
+    root.appendChild(row);
+  }
+}
+
+function wireVideoToken(video, scenes) {
+  const wrap = document.getElementById("video-wrap");
+  if (!wrap) return;
+  if (window.__verify_scenes_resolver__) {
+    video.removeEventListener("timeupdate", window.__verify_scenes_resolver__);
+  }
+  if (!Array.isArray(scenes) || !scenes.length) {
+    wrap.setAttribute("data-edit-token", "@s1");
+    return;
+  }
+  const handler = () => {
+    let idx = 0;
+    const t = video.currentTime || 0;
+    for (let i = 0; i < scenes.length; i++) {
+      if (t >= (scenes[i].start_sec || 0)) idx = i;
+    }
+    wrap.setAttribute("data-edit-token", `@${scenes[idx].id}`);
+  };
+  window.__verify_scenes_resolver__ = handler;
+  video.addEventListener("timeupdate", handler);
+  handler();
 }
 
 refresh();
+</script>
+<script src="/static/tokens.js"></script>
+<script src="/static/cost_estimate.js"></script>
+<script src="/static/edit_draft.js"></script>
+<script src="/static/composer.js"></script>
+<script src="/static/edit_mode.js"></script>
+<script>
+  document.getElementById("vh-edit-toggle").addEventListener("click", () => {
+    window.EditMode.toggle(projectId);
+  });
+  window.EditMode.attach(projectId);
 </script>
 </body>
 </html>

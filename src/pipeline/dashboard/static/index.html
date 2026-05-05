@@ -67,6 +67,10 @@
     .scene-chip:hover { background:#1e293b; color:#94a3b8; }
     .scene-chip.sc-past { background:#161616; color:#374151; border-color:#161616; }
     .scene-chip.sc-active { background:#1e3a5f; color:#93c5fd; border-color:#3b82f6; }
+    .transition-chip, .source-chip { padding:4px 8px; border-radius:4px; font-size:10px; font-family:monospace;
+      cursor:pointer; background:#14213d; color:#93c5fd; border:1px solid #1d4ed8; white-space:nowrap; }
+    .transition-chip:hover, .source-chip:hover { background:#1e3a5f; color:#bfdbfe; }
+    .detail-actions { display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:10px; }
     .scene-panels { display:flex; flex-direction:column; gap:8px; margin-top:2px; margin-bottom:10px; min-width:0; }
     .scene-narration, .scene-subtitle { background:#1e293b; border:1px solid #334155; border-radius:6px;
       padding:10px 14px; font-size:12px; color:#cbd5e1; line-height:1.7; user-select:text; cursor:text;
@@ -188,19 +192,19 @@ function render(data) {
 }
 
 function buildSceneStrip(scenes) {
-  const chips = scenes.map((s, i) =>
-    `<div class="scene-chip" data-idx="${i}" data-start="${s.start_sec}">${s.id} · ${s.section}</div>`
-  ).join('');
+  const chips = scenes.map((s, i) => {
+    const next = scenes[i + 1];
+    return `
+      <div class="scene-chip" data-idx="${i}" data-start="${s.start_sec}" data-edit-token="@${s.id}">${s.id} · ${s.section}</div>
+      ${next ? `<button class="transition-chip" type="button" data-from="${s.id}" data-to="${next.id}" data-edit-token="@${s.id}/transition">transition</button>` : ''}
+    `;
+  }).join('');
   return `
     <div class="scene-strip">${chips}</div>
     <div class="scene-panels">
       <div class="scene-narration">
         <div class="scene-panel-label">旁白 Narration
-          <!-- Plan 2: temporary trigger for the narration-source modal.
-               Plan 4 replaces this with the source-chip click-target. -->
-          <button class="nse-open-btn" type="button" style="float:right;font-size:10px;
-            padding:2px 8px;background:#1e293b;color:#94a3b8;border:1px solid #2d3748;
-            border-radius:3px;cursor:pointer;font-weight:normal">🎙 record</button>
+          <button class="source-chip nse-open-btn" type="button" style="float:right" data-edit-token="">source</button>
         </div>
         <div class="scene-nar-hdr"></div>
         <div class="scene-nar-text"></div>
@@ -227,8 +231,11 @@ function makeDetailRow(p) {
       ).join('')}</div>`
     : '';
   dr.innerHTML = `<td colspan="7"><div class="detail-panel">
+    <div class="detail-actions">
+      <button class="edit-mode-toggle" type="button" data-project-id="${p.project_id}">Edit mode</button>
+    </div>
     ${tabsHtml}
-    <video controls src="${firstUrl}"></video>
+    <video controls src="${firstUrl}" data-edit-token="@s1/visual"></video>
     ${p.scenes && p.scenes.length ? buildSceneStrip(p.scenes) : ''}
     <div class="meta-grid">
       <div><span class="lbl">Project ID: </span><span style="font-family:monospace;color:#94a3b8">${p.project_id}</span></div>
@@ -294,6 +301,10 @@ function toggleDetail(p) {
   const narText = detailRow.querySelector('.scene-nar-text');
   const subHdr  = detailRow.querySelector('.scene-sub-hdr');
   const subText = detailRow.querySelector('.scene-sub-text');
+  const narPanel = detailRow.querySelector('.scene-narration');
+  const subPanel = detailRow.querySelector('.scene-subtitle');
+  const sourceBtn = detailRow.querySelector('.nse-open-btn');
+  const videoEl = detailRow.querySelector('video');
 
   function showSceneNar(idx) {
     const scene = p.scenes[idx];
@@ -304,6 +315,10 @@ function toggleDetail(p) {
     narText.textContent = scene.narration;
     subHdr.textContent = stamp;
     subText.textContent = scene.subtitle || '—';
+    narPanel?.setAttribute('data-edit-token', `@${scene.id}/narration`);
+    subPanel?.setAttribute('data-edit-token', `@${scene.id}/subtitle`);
+    sourceBtn?.setAttribute('data-edit-token', `@${scene.id}/narration`);
+    videoEl?.setAttribute('data-edit-token', `@${scene.id}/visual`);
   }
 
   // Wire variant tab clicks
@@ -351,6 +366,10 @@ function toggleDetail(p) {
       showSceneNar(idx);
     });
   }
+  detailRow.querySelector('.edit-mode-toggle')?.addEventListener('click', () => {
+    window.EditMode?.toggle(p.project_id);
+  });
+  window.EditMode?.attach(p.project_id);
   activeId = p.project_id;
 }
 
@@ -382,8 +401,14 @@ refresh();
 setInterval(refresh, 30000);
 </script>
 <script src="/static/narration_source_editor.js"></script>
+<script src="/static/tokens.js"></script>
+<script src="/static/cost_estimate.js"></script>
+<script src="/static/edit_draft.js"></script>
+<script src="/static/composer.js"></script>
+<script src="/static/edit_mode.js"></script>
+<script src="/static/transition_editor.js"></script>
 <script>
-  // Wire the 🎙 record button: opens NarrationSourceEditor for the active scene.
+  // Wire the source chip: opens NarrationSourceEditor for the active scene when edit mode is off.
   document.getElementById('tbody').addEventListener('click', (e) => {
     const btn = e.target.closest('.nse-open-btn');
     if (!btn) return;
@@ -405,6 +430,19 @@ setInterval(refresh, 30000);
       narrationText: scene.narration || '',
       locale: project.locale || 'zh-TW',
     });
+  });
+
+  // Transition chips open the direct editor when edit mode is off.
+  document.getElementById('tbody').addEventListener('click', (e) => {
+    const chip = e.target.closest('.transition-chip');
+    if (!chip || window.EditMode?.isEnabled()) return;
+    const detailRow = chip.closest('tr.detail-row');
+    if (!detailRow || !window.TransitionEditor) return;
+    window.TransitionEditor.open(
+      detailRow.dataset.detailFor,
+      chip.dataset.from,
+      chip.dataset.to,
+    );
   });
 </script>
 <script>

@@ -7,7 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from pipeline.cli_transition import transition_app
-from pipeline.storyboard import Storyboard, Scene
+from pipeline.storyboard import Scene, Storyboard
 
 
 def _write_minimal_storyboard(work_dir: Path) -> Path:
@@ -130,3 +130,56 @@ def test_clear_is_noop_when_no_transition_exists(project_tree: Path):
     ])
     assert result.exit_code == 0
     assert "no transition" in result.output.lower() or "nothing to clear" in result.output.lower()
+
+
+def test_apply_set_transition_writes_to_storyboard(project_tree: Path):
+    from pipeline.cli_transition import apply_set_transition
+
+    summary = apply_set_transition(
+        project_id=42, from_scene="s1", to_scene="s2",
+        style="fade", duration_sec=0.3, sfx=None,
+    )
+    sb = Storyboard.load(project_tree / "storyboard.json")
+    assert len(sb.transitions) == 1
+    assert sb.transitions[0].style == "fade"
+    assert "s1" in summary and "s2" in summary
+
+
+def test_apply_set_transition_rejects_unknown_style(project_tree: Path):
+    from pipeline.cli_transition import apply_set_transition
+
+    with pytest.raises(ValueError, match="Unknown transition style"):
+        apply_set_transition(
+            project_id=42, from_scene="s1", to_scene="s2",
+            style="ribbon", duration_sec=0.3, sfx=None,
+        )
+
+
+def test_apply_set_transition_rejects_unknown_scene(project_tree: Path):
+    from pipeline.cli_transition import apply_set_transition
+
+    with pytest.raises(ValueError, match="s99"):
+        apply_set_transition(
+            project_id=42, from_scene="s1", to_scene="s99",
+            style="fade", duration_sec=0.3, sfx=None,
+        )
+
+
+def test_apply_clear_transition_removes_entry(project_tree: Path):
+    from pipeline.cli_transition import apply_clear_transition, apply_set_transition
+
+    apply_set_transition(
+        project_id=42, from_scene="s1", to_scene="s2",
+        style="fade", duration_sec=0.3, sfx=None,
+    )
+    summary = apply_clear_transition(project_id=42, from_scene="s1", to_scene="s2")
+    sb = Storyboard.load(project_tree / "storyboard.json")
+    assert sb.transitions == []
+    assert "cleared" in summary.lower() or "s1" in summary
+
+
+def test_apply_clear_transition_returns_noop_summary_when_absent(project_tree: Path):
+    from pipeline.cli_transition import apply_clear_transition
+
+    summary = apply_clear_transition(project_id=42, from_scene="s1", to_scene="s2")
+    assert "no transition" in summary.lower() or "nothing" in summary.lower()
