@@ -64,9 +64,13 @@ async def test_runner_invokes_subprocess_and_returns_result(tmp_path: Path) -> N
     project.mkdir()
     (project / "storyboard.json").write_text("{}", encoding="utf-8")
     captured_argv: list[list[str]] = []
+    captured_env: list[dict[str, str] | None] = []
 
-    async def fake_factory(argv: list[str]) -> asyncio.subprocess.Process:
+    async def fake_factory(
+        argv: list[str], *, env: dict[str, str] | None = None
+    ) -> asyncio.subprocess.Process:
         captured_argv.append(argv)
+        captured_env.append(env)
         return await asyncio.create_subprocess_exec(
             "python",
             "-c",
@@ -79,12 +83,16 @@ async def test_runner_invokes_subprocess_and_returns_result(tmp_path: Path) -> N
         prompt_template="P: {project_id}\nI: {instruction}\nT: {tokens}\nS: {storyboard_summary}",
         notifier=None,
         subprocess_factory=fake_factory,
+        dashboard_base_url="http://dashboard.test",
     )
     job = EditJob(job_id="j1", project_id="42", tokens=["@s9"], instruction="x")
     job.telegram_opener_id = 999
     results = await runner.run(job, project_root=project)
     assert captured_argv[0][0] == "claude"
     assert "-p" in captured_argv[0]
+    assert captured_env[0] is not None
+    assert captured_env[0]["PIPELINE_JOB_ID"] == "j1"
+    assert captured_env[0]["PIPELINE_DASHBOARD_BASE_URL"] == "http://dashboard.test"
     assert results[0].ok is True
     assert "subtitle set s9 ok" in results[0].message
 
@@ -95,7 +103,9 @@ async def test_runner_marks_failure_on_nonzero_exit(tmp_path: Path) -> None:
     project.mkdir()
     (project / "storyboard.json").write_text("{}", encoding="utf-8")
 
-    async def fake_factory(argv: list[str]) -> asyncio.subprocess.Process:
+    async def fake_factory(
+        argv: list[str], *, env: dict[str, str] | None = None
+    ) -> asyncio.subprocess.Process:
         return await asyncio.create_subprocess_exec(
             "python",
             "-c",
@@ -119,7 +129,9 @@ async def test_runner_terminates_subprocess_on_cancel(tmp_path: Path) -> None:
     project.mkdir()
     (project / "storyboard.json").write_text("{}", encoding="utf-8")
 
-    async def fake_factory(argv: list[str]) -> asyncio.subprocess.Process:
+    async def fake_factory(
+        argv: list[str], *, env: dict[str, str] | None = None
+    ) -> asyncio.subprocess.Process:
         return await asyncio.create_subprocess_exec(
             "python",
             "-c",
