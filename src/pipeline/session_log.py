@@ -58,3 +58,35 @@ def append_session(work_dir: Path, entry: SessionEntry) -> None:
     existing.append(asdict(entry))
     tmp.write_text(json.dumps(existing, indent=2, ensure_ascii=False))
     os.replace(tmp, path)
+
+
+def recent_mutations(work_dir: Path, *, n: int = 10) -> list[SessionEntry]:
+    """Return the last n session entries that carry a revert_payload."""
+    path = work_dir / "sessions.json"
+    if not path.exists():
+        return []
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    if not isinstance(rows, list):
+        return []
+
+    entries: list[SessionEntry] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if not row.get("revert_payload"):
+            continue
+        entries.append(SessionEntry(
+            session_id=row.get("session_id", ""),
+            timestamp=row.get("timestamp", ""),
+            command=row.get("command", ""),
+            outcome=row.get("outcome", "success"),
+            stages=list(row.get("stages", [])),
+            summary=row.get("summary", ""),
+            error=row.get("error", ""),
+            mutation_id=row.get("mutation_id"),
+            revert_payload=row.get("revert_payload"),
+        ))
+    return entries[-n:]

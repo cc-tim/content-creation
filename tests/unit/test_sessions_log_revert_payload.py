@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from pipeline.session_log import SessionEntry, append_session
+from pipeline.session_log import SessionEntry, append_session, recent_mutations
 
 
 def test_session_entry_defaults_have_no_mutation_id_or_revert_payload():
@@ -75,3 +75,41 @@ def test_existing_sessions_file_without_new_fields_still_parses(tmp_path: Path):
     assert len(rows) == 2
     assert rows[0]["session_id"] == "old-1"
     assert rows[1]["mutation_id"] == "m1"
+
+
+def test_recent_mutations_returns_entries_with_revert_payload_only(tmp_path: Path):
+    append_session(tmp_path, SessionEntry(
+        session_id="s1", timestamp="2026-05-04T00:00:01", command="compose reburn",
+    ))
+    append_session(tmp_path, SessionEntry(
+        session_id="s2", timestamp="2026-05-04T00:00:02", command="subtitle set",
+        mutation_id="m1", revert_payload={"verb": "subtitle set", "args": {}},
+    ))
+    append_session(tmp_path, SessionEntry(
+        session_id="s3", timestamp="2026-05-04T00:00:03", command="overlay set",
+        mutation_id="m2", revert_payload={"verb": "overlay set", "args": {}},
+    ))
+    muts = recent_mutations(tmp_path)
+    assert [m.mutation_id for m in muts] == ["m1", "m2"]
+    assert all(m.revert_payload is not None for m in muts)
+
+
+def test_recent_mutations_returns_last_n_only(tmp_path: Path):
+    for i in range(15):
+        append_session(tmp_path, SessionEntry(
+            session_id=f"s{i}", timestamp=f"2026-05-04T00:00:{i:02d}", command="x",
+            mutation_id=f"m{i}", revert_payload={"verb": "subtitle set", "args": {}},
+        ))
+    muts = recent_mutations(tmp_path, n=10)
+    assert len(muts) == 10
+    # most recent 10 -> mutations m5..m14
+    assert [m.mutation_id for m in muts] == [f"m{i}" for i in range(5, 15)]
+
+
+def test_recent_mutations_handles_missing_sessions_file(tmp_path: Path):
+    assert recent_mutations(tmp_path) == []
+
+
+def test_recent_mutations_handles_corrupt_sessions_file(tmp_path: Path):
+    (tmp_path / "sessions.json").write_text("{bogus", encoding="utf-8")
+    assert recent_mutations(tmp_path) == []
