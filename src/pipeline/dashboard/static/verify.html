@@ -2,14 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Verify — Content Dashboard</title>
+  <title>Verify - Content Dashboard</title>
   <style>
     body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 0; background: #0f172a; color: #f1f5f9; }
     header { padding: 12px 20px; border-bottom: 1px solid #334155; display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
     header h1 { font-size: 18px; margin: 0; }
     header .summary { color: #94a3b8; font-size: 13px; }
     header .badge { padding: 2px 8px; border-radius: 4px; margin-right: 8px; }
-    header .actions { margin-left: auto; }
     .ok { background: #166534; color: #f0fdf4; }
     .miss { background: #991b1b; color: #fef2f2; }
     .skip { background: #475569; color: #f1f5f9; }
@@ -28,10 +27,19 @@
     .item button:hover { background: #475569; }
     video { width: 100%; max-height: 60vh; background: #000; border-radius: 6px; }
     .empty { color: #64748b; font-size: 13px; font-style: italic; }
-    .scene-item { padding: 10px 12px; border-radius: 6px; background: #1e293b; margin-bottom: 8px; font-size: 13px; border-left: 4px solid #334155; }
-    .scene-title { color: #cbd5e1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; margin-bottom: 6px; }
-    .scene-text { color: #94a3b8; line-height: 1.5; margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+    .edit-mode-toggle { font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid #2d3748; background: #1a1a2e; color: #94a3b8; cursor: pointer; margin-left: auto; }
+    .edit-mode-toggle.on { background: #1e3a5f; color: #93c5fd; border-color: #3b82f6; }
+    .scene-row { padding: 9px 10px; border-radius: 6px; background: #1e293b; margin-bottom: 6px; font-size: 12px; color: #cbd5e1; }
+    .scene-row-head { display: flex; justify-content: space-between; gap: 10px; }
+    .scene-row .time { color: #94a3b8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+    .scene-text { color: #94a3b8; line-height: 1.5; margin-top: 5px; white-space: pre-wrap; word-break: break-word; }
     .scene-subtitle { color: #bae6fd; }
+    body.edit-mode-on .item,
+    body.edit-mode-on .video-wrap,
+    body.edit-mode-on .scene-row,
+    body.edit-mode-on .scene-text { cursor: cell; }
+    body.edit-mode-on [data-edit-token]:hover { outline: 1px dashed #3b82f6; outline-offset: 2px; }
+    .ec-cross-flash { outline: 2px solid #3b82f6 !important; outline-offset: 2px !important; }
   </style>
 </head>
 <body>
@@ -42,9 +50,7 @@
     <span class="badge miss"><span id="cnt-missing">0</span> missing</span>
     <span class="badge skip"><span id="cnt-skipped">0</span> skipped</span>
   </div>
-  <div class="actions">
-    <button id="edit-toggle" class="edit-mode-toggle" type="button">Edit mode</button>
-  </div>
+  <button class="edit-mode-toggle" id="vh-edit-toggle" type="button" data-project-id="">Edit mode</button>
 </header>
 <main>
   <section class="left">
@@ -64,133 +70,26 @@
   </section>
   <section class="right">
     <h2>Final video</h2>
-    <video id="video" controls></video>
+    <div class="video-wrap" data-edit-token="" id="video-wrap">
+      <video id="video" controls></video>
+    </div>
     <h2>Scenes</h2>
     <div id="scenes"></div>
   </section>
 </main>
-<script src="/static/tokens.js"></script>
-<script src="/static/cost_estimate.js"></script>
-<script src="/static/edit_draft.js"></script>
-<script src="/static/composer.js"></script>
-<script src="/static/edit_mode.js"></script>
 <script>
 const projectId = location.pathname.split("/").pop();
 document.getElementById("proj").textContent = projectId;
-const editToggle = document.getElementById("edit-toggle");
-editToggle.dataset.projectId = projectId;
-editToggle.onclick = () => window.EditMode.toggle(projectId);
-
-let sceneData = [];
-
-function sceneToken(scene, idx, suffix) {
-  const rawId = scene && scene.id ? String(scene.id) : "";
-  const sid = /^s\d+$/.test(rawId) ? rawId : `s${idx + 1}`;
-  return `@${sid}${suffix || ""}`;
-}
-
-function formatSceneStamp(scene) {
-  const parts = [scene.id || ""];
-  if (scene.section) parts.push(scene.section);
-  if (Number.isFinite(scene.start_sec)) {
-    const mm = Math.floor(scene.start_sec / 60);
-    const ss = String(Math.floor(scene.start_sec % 60)).padStart(2, "0");
-    parts.push(`${mm}:${ss}`);
-  }
-  return parts.filter(Boolean).join(" - ");
-}
-
-async function loadSceneData() {
-  const urls = [
-    `/output/${projectId}/compose/scenes.json`,
-    `/output/${projectId}/storyboard.json`,
-  ];
-  for (const url of urls) {
-    const res = await fetch(url).catch(() => null);
-    if (!res || !res.ok) continue;
-    const data = await res.json().catch(() => null);
-    const scenes = Array.isArray(data) ? data : data && Array.isArray(data.scenes) ? data.scenes : [];
-    if (scenes.length) return scenes;
-  }
-  return [];
-}
-
-function renderScenes(scenes) {
-  const host = document.getElementById("scenes");
-  host.innerHTML = "";
-  if (!scenes.length) {
-    host.innerHTML = '<div class="empty">(no scene data)</div>';
-    return;
-  }
-
-  scenes.forEach((scene, idx) => {
-    const el = document.createElement("div");
-    el.className = "scene-item";
-    el.dataset.editToken = sceneToken(scene, idx);
-
-    const title = document.createElement("div");
-    title.className = "scene-title";
-    title.textContent = formatSceneStamp(scene) || `s${idx + 1}`;
-    el.appendChild(title);
-
-    if (scene.narration) {
-      const narration = document.createElement("div");
-      narration.className = "scene-text";
-      narration.dataset.editToken = sceneToken(scene, idx, "/narration");
-      narration.textContent = scene.narration;
-      el.appendChild(narration);
-    }
-
-    if (scene.subtitle) {
-      const subtitle = document.createElement("div");
-      subtitle.className = "scene-text scene-subtitle";
-      subtitle.dataset.editToken = sceneToken(scene, idx, "/subtitle");
-      subtitle.textContent = scene.subtitle;
-      el.appendChild(subtitle);
-    }
-
-    if (Number.isFinite(scene.start_sec)) {
-      el.onclick = () => {
-        const v = document.getElementById("video");
-        v.currentTime = scene.start_sec;
-      };
-    }
-    host.appendChild(el);
-  });
-}
-
-function syncVideoSceneToken(scenes) {
-  const v = document.getElementById("video");
-  if (!scenes.length) {
-    v.removeAttribute("data-edit-token");
-    v.ontimeupdate = null;
-    return;
-  }
-
-  function setActiveSceneToken() {
-    let idx = 0;
-    for (let i = 0; i < scenes.length; i++) {
-      if (Number.isFinite(scenes[i].start_sec) && v.currentTime >= scenes[i].start_sec) idx = i;
-    }
-    v.dataset.editToken = sceneToken(scenes[idx], idx);
-  }
-
-  setActiveSceneToken();
-  v.ontimeupdate = setActiveSceneToken;
-}
+document.getElementById("vh-edit-toggle").setAttribute("data-project-id", projectId);
 
 async function refresh() {
-  const [res, scenes] = await Promise.all([
-    fetch(`/api/verify/${projectId}`),
-    loadSceneData(),
-  ]);
+  const res = await fetch(`/api/verify/${projectId}`);
   if (!res.ok) {
     const detail = (await res.json().catch(() => ({}))).detail || res.statusText;
-    document.body.innerHTML = `<p style="padding:40px">Error: ${res.status} — ${detail}</p>`;
+    document.body.innerHTML = `<p style="padding:40px">Error: ${res.status} - ${detail}</p>`;
     return;
   }
   const data = await res.json();
-  sceneData = scenes;
   document.getElementById("cnt-used").textContent = data.used_count;
   document.getElementById("cnt-missing").textContent = data.missing_count;
   document.getElementById("cnt-skipped").textContent = data.skipped_count;
@@ -202,7 +101,7 @@ async function refresh() {
   for (const it of data.items) {
     const el = document.createElement("div");
     el.className = `item ${it.status}`;
-    el.dataset.editToken = `@manifest:${it.item_id}`;
+    el.setAttribute("data-edit-token", `@manifest:${it.item_id}`);
 
     const label = document.createElement("div");
     label.className = "label";
@@ -217,7 +116,7 @@ async function refresh() {
 
     if (!it.auto_checked && it.status !== "user_skipped") {
       const manualBtn = document.createElement("button");
-      manualBtn.textContent = it.status === "used" ? "✓ unmark" : "mark used";
+      manualBtn.textContent = it.status === "used" ? "unmark" : "mark used";
       manualBtn.onclick = async () => {
         await fetch(`/api/verify/${projectId}/manual-check`, {
           method: "POST",
@@ -254,12 +153,85 @@ async function refresh() {
   const v = document.getElementById("video");
   v.src = `/output/${projectId}/compose/final_zh-TW.mp4`;
   v.onerror = () => { v.style.display = "none"; };
-  renderScenes(sceneData);
-  syncVideoSceneToken(sceneData);
+  renderScenes(data.scenes_overview || []);
+  wireVideoToken(v, data.scenes_overview || []);
+}
+
+function renderScenes(scenes) {
+  const root = document.getElementById("scenes");
+  root.innerHTML = "";
+  if (!scenes.length) {
+    root.innerHTML = '<div class="empty">(none)</div>';
+    return;
+  }
+  for (const scene of scenes) {
+    const row = document.createElement("div");
+    row.className = "scene-row";
+    row.setAttribute("data-edit-token", `@${scene.id}`);
+    const mm = Math.floor((scene.start_sec || 0) / 60);
+    const ss = String(Math.floor((scene.start_sec || 0) % 60)).padStart(2, "0");
+    const head = document.createElement("div");
+    head.className = "scene-row-head";
+    head.innerHTML = `<span>${scene.id} - ${scene.section || ""}</span><span class="time">${mm}:${ss}</span>`;
+    row.appendChild(head);
+    if (scene.narration) {
+      const narration = document.createElement("div");
+      narration.className = "scene-text";
+      narration.setAttribute("data-edit-token", `@${scene.id}/narration`);
+      narration.textContent = scene.narration;
+      row.appendChild(narration);
+    }
+    if (scene.subtitle) {
+      const subtitle = document.createElement("div");
+      subtitle.className = "scene-text scene-subtitle";
+      subtitle.setAttribute("data-edit-token", `@${scene.id}/subtitle`);
+      subtitle.textContent = scene.subtitle;
+      row.appendChild(subtitle);
+    }
+    row.onclick = () => {
+      const v = document.getElementById("video");
+      v.currentTime = scene.start_sec || 0;
+      wireVideoToken(v, scenes);
+    };
+    root.appendChild(row);
+  }
+}
+
+function wireVideoToken(video, scenes) {
+  const wrap = document.getElementById("video-wrap");
+  if (!wrap) return;
+  if (window.__verify_scenes_resolver__) {
+    video.removeEventListener("timeupdate", window.__verify_scenes_resolver__);
+  }
+  if (!Array.isArray(scenes) || !scenes.length) {
+    wrap.setAttribute("data-edit-token", "@s1");
+    return;
+  }
+  const handler = () => {
+    let idx = 0;
+    const t = video.currentTime || 0;
+    for (let i = 0; i < scenes.length; i++) {
+      if (t >= (scenes[i].start_sec || 0)) idx = i;
+    }
+    wrap.setAttribute("data-edit-token", `@${scenes[idx].id}`);
+  };
+  window.__verify_scenes_resolver__ = handler;
+  video.addEventListener("timeupdate", handler);
+  handler();
 }
 
 refresh();
-window.EditMode.attach(projectId);
+</script>
+<script src="/static/tokens.js"></script>
+<script src="/static/cost_estimate.js"></script>
+<script src="/static/edit_draft.js"></script>
+<script src="/static/composer.js"></script>
+<script src="/static/edit_mode.js"></script>
+<script>
+  document.getElementById("vh-edit-toggle").addEventListener("click", () => {
+    window.EditMode.toggle(projectId);
+  });
+  window.EditMode.attach(projectId);
 </script>
 </body>
 </html>

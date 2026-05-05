@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>edit-mode self-tests</title></head>
+<body>
+<h3>Edit-mode self-tests</h3>
+<pre id="out">running...</pre>
+<script>
+  window.__EDIT_TOKENS_TEST__ = true;
+  window.__EDIT_COST_TEST__ = true;
+</script>
+<script src="/static/tokens.js"></script>
+<script src="/static/cost_estimate.js"></script>
+<script>
+  var tok = window.__EDIT_TOKENS_TEST_RESULT__ || {pass: 0, fail: 0};
+  var cost = window.__EDIT_COST_TEST_RESULT__ || {pass: 0, fail: 0};
+  document.getElementById('out').textContent =
+    'tokens.js: ' + tok.pass + ' pass, ' + tok.fail + ' fail\n' +
+    'cost_estimate.js: ' + cost.pass + ' pass, ' + cost.fail + ' fail';
+  if (tok.fail || cost.fail) document.body.style.background = '#fee';
+</script>
+</body>
+</html>

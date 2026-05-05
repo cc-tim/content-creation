@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import tomllib
 import uuid
 from collections.abc import AsyncIterator
@@ -9,11 +10,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
+import typer
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from pipeline.cli_transition import apply_clear_transition, apply_set_transition
 from pipeline.config import PipelineConfig
 from pipeline.dashboard.agent_runner import ClaudeAgentRunner
 from pipeline.dashboard.job_queue import EditJob, JobQueue
@@ -32,6 +35,9 @@ from pipeline.verifier import (
 _STATIC_DIR = Path(__file__).parent / "static"
 _CHANNELS_TOML = Path("configs/youtube_channels.toml")
 _CHANNELS_DIR = Path("configs/channels")
+_SFX_DIR = Path("assets/sfx")
+_ALLOWED_SFX_EXTENSIONS = {".mp3", ".wav", ".ogg", ".m4a"}
+_MAX_DRAFT_BYTES = 64 * 1024
 
 
 class _SkipBody(BaseModel):
@@ -57,6 +63,24 @@ class _TranscribeBody(BaseModel):
     language: str = "zh"
 
 
+class _TransitionSetBody(BaseModel):
+    from_scene: str
+    to_scene: str
+    style: str
+    duration_sec: float
+    sfx: str | None = None
+
+
+class _TransitionClearBody(BaseModel):
+    from_scene: str
+    to_scene: str
+
+
+class _DraftBody(BaseModel):
+    tokens: list[str]
+    instruction: str
+
+
 class _JobSubmitBody(BaseModel):
     tokens: list[str] = []
     instruction: str
@@ -67,6 +91,9 @@ _VALID_NARRATION_ENGINES = {"edge", "fish_audio", "prerecorded"}
 
 def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     output_dir.mkdir(parents=True, exist_ok=True)
+    output_root = output_dir.parent if output_dir.name == "projects" else output_dir
+    projects_root = output_dir if output_dir.name == "projects" else output_dir / "projects"
+    projects_root.mkdir(parents=True, exist_ok=True)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -74,7 +101,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         prompt_template = (Path(__file__).parent / "agent_prompt.md").read_text(encoding="utf-8")
         runner = ClaudeAgentRunner(prompt_template=prompt_template, notifier=notifier)
         queue = JobQueue(
-            projects_root=output_dir / "projects",
+            projects_root=projects_root,
             runner=runner,
             notifier=notifier,
         )
@@ -102,7 +129,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
 
     @app.get("/api/projects")
     def get_projects() -> list[dict[str, object]]:
-        return [_to_dict(p) for p in scan_projects(output_dir)]
+        return [_to_dict(p) for p in scan_projects(output_root)]
 
     @app.get("/")
     def index() -> FileResponse:
@@ -146,7 +173,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         )
 
     def _project_root(project_id: str) -> Path:
-        proj = output_dir / project_id
+        proj = projects_root / project_id
         if not proj.exists():
             raise HTTPException(status_code=404, detail=f"project {project_id} not found")
         return proj
@@ -177,14 +204,24 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         sb_path = proj / "storyboard.json"
         if not sb_path.exists():
             raise HTTPException(status_code=409, detail="storyboard.json not yet generated")
-        import json as _json
-        storyboard = _json.loads(sb_path.read_text(encoding="utf-8"))
+        storyboard = json.loads(sb_path.read_text(encoding="utf-8"))
+        scenes_overview = [
+            {
+                "id": scene.get("id"),
+                "section": scene.get("section"),
+                "start_sec": scene.get("start_sec", 0),
+                "subtitle": scene.get("subtitle", ""),
+            }
+            for scene in storyboard.get("scenes", [])
+            if scene.get("id")
+        ]
         state = load_verifier_state(proj / "verifier_state.json")
         result = run_auto_checks(explainer.manifest, storyboard, state=state)
         return JSONResponse({
             "project_id": project_id,
             "manifest": explainer.manifest.model_dump(),
             "items": [it.model_dump() for it in result.items],
+            "scenes_overview": scenes_overview,
             "used_count": result.used_count,
             "missing_count": result.missing_count,
             "skipped_count": result.skipped_count,
@@ -335,9 +372,150 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         return JSONResponse({"ok": True, "transcript": transcript})
 
+    @app.post("/api/transition/{project_id}/set")
+    def post_transition_set(project_id: str, body: _TransitionSetBody) -> JSONResponse:
+        _project_root(project_id)
+        try:
+            project_id_int = int(project_id)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"project_id {project_id!r} is not numeric; "
+                    "transition CLI requires int ids"
+                ),
+            ) from exc
+        try:
+            summary = apply_set_transition(
+                project_id=project_id_int,
+                from_scene=body.from_scene,
+                to_scene=body.to_scene,
+                style=body.style,
+                duration_sec=body.duration_sec,
+                sfx=body.sfx,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except typer.Exit as exc:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"storyboard.json missing for project {project_id}; "
+                    "run `pipeline produce` past the storyboard stage first"
+                ),
+            ) from exc
+        return JSONResponse({"ok": True, "summary": summary})
+
+    @app.post("/api/transition/{project_id}/clear")
+    def post_transition_clear(project_id: str, body: _TransitionClearBody) -> JSONResponse:
+        _project_root(project_id)
+        try:
+            project_id_int = int(project_id)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"project_id {project_id!r} is not numeric; "
+                    "transition CLI requires int ids"
+                ),
+            ) from exc
+        try:
+            summary = apply_clear_transition(
+                project_id=project_id_int,
+                from_scene=body.from_scene,
+                to_scene=body.to_scene,
+            )
+        except typer.Exit as exc:
+            raise HTTPException(
+                status_code=409,
+                detail=f"storyboard.json missing for project {project_id}",
+            ) from exc
+        return JSONResponse({"ok": True, "summary": summary})
+
+    @app.get("/api/sfx/list")
+    def get_sfx_list() -> JSONResponse:
+        if not _SFX_DIR.exists():
+            return JSONResponse([])
+        entries: list[dict[str, object]] = []
+        for path in sorted(_SFX_DIR.iterdir()):
+            if not path.is_file():
+                continue
+            if path.name.startswith("."):
+                continue
+            if path.suffix.lower() not in _ALLOWED_SFX_EXTENSIONS:
+                continue
+            entries.append({
+                "name": path.name,
+                "path": f"assets/sfx/{path.name}",
+                "size_bytes": path.stat().st_size,
+            })
+        return JSONResponse(entries)
+
+    @app.post("/api/sfx/upload")
+    async def post_sfx_upload(
+        file: UploadFile = File(...),  # noqa: B008
+    ) -> JSONResponse:
+        raw = file.filename or ""
+        if "/" in raw or "\\" in raw or ".." in raw or raw.startswith(".") or not raw:
+            raise HTTPException(status_code=400, detail=f"invalid filename {raw!r}")
+        suffix = Path(raw).suffix.lower()
+        if suffix not in _ALLOWED_SFX_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"unsupported extension {suffix!r}; "
+                    f"allowed: {sorted(_ALLOWED_SFX_EXTENSIONS)}"
+                ),
+            )
+        _SFX_DIR.mkdir(parents=True, exist_ok=True)
+        dst = _SFX_DIR / raw
+        with dst.open("wb") as out:
+            while chunk := await file.read(1024 * 64):
+                out.write(chunk)
+        return JSONResponse({"ok": True, "path": f"assets/sfx/{raw}"})
+
+    @app.get("/api/jobs/{project_id}/draft")
+    def get_draft(project_id: str) -> JSONResponse:
+        proj = _project_root(project_id)
+        path = proj / "edit_draft.json"
+        if not path.exists():
+            return JSONResponse({"tokens": [], "instruction": ""})
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return JSONResponse({"tokens": [], "instruction": ""})
+        return JSONResponse({
+            "tokens": list(data.get("tokens", [])),
+            "instruction": str(data.get("instruction", "")),
+        })
+
+    @app.post("/api/jobs/{project_id}/draft")
+    def post_draft(project_id: str, body: _DraftBody) -> JSONResponse:
+        proj = _project_root(project_id)
+        payload = {"tokens": body.tokens, "instruction": body.instruction}
+        encoded = json.dumps(payload).encode("utf-8")
+        if len(encoded) > _MAX_DRAFT_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"draft exceeds {_MAX_DRAFT_BYTES} bytes",
+            )
+        path = proj / "edit_draft.json"
+        path.write_bytes(encoded)
+        return JSONResponse({"ok": True})
+
+    @app.delete("/api/jobs/{project_id}/draft")
+    def delete_draft(project_id: str) -> JSONResponse:
+        proj = _project_root(project_id)
+        path = proj / "edit_draft.json"
+        path.unlink(missing_ok=True)
+        return JSONResponse({"ok": True})
+
+    if _SFX_DIR.exists():
+        app.mount("/sfx", StaticFiles(directory=str(_SFX_DIR)), name="sfx")
+
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
-    app.mount("/output", StaticFiles(directory=str(output_dir)), name="output")
-    register_job_endpoints(app, output_dir=output_dir)
+    app.mount("/output", StaticFiles(directory=str(output_root)), name="output")
+    register_job_endpoints(app, output_dir=output_root)
 
     return app
 
