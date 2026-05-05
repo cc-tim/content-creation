@@ -97,6 +97,22 @@ class FakeRunner:
         return [SubActionResult(verb="subtitle set", scene="s9", ok=True, message="ok")]
 
 
+class FakeComposePendingRunner:
+    async def run(self, job: EditJob, project_root: Path) -> list[SubActionResult]:
+        return [
+            SubActionResult(verb="subtitle set", scene="s9", ok=True, message="ok"),
+            SubActionResult(verb="compose rescene", scene="s9", ok=False, message="ffmpeg failed"),
+        ]
+
+
+class _RecordingSSE:
+    def __init__(self) -> None:
+        self.events: list[tuple[str, dict]] = []
+
+    def publish_job_status(self, project_id: str, *, job_status: dict) -> None:
+        self.events.append((project_id, job_status))
+
+
 @pytest.fixture
 def project_tree(tmp_path: Path) -> Path:
     proj = tmp_path / "projects" / "42"
@@ -162,6 +178,39 @@ async def test_failed_job_marked_failed_and_queue_recovers(project_tree: Path) -
     await queue.submit(EditJob(job_id="good", project_id="42", tokens=[], instruction="y"))
     await queue.wait_idle("42", timeout=2.0)
     assert load_job(project_tree / "42", "good").status == "done"
+    await queue.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_queue_publishes_status_events(project_tree: Path) -> None:
+    sse = _RecordingSSE()
+    queue = JobQueue(projects_root=project_tree, runner=FakeRunner(), sse_emitter=sse)
+    await queue.start()
+    await queue.submit(EditJob(job_id="j1", project_id="42", tokens=["@s9"], instruction="x"))
+    await queue.wait_idle("42", timeout=2.0)
+
+    statuses = [event["status"] for _project_id, event in sse.events]
+    assert statuses == ["queued", "running", "done"]
+    assert sse.events[-1][1]["is_revert"] is False
+    await queue.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_compose_pending_notice_posts_reburn_button(project_tree: Path) -> None:
+    notifier = _RecordingNotifier()
+    queue = JobQueue(
+        projects_root=project_tree,
+        runner=FakeComposePendingRunner(),
+        notifier=notifier,
+    )
+    await queue.start()
+    await queue.submit(EditJob(job_id="j1", project_id="42", tokens=["@s9"], instruction="x"))
+    await queue.wait_idle("42", timeout=2.0)
+
+    pending = [sent for sent in notifier.sent if "compose pending" in sent.get("text", "")]
+    assert pending
+    keyboard = pending[-1]["reply_markup"]["inline_keyboard"]
+    assert keyboard[0][0]["callback_data"] == "reburn:42:j1"
     await queue.shutdown()
 
 

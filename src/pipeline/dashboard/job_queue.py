@@ -93,10 +93,12 @@ class JobQueue:
         projects_root: Path,
         runner: AgentRunner,
         notifier: Any | None = None,
+        sse_emitter: Any | None = None,
     ) -> None:
         self._projects_root = projects_root
         self._runner = runner
         self._notifier = notifier
+        self._sse = sse_emitter
         self._queues: dict[str, asyncio.Queue[EditJob]] = {}
         self._consumers: dict[str, asyncio.Task[None]] = {}
         self._idle_events: dict[str, asyncio.Event] = {}
@@ -154,6 +156,7 @@ class JobQueue:
             self._ensure_consumer(job.project_id)
             self._idle_events[job.project_id].clear()
             await self._queues[job.project_id].put(job)
+        self._publish_status(job)
         logger.info("jobqueue.submit", job_id=job.job_id, project_id=job.project_id)
 
     async def cancel(self, project_id: str, job_id: str) -> bool:
@@ -185,6 +188,18 @@ class JobQueue:
             project_id, _, tail = rest.partition(":")
             mutation_id, _, job_id = tail.partition(":")
             return self._handle_edit_proposal(project_id, mutation_id, job_id)
+        if verb == "reburn":
+            project_id, _, _job_id = rest.partition(":")
+            if self._notifier is not None:
+                await asyncio.to_thread(
+                    self._notifier.send_message,
+                    (
+                        f"reburn requested for {project_id}; run "
+                        f"`pipeline compose reburn --project-id {project_id}`"
+                    ),
+                    parse_mode="",
+                )
+            return True
         return False
 
     async def enqueue_revert(self, project_id: str, mutation_id: str) -> bool:
@@ -317,6 +332,7 @@ class JobQueue:
         await self._post_opener(job)
         save_job(project_root, job)
         self._running_jobs[job.project_id] = job
+        self._publish_status(job)
 
         run_task = asyncio.current_task()
         if run_task is not None:
@@ -329,6 +345,7 @@ class JobQueue:
                 results = await self._runner.run(job, project_root)
             job.sub_action_results = results
             job.status = "done"
+            await self._maybe_post_compose_pending(job)
         except asyncio.CancelledError:
             job.status = "cancelled"
             logger.info("jobqueue.run.cancelled", job_id=job.job_id)
@@ -340,6 +357,56 @@ class JobQueue:
             save_job(project_root, job)
             self._running_jobs.pop(job.project_id, None)
             self._cancel_targets.pop(job.project_id, None)
+            self._publish_status(job)
+
+    def _publish_status(self, job: EditJob) -> None:
+        if self._sse is None:
+            return
+        self._sse.publish_job_status(
+            job.project_id,
+            job_status={
+                "job_id": job.job_id,
+                "status": job.status,
+                "tokens": job.tokens,
+                "instruction": job.instruction,
+                "started_at": job.started_at,
+                "finished_at": job.finished_at,
+                "is_revert": job.revert_target is not None,
+            },
+        )
+
+    async def _maybe_post_compose_pending(self, job: EditJob) -> None:
+        if self._notifier is None:
+            return
+        results = job.sub_action_results
+        if not results:
+            return
+        has_successful_mutation = any(
+            result.ok
+            and result.verb.startswith(
+                ("subtitle ", "overlay ", "narration ", "image ", "transition ")
+            )
+            for result in results
+        )
+        compose_failed = any(
+            (not result.ok) and result.verb.startswith("compose ")
+            for result in results
+        )
+        if not (has_successful_mutation and compose_failed):
+            return
+        keyboard = {
+            "inline_keyboard": [[
+                {"text": "Reburn", "callback_data": f"reburn:{job.project_id}:{job.job_id}"}
+            ]]
+        }
+        kwargs: dict[str, Any] = {"parse_mode": "", "reply_markup": keyboard}
+        if job.telegram_opener_id is not None:
+            kwargs["reply_to_message_id"] = job.telegram_opener_id
+        await asyncio.to_thread(
+            self._notifier.send_message,
+            "compose pending - render the new state with reburn?",
+            **kwargs,
+        )
 
 
 def _run_revert(job: EditJob, project_root: Path) -> list[SubActionResult]:
