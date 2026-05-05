@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
 import pytest
 
 from pipeline.dashboard.mutation_runtime import (
+    MutationCoordinator,
     MutationProposal,
     MutationResult,
     apply_mutation,
@@ -259,3 +261,67 @@ def test_apply_transition_set_writes_to_storyboard(tmp_path: Path):
     loaded = Storyboard.load(project_root / "storyboard.json")
     assert len(loaded.transitions) == 1
     assert loaded.transitions[0].style == "fade"
+
+
+@pytest.mark.asyncio
+async def test_coordinator_register_and_resolve_apply(tmp_path: Path):
+    coordinator = MutationCoordinator()
+    proposal = MutationProposal(
+        job_id="j1",
+        verb="subtitle set",
+        args={"scene": "s1", "text": "x"},
+    )
+    mutation_id = coordinator.register(proposal=proposal, project_root=tmp_path)
+    future = coordinator.future_for(mutation_id)
+    assert future is not None and not future.done()
+
+    coordinator.resolve(mutation_id, decision="apply")
+    decision, payload = await asyncio.wait_for(future, timeout=1.0)
+    assert decision == "apply"
+    assert payload.proposal.verb == "subtitle set"
+
+
+@pytest.mark.asyncio
+async def test_coordinator_resolve_cancel():
+    coordinator = MutationCoordinator()
+    proposal = MutationProposal(
+        job_id="j1",
+        verb="image regen",
+        args={"scene": "s1", "prompt": "x", "tier": "draft"},
+    )
+    mutation_id = coordinator.register(proposal=proposal, project_root=Path("/tmp"))
+    future = coordinator.future_for(mutation_id)
+
+    coordinator.resolve(mutation_id, decision="cancel")
+    decision, _payload = await asyncio.wait_for(future, timeout=1.0)
+    assert decision == "cancel"
+
+
+def test_coordinator_resolve_unknown_mutation_is_noop():
+    coordinator = MutationCoordinator()
+    assert coordinator.resolve("nonexistent", decision="apply") is False
+
+
+def test_coordinator_double_resolve_is_safe():
+    coordinator = MutationCoordinator()
+    proposal = MutationProposal(
+        job_id="j1",
+        verb="subtitle set",
+        args={"scene": "s1", "text": "x"},
+    )
+    mutation_id = coordinator.register(proposal=proposal, project_root=Path("/tmp"))
+    coordinator.resolve(mutation_id, decision="apply")
+    assert coordinator.resolve(mutation_id, decision="cancel") is False
+
+
+def test_coordinator_pop_after_resolution_frees_state():
+    coordinator = MutationCoordinator()
+    proposal = MutationProposal(
+        job_id="j1",
+        verb="subtitle set",
+        args={"scene": "s1", "text": "x"},
+    )
+    mutation_id = coordinator.register(proposal=proposal, project_root=Path("/tmp"))
+    coordinator.resolve(mutation_id, decision="cancel")
+    coordinator.pop(mutation_id)
+    assert coordinator.future_for(mutation_id) is None

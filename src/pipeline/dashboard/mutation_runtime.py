@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -16,6 +18,7 @@ from pipeline.storyboard import NarrationSource, Storyboard, Transition
 logger = logging.getLogger(__name__)
 
 ProposalStatus = Literal["applied", "cancelled", "failed"]
+ProposalDecision = Literal["apply", "cancel", "edit"]
 
 
 class MutationProposal(BaseModel):
@@ -40,6 +43,67 @@ class MutationProposed(BaseModel):
     status: Literal["proposed"] = "proposed"
     mutation_id: str
     proposal_message: str = ""
+
+
+@dataclass(frozen=True)
+class PendingMutation:
+    proposal: MutationProposal
+    project_root: Path
+
+
+class MutationCoordinator:
+    """Event-loop aware registry for proposal-gated mutation decisions."""
+
+    def __init__(self) -> None:
+        self._pending: dict[
+            str,
+            tuple[
+                asyncio.AbstractEventLoop,
+                asyncio.Future[tuple[ProposalDecision, PendingMutation]],
+                PendingMutation,
+            ],
+        ] = {}
+
+    def register(self, *, proposal: MutationProposal, project_root: Path) -> str:
+        mutation_id = uuid.uuid4().hex[:12]
+        loop = asyncio.get_running_loop()
+        pending = PendingMutation(proposal=proposal, project_root=project_root)
+        future: asyncio.Future[tuple[ProposalDecision, PendingMutation]] = loop.create_future()
+        self._pending[mutation_id] = (loop, future, pending)
+        return mutation_id
+
+    def future_for(
+        self,
+        mutation_id: str,
+    ) -> asyncio.Future[tuple[ProposalDecision, PendingMutation]] | None:
+        row = self._pending.get(mutation_id)
+        return row[1] if row is not None else None
+
+    def pending_for(self, mutation_id: str) -> PendingMutation | None:
+        row = self._pending.get(mutation_id)
+        return row[2] if row is not None else None
+
+    def resolve(self, mutation_id: str, *, decision: ProposalDecision) -> bool:
+        row = self._pending.get(mutation_id)
+        if row is None:
+            return False
+        loop, future, pending = row
+        if future.done():
+            return False
+
+        def set_result() -> None:
+            if not future.done():
+                future.set_result((decision, pending))
+
+        if loop.is_running():
+            loop.call_soon_threadsafe(set_result)
+        else:
+            set_result()
+        return True
+
+    def pop(self, mutation_id: str) -> PendingMutation | None:
+        row = self._pending.pop(mutation_id, None)
+        return row[2] if row is not None else None
 
 
 def compute_revert_payload(
@@ -280,3 +344,72 @@ def _delete_image_cache_for_scene(project_root: Path, scene_id: str) -> None:
 def _command_string(proposal: MutationProposal) -> str:
     options = " ".join(f"--{key} {value!r}" for key, value in proposal.args.items())
     return f"{proposal.verb} {options}".strip()
+
+
+@dataclass
+class _PendingMutation:
+    proposal: MutationProposal
+    project_root: Path
+    future: asyncio.Future
+    loop: asyncio.AbstractEventLoop
+    resolved: bool = False
+
+
+class MutationCoordinator:
+    """Tracks in-flight propose-then-apply mutation decisions."""
+
+    def __init__(self) -> None:
+        self._pending: dict[str, _PendingMutation] = {}
+
+    def register(self, *, proposal: MutationProposal, project_root: Path) -> str:
+        mutation_id = uuid.uuid4().hex[:12]
+        loop = _current_or_new_loop()
+        self._pending[mutation_id] = _PendingMutation(
+            proposal=proposal,
+            project_root=project_root,
+            future=loop.create_future(),
+            loop=loop,
+        )
+        return mutation_id
+
+    def future_for(self, mutation_id: str) -> asyncio.Future | None:
+        pending = self._pending.get(mutation_id)
+        return pending.future if pending else None
+
+    def proposal_for(self, mutation_id: str) -> MutationProposal | None:
+        pending = self._pending.get(mutation_id)
+        return pending.proposal if pending else None
+
+    def project_root_for(self, mutation_id: str) -> Path | None:
+        pending = self._pending.get(mutation_id)
+        return pending.project_root if pending else None
+
+    def resolve(self, mutation_id: str, *, decision: ProposalDecision) -> bool:
+        pending = self._pending.get(mutation_id)
+        if pending is None:
+            logger.warning("Unknown mutation proposal resolution: %s", mutation_id)
+            return False
+        if pending.resolved or pending.future.done():
+            return False
+
+        pending.resolved = True
+
+        def _set_result() -> None:
+            if not pending.future.done():
+                pending.future.set_result((decision, pending))
+
+        if pending.loop.is_running():
+            pending.loop.call_soon_threadsafe(_set_result)
+        else:
+            _set_result()
+        return True
+
+    def pop(self, mutation_id: str) -> None:
+        self._pending.pop(mutation_id, None)
+
+
+def _current_or_new_loop() -> asyncio.AbstractEventLoop:
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.new_event_loop()
