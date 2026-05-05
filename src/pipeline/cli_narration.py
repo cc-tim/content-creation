@@ -47,7 +47,7 @@ def _resolve_within_project(project_root: Path, rel_path: str) -> Path:
             f"Refusing path {rel_path!r}: resolved outside project tree at {project_root}",
             err=True,
         )
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
     return candidate
 
 
@@ -55,7 +55,9 @@ def _resolve_within_project(project_root: Path, rel_path: str) -> Path:
 def set_source(
     project_id: int = typer.Option(..., "--project-id"),
     scene: str = typer.Option(..., "--scene", help="Scene id (e.g. s9)"),
-    engine: str = typer.Option(..., "--engine", help=f"One of: {', '.join(sorted(_VALID_ENGINES))}"),
+    engine: str = typer.Option(
+        ..., "--engine", help=f"One of: {', '.join(sorted(_VALID_ENGINES))}"
+    ),
     voice: str | None = typer.Option(
         None, "--voice", help="Registry voice_id (required for engine=edge|fish_audio)"
     ),
@@ -65,8 +67,9 @@ def set_source(
 ) -> None:
     """Set or replace the narration_source override for a scene. Idempotent."""
     if engine not in _VALID_ENGINES:
+        valid = ', '.join(sorted(_VALID_ENGINES))
         typer.echo(
-            f"Unknown narration engine {engine!r}. Choose from: {', '.join(sorted(_VALID_ENGINES))}",
+            f"Unknown narration engine {engine!r}. Choose from: {valid}",
             err=True,
         )
         raise typer.Exit(code=1)

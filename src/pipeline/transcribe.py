@@ -22,7 +22,9 @@ _ENDPOINT = "https://api.openai.com/v1/audio/transcriptions"
 _MODEL = "whisper-1"
 
 
-def transcribe_audio(audio_path: Path, *, language: str, api_key: str, timeout: float = 60.0) -> str:
+def transcribe_audio(
+    audio_path: Path, *, language: str, api_key: str, timeout: float = 60.0
+) -> str:
     """Transcribe a local audio file using OpenAI Whisper API.
 
     `language` is an ISO 639-1 code (e.g. "zh", "ja", "es"). Whisper accepts

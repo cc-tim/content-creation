@@ -248,7 +248,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     async def post_upload(
         project_id: str,
         scene: str,
-        file: UploadFile = File(...),
+        file: UploadFile = File(...),  # noqa: B008
     ) -> JSONResponse:
         proj = _project_root(project_id)
         sb_path = proj / "storyboard.json"
@@ -288,7 +288,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         try:
             transcript = transcribe_audio(resolved, language=body.language, api_key=api_key)
         except ValueError as exc:
-            raise HTTPException(status_code=503, detail=str(exc))
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         return JSONResponse({"ok": True, "transcript": transcript})
 
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")

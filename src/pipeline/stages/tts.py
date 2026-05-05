@@ -4,7 +4,7 @@ import asyncio
 import re
 import subprocess
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pipeline.storyboard import Scene, Storyboard
@@ -64,8 +64,8 @@ def _transcode_to_mp3(src: Path, dst: Path) -> None:
 
 def _resolve_per_scene_engine(
     *,
-    scene: "Scene | None",
-    registry: "VoiceRegistry | None",
+    scene: Scene | None,
+    registry: VoiceRegistry | None,
     default_engine: Any,
     default_profile: Any,
 ) -> tuple[Any, Any] | None:
@@ -112,8 +112,8 @@ async def _synthesize_pass(
     profile: Any,
     seg_prefix: str = "segment",
     *,
-    registry: "VoiceRegistry | None" = None,
-    storyboard: "Storyboard | None" = None,
+    registry: VoiceRegistry | None = None,
+    storyboard: Storyboard | None = None,
     project_root: Path | None = None,
 ) -> tuple[Path, Path, list[dict[str, Any]]]:
     """Run TTS synthesis for one pass (primary or secondary).
@@ -177,7 +177,9 @@ async def _synthesize_pass(
                     file=str(src_path),
                 )
                 # Fall back: use the default engine for this segment.
-                await asyncio.to_thread(engine.synthesize, text, seg_path, profile, scene_id=scene_id)
+                await asyncio.to_thread(
+                    engine.synthesize, text, seg_path, profile, scene_id=scene_id
+                )
             else:
                 logger.info("tts.prerecorded.transcode", scene_id=scene_id, src=str(src_path))
                 await asyncio.to_thread(_transcode_to_mp3, src_path, seg_path)
