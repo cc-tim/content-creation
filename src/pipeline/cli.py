@@ -8,18 +8,21 @@ import structlog
 import typer
 
 from pipeline.cli_compose import compose_app
-from pipeline.cli_narration import narration_app
-from pipeline.outro.cli import outro_app
+from pipeline.cli_image import image_app
 from pipeline.cli_metadata import metadata_app
+from pipeline.cli_narration import narration_app
+from pipeline.cli_overlay import overlay_app
 from pipeline.cli_proofread import proofread_app
 from pipeline.cli_storyboard import storyboard_app
 from pipeline.cli_storyteller import storytell_app
+from pipeline.cli_subtitle import subtitle_app
 from pipeline.cli_transition import transition_app
 from pipeline.cli_visual_review import visual_review_app
 from pipeline.cli_voice import voice_app
 from pipeline.config import PipelineConfig
 from pipeline.gallery_cli import gallery_app
 from pipeline.orchestrator import Orchestrator
+from pipeline.outro.cli import outro_app
 from pipeline.publish.channels import auto_detect_niche, load_channel_config
 from pipeline.publish.cli import publish_app
 from pipeline.research.cli import app as research_app
@@ -45,6 +48,9 @@ app.add_typer(visual_review_app, name="visual-review")
 app.add_typer(compose_app, name="compose")
 app.add_typer(outro_app, name="outro")
 app.add_typer(transition_app, name="transition")
+app.add_typer(subtitle_app, name="subtitle")
+app.add_typer(overlay_app, name="overlay")
+app.add_typer(image_app, name="image")
 
 
 def _channel_config_path() -> Path:
@@ -97,10 +103,14 @@ def produce(
         help="Path to an existing storyboard JSON used as parallel-locale reference",
     ),
     min_duration: float | None = typer.Option(
-        None, "--min-duration", help="Minimum video duration in minutes (stored in constraints.json)"
+        None,
+        "--min-duration",
+        help="Minimum video duration in minutes (stored in constraints.json)",
     ),
     max_duration: float | None = typer.Option(
-        None, "--max-duration", help="Maximum video duration in minutes (stored in constraints.json)"
+        None,
+        "--max-duration",
+        help="Maximum video duration in minutes (stored in constraints.json)",
     ),
 ) -> None:
     """Run the full production pipeline for a video or web article."""

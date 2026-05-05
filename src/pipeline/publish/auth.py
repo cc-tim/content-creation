@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import stat
 from pathlib import Path
 from typing import Any
@@ -59,10 +60,8 @@ def load_credentials(path: Path) -> Credentials:
                 f"token refresh failed: {exc}. Run: pipeline publish auth --profile <name> --reauth"
             ) from exc
         # Best-effort persist of refreshed token; skip on failure (e.g. in tests)
-        try:
+        with contextlib.suppress(TypeError):
             save_credentials(creds, path)
-        except TypeError:
-            pass
     return creds
 
 

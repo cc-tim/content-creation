@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from pipeline.composer.image import _cache_key, _size_arg, render_generated_image
 from pipeline.providers.base import ProviderError, ProviderResult

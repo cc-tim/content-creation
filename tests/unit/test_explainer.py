@@ -4,11 +4,9 @@ import pytest
 
 from pipeline.explainer import (
     Explainer,
-    Manifest,
     RequiredImage,
     load_explainer,
 )
-
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "explainers"
 

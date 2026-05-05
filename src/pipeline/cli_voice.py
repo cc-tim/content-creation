@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -35,16 +34,16 @@ def add_voice(
     id: str = typer.Option(..., "--id"),
     engine: str = typer.Option(..., "--engine", help="edge | prerecorded"),
     locale: str = typer.Option(..., "--locale"),
-    reference: Optional[Path] = typer.Option(None, "--reference"),
-    reference_text: Optional[str] = typer.Option(None, "--reference-text"),
-    display_name: Optional[str] = typer.Option(None, "--display-name"),
+    reference: Path | None = typer.Option(None, "--reference"),
+    reference_text: str | None = typer.Option(None, "--reference-text"),
+    display_name: str | None = typer.Option(None, "--display-name"),
     param: list[str] = typer.Option([], "--param", help="key=value, repeatable"),
-    recording_dir: Optional[Path] = typer.Option(
+    recording_dir: Path | None = typer.Option(
         None,
         "--recording-dir",
         help="Directory of per-scene recordings (prerecorded engine).",
     ),
-    fallback_voice: Optional[str] = typer.Option(
+    fallback_voice: str | None = typer.Option(
         None,
         "--fallback-voice",
         help="Voice id to use when a scene recording is missing (prerecorded engine).",
@@ -93,7 +92,7 @@ def remove_voice(voice_id: str) -> None:
     try:
         registry.remove(voice_id)
     except VoiceNotFound as exc:
-        raise typer.BadParameter(str(exc))
+        raise typer.BadParameter(str(exc)) from exc
     registry.save()
     typer.echo(f"removed {voice_id}")
 

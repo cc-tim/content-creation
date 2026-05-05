@@ -261,7 +261,7 @@ def clean(
         append_session(work_dir, SessionEntry(
             session_id=new_session_id(),
             timestamp=datetime.now().isoformat(timespec="seconds"),
-            command=f"compose clean",
+            command="compose clean",
             summary=f"clean: removed {', '.join(removed)}",
         ))
     else:

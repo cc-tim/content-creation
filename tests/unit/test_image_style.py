@@ -1,7 +1,4 @@
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-import pytest
-
 
 # Minimal valid 1x1 white PNG bytes
 _FAKE_PNG = (
@@ -140,7 +137,7 @@ def test_theme_from_dict_ignores_unknown_fields():
 
 def test_visual_style_overrides_style_prefix(tmp_path):
     """theme.visual_style wins over theme.style_prefix (niche template)."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import patch
     captured = {}
 
     def fake_render(visual, duration, width, height, work_dir, scene_id, **kwargs):
@@ -162,7 +159,7 @@ def test_visual_style_overrides_style_prefix(tmp_path):
 
 
 def test_style_modifier_appended_after_base_style(tmp_path):
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import patch
     captured = {}
 
     def fake_render(visual, duration, width, height, work_dir, scene_id, **kwargs):
@@ -191,7 +188,7 @@ def test_style_modifier_appended_after_base_style(tmp_path):
 
 
 def test_fallback_to_style_prefix_when_no_visual_style(tmp_path):
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import patch
     captured = {}
 
     def fake_render(visual, duration, width, height, work_dir, scene_id, **kwargs):
@@ -210,7 +207,6 @@ def test_fallback_to_style_prefix_when_no_visual_style(tmp_path):
     assert "clean educational sketch" in captured["prompt"]
 
 
-import shutil
 
 
 def test_sidecar_png_written_after_generation(tmp_path):

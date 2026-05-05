@@ -5,8 +5,6 @@ from pathlib import Path
 import pytest
 
 from pipeline.publish.channels import (
-    ChannelConfig,
-    ChannelProfile,
     auto_detect_niche,
     load_channel_config,
     resolve_profile,

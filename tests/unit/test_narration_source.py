@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
-from pipeline.storyboard import NarrationSource
+from pipeline.storyboard import NarrationSource, Scene, Storyboard
 
 
 def test_narration_source_edge_engine_with_voice():
@@ -57,13 +59,6 @@ def test_narration_source_tts_engine_requires_voice():
     """Engines edge/fish_audio require a voice (registry voice_id)."""
     with pytest.raises(ValueError, match="requires.*voice"):
         NarrationSource(engine="edge", voice=None, file=None)
-
-
-import json
-from pathlib import Path
-
-from pipeline.storyboard import Scene, Storyboard
-
 
 def _minimal_scene_dict(scene_id: str) -> dict:
     return {

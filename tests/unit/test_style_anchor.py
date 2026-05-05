@@ -1,8 +1,6 @@
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-import pytest
+from unittest.mock import patch
+
 from pipeline.composer.style_anchor import (
-    StyleAnchorResult,
     _derive_seed,
     _synthesize_style,
     extract_style_anchor,

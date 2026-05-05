@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -52,6 +52,8 @@ def test_transcribe_audio_propagates_http_errors(tmp_path: Path):
     fake_response = MagicMock()
     fake_response.raise_for_status.side_effect = RuntimeError("401 Unauthorized")
 
-    with patch("pipeline.transcribe.httpx.post", return_value=fake_response):
-        with pytest.raises(RuntimeError, match="401"):
-            transcribe_audio(src, language="zh", api_key="sk-test")
+    with (
+        patch("pipeline.transcribe.httpx.post", return_value=fake_response),
+        pytest.raises(RuntimeError, match="401"),
+    ):
+        transcribe_audio(src, language="zh", api_key="sk-test")

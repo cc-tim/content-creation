@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 from pipeline.notify.telegram import TelegramNotifier, notify_failure
@@ -30,21 +31,29 @@ def test_notifier_constructed_when_both_env_vars_set(monkeypatch: pytest.MonkeyP
 
 
 def test_send_posts_to_telegram_api() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"ok": True, "result": {"message_id": 1}})
+
     notifier = TelegramNotifier(token="tok", chat_id="42")
-    with patch("pipeline.notify.telegram.httpx.post") as mock_post:
-        mock_post.return_value = MagicMock(status_code=200)
+    with patch(
+        "pipeline.notify.telegram._http_client",
+        return_value=httpx.Client(transport=httpx.MockTransport(handler), timeout=10.0),
+    ):
         notifier.send("hello")
-    mock_post.assert_called_once()
-    args, kwargs = mock_post.call_args
-    assert args[0].endswith("/bot tok/sendMessage".replace(" ", ""))
-    assert kwargs["json"]["chat_id"] == "42"
-    assert kwargs["json"]["text"] == "hello"
-    assert kwargs["json"]["parse_mode"] == "MarkdownV2"
+    assert len(requests) == 1
+    assert requests[0].url.path.endswith("/bot tok/sendMessage".replace(" ", ""))
+    body = requests[0].read().decode()
+    assert '"chat_id":"42"' in body
+    assert '"text":"hello"' in body
+    assert '"parse_mode":"MarkdownV2"' in body
 
 
 def test_send_logs_but_does_not_raise_on_failure() -> None:
     notifier = TelegramNotifier(token="tok", chat_id="42")
-    with patch("pipeline.notify.telegram.httpx.post", side_effect=RuntimeError("boom")):
+    with patch("pipeline.notify.telegram._http_client", side_effect=RuntimeError("boom")):
         # Must not raise
         notifier.send("hello")
 

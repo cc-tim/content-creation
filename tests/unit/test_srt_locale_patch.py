@@ -10,10 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from pipeline.utils.srt import SrtEntry, parse_srt, write_srt
-
 
 S3_ORIGINAL = (
     "它通常來自日常的情感錯配，\n"

@@ -8,7 +8,6 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import pytest
 
 def _ffprobe_duration(path: Path) -> float:
     out = subprocess.run(
@@ -64,7 +63,7 @@ def test_concat_with_transition_clip_increases_total_duration(tmp_path: Path):
 
 def test_splice_transitions_inserts_transition_between_scenes(tmp_path: Path):
     from pipeline.stages.compose import splice_transitions
-    from pipeline.storyboard import Storyboard, Scene, Transition
+    from pipeline.storyboard import Scene, Storyboard, Transition
     s1 = _make_solid_clip(tmp_path / "s1.mp4", duration=1.0, color="red")
     s2 = _make_solid_clip(tmp_path / "s2.mp4", duration=1.0, color="blue")
     sb = Storyboard(
@@ -90,7 +89,7 @@ def test_splice_transitions_inserts_transition_between_scenes(tmp_path: Path):
 
 def test_splice_transitions_skips_hard_cut(tmp_path: Path):
     from pipeline.stages.compose import splice_transitions
-    from pipeline.storyboard import Storyboard, Scene, Transition
+    from pipeline.storyboard import Scene, Storyboard, Transition
     s1 = _make_solid_clip(tmp_path / "s1.mp4", duration=1.0, color="red")
     s2 = _make_solid_clip(tmp_path / "s2.mp4", duration=1.0, color="blue")
     sb = Storyboard(
@@ -112,7 +111,7 @@ def test_splice_transitions_skips_hard_cut(tmp_path: Path):
 
 def test_splice_transitions_passthrough_when_no_transitions(tmp_path: Path):
     from pipeline.stages.compose import splice_transitions
-    from pipeline.storyboard import Storyboard, Scene
+    from pipeline.storyboard import Scene, Storyboard
     s1 = _make_solid_clip(tmp_path / "s1.mp4", duration=1.0, color="red")
     s2 = _make_solid_clip(tmp_path / "s2.mp4", duration=1.0, color="blue")
     sb = Storyboard(scenes=[
@@ -133,8 +132,8 @@ def test_splice_transitions_with_pause_and_transition(tmp_path: Path):
     """Pause paths tracked separately are interleaved correctly after splicing
     transitions, avoiding the misalignment that would occur if pauses lived
     in scene_finals during splice_transitions."""
-    from pipeline.stages.compose import splice_transitions, _interleave_pauses
-    from pipeline.storyboard import Storyboard, Scene, Transition
+    from pipeline.stages.compose import _interleave_pauses, splice_transitions
+    from pipeline.storyboard import Scene, Storyboard, Transition
 
     s1 = _make_solid_clip(tmp_path / "s1.mp4", duration=1.0, color="red")
     s2 = _make_solid_clip(tmp_path / "s2.mp4", duration=1.0, color="blue")

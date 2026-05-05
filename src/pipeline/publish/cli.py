@@ -173,7 +173,7 @@ def auth(
         discovered = verify_channel_ownership(client.api, expected_channel_id=prof.channel_id)
     except AuthError as exc:
         typer.echo(f"ERROR: {exc}", err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     save_credentials(creds, token_path)
     typer.echo(f"✓ Authenticated profile '{profile}' → channel {discovered}")
@@ -294,5 +294,4 @@ def status(
             typer.echo(f"privacy:  {v['status']['privacyStatus']}")
             if "publishAt" in v["status"]:
                 typer.echo(f"publishAt: {v['status']['publishAt']}")
-
 

@@ -1,6 +1,6 @@
-from pipeline.stages.direct import build_direct_prompt, _intro_template_block, _validate_clip_budget
+from pipeline.knowledge import Fact, Knowledge, KnowledgeMeta
 from pipeline.niche_templates import NicheTemplate
-from pipeline.knowledge import Knowledge, Fact, KnowledgeMeta
+from pipeline.stages.direct import _intro_template_block, _validate_clip_budget, build_direct_prompt
 
 
 def _minimal_knowledge() -> Knowledge:

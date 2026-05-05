@@ -3,8 +3,6 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import pytest
-
 from pipeline.publish.channels import load_channel_config
 
 

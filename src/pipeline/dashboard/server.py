@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import tomllib
+import uuid
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 import typer
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -14,8 +18,11 @@ from pydantic import BaseModel
 
 from pipeline.cli_transition import apply_clear_transition, apply_set_transition
 from pipeline.config import PipelineConfig
+from pipeline.dashboard.agent_runner import ClaudeAgentRunner
+from pipeline.dashboard.job_queue import EditJob, JobQueue
 from pipeline.dashboard.scanner import ProjectInfo, scan_projects
 from pipeline.explainer import load_explainer
+from pipeline.notify.telegram import LongPollListener, TelegramNotifier
 from pipeline.storyboard import NarrationSource, Storyboard
 from pipeline.transcribe import transcribe_audio
 from pipeline.utils.audio import normalize_to_wav
@@ -74,16 +81,55 @@ class _DraftBody(BaseModel):
     instruction: str
 
 
+class _JobSubmitBody(BaseModel):
+    tokens: list[str] = []
+    instruction: str
+
+
 _VALID_NARRATION_ENGINES = {"edge", "fish_audio", "prerecorded"}
 
 
 def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     output_dir.mkdir(parents=True, exist_ok=True)
-    app = FastAPI(title="Content Dashboard")
+    output_root = output_dir.parent if output_dir.name == "projects" else output_dir
+    projects_root = output_dir if output_dir.name == "projects" else output_dir / "projects"
+    projects_root.mkdir(parents=True, exist_ok=True)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        notifier = TelegramNotifier.from_env()
+        prompt_template = (Path(__file__).parent / "agent_prompt.md").read_text(encoding="utf-8")
+        runner = ClaudeAgentRunner(prompt_template=prompt_template, notifier=notifier)
+        queue = JobQueue(
+            projects_root=projects_root,
+            runner=runner,
+            notifier=notifier,
+        )
+        queue.reload_on_startup()
+        await queue.start()
+        app.state.job_queue = queue
+
+        listener_task: asyncio.Task[None] | None = None
+        if notifier is not None:
+            listener = LongPollListener(notifier, on_callback_query=queue.handle_callback_query)
+            app.state.telegram_listener = listener
+            listener_task = asyncio.create_task(listener.run(), name="telegram-long-poll")
+
+        try:
+            yield
+        finally:
+            if listener_task is not None:
+                app.state.telegram_listener.stop()
+                listener_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await listener_task
+            await queue.shutdown()
+
+    app = FastAPI(title="Content Dashboard", lifespan=lifespan)
 
     @app.get("/api/projects")
     def get_projects() -> list[dict[str, object]]:
-        return [_to_dict(p) for p in scan_projects(output_dir)]
+        return [_to_dict(p) for p in scan_projects(output_root)]
 
     @app.get("/")
     def index() -> FileResponse:
@@ -95,7 +141,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
 
     @app.get("/api/channels")
     def get_channels() -> JSONResponse:
-        profiles: list[dict[str, object]] = []
+        profiles: list[dict[str, Any]] = []
         if _CHANNELS_TOML.exists():
             data = tomllib.loads(_CHANNELS_TOML.read_text(encoding="utf-8"))
             for name, raw in (data.get("profiles") or {}).items():
@@ -127,7 +173,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         )
 
     def _project_root(project_id: str) -> Path:
-        proj = output_dir / project_id
+        proj = projects_root / project_id
         if not proj.exists():
             raise HTTPException(status_code=404, detail=f"project {project_id} not found")
         return proj
@@ -158,8 +204,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         sb_path = proj / "storyboard.json"
         if not sb_path.exists():
             raise HTTPException(status_code=409, detail="storyboard.json not yet generated")
-        import json as _json
-        storyboard = _json.loads(sb_path.read_text(encoding="utf-8"))
+        storyboard = json.loads(sb_path.read_text(encoding="utf-8"))
         scenes_overview = [
             {
                 "id": scene.get("id"),
@@ -469,9 +514,41 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         app.mount("/sfx", StaticFiles(directory=str(_SFX_DIR)), name="sfx")
 
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
-    app.mount("/output", StaticFiles(directory=str(output_dir)), name="output")
+    app.mount("/output", StaticFiles(directory=str(output_root)), name="output")
+    register_job_endpoints(app, output_dir=output_root)
 
     return app
+
+
+def register_job_endpoints(app: FastAPI, *, output_dir: Path) -> None:
+    """Register job submit/cancel endpoints backed by app.state.job_queue."""
+
+    def _project_root(project_id: str) -> Path:
+        proj = output_dir / "projects" / project_id
+        if not proj.exists():
+            raise HTTPException(status_code=404, detail=f"project {project_id} not found")
+        return proj
+
+    @app.post("/api/jobs/{project_id}/submit")
+    async def post_submit(project_id: str, body: _JobSubmitBody) -> JSONResponse:
+        _project_root(project_id)
+        if not body.instruction.strip():
+            raise HTTPException(status_code=400, detail="instruction must not be empty")
+        queue: JobQueue = app.state.job_queue
+        job = EditJob(
+            job_id=uuid.uuid4().hex[:12],
+            project_id=project_id,
+            tokens=list(body.tokens),
+            instruction=body.instruction,
+        )
+        await queue.submit(job)
+        return JSONResponse({"ok": True, "job_id": job.job_id, "status": job.status})
+
+    @app.post("/api/jobs/{project_id}/{job_id}/cancel")
+    async def post_cancel(project_id: str, job_id: str) -> JSONResponse:
+        queue: JobQueue = app.state.job_queue
+        cancelled = await queue.cancel(project_id, job_id)
+        return JSONResponse({"ok": True, "cancelled": cancelled})
 
 
 def _to_dict(p: ProjectInfo) -> dict[str, object]:

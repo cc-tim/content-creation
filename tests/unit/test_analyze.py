@@ -5,7 +5,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from pipeline.knowledge import Knowledge
-from pipeline.stages.analyze import AnalyzeStage, build_analysis_prompt
+from pipeline.stages.analyze import (
+    AnalyzeStage,
+    _format_timestamped_transcript,
+    build_analysis_prompt,
+)
 
 
 @pytest.fixture
@@ -53,10 +57,6 @@ async def test_analyze_outputs_knowledge_json(sample_context, analysis_fixture):
     assert ctx.story_structure is not None
     assert ctx.knowledge_graph is not None
 
-
-from pipeline.stages.analyze import _format_timestamped_transcript
-
-
 def test_format_timestamped_transcript_basic():
     data = [
         {"text": "Hello world.", "start": 0.08, "duration": 4.16},
@@ -74,7 +74,7 @@ def test_format_timestamped_transcript_merges_mid_sentence():
         {"text": "case before the court.", "start": 4.24, "duration": 3.00},
     ]
     result = _format_timestamped_transcript(data)
-    lines = [l for l in result.splitlines() if l]
+    lines = [line for line in result.splitlines() if line]
     assert len(lines) == 1
     assert lines[0].startswith("[0.08s–")
     assert "Mrs. Henry" in lines[0]
@@ -88,7 +88,7 @@ def test_format_timestamped_transcript_skips_blank_entries():
         {"text": "Second sentence.", "start": 5.0, "duration": 3.0},
     ]
     result = _format_timestamped_transcript(data)
-    lines = [l for l in result.splitlines() if l]
+    lines = [line for line in result.splitlines() if line]
     assert len(lines) == 2
 
 

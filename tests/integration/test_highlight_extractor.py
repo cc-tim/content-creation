@@ -6,8 +6,9 @@ Run with: uv run pytest tests/integration/test_highlight_extractor.py -v -m inte
 """
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from pipeline.utils.highlight_extractor import extract_highlights
 

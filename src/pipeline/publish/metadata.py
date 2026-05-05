@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -56,7 +56,7 @@ def save_metadata(
 ) -> None:
     """Write metadata.json including underscore-prefixed trace fields."""
     payload = metadata.model_dump()
-    payload["_generated_at"] = datetime.now(tz=timezone.utc).isoformat()
+    payload["_generated_at"] = datetime.now(tz=UTC).isoformat()
     payload["_source_url"] = source_url
     payload["_profile"] = profile
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")

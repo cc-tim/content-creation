@@ -114,6 +114,7 @@ class Scene:
     pause_after_sec: float = 0
     compartment: dict[str, Any] | None = None
     narration_source: NarrationSource | None = None
+    subtitle_override: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Scene:
@@ -131,6 +132,7 @@ class Scene:
             pause_after_sec=float(data.get("pause_after_sec", 0)),
             compartment=data.get("compartment"),
             narration_source=narration_source,
+            subtitle_override=data.get("subtitle_override"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -150,6 +152,8 @@ class Scene:
             out["compartment"] = self.compartment
         if self.narration_source is not None:
             out["narration_source"] = self.narration_source.to_dict()
+        if self.subtitle_override is not None:
+            out["subtitle_override"] = self.subtitle_override
         return out
 
 
