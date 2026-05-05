@@ -4,13 +4,17 @@ import asyncio
 import tomllib
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from pipeline.config import PipelineConfig
 from pipeline.dashboard.scanner import ProjectInfo, scan_projects
 from pipeline.explainer import load_explainer
+from pipeline.storyboard import NarrationSource, Storyboard
+from pipeline.transcribe import transcribe_audio
+from pipeline.utils.audio import normalize_to_wav
 from pipeline.verifier import (
     load_verifier_state,
     run_auto_checks,
@@ -30,6 +34,22 @@ class _SkipBody(BaseModel):
 class _ManualCheckBody(BaseModel):
     item_id: str
     checked: bool
+
+
+class _SetSourceBody(BaseModel):
+    scene: str
+    engine: str
+    voice: str | None = None
+    file: str | None = None
+
+
+class _TranscribeBody(BaseModel):
+    scene: str
+    file: str
+    language: str = "zh"
+
+
+_VALID_NARRATION_ENGINES = {"edge", "fish_audio", "prerecorded"}
 
 
 def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
@@ -86,6 +106,16 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         if not proj.exists():
             raise HTTPException(status_code=404, detail=f"project {project_id} not found")
         return proj
+
+    def _resolve_within_project(project_root: Path, rel_path: str) -> Path:
+        """Resolve rel_path inside project_root. Raises HTTPException(400) on escape."""
+        candidate = (project_root / rel_path).resolve()
+        if not str(candidate).startswith(str(project_root.resolve())):
+            raise HTTPException(
+                status_code=400,
+                detail=f"path {rel_path!r} resolves outside project tree",
+            )
+        return candidate
 
     def _explainer_path(proj: Path) -> Path:
         candidate = proj / "source" / "explainer.md"
@@ -173,6 +203,95 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
 
             return StreamingResponse(stream(), media_type="text/event-stream")
 
+    @app.post("/api/narration/{project_id}/set-source")
+    def post_set_source(project_id: str, body: _SetSourceBody) -> JSONResponse:
+        proj = _project_root(project_id)
+        sb_path = proj / "storyboard.json"
+        if not sb_path.exists():
+            raise HTTPException(status_code=409, detail="storyboard.json not yet generated")
+
+        if body.engine not in _VALID_NARRATION_ENGINES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown narration engine {body.engine!r}",
+            )
+        if body.engine in ("edge", "fish_audio") and not body.voice:
+            raise HTTPException(
+                status_code=400,
+                detail=f"engine={body.engine!r} requires 'voice'",
+            )
+        if body.engine == "prerecorded":
+            if not body.file:
+                raise HTTPException(
+                    status_code=400,
+                    detail="engine='prerecorded' requires 'file'",
+                )
+            resolved = _resolve_within_project(proj, body.file)
+            if not resolved.exists():
+                raise HTTPException(status_code=404, detail=f"file not found: {body.file}")
+
+        sb = Storyboard.load(sb_path)
+        target = sb.get_scene(body.scene)
+        if target is None:
+            raise HTTPException(status_code=404, detail=f"scene {body.scene!r} not found")
+        target.narration_source = NarrationSource(
+            engine=body.engine, voice=body.voice, file=body.file,
+        )
+        sb.save(sb_path)
+        return JSONResponse({
+            "ok": True,
+            "scene": body.scene,
+            "narration_source": target.narration_source.to_dict(),
+        })
+
+    @app.post("/api/narration/{project_id}/upload")
+    async def post_upload(
+        project_id: str,
+        scene: str,
+        file: UploadFile = File(...),  # noqa: B008
+    ) -> JSONResponse:
+        proj = _project_root(project_id)
+        sb_path = proj / "storyboard.json"
+        if not sb_path.exists():
+            raise HTTPException(status_code=409, detail="storyboard.json not yet generated")
+
+        # Defensive: scene id must look like a storyboard id, no path separators.
+        if "/" in scene or "\\" in scene or ".." in scene or scene.startswith("."):
+            raise HTTPException(status_code=400, detail=f"invalid scene id {scene!r}")
+
+        sb = Storyboard.load(sb_path)
+        if sb.get_scene(scene) is None:
+            raise HTTPException(status_code=404, detail=f"scene {scene!r} not found")
+
+        overrides_dir = proj / "narration_overrides"
+        overrides_dir.mkdir(parents=True, exist_ok=True)
+        tmp_upload = overrides_dir / f".{scene}.upload"
+        try:
+            with tmp_upload.open("wb") as out:
+                while chunk := await file.read(1024 * 64):
+                    out.write(chunk)
+            dst = overrides_dir / f"{scene}.wav"
+            normalize_to_wav(tmp_upload, dst)
+        finally:
+            tmp_upload.unlink(missing_ok=True)
+
+        rel = f"narration_overrides/{scene}.wav"
+        return JSONResponse({"ok": True, "path": rel})
+
+    @app.post("/api/narration/{project_id}/transcribe")
+    def post_transcribe(project_id: str, body: _TranscribeBody) -> JSONResponse:
+        proj = _project_root(project_id)
+        resolved = _resolve_within_project(proj, body.file)
+        if not resolved.exists():
+            raise HTTPException(status_code=404, detail=f"file not found: {body.file}")
+        api_key = PipelineConfig().OPENAI_API_KEY
+        try:
+            transcript = transcribe_audio(resolved, language=body.language, api_key=api_key)
+        except ValueError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        return JSONResponse({"ok": True, "transcript": transcript})
+
+    app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
     app.mount("/output", StaticFiles(directory=str(output_dir)), name="output")
 
     return app

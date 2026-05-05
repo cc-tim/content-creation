@@ -42,6 +42,65 @@ class Transition:
         return out
 
 
+_VALID_NARRATION_ENGINES = {"edge", "fish_audio", "prerecorded"}
+
+
+@dataclass
+class NarrationSource:
+    """Per-scene override for narration generation.
+
+    Three forms:
+      - {"engine": "edge", "voice": "<registry voice_id>"}
+      - {"engine": "fish_audio", "voice": "<registry voice_id>"}
+      - {"engine": "prerecorded", "file": "narration_overrides/<scene>.wav"}
+
+    For TTS engines (edge / fish_audio), `voice` is required and resolves
+    through `VoiceRegistry.resolve(voice_id)`. For `prerecorded`, `file` is
+    a project-relative path to a normalized WAV; it bypasses the registry's
+    `PrerecordedEngine` (which keys recordings by scene_id under a profile-
+    registered directory) and is loaded directly by TtsStage.
+    """
+
+    engine: str
+    voice: str | None = None
+    file: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.engine not in _VALID_NARRATION_ENGINES:
+            raise ValueError(
+                f"Unknown narration engine: {self.engine!r}. "
+                f"Supported: {sorted(_VALID_NARRATION_ENGINES)}"
+            )
+        if self.engine == "prerecorded":
+            if not self.file:
+                raise ValueError(
+                    "engine='prerecorded' requires a 'file' path "
+                    "(typically narration_overrides/<scene_id>.wav)"
+                )
+        else:
+            # edge / fish_audio
+            if not self.voice:
+                raise ValueError(
+                    f"engine={self.engine!r} requires a 'voice' (registry voice_id)"
+                )
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> NarrationSource:
+        return cls(
+            engine=data["engine"],
+            voice=data.get("voice"),
+            file=data.get("file"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {"engine": self.engine}
+        if self.voice is not None:
+            out["voice"] = self.voice
+        if self.file is not None:
+            out["file"] = self.file
+        return out
+
+
 @dataclass
 class Scene:
     id: str
@@ -54,9 +113,12 @@ class Scene:
     overlay: dict[str, Any] | None = None
     pause_after_sec: float = 0
     compartment: dict[str, Any] | None = None
+    narration_source: NarrationSource | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Scene:
+        ns_raw = data.get("narration_source")
+        narration_source = NarrationSource.from_dict(ns_raw) if ns_raw else None
         return cls(
             id=data["id"],
             section=data["section"],
@@ -68,6 +130,7 @@ class Scene:
             overlay=data.get("overlay"),
             pause_after_sec=float(data.get("pause_after_sec", 0)),
             compartment=data.get("compartment"),
+            narration_source=narration_source,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -85,6 +148,8 @@ class Scene:
             out["narration_en"] = self.narration_en
         if self.compartment is not None:
             out["compartment"] = self.compartment
+        if self.narration_source is not None:
+            out["narration_source"] = self.narration_source.to_dict()
         return out
 
 
