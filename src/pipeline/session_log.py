@@ -16,6 +16,8 @@ class SessionEntry:
     stages: list[str] = field(default_factory=list)
     summary: str = ""
     error: str = ""
+    mutation_id: str | None = None
+    revert_payload: dict | None = None
 
 
 def detect_claude_session() -> str | None:
