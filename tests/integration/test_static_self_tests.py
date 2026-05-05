@@ -69,3 +69,36 @@ def test_cost_estimate_self_tests_pass():
     assert result.returncode == 0, (
         f"cost_estimate.js self-tests failed.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     )
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_dashboard_sse_modules_load():
+    shim = (
+        "global.window = global;\n"
+        "global.location = { search: '' };\n"
+        "global.console = console;\n"
+        "global.setTimeout = function(){ return 1; };\n"
+        "global.clearTimeout = function(){};\n"
+        "global.fetch = function(){ return Promise.resolve({ok:true,json:function(){return Promise.resolve([]);}}); };\n"
+        "global.EventSource = function(){ this.addEventListener=function(){}; this.close=function(){}; };\n"
+        "global.document = {\n"
+        "  querySelectorAll: function(){ return []; },\n"
+        "  querySelector: function(){ return null; }\n"
+        "};\n"
+        f"var s = require('fs').readFileSync('{_STATIC / 'sse_client.js'}', 'utf8');\n"
+        "eval(s);\n"
+        f"var i = require('fs').readFileSync('{_STATIC / 'inflight_badge.js'}', 'utf8');\n"
+        "eval(i);\n"
+        f"var d = require('fs').readFileSync('{_STATIC / 'dashboard_sse.js'}', 'utf8');\n"
+        "eval(d);\n"
+        "if (!global.SSEClient || !global.InflightBadge || !global.DashboardSSE) process.exit(2);\n"
+        "var sub = global.SSEClient.subscribe('42', {});\n"
+        "sub.close();\n"
+        "var html = global.InflightBadge._badgeHtml({status:'running', job_id:'abcdef123'});\n"
+        "if (html.indexOf('inflight-badge running') < 0 || html.indexOf('abcdef') < 0) process.exit(3);\n"
+        "console.log('dashboard SSE modules loaded');\n"
+    )
+    result = subprocess.run(["node", "-e", shim], capture_output=True, text=True)
+    assert result.returncode == 0, (
+        f"dashboard SSE static smoke failed.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
