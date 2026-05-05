@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from pipeline.notify.telegram import TelegramNotifier
 
 logger = structlog.get_logger()
 
-SubprocessFactory = Callable[[list[str]], Awaitable["asyncio.subprocess.Process"]]
+SubprocessFactory = Callable[..., Awaitable["asyncio.subprocess.Process"]]
 
 
 def summarize_storyboard(storyboard_path: Path, *, max_per_line: int = 60) -> str:
@@ -43,11 +44,14 @@ def build_agent_prompt(*, template: str, job: EditJob, storyboard_summary: str) 
     )
 
 
-async def _default_subprocess_factory(argv: list[str]) -> asyncio.subprocess.Process:
+async def _default_subprocess_factory(
+    argv: list[str], *, env: dict[str, str] | None = None
+) -> asyncio.subprocess.Process:
     return await asyncio.create_subprocess_exec(
         *argv,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        env=env,
     )
 
 
@@ -61,11 +65,13 @@ class ClaudeAgentRunner:
         notifier: TelegramNotifier | None,
         subprocess_factory: SubprocessFactory | None = None,
         edit_interval_sec: float = 2.0,
+        dashboard_base_url: str = "http://127.0.0.1:8000",
     ) -> None:
         self._template = prompt_template
         self._notifier = notifier
         self._factory = subprocess_factory or _default_subprocess_factory
         self._edit_interval_sec = edit_interval_sec
+        self._dashboard_base_url = dashboard_base_url
 
     async def run(self, job: EditJob, project_root: Path) -> list[SubActionResult]:
         prompt = build_agent_prompt(
@@ -73,7 +79,10 @@ class ClaudeAgentRunner:
             job=job,
             storyboard_summary=summarize_storyboard(project_root / "storyboard.json"),
         )
-        proc = await self._factory(["claude", "-p", prompt])
+        env = dict(os.environ)
+        env["PIPELINE_JOB_ID"] = job.job_id
+        env["PIPELINE_DASHBOARD_BASE_URL"] = self._dashboard_base_url
+        proc = await self._factory(["claude", "-p", prompt], env=env)
         accumulated: list[bytes] = []
         last_edit_time = 0.0
 

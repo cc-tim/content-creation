@@ -12,7 +12,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pipeline.dashboard.job_queue import EditJob, JobQueue, SubActionResult
+from pipeline.dashboard.mutation_runtime import MutationProposal, apply_mutation
 from pipeline.dashboard.server import register_job_endpoints
+from pipeline.storyboard import Scene, Storyboard
 
 
 class _FakeRunner:
@@ -133,3 +135,49 @@ def test_cancel_returns_false_for_unknown_job(app_with_queue) -> None:
         response = client.post("/api/jobs/42/nonexistent/cancel")
         assert response.status_code == 200
         assert response.json()["cancelled"] is False
+
+
+def test_revert_endpoint_queues_and_applies_revert(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / "output"
+    project = output / "projects" / "42"
+    project.mkdir(parents=True)
+    Storyboard(
+        scenes=[
+            Scene(
+                id="s1",
+                section="content",
+                narration="ORIGINAL",
+                narration_est_sec=1.0,
+            )
+        ]
+    ).save(project / "storyboard.json")
+    result = apply_mutation(
+        MutationProposal(
+            job_id="seed",
+            verb="subtitle set",
+            args={"scene": "s1", "text": "EDITED"},
+        ),
+        project_root=project,
+    )
+    assert result.mutation_id is not None
+    monkeypatch.setattr("pipeline.notify.telegram.TelegramNotifier.from_env", lambda: None)
+
+    from pipeline.dashboard.server import create_app
+
+    app = create_app(output_dir=output)
+    with TestClient(app) as client:
+        response = client.post(f"/api/jobs/42/{result.mutation_id}/revert")
+        assert response.status_code == 200
+        for _ in range(50):
+            scene = Storyboard.load(project / "storyboard.json").get_scene("s1")
+            assert scene is not None
+            if scene.subtitle_override == "ORIGINAL":
+                break
+            time.sleep(0.02)
+
+    scene = Storyboard.load(project / "storyboard.json").get_scene("s1")
+    assert scene is not None
+    assert scene.subtitle_override == "ORIGINAL"

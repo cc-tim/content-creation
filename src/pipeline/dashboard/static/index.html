@@ -81,6 +81,29 @@
     .scene-sub-hdr { font-size:10px; color:#0ea5e9; font-family:monospace; margin-bottom:6px; }
     .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: #64748b; }
     .meta-grid .lbl { color: #475569; }
+    .inflight-host { display: inline-flex; align-items: center; margin-left: 8px; min-height: 22px; }
+    .inflight-badge { display: inline-flex; gap: 6px; align-items: center; padding: 2px 8px;
+      border-radius: 10px; font-size: 11px; background: #1e3a5f; color: #93c5fd;
+      border: 1px solid #3b82f6; white-space: nowrap; }
+    .inflight-badge.running { animation: inflight-pulse 1.5s ease-in-out infinite; }
+    .inflight-dot { width: 6px; height: 6px; border-radius: 50%; background: #60a5fa; }
+    .inflight-badge .inflight-jid { font-family: monospace; opacity: 0.7; font-size: 10px; }
+    .inflight-cancel { cursor: pointer; opacity: 0.65; border: 0; background: transparent; color: inherit;
+      padding: 0 0 0 2px; font: inherit; line-height: 1; }
+    .inflight-cancel:hover { opacity: 1; color: #f87171; }
+    @keyframes inflight-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+      50% { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0); }
+    }
+    .recent-mutations { grid-column: 1 / -1; margin-top: 8px; padding-top: 8px; border-top: 1px solid #1e293b;
+      font-size: 11px; color: #94a3b8; min-width: 0; }
+    .recent-mutations h4 { font-size: 11px; margin: 0 0 6px; color: #cbd5e1; }
+    .recent-mut-row { display: flex; gap: 8px; padding: 3px 0; align-items: center; min-width: 0; }
+    .recent-mut-time { font-family: monospace; opacity: 0.65; font-size: 10px; }
+    .recent-mut-cmd { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .recent-mut-revert { cursor: pointer; color: #93c5fd; font-size: 10px; border: 0; background: transparent; padding: 0; }
+    .recent-mut-revert:hover { color: #60a5fa; text-decoration: underline; }
+    .recent-mut-empty { color: #475569; font-size: 11px; }
   </style>
 </head>
 <body>
@@ -162,7 +185,10 @@ function render(data) {
     tr.innerHTML = `
       <td><span class="badge s-${p.status}">● ${p.status}</span></td>
       <td style="max-width:280px">
-        <div class="t-main ${p.title ? '' : 't-miss'}">${p.title || 'No title yet'}</div>
+        <div style="display:flex;align-items:center;min-width:0">
+          <div class="t-main ${p.title ? '' : 't-miss'}">${p.title || 'No title yet'}</div>
+          <span class="inflight-host" data-project-host data-project-id="${p.project_id}"></span>
+        </div>
         <div class="t-id">${p.project_id}</div>
       </td>
       <td style="color:#64748b">${p.locale}${p.niche ? ' · '+p.niche : ''}</td>
@@ -188,6 +214,9 @@ function render(data) {
       }
     }
   });
+  if (window.DashboardSSE) {
+    data.forEach(p => window.DashboardSSE.sync(p.project_id));
+  }
 
 }
 
@@ -232,6 +261,7 @@ function makeDetailRow(p) {
     : '';
   dr.innerHTML = `<td colspan="7"><div class="detail-panel">
     <div class="detail-actions">
+      <span class="inflight-host" data-project-host data-project-id="${p.project_id}"></span>
       <button class="edit-mode-toggle" type="button" data-project-id="${p.project_id}">Edit mode</button>
     </div>
     ${tabsHtml}
@@ -260,6 +290,7 @@ function makeDetailRow(p) {
             }).join('')
           }</div>`
         : ''}
+      <div class="recent-mutations" data-project-id="${p.project_id}"></div>
     </div>
   </div></td>`;
   return dr;
@@ -268,6 +299,7 @@ function makeDetailRow(p) {
 function toggleDetail(p) {
   const existing = document.querySelector(`tr[data-detail-for="${p.project_id}"]`);
   if (existing) {
+    if (window.closeProjectSSE) window.closeProjectSSE(p.project_id);
     existing.remove();
     document.querySelector(`tr[data-id="${p.project_id}"]`)?.classList.remove('active');
     document.querySelector(`.btn-preview[data-id="${p.project_id}"]`)?.classList.remove('active');
@@ -278,6 +310,7 @@ function toggleDetail(p) {
   const open = document.querySelector('tr.detail-row');
   if (open) {
     const prevId = open.dataset.detailFor;
+    if (window.closeProjectSSE) window.closeProjectSSE(prevId);
     open.remove();
     document.querySelector(`tr[data-id="${prevId}"]`)?.classList.remove('active');
     document.querySelector(`.btn-preview[data-id="${prevId}"]`)?.classList.remove('active');
@@ -370,6 +403,7 @@ function toggleDetail(p) {
     window.EditMode?.toggle(p.project_id);
   });
   window.EditMode?.attach(p.project_id);
+  if (window.openProjectSSE) window.openProjectSSE(p.project_id);
   activeId = p.project_id;
 }
 
@@ -407,6 +441,65 @@ setInterval(refresh, 30000);
 <script src="/static/composer.js"></script>
 <script src="/static/edit_mode.js"></script>
 <script src="/static/transition_editor.js"></script>
+<script src="/static/sse_client.js"></script>
+<script src="/static/inflight_badge.js"></script>
+<script src="/static/dashboard_sse.js"></script>
+<script>
+  function refreshActiveVideo(projectId, path) {
+    const row = document.querySelector(`tr[data-detail-for="${projectId}"]`);
+    if (!row) return;
+    const video = row.querySelector('video');
+    if (!video) return;
+    const base = path ? `/output/${projectId}/${path}` : video.src.split('?')[0];
+    video.src = `${base}?t=${Date.now()}`;
+    video.load();
+  }
+
+  function refreshSceneImage(projectId, path) {
+    const scene = path.replace('images/scenes/', '').replace(/\.[^.]+$/, '');
+    const img = document.querySelector(
+      `[data-project-id="${projectId}"] img[data-scene-id="${scene}"]`
+    );
+    if (img) img.src = `${img.src.split('?')[0]}?t=${Date.now()}`;
+  }
+
+  async function refreshProjectDetail(projectId) {
+    const wasActive = activeId === projectId;
+    document.querySelector(`tr[data-detail-for="${projectId}"]`)?.remove();
+    if (wasActive) activeId = null;
+    await refresh();
+    if (!wasActive) return;
+    const project = currentData.find(p => p.project_id === projectId);
+    if (project) toggleDetail(project);
+  }
+
+  window.openProjectSSE = function (projectId) {
+    window.DashboardSSE.open(projectId, {
+      onFilesChanged: function (paths) {
+        paths.forEach(function (path) {
+          if (path === 'storyboard.json') {
+            refreshProjectDetail(projectId).then(function () {
+              window.DashboardSSE.renderRecentMutations(projectId);
+            });
+          } else if (path.indexOf('compose/') === 0 && path.indexOf('.mp4') > -1) {
+            refreshActiveVideo(projectId, path);
+          } else if (path.indexOf('images/scenes/') === 0) {
+            refreshSceneImage(projectId, path);
+          } else if (path.indexOf('narration_overrides/') === 0 && window.NarrationSourceEditor) {
+            refresh();
+          }
+        });
+      },
+    });
+    window.DashboardSSE.renderRecentMutations(projectId);
+  };
+
+  window.closeProjectSSE = function (projectId) {
+    window.DashboardSSE.close(projectId);
+  };
+
+  window.renderRecentMutations = window.DashboardSSE.renderRecentMutations;
+</script>
 <script>
   // Wire the source chip: opens NarrationSourceEditor for the active scene when edit mode is off.
   document.getElementById('tbody').addEventListener('click', (e) => {

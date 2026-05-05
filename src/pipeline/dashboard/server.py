@@ -20,9 +20,19 @@ from pipeline.cli_transition import apply_clear_transition, apply_set_transition
 from pipeline.config import PipelineConfig
 from pipeline.dashboard.agent_runner import ClaudeAgentRunner
 from pipeline.dashboard.job_queue import EditJob, JobQueue
+from pipeline.dashboard.mutation_runtime import (
+    MutationCoordinator,
+    MutationProposal,
+    MutationProposed,
+    MutationResult,
+    apply_mutation,
+)
 from pipeline.dashboard.scanner import ProjectInfo, scan_projects
+from pipeline.dashboard.sse_emitter import FileWatcher, SSEEmitter, SSEEvent
+from pipeline.dashboard.trust_gate import classify_tier
 from pipeline.explainer import load_explainer
 from pipeline.notify.telegram import LongPollListener, TelegramNotifier
+from pipeline.session_log import recent_mutations
 from pipeline.storyboard import NarrationSource, Storyboard
 from pipeline.transcribe import transcribe_audio
 from pipeline.utils.audio import normalize_to_wav
@@ -98,13 +108,24 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         notifier = TelegramNotifier.from_env()
+        app.state.notifier = notifier
+        app.state.telegram_notifier = notifier
+        sse_emitter = SSEEmitter()
+        app.state.sse_emitter = sse_emitter
+        watcher = FileWatcher(sse_emitter, projects_root=projects_root)
+        await watcher.start()
+        app.state.file_watcher = watcher
+        if not hasattr(app.state, "mutation_coordinator"):
+            app.state.mutation_coordinator = MutationCoordinator()
         prompt_template = (Path(__file__).parent / "agent_prompt.md").read_text(encoding="utf-8")
         runner = ClaudeAgentRunner(prompt_template=prompt_template, notifier=notifier)
         queue = JobQueue(
             projects_root=projects_root,
             runner=runner,
             notifier=notifier,
+            sse_emitter=sse_emitter,
         )
+        queue.set_coordinator(app.state.mutation_coordinator)
         queue.reload_on_startup()
         await queue.start()
         app.state.job_queue = queue
@@ -124,12 +145,31 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
                 with contextlib.suppress(asyncio.CancelledError, Exception):
                     await listener_task
             await queue.shutdown()
+            await watcher.stop()
 
     app = FastAPI(title="Content Dashboard", lifespan=lifespan)
 
     @app.get("/api/projects")
     def get_projects() -> list[dict[str, object]]:
         return [_to_dict(p) for p in scan_projects(output_root)]
+
+    @app.get("/api/projects/{project_id}/recent-mutations")
+    def get_recent_mutations(project_id: str) -> JSONResponse:
+        proj = _project_root(project_id)
+        return JSONResponse([
+            {
+                "session_id": entry.session_id,
+                "timestamp": entry.timestamp,
+                "command": entry.command,
+                "outcome": entry.outcome,
+                "stages": entry.stages,
+                "summary": entry.summary,
+                "error": entry.error,
+                "mutation_id": entry.mutation_id,
+                "revert_payload": entry.revert_payload,
+            }
+            for entry in recent_mutations(proj, n=10)
+        ])
 
     @app.get("/")
     def index() -> FileResponse:
@@ -516,6 +556,8 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
     app.mount("/output", StaticFiles(directory=str(output_root)), name="output")
     register_job_endpoints(app, output_dir=output_root)
+    register_mutation_endpoints(app, output_dir=output_root)
+    register_sse_endpoint(app)
 
     return app
 
@@ -549,6 +591,271 @@ def register_job_endpoints(app: FastAPI, *, output_dir: Path) -> None:
         queue: JobQueue = app.state.job_queue
         cancelled = await queue.cancel(project_id, job_id)
         return JSONResponse({"ok": True, "cancelled": cancelled})
+
+    @app.post("/api/jobs/{project_id}/{mutation_id}/revert")
+    async def post_revert(project_id: str, mutation_id: str) -> JSONResponse:
+        _project_root(project_id)
+        queue: JobQueue = app.state.job_queue
+        queued = await queue.enqueue_revert(project_id, mutation_id)
+        if not queued:
+            raise HTTPException(
+                status_code=404,
+                detail=f"mutation {mutation_id!r} not found or not revertable",
+            )
+        return JSONResponse({"ok": True, "queued": True, "mutation_id": mutation_id})
+
+
+def register_sse_endpoint(app: FastAPI) -> None:
+    """Register project-scoped Server-Sent Events stream."""
+
+    @app.get("/api/sse/{project_id}")
+    async def get_sse(project_id: str, keepalive_sec: float = 15.0) -> StreamingResponse:
+        emitter: SSEEmitter = app.state.sse_emitter
+        sub = emitter.subscribe(project_id)
+
+        async def stream() -> AsyncIterator[str]:
+            try:
+                yield ": connected\n\n"
+                while True:
+                    try:
+                        event = await asyncio.wait_for(sub.__anext__(), timeout=keepalive_sec)
+                    except TimeoutError:
+                        event = SSEEvent(kind="ping", payload={})
+                    except StopAsyncIteration:
+                        return
+                    yield event.to_sse_line()
+            finally:
+                emitter.unsubscribe(sub)
+
+        return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+def register_mutation_endpoints(app: FastAPI, *, output_dir: Path) -> None:
+    """Register mutation propose/await endpoints backed by the dashboard trust gate."""
+
+    def _project_root_from_job(job_id: str) -> Path:
+        projects_dir = output_dir / "projects"
+        if not projects_dir.exists():
+            raise HTTPException(status_code=404, detail="projects directory not found")
+        for project_dir in projects_dir.iterdir():
+            if not project_dir.is_dir():
+                continue
+            sidecar = project_dir / "edit_jobs" / f"{job_id}.json"
+            if sidecar.exists():
+                return project_dir
+        raise HTTPException(status_code=404, detail=f"job {job_id} not found")
+
+    def _coordinator() -> MutationCoordinator:
+        coord = getattr(app.state, "mutation_coordinator", None)
+        if coord is None:
+            coord = MutationCoordinator()
+            app.state.mutation_coordinator = coord
+        return coord
+
+    @app.post("/api/mutations/{job_id}/propose")
+    async def post_propose(job_id: str, proposal: MutationProposal) -> JSONResponse:
+        if proposal.job_id != job_id:
+            raise HTTPException(status_code=400, detail="job_id in path and body must match")
+
+        project_root = _project_root_from_job(job_id)
+        storyboard_path = project_root / "storyboard.json"
+        if not storyboard_path.exists():
+            raise HTTPException(status_code=409, detail="storyboard.json missing")
+
+        storyboard = Storyboard.load(storyboard_path)
+        tier = classify_tier(proposal.verb, proposal.args, storyboard)
+        if tier == "auto_apply":
+            result = apply_mutation(proposal, project_root=project_root)
+            await _post_mutation_result(app, result=result, proposal=proposal, project_root=project_root)
+            return JSONResponse(result.model_dump())
+
+        coord = _coordinator()
+        mutation_id = coord.register(proposal=proposal, project_root=project_root)
+        await _post_mutation_proposal(
+            app,
+            mutation_id=mutation_id,
+            proposal=proposal,
+            project_root=project_root,
+        )
+        proposed = MutationProposed(
+            mutation_id=mutation_id,
+            proposal_message=f"proposal {mutation_id} awaiting user decision",
+        )
+        return JSONResponse(proposed.model_dump())
+
+    @app.get("/api/mutations/{mutation_id}/await")
+    async def get_await(mutation_id: str, timeout: float = 25.0) -> JSONResponse:
+        coord = _coordinator()
+        future = coord.future_for(mutation_id)
+        if future is None:
+            raise HTTPException(status_code=404, detail=f"mutation {mutation_id} not found")
+
+        try:
+            decision, pending = await asyncio.wait_for(asyncio.shield(future), timeout=timeout)
+        except TimeoutError:
+            return JSONResponse({"status": "pending", "mutation_id": mutation_id}, status_code=504)
+
+        if decision == "cancel":
+            coord.pop(mutation_id)
+            result = MutationResult(
+                status="cancelled",
+                mutation_id=mutation_id,
+                message="mutation cancelled",
+            )
+            await _post_mutation_result(
+                app,
+                result=result,
+                proposal=pending.proposal,
+                project_root=pending.project_root,
+            )
+            return JSONResponse(result.model_dump())
+
+        if decision == "edit":
+            coord.pop(mutation_id)
+            result = MutationResult(
+                status="cancelled",
+                mutation_id=mutation_id,
+                message="mutation edit requested",
+            )
+            await _post_mutation_result(
+                app,
+                result=result,
+                proposal=pending.proposal,
+                project_root=pending.project_root,
+            )
+            return JSONResponse(result.model_dump())
+
+        result = apply_mutation(pending.proposal, project_root=pending.project_root)
+        coord.pop(mutation_id)
+        await _post_mutation_result(
+            app,
+            result=result,
+            proposal=pending.proposal,
+            project_root=pending.project_root,
+        )
+        return JSONResponse(result.model_dump())
+
+
+async def _post_mutation_proposal(
+    app: FastAPI,
+    *,
+    mutation_id: str,
+    proposal: MutationProposal,
+    project_root: Path,
+) -> None:
+    notifier = getattr(app.state, "notifier", None)
+    if notifier is None:
+        return
+    text = (
+        f"[{project_root.name}] mutation proposal {mutation_id}\n"
+        f"verb: {proposal.verb}\n"
+        f"args: {json.dumps(proposal.args, ensure_ascii=False, sort_keys=True)}"
+    )
+    reply_markup = {
+        "inline_keyboard": [[
+            {"text": "Apply", "callback_data": f"apply:{project_root.name}:{mutation_id}"},
+            {
+                "text": "Edit",
+                "callback_data": f"edit_proposal:{project_root.name}:{mutation_id}:{proposal.job_id}",
+            },
+            {"text": "Cancel", "callback_data": f"cancel_proposal:{project_root.name}:{mutation_id}"},
+        ]]
+    }
+    await asyncio.to_thread(
+        notifier.send_message,
+        text,
+        parse_mode="",
+        reply_markup=reply_markup,
+    )
+
+
+async def _post_mutation_result(
+    app: FastAPI,
+    *,
+    result: MutationResult,
+    proposal: MutationProposal,
+    project_root: Path,
+) -> None:
+    notifier = getattr(app.state, "telegram_notifier", None)
+    if notifier is None:
+        return
+    if result.status != "applied":
+        text = (
+            f"[{project_root.name}] mutation {result.status}\n"
+            f"verb: {proposal.verb}\n"
+            f"message: {result.message}"
+        )
+        await asyncio.to_thread(notifier.send_message, text, parse_mode="")
+        return
+
+    from pipeline.dashboard.preview import build_preview
+
+    revert_payload = _session_revert_payload(project_root, result.mutation_id)
+    old_text = None
+    if isinstance(revert_payload, dict):
+        args = revert_payload.get("args")
+        if isinstance(args, dict) and "text" in args:
+            old_text = str(args["text"])
+
+    preview = build_preview(
+        verb=proposal.verb,
+        args=proposal.args,
+        project_root=project_root,
+        old_text=old_text,
+    )
+    keyboard = None
+    if result.mutation_id and revert_payload is not None:
+        keyboard = {
+            "inline_keyboard": [[
+                {
+                    "text": "Revert",
+                    "callback_data": f"revert:{project_root.name}:{result.mutation_id}",
+                }
+            ]]
+        }
+
+    caption = f"[{project_root.name}] mutation applied\n{result.message}"
+    if preview.kind == "photo" and preview.path is not None and hasattr(notifier, "send_photo"):
+        await asyncio.to_thread(
+            notifier.send_photo,
+            preview.path,
+            caption=preview.caption or caption,
+            reply_markup=keyboard,
+        )
+        return
+    if preview.kind == "video" and preview.path is not None and hasattr(notifier, "send_video"):
+        await asyncio.to_thread(
+            notifier.send_video,
+            preview.path,
+            caption=preview.caption or caption,
+            reply_markup=keyboard,
+        )
+        return
+
+    text = (
+        f"[{project_root.name}] mutation applied\n"
+        f"verb: {proposal.verb}\n"
+        f"message: {result.message}\n\n"
+        f"{preview.body}"
+    )
+    await asyncio.to_thread(notifier.send_message, text, parse_mode="", reply_markup=keyboard)
+
+
+def _session_revert_payload(project_root: Path, mutation_id: str | None) -> dict[str, Any] | None:
+    if mutation_id is None:
+        return None
+    sessions_path = project_root / "sessions.json"
+    if not sessions_path.exists():
+        return None
+    try:
+        rows = json.loads(sessions_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    for row in reversed(rows):
+        if row.get("mutation_id") == mutation_id:
+            payload = row.get("revert_payload")
+            return payload if isinstance(payload, dict) else None
+    return None
 
 
 def _to_dict(p: ProjectInfo) -> dict[str, object]:

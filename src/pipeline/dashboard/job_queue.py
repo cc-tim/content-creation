@@ -38,6 +38,7 @@ class EditJob(BaseModel):
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
     started_at: str | None = None
     finished_at: str | None = None
+    revert_target: dict | None = None
 
 
 class AgentRunner(Protocol):
@@ -92,17 +93,24 @@ class JobQueue:
         projects_root: Path,
         runner: AgentRunner,
         notifier: Any | None = None,
+        sse_emitter: Any | None = None,
     ) -> None:
         self._projects_root = projects_root
         self._runner = runner
         self._notifier = notifier
+        self._sse = sse_emitter
         self._queues: dict[str, asyncio.Queue[EditJob]] = {}
         self._consumers: dict[str, asyncio.Task[None]] = {}
         self._idle_events: dict[str, asyncio.Event] = {}
         self._running_jobs: dict[str, EditJob] = {}
         self._cancel_targets: dict[str, tuple[str, asyncio.Task[None]]] = {}
+        self._coord: Any | None = None
         self._lock = asyncio.Lock()
         self._started = False
+
+    def set_coordinator(self, coord: Any) -> None:
+        """Wire the mutation coordinator for proposal callback routing."""
+        self._coord = coord
 
     async def start(self) -> None:
         """Marker for explicit lifecycle. Consumers are lazy-spawned on first submit."""
@@ -148,6 +156,7 @@ class JobQueue:
             self._ensure_consumer(job.project_id)
             self._idle_events[job.project_id].clear()
             await self._queues[job.project_id].put(job)
+        self._publish_status(job)
         logger.info("jobqueue.submit", job_id=job.job_id, project_id=job.project_id)
 
     async def cancel(self, project_id: str, job_id: str) -> bool:
@@ -166,7 +175,98 @@ class JobQueue:
         if verb == "cancel":
             project_id, _, job_id = rest.partition(":")
             return await self.cancel(project_id, job_id)
+        if verb == "revert":
+            project_id, _, mutation_id = rest.partition(":")
+            return await self.enqueue_revert(project_id, mutation_id)
+        if verb == "apply":
+            _project_id, _, mutation_id = rest.partition(":")
+            return self._resolve_proposal(mutation_id, decision="apply")
+        if verb == "cancel_proposal":
+            _project_id, _, mutation_id = rest.partition(":")
+            return self._resolve_proposal(mutation_id, decision="cancel")
+        if verb == "edit_proposal":
+            project_id, _, tail = rest.partition(":")
+            mutation_id, _, job_id = tail.partition(":")
+            return self._handle_edit_proposal(project_id, mutation_id, job_id)
+        if verb == "reburn":
+            project_id, _, _job_id = rest.partition(":")
+            if self._notifier is not None:
+                await asyncio.to_thread(
+                    self._notifier.send_message,
+                    (
+                        f"reburn requested for {project_id}; run "
+                        f"`pipeline compose reburn --project-id {project_id}`"
+                    ),
+                    parse_mode="",
+                )
+            return True
         return False
+
+    async def enqueue_revert(self, project_id: str, mutation_id: str) -> bool:
+        """Public hook for server endpoints to submit a revert job."""
+        from pipeline.dashboard.revert import synthesise_revert_job
+
+        proj_root = self._projects_root / project_id
+        if not proj_root.exists():
+            return False
+        try:
+            job = synthesise_revert_job(project_root=proj_root, mutation_id=mutation_id)
+        except (KeyError, ValueError) as exc:
+            logger.warning("jobqueue.revert.refused", reason=str(exc), mutation_id=mutation_id)
+            return False
+        await self.submit(job)
+        return True
+
+    def _resolve_proposal(self, mutation_id: str, *, decision: str) -> bool:
+        if self._coord is None:
+            return False
+        return bool(self._coord.resolve(mutation_id, decision=decision))
+
+    def _handle_edit_proposal(self, project_id: str, mutation_id: str, job_id: str) -> bool:
+        if self._coord is None:
+            return False
+        proposal = self._proposal_for(mutation_id)
+        if proposal is None:
+            return False
+        proj_root = self._projects_root / project_id
+        try:
+            self._write_edit_draft(proj_root, proposal)
+        except Exception as exc:
+            logger.warning(
+                "jobqueue.edit_proposal.write_draft_failed",
+                error=str(exc),
+                job_id=job_id,
+                mutation_id=mutation_id,
+            )
+        return self._resolve_proposal(mutation_id, decision="cancel")
+
+    def _proposal_for(self, mutation_id: str) -> Any | None:
+        if self._coord is None:
+            return None
+        proposal_for = getattr(self._coord, "proposal_for", None)
+        if callable(proposal_for):
+            return proposal_for(mutation_id)
+        pending_for = getattr(self._coord, "pending_for", None)
+        if callable(pending_for):
+            pending = pending_for(mutation_id)
+            return getattr(pending, "proposal", None)
+        return None
+
+    def _write_edit_draft(self, proj_root: Path, proposal: Any) -> None:
+        import json as _json
+
+        args = getattr(proposal, "args", {})
+        verb = getattr(proposal, "verb", "")
+        scene_id = args.get("scene", "unknown") if isinstance(args, dict) else "unknown"
+        draft = {
+            "tokens": [f"@{scene_id}"],
+            "text": f"refine: {verb} {args!r}",
+        }
+        proj_root.mkdir(parents=True, exist_ok=True)
+        (proj_root / "edit_draft.json").write_text(
+            _json.dumps(draft, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
     async def wait_idle(self, project_id: str, *, timeout: float) -> None:
         """Wait until the project's queue is drained and between jobs."""
@@ -232,15 +332,20 @@ class JobQueue:
         await self._post_opener(job)
         save_job(project_root, job)
         self._running_jobs[job.project_id] = job
+        self._publish_status(job)
 
         run_task = asyncio.current_task()
         if run_task is not None:
             self._cancel_targets[job.project_id] = (job.job_id, run_task)
 
         try:
-            results = await self._runner.run(job, project_root)
+            if job.revert_target is not None:
+                results = await asyncio.to_thread(_run_revert, job, project_root)
+            else:
+                results = await self._runner.run(job, project_root)
             job.sub_action_results = results
             job.status = "done"
+            await self._maybe_post_compose_pending(job)
         except asyncio.CancelledError:
             job.status = "cancelled"
             logger.info("jobqueue.run.cancelled", job_id=job.job_id)
@@ -252,3 +357,100 @@ class JobQueue:
             save_job(project_root, job)
             self._running_jobs.pop(job.project_id, None)
             self._cancel_targets.pop(job.project_id, None)
+            self._publish_status(job)
+
+    def _publish_status(self, job: EditJob) -> None:
+        if self._sse is None:
+            return
+        self._sse.publish_job_status(
+            job.project_id,
+            job_status={
+                "job_id": job.job_id,
+                "status": job.status,
+                "tokens": job.tokens,
+                "instruction": job.instruction,
+                "started_at": job.started_at,
+                "finished_at": job.finished_at,
+                "is_revert": job.revert_target is not None,
+            },
+        )
+
+    async def _maybe_post_compose_pending(self, job: EditJob) -> None:
+        if self._notifier is None:
+            return
+        results = job.sub_action_results
+        if not results:
+            return
+        has_successful_mutation = any(
+            result.ok
+            and result.verb.startswith(
+                ("subtitle ", "overlay ", "narration ", "image ", "transition ")
+            )
+            for result in results
+        )
+        compose_failed = any(
+            (not result.ok) and result.verb.startswith("compose ")
+            for result in results
+        )
+        if not (has_successful_mutation and compose_failed):
+            return
+        keyboard = {
+            "inline_keyboard": [[
+                {"text": "Reburn", "callback_data": f"reburn:{job.project_id}:{job.job_id}"}
+            ]]
+        }
+        kwargs: dict[str, Any] = {"parse_mode": "", "reply_markup": keyboard}
+        if job.telegram_opener_id is not None:
+            kwargs["reply_to_message_id"] = job.telegram_opener_id
+        await asyncio.to_thread(
+            self._notifier.send_message,
+            "compose pending - render the new state with reburn?",
+            **kwargs,
+        )
+
+
+def _run_revert(job: EditJob, project_root: Path) -> list[SubActionResult]:
+    """Apply the inverse mutation for a revert job without invoking the agent."""
+    import json as _json
+
+    from pipeline.dashboard.mutation_runtime import MutationProposal, apply_mutation
+
+    target = job.revert_target or {}
+    mutation_id = target.get("mutation_id")
+    if not mutation_id:
+        return [SubActionResult(verb="revert", ok=False, message="no mutation_id in revert_target")]
+
+    sessions_path = project_root / "sessions.json"
+    if not sessions_path.exists():
+        return [SubActionResult(verb="revert", ok=False, message="no sessions.json")]
+
+    try:
+        rows = _json.loads(sessions_path.read_text(encoding="utf-8"))
+    except (_json.JSONDecodeError, OSError) as exc:
+        return [SubActionResult(verb="revert", ok=False, message=f"unreadable sessions.json: {exc}")]
+
+    source = next((row for row in rows if row.get("mutation_id") == mutation_id), None)
+    if source is None or not source.get("revert_payload"):
+        return [
+            SubActionResult(
+                verb="revert",
+                ok=False,
+                message=f"mutation {mutation_id} not revertable",
+            )
+        ]
+
+    payload = source["revert_payload"]
+    proposal = MutationProposal(
+        job_id=job.job_id,
+        verb=payload["verb"],
+        args=payload["args"],
+    )
+    result = apply_mutation(proposal, project_root=project_root)
+    return [
+        SubActionResult(
+            verb=f"revert {payload['verb']}",
+            scene=payload["args"].get("scene"),
+            ok=result.status == "applied",
+            message=result.message,
+        )
+    ]

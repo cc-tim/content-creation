@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,7 @@ from pipeline.dashboard.job_queue import (
     load_job,
     save_job,
 )
+from pipeline.session_log import SessionEntry, append_session
 
 
 def _sample_job(project_id: str = "42", job_id: str = "job-001") -> EditJob:
@@ -95,6 +97,22 @@ class FakeRunner:
         return [SubActionResult(verb="subtitle set", scene="s9", ok=True, message="ok")]
 
 
+class FakeComposePendingRunner:
+    async def run(self, job: EditJob, project_root: Path) -> list[SubActionResult]:
+        return [
+            SubActionResult(verb="subtitle set", scene="s9", ok=True, message="ok"),
+            SubActionResult(verb="compose rescene", scene="s9", ok=False, message="ffmpeg failed"),
+        ]
+
+
+class _RecordingSSE:
+    def __init__(self) -> None:
+        self.events: list[tuple[str, dict]] = []
+
+    def publish_job_status(self, project_id: str, *, job_status: dict) -> None:
+        self.events.append((project_id, job_status))
+
+
 @pytest.fixture
 def project_tree(tmp_path: Path) -> Path:
     proj = tmp_path / "projects" / "42"
@@ -160,6 +178,39 @@ async def test_failed_job_marked_failed_and_queue_recovers(project_tree: Path) -
     await queue.submit(EditJob(job_id="good", project_id="42", tokens=[], instruction="y"))
     await queue.wait_idle("42", timeout=2.0)
     assert load_job(project_tree / "42", "good").status == "done"
+    await queue.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_queue_publishes_status_events(project_tree: Path) -> None:
+    sse = _RecordingSSE()
+    queue = JobQueue(projects_root=project_tree, runner=FakeRunner(), sse_emitter=sse)
+    await queue.start()
+    await queue.submit(EditJob(job_id="j1", project_id="42", tokens=["@s9"], instruction="x"))
+    await queue.wait_idle("42", timeout=2.0)
+
+    statuses = [event["status"] for _project_id, event in sse.events]
+    assert statuses == ["queued", "running", "done"]
+    assert sse.events[-1][1]["is_revert"] is False
+    await queue.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_compose_pending_notice_posts_reburn_button(project_tree: Path) -> None:
+    notifier = _RecordingNotifier()
+    queue = JobQueue(
+        projects_root=project_tree,
+        runner=FakeComposePendingRunner(),
+        notifier=notifier,
+    )
+    await queue.start()
+    await queue.submit(EditJob(job_id="j1", project_id="42", tokens=["@s9"], instruction="x"))
+    await queue.wait_idle("42", timeout=2.0)
+
+    pending = [sent for sent in notifier.sent if "compose pending" in sent.get("text", "")]
+    assert pending
+    keyboard = pending[-1]["reply_markup"]["inline_keyboard"]
+    assert keyboard[0][0]["callback_data"] == "reburn:42:j1"
     await queue.shutdown()
 
 
@@ -290,4 +341,80 @@ async def test_handle_callback_query_ignores_unknown_verb(project_tree: Path) ->
     queue = JobQueue(projects_root=project_tree, runner=FakeRunner(), notifier=None)
     await queue.start()
     assert await queue.handle_callback_query({"id": "cb1", "data": "doitnow:42:j1"}) is False
+    await queue.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_handle_callback_query_routes_revert(project_tree: Path) -> None:
+    append_session(
+        project_tree / "42",
+        SessionEntry(
+            session_id="sess-1",
+            timestamp=datetime.now().isoformat(timespec="seconds"),
+            command="subtitle set",
+            mutation_id="m1",
+            revert_payload={"verb": "subtitle set", "args": {"scene": "s1", "text": "old"}},
+        ),
+    )
+    queue = JobQueue(projects_root=project_tree, runner=FakeRunner(), notifier=None)
+    await queue.start()
+
+    assert await queue.handle_callback_query({"data": "revert:42:m1"}) is True
+    await queue.wait_idle("42", timeout=2.0)
+
+    jobs = list_jobs(project_tree / "42")
+    assert any(job.revert_target == {"mutation_id": "m1"} for job in jobs)
+    await queue.shutdown()
+
+
+class _FakeCoordinator:
+    def __init__(self) -> None:
+        self.resolutions: list[tuple[str, str]] = []
+        self.proposals: dict[str, object] = {}
+
+    def resolve(self, mutation_id: str, *, decision: str) -> bool:
+        self.resolutions.append((mutation_id, decision))
+        return True
+
+    def proposal_for(self, mutation_id: str):
+        return self.proposals.get(mutation_id)
+
+
+class _Proposal:
+    verb = "subtitle set"
+    args = {"scene": "s9", "text": "candidate"}
+
+
+@pytest.mark.asyncio
+async def test_handle_callback_query_routes_proposal_apply_and_cancel(
+    project_tree: Path,
+) -> None:
+    coord = _FakeCoordinator()
+    queue = JobQueue(projects_root=project_tree, runner=FakeRunner(), notifier=None)
+    queue.set_coordinator(coord)
+    await queue.start()
+
+    assert await queue.handle_callback_query({"data": "apply:42:m1"}) is True
+    assert await queue.handle_callback_query({"data": "cancel_proposal:42:m2"}) is True
+
+    assert coord.resolutions == [("m1", "apply"), ("m2", "cancel")]
+    await queue.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_handle_callback_query_edit_proposal_writes_draft_and_cancels(
+    project_tree: Path,
+) -> None:
+    coord = _FakeCoordinator()
+    coord.proposals["m1"] = _Proposal()
+    queue = JobQueue(projects_root=project_tree, runner=FakeRunner(), notifier=None)
+    queue.set_coordinator(coord)
+    await queue.start()
+
+    assert await queue.handle_callback_query({"data": "edit_proposal:42:m1:j1"}) is True
+
+    draft = (project_tree / "42" / "edit_draft.json").read_text(encoding="utf-8")
+    assert "@s9" in draft
+    assert "subtitle set" in draft
+    assert coord.resolutions == [("m1", "cancel")]
     await queue.shutdown()
