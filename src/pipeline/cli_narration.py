@@ -118,3 +118,37 @@ def set_source(
                 + (f" --file {file}" if file else ""),
         summary=summary,
     ))
+
+
+@narration_app.command("regen")
+def regen(
+    project_id: int = typer.Option(..., "--project-id"),
+    scene: str = typer.Option(..., "--scene", help="Scene id (e.g. s9)"),
+    text: str = typer.Option(..., "--text", help="New narration text"),
+) -> None:
+    """Overwrite the narration text on the named scene.
+
+    Mutates storyboard state only. Run `pipeline compose rescene --scene <id>`
+    afterwards to re-run TTS and re-render the scene clip.
+    """
+    sb_path, sb = _load_storyboard(project_id)
+    target = sb.get_scene(scene)
+    if target is None:
+        typer.echo(f"Scene {scene!r} not found in storyboard", err=True)
+        raise typer.Exit(code=1)
+
+    target.narration = text
+    sb.save(sb_path)
+
+    summary = f"narration regen {scene}: {text[:40]}"
+    typer.echo(summary)
+    work = _resolve_work_dir(project_id)
+    append_session(
+        work,
+        SessionEntry(
+            session_id=new_session_id(),
+            timestamp=datetime.now().isoformat(timespec="seconds"),
+            command=f"narration regen --scene {scene} --text {text!r}",
+            summary=summary,
+        ),
+    )
