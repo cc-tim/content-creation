@@ -195,7 +195,13 @@ function buildSceneStrip(scenes) {
     <div class="scene-strip">${chips}</div>
     <div class="scene-panels">
       <div class="scene-narration">
-        <div class="scene-panel-label">旁白 Narration</div>
+        <div class="scene-panel-label">旁白 Narration
+          <!-- Plan 2: temporary trigger for the narration-source modal.
+               Plan 4 replaces this with the source-chip click-target. -->
+          <button class="nse-open-btn" type="button" style="float:right;font-size:10px;
+            padding:2px 8px;background:#1e293b;color:#94a3b8;border:1px solid #2d3748;
+            border-radius:3px;cursor:pointer;font-weight:normal">🎙 record</button>
+        </div>
         <div class="scene-nar-hdr"></div>
         <div class="scene-nar-text"></div>
       </div>
@@ -374,6 +380,32 @@ document.getElementById('tbody').addEventListener('click', e => {
 
 refresh();
 setInterval(refresh, 30000);
+</script>
+<script src="/static/narration_source_editor.js"></script>
+<script>
+  // Wire the 🎙 record button: opens NarrationSourceEditor for the active scene.
+  document.getElementById('tbody').addEventListener('click', (e) => {
+    const btn = e.target.closest('.nse-open-btn');
+    if (!btn) return;
+    const detailRow = btn.closest('tr.detail-row');
+    if (!detailRow) return;
+    const projectId = detailRow.dataset.detailFor;
+    const project = currentData.find((p) => p.project_id === projectId);
+    if (!project) return;
+    // Use the currently-displayed scene from the strip's active chip.
+    const activeChip = detailRow.querySelector('.scene-chip.sc-active')
+                       || detailRow.querySelector('.scene-chip');
+    if (!activeChip) return;
+    const idx = +activeChip.dataset.idx;
+    const scene = project.scenes[idx];
+    if (!scene) return;
+    window.NarrationSourceEditor.open({
+      projectId,
+      scene: scene.id,
+      narrationText: scene.narration || '',
+      locale: project.locale || 'zh-TW',
+    });
+  });
 </script>
 <script>
   const _hmr = new EventSource('/_hmr');
