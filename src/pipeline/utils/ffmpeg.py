@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 import shutil
 import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def check_ffmpeg_available() -> bool:
@@ -100,3 +106,66 @@ def run_ffmpeg(cmd: list[str], timeout: int = 600) -> subprocess.CompletedProces
         timeout=timeout,
         check=True,
     )
+
+
+# -- async / parallel infrastructure --
+
+_FFMPEG_EXECUTOR: ThreadPoolExecutor | None = None
+_EXECUTOR_LOCK = threading.Lock()
+
+
+def init_ffmpeg_executor(max_workers: int) -> ThreadPoolExecutor:
+    """Initialize (or reinitialize) the global executor for FFmpeg subprocesses."""
+    global _FFMPEG_EXECUTOR
+    with _EXECUTOR_LOCK:
+        old = _FFMPEG_EXECUTOR
+        _FFMPEG_EXECUTOR = ThreadPoolExecutor(
+            max_workers=max_workers, thread_name_prefix="ffmpeg"
+        )
+        if old is not None:
+            old.shutdown(wait=False)
+    return _FFMPEG_EXECUTOR
+
+
+def get_ffmpeg_executor() -> ThreadPoolExecutor:
+    """Return the shared executor. Lazily initializes with 4 workers."""
+    global _FFMPEG_EXECUTOR
+    if _FFMPEG_EXECUTOR is None:
+        with _EXECUTOR_LOCK:
+            if _FFMPEG_EXECUTOR is None:
+                _FFMPEG_EXECUTOR = ThreadPoolExecutor(
+                    max_workers=4, thread_name_prefix="ffmpeg"
+                )
+    return _FFMPEG_EXECUTOR
+
+
+def shutdown_ffmpeg_executor(wait: bool = True) -> None:
+    """Clean shutdown of the shared executor. Idempotent."""
+    global _FFMPEG_EXECUTOR
+    with _EXECUTOR_LOCK:
+        if _FFMPEG_EXECUTOR is not None:
+            _FFMPEG_EXECUTOR.shutdown(wait=wait)
+            _FFMPEG_EXECUTOR = None
+
+
+async def async_run_ffmpeg(
+    cmd: list[str], timeout: int = 600
+) -> subprocess.CompletedProcess[str]:
+    """Run FFmpeg in the shared thread pool without blocking the event loop."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        get_ffmpeg_executor(),
+        lambda: run_ffmpeg(cmd, timeout),
+    )
+
+
+def verify_is_image(path: Path) -> bool:
+    """Return True if *path* is a valid image (not HTML, SVG, or corrupt)."""
+    try:
+        from PIL import Image
+        img = Image.open(path)
+        img.verify()
+        return True
+    except Exception:
+        logger.warning("verify_is_image.failed", path=str(path))
+        return False

@@ -178,6 +178,16 @@ def render_scene(
             return render_text_card(
                 fallback, duration_sec, width, height, work_dir, scene_id, theme
             )
+        from pipeline.utils.ffmpeg import verify_is_image
+
+        if not verify_is_image(img_path):
+            logger.warning("article_image.invalid", path=str(img_path), scene=scene_id)
+            from pipeline.composer.text_card import render_text_card
+
+            fallback = {"type": "text_card", "text": visual.get("alt", scene_id)}
+            return render_text_card(
+                fallback, duration_sec, width, height, work_dir, scene_id, theme
+            )
         output = work_dir / f"{scene_id}_visual.mp4"
         return image_to_video(img_path, output, duration_sec, width, height)
 

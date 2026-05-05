@@ -126,7 +126,7 @@ class XfadeRenderer:
 
         # 1. Extract last frame of scene_a (sseof = seek from end)
         run_ffmpeg([
-            "ffmpeg", "-y", "-sseof", "-0.05", "-i", str(scene_a),
+            "ffmpeg", "-y", "-sseof", "-0.5", "-i", str(scene_a),
             "-frames:v", "1", "-update", "1", str(frame_a),
         ])
         # 2. Extract first frame of scene_b

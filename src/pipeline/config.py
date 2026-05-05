@@ -38,6 +38,14 @@ class PipelineConfig(BaseSettings):
     # Video
     MAX_VIDEO_RESOLUTION: str = "720p"
 
+    # Concurrency
+    MAX_COMPOSE_WORKERS: int = Field(
+        default=4,
+        ge=1,
+        le=32,
+        description="Max parallel workers for scene composition (FFmpeg subprocesses)",
+    )
+
     def get_tts_voice(self, locale: str) -> str:
         voices = {
             "zh-TW": self.TTS_VOICE_ZH_TW,
