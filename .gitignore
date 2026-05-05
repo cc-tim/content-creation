@@ -16,3 +16,7 @@ skills/generate-image/
 skills/generate-video/
 skills/checkpoint-commit/
 skills/workflow-scout/
+temp/
+
+# Symlink to know-fountains source assets — local convenience, not committed
+/raw
