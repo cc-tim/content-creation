@@ -2,7 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Full reference docs:** `README.md` — tech stack, commands, workflows, voice IDs, channel config.
+**Project map:** Treat this file as the table of contents for agent work. The repository's durable knowledge base lives in `docs/`, which is the system of record for specs, plans, workflows, and future work. Use `README.md` for command/reference details that are intentionally kept there.
+
+## Ultimate Goal
+
+**Every task in this project serves one purpose: produce the highest-quality video possible.** Quality is the north star — not speed, not automation coverage, not code elegance. Claude and Codex must keep this in mind on every task: script choices, pacing decisions, image prompts, narration edits, and render settings all exist to make the final video better for the viewer.
 
 ## Project Identity
 
@@ -22,6 +26,17 @@ Three subsystems:
 
 Human-in-the-loop at 3 gates: story selection → script review → final video review.
 Full directory tree in README.md.
+
+## Knowledge Base Map
+
+Treat `docs/` as the structured project knowledge base, not as incidental notes:
+
+- `docs/superpowers/specs/` — design specs and architectural intent. Check the relevant spec before changing behavior that was designed there.
+- `docs/superpowers/plans/` — implementation plans and historical execution context. Use these to understand how a feature was built or staged.
+- `docs/workflows.md` and `docs/workflows.html` — workflow model and visual diagram. Ask before updating `docs/workflows.html`.
+- `docs/future-tasks.md` — deferred work and follow-up ideas.
+
+`CLAUDE.md` is the agent-facing table of contents: keep it concise and point to the right canonical document instead of duplicating the knowledge base. When new durable project knowledge is created, put it under `docs/` and add or adjust a pointer here only if agents need to find it quickly.
 
 ## Key Design Decisions (runtime rules)
 

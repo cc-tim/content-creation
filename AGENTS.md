@@ -4,6 +4,15 @@ This is the home directory for the content-creation pipeline — a YouTube porti
 that finds trending EN videos and rebuilds them as original zh-TW (and eventually ja/es)
 content for under-served markets.
 
+Treat this file as the Codex table of contents for the workspace. The repository's durable
+knowledge base lives in the structured `docs/` directory, which is the system of record for
+specs, plans, workflows, and future work. Keep this file as a concise map to that knowledge
+rather than duplicating the docs.
+
+## Ultimate Goal
+
+**Every task in this project serves one purpose: produce the highest-quality video possible.** Quality is the north star — not speed, not automation coverage, not code elegance. Claude and Codex must keep this in mind on every task: script choices, pacing decisions, image prompts, narration edits, and render settings all exist to make the final video better for the viewer.
+
 ## Session Startup
 
 Before anything else:
@@ -25,6 +34,18 @@ output/projects/<ID>/          ← one directory per produced video
   metadata.json                ← YouTube title, tags, description
   context.json                 ← pipeline state (locale, project_id, stage)
 ```
+
+## Knowledge Base Map
+
+Use `docs/` as the canonical project memory before making design-sensitive changes:
+
+- `docs/superpowers/specs/` — design specs and architectural intent
+- `docs/superpowers/plans/` — implementation plans and historical execution context
+- `docs/workflows.md` and `docs/workflows.html` — workflow model and visual diagram
+- `docs/future-tasks.md` — deferred work and follow-up ideas
+
+`AGENTS.md` should stay as the Codex-facing map. When new durable project knowledge is created,
+place it under `docs/` and add a pointer here only when Codex needs faster orientation.
 
 ## Active Pipeline CLI
 
