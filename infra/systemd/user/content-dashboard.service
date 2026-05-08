@@ -1,0 +1,16 @@
+[Unit]
+Description=Content Creation Dashboard
+After=network.target
+
+[Service]
+WorkingDirectory=/home/tim-huang/content-creation
+ExecStart=/home/tim-huang/.local/bin/uv run pipeline dashboard --no-browser --port 8765
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/tmp/dashboard-8765.log
+StandardError=append:/tmp/dashboard-8765.log
+Environment=HOME=/home/tim-huang
+Environment=PATH=/home/tim-huang/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=default.target

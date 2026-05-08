@@ -1,0 +1,13 @@
+[Unit]
+Description=Cloudflare Named Tunnel (content dashboard)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/home/tim-huang/.local/bin/cloudflared tunnel run content-dashboard
+Restart=always
+RestartSec=10
+Environment=HOME=/home/tim-huang
+
+[Install]
+WantedBy=default.target

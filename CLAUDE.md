@@ -93,8 +93,12 @@ uv run pipeline visual-review extract-frames --project-id <ID>
 uv run pipeline publish <project-id> [--profile <name>] [--dry-run]
 uv run pipeline publish status <project-id> [--remote]
 
-# Dashboard
-./scripts/start-dashboard.sh [--local-only]
+# Dashboard (always-on — no manual start needed)
+# Access: https://dashboard.keeppro.io (Google auth required)
+# Manage: systemctl --user status|restart|stop content-dashboard
+#         systemctl --user status|restart|stop cloudflared-named-tunnel
+# Manual restart shortcut: dashrs
+# Service files: infra/systemd/user/ (deploy: cp infra/systemd/user/*.service ~/.config/systemd/user/)
 
 # Testing
 uv run pytest; uv run ruff check src/ tests/; uv run mypy src/

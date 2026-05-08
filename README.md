@@ -240,15 +240,32 @@ uv run pipeline visual-review extract-frames --project-id <ID>
 ```
 Natural-language triggers: "review the rendered video", "check for visual issues", "look at the rendered scenes", "judge the scene image"
 
-### Dashboard
+### Dashboard (always-on)
+
+The dashboard runs as a systemd user service and is permanently accessible at **https://dashboard.keeppro.io** (Google auth required — `t8522192@gmail.com`).
+
 ```bash
-./scripts/start-dashboard.sh                    # port 8765, prints tunnel URL
-./scripts/start-dashboard.sh --port 9000        # custom port
-./scripts/start-dashboard.sh --local-only       # no tunnel
-uv run pipeline dashboard                       # opens browser, port 8765
-uv run pipeline dashboard --no-browser --port 8765
+# Status / manage
+systemctl --user status content-dashboard          # check dashboard
+systemctl --user status cloudflared-named-tunnel   # check tunnel
+dashrs                                             # manual restart shortcut
+
+# Local access (no auth)
+curl http://localhost:8765/api/projects
+
+# Logs
+tail -f /tmp/dashboard-8765.log
+journalctl --user -u content-dashboard -f
+journalctl --user -u cloudflared-named-tunnel -f
 ```
-Natural-language triggers: "show me the dashboard", "start dashboard", "check video status", "what projects are rendered?"
+
+**Auto-restart on AI sessions:** `scripts/restart-dashboard-if-changed.sh` is wired to the Claude Code and Codex `Stop` hooks. When a session ends with changes in `src/pipeline/`, the dashboard restarts automatically.
+
+**Service files:** `infra/systemd/user/` — copy to `~/.config/systemd/user/` and run `systemctl --user daemon-reload` to redeploy on a new machine.
+
+**Cloudflare tunnel:** Named tunnel `content-dashboard` → `dashboard.keeppro.io`. Config at `~/.cloudflared/config.yml`. Cloudflare Access restricts access to `t8522192@gmail.com`.
+
+Natural-language triggers: "show me the dashboard", "check video status", "what projects are rendered?", "is the dashboard running?"
 
 ### Publish and Metadata
 ```bash
