@@ -14,7 +14,7 @@ import typer
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 
 from pipeline.cli_transition import apply_clear_transition, apply_set_transition
 from pipeline.config import PipelineConfig
@@ -91,9 +91,9 @@ class _DraftBody(BaseModel):
     instruction: str
 
 
-class _JobSubmitBody(BaseModel):
-    tokens: list[str] = []
-    instruction: str
+class _JobSubmitBody(RootModel[dict[str, str] | dict[str, Any]]):
+    """Accepts either wrapper chip format (dict of token -> instruction) or legacy format."""
+    pass
 
 
 _VALID_NARRATION_ENGINES = {"edge", "fish_audio", "prerecorded"}
@@ -574,14 +574,21 @@ def register_job_endpoints(app: FastAPI, *, output_dir: Path) -> None:
     @app.post("/api/jobs/{project_id}/submit")
     async def post_submit(project_id: str, body: _JobSubmitBody) -> JSONResponse:
         _project_root(project_id)
-        if not body.instruction.strip():
-            raise HTTPException(status_code=400, detail="instruction must not be empty")
         queue: JobQueue = app.state.job_queue
+
+        data = body.root
+        tokens = list(data.keys())
+        # Combine all instructions for the mutation job
+        instruction = " | ".join(f"{t}: {data[t]}" for t in tokens)
+
+        if not instruction.strip():
+            raise HTTPException(status_code=400, detail="instruction must not be empty")
+
         job = EditJob(
             job_id=uuid.uuid4().hex[:12],
             project_id=project_id,
-            tokens=list(body.tokens),
-            instruction=body.instruction,
+            tokens=tokens,
+            instruction=instruction,
         )
         await queue.submit(job)
         return JSONResponse({"ok": True, "job_id": job.job_id, "status": job.status})
@@ -868,6 +875,7 @@ def _to_dict(p: ProjectInfo) -> dict[str, object]:
         "source_url": p.source_url,
         "youtube_video_id": p.youtube_video_id,
         "published_at": p.published_at,
+        "updated_at": p.updated_at,
         "has_video": p.has_video,
         "video_variants": p.video_variants,
         "tags": p.tags,

@@ -129,7 +129,8 @@
     <th>Locale · Niche</th>
     <th>Source</th>
     <th>YouTube</th>
-    <th>Date</th>
+    <th><a href="#" onclick="sortBy('updated_at'); return false;" style="color: #4a5568; cursor: pointer; text-decoration: none;">Updated ↓</a></th>
+    <th><a href="#" onclick="sortBy('published_at'); return false;" style="color: #4a5568; cursor: pointer; text-decoration: none;">Published</a></th>
     <th></th>
   </tr></thead>
   <tbody id="tbody"></tbody>
@@ -138,6 +139,8 @@
 <script>
 let activeId = null;
 let currentData = [];
+let sortField = 'updated_at';
+let sortDesc = true;
 
 function ytId(url) {
   if (!url) return null;
@@ -149,6 +152,23 @@ function fmtDate(iso) {
   if (!iso) return '—';
   try { return new Date(iso).toLocaleDateString('en-US', {month:'short', day:'numeric'}); }
   catch { return '—'; }
+}
+
+function sortBy(field) {
+  if (sortField === field) {
+    sortDesc = !sortDesc;
+  } else {
+    sortField = field;
+    sortDesc = true;
+  }
+  const header = document.querySelector(`th a[onclick*="${field}"]`);
+  document.querySelectorAll('th a[onclick*="sortBy"]').forEach(a => {
+    a.textContent = a.textContent.replace(/\s[↑↓]$/, '');
+  });
+  if (header) {
+    header.textContent += (sortDesc ? ' ↓' : ' ↑');
+  }
+  render(currentData);
 }
 
 function render(data) {
@@ -165,6 +185,16 @@ function render(data) {
     else el.style.display = 'none';
   });
 
+  // Sort data
+  const sorted = [...data].sort((a, b) => {
+    let aVal = a[sortField];
+    let bVal = b[sortField];
+    if (aVal === null || aVal === undefined) aVal = '';
+    if (bVal === null || bVal === undefined) bVal = '';
+    const cmp = String(aVal).localeCompare(String(bVal));
+    return sortDesc ? -cmp : cmp;
+  });
+
   // Detach the existing detail row before wiping so the <video> element survives
   const existingDetailRow = document.querySelector('tr.detail-row');
   if (existingDetailRow) existingDetailRow.remove();
@@ -173,7 +203,7 @@ function render(data) {
   const prevActive = activeId;
   tbody.innerHTML = '';
 
-  data.forEach(p => {
+  sorted.forEach(p => {
     const canPreview = p.has_video;
     const isActive = canPreview && p.project_id === prevActive;
     const srcId = ytId(p.source_url);
@@ -198,6 +228,7 @@ function render(data) {
       <td>${p.youtube_video_id
         ? `<a class="yt" href="https://www.youtube.com/watch?v=${p.youtube_video_id}" target="_blank">${p.youtube_video_id} ↗</a>`
         : '<span class="nil">—</span>'}</td>
+      <td style="color:#4a5568;font-size:11px">${fmtDate(p.updated_at)}</td>
       <td style="color:#4a5568;font-size:11px">${fmtDate(p.published_at)}</td>
       <td>${canPreview
         ? `<button class="btn-preview${isActive ? ' active' : ''}" data-id="${p.project_id}">▶ Preview</button>
@@ -436,7 +467,6 @@ setInterval(refresh, 30000);
 </script>
 <script src="/static/narration_source_editor.js"></script>
 <script src="/static/tokens.js"></script>
-<script src="/static/cost_estimate.js"></script>
 <script src="/static/edit_draft.js"></script>
 <script src="/static/composer.js"></script>
 <script src="/static/edit_mode.js"></script>

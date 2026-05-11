@@ -53,7 +53,7 @@
     if (!strip) {
       strip = document.createElement('div');
       strip.id = 'edit-mode-strip';
-      strip.textContent = 'Edit mode: tap any scene element to add a token. Esc exits.';
+      strip.textContent = 'Edit mode: tap any scene element to open edit popup. Esc exits.';
       document.body.appendChild(strip);
     }
     return strip;
@@ -74,7 +74,7 @@
     var token = match.getAttribute('data-edit-token');
     if (!token) return;
     if (window.EditComposer && activeProjectId) {
-      window.EditComposer.addToken(token);
+      window.EditComposer.openEditPopup(token, true);
       ev.preventDefault();
       ev.stopPropagation();
     }

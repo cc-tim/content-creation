@@ -4,6 +4,7 @@ import contextlib
 import json
 import re
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -17,6 +18,7 @@ class ProjectInfo:
     source_url: str | None
     youtube_video_id: str | None
     published_at: str | None
+    updated_at: str | None
     has_video: bool
     video_variants: list[dict[str, str]]
     final_video_url_path: str | None
@@ -89,6 +91,13 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
 
         final_video_url_path = video_variants[0]["url"] if video_variants else None
 
+        # Extract updated_at from context.json mtime
+        try:
+            mtime = ctx_file.stat().st_mtime
+            updated_at = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+        except OSError:
+            updated_at = None
+
         results.append(
             ProjectInfo(
                 project_id=project_dir.name,
@@ -99,6 +108,7 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
                 source_url=ctx.get("source_url"),
                 youtube_video_id=ctx.get("youtube_video_id"),
                 published_at=ctx.get("published_at"),
+                updated_at=updated_at,
                 has_video=has_video,
                 video_variants=video_variants,
                 final_video_url_path=final_video_url_path,
