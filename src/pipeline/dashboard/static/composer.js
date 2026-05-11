@@ -65,9 +65,10 @@
     if (collapsedCount) collapsedCount.textContent = '(' + tokens.length + ')';
   }
 
-  function persist() {
+  function persist(flushNow) {
     if (!state.store) return;
     state.store.save({ wrapperChips: state.wrapperChips });
+    if (flushNow) state.store.flush();
   }
 
   async function openForProject(projectId) {
@@ -108,6 +109,18 @@
     var instrField = overlay.querySelector('.ec-instruction-field');
     instrField.focus();
     instrField.select();
+    function saveAndClose() {
+      var text = instrField.value.trim();
+      if (!text) {
+        alert('Instruction cannot be empty');
+        return;
+      }
+      state.wrapperChips[token] = text;
+      renderWrapperChips();
+      persist(true);
+      overlay.remove();
+      state.editingToken = null;
+    }
     overlay.querySelector('.ec-edit-cancel').addEventListener('click', function () {
       overlay.remove();
       state.editingToken = null;
@@ -121,22 +134,12 @@
         state.editingToken = null;
       });
     }
-    overlay.querySelector('.ec-edit-ok').addEventListener('click', function () {
-      var text = instrField.value.trim();
-      if (!text) {
-        alert('Instruction cannot be empty');
-        return;
-      }
-      state.wrapperChips[token] = text;
-      renderWrapperChips();
-      persist();
-      overlay.remove();
-      state.editingToken = null;
-    });
+    overlay.querySelector('.ec-edit-ok').addEventListener('click', saveAndClose);
     instrField.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
-        overlay.remove();
-        state.editingToken = null;
+        e.preventDefault();
+        e.stopPropagation();
+        saveAndClose();
       }
     });
   }

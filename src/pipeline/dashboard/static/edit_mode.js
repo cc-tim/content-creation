@@ -53,7 +53,7 @@
     if (!strip) {
       strip = document.createElement('div');
       strip.id = 'edit-mode-strip';
-      strip.textContent = 'Edit mode: tap any scene element to open edit popup. Esc exits.';
+      strip.textContent = 'Edit mode: tap any scene element to open edit popup. Use Cancel to exit.';
       document.body.appendChild(strip);
     }
     return strip;
@@ -82,7 +82,8 @@
 
   function onKeydown(ev) {
     if (enabled && ev.key === 'Escape' && activeProjectId) {
-      setEnabled(activeProjectId, false);
+      ev.preventDefault();
+      ev.stopPropagation();
     }
   }
 

@@ -127,4 +127,13 @@ def test_index_serves_html(tmp_path: Path) -> None:
     resp = client.get("/")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
+    assert resp.headers["cache-control"] == "no-store, no-cache, must-revalidate, max-age=0"
     assert b"Content Dashboard" in resp.content
+    assert b'/static/composer.js?v=' in resp.content
+
+
+def test_static_js_is_no_store(tmp_path: Path) -> None:
+    client = TestClient(create_app(_output_dir(tmp_path)))
+    resp = client.get("/static/composer.js")
+    assert resp.status_code == 200
+    assert resp.headers["cache-control"] == "no-store, no-cache, must-revalidate, max-age=0"

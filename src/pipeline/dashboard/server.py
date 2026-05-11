@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import re
 import tomllib
 import uuid
 from collections.abc import AsyncIterator
@@ -12,9 +13,9 @@ from typing import Any
 
 import typer
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, RootModel
+from pydantic import BaseModel, Field, RootModel
 
 from pipeline.cli_transition import apply_clear_transition, apply_set_transition
 from pipeline.config import PipelineConfig
@@ -48,6 +49,18 @@ _CHANNELS_DIR = Path("configs/channels")
 _SFX_DIR = Path("assets/sfx")
 _ALLOWED_SFX_EXTENSIONS = {".mp3", ".wav", ".ogg", ".m4a"}
 _MAX_DRAFT_BYTES = 64 * 1024
+_NO_STORE_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
+class NoStoreStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope: dict[str, Any]) -> FileResponse:
+        response = await super().get_response(path, scope)
+        response.headers.update(_NO_STORE_HEADERS)
+        return response
 
 
 class _SkipBody(BaseModel):
@@ -87,8 +100,9 @@ class _TransitionClearBody(BaseModel):
 
 
 class _DraftBody(BaseModel):
-    tokens: list[str]
-    instruction: str
+    tokens: list[str] | None = None
+    instruction: str | None = None
+    wrapper_chips: dict[str, str] | None = Field(default=None, alias="wrapperChips")
 
 
 class _JobSubmitBody(RootModel[dict[str, str] | dict[str, Any]]):
@@ -104,6 +118,20 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     output_root = output_dir.parent if output_dir.name == "projects" else output_dir
     projects_root = output_dir if output_dir.name == "projects" else output_dir / "projects"
     projects_root.mkdir(parents=True, exist_ok=True)
+
+    def _static_version() -> str:
+        latest_mtime_ns = max(
+            (p.stat().st_mtime_ns for p in _STATIC_DIR.rglob("*") if p.is_file()),
+            default=0,
+        )
+        return str(latest_mtime_ns)
+
+    static_version = _static_version()
+
+    def _html_response(filename: str) -> HTMLResponse:
+        html = (_STATIC_DIR / filename).read_text(encoding="utf-8")
+        html = re.sub(r'(/static/[^"\'?]+\.js)(?:\?v=[^"\']*)?', rf"\1?v={static_version}", html)
+        return HTMLResponse(html, headers=_NO_STORE_HEADERS)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -172,12 +200,12 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         ])
 
     @app.get("/")
-    def index() -> FileResponse:
-        return FileResponse(_STATIC_DIR / "index.html")
+    def index() -> HTMLResponse:
+        return _html_response("index.html")
 
     @app.get("/channels")
     def channels_page() -> FileResponse:
-        return FileResponse(_STATIC_DIR / "channels.html")
+        return FileResponse(_STATIC_DIR / "channels.html", headers=_NO_STORE_HEADERS)
 
     @app.get("/api/channels")
     def get_channels() -> JSONResponse:
@@ -300,8 +328,8 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         return JSONResponse({"ok": True})
 
     @app.get("/verify/{project_id}")
-    def verify_page(project_id: str) -> FileResponse:
-        return FileResponse(_STATIC_DIR / "verify.html")
+    def verify_page(project_id: str) -> HTMLResponse:
+        return _html_response("verify.html")
 
     if dev_mode:
 
@@ -524,6 +552,14 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
             data = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             return JSONResponse({"tokens": [], "instruction": ""})
+        wrapper_chips = data.get("wrapperChips")
+        if isinstance(wrapper_chips, dict):
+            return JSONResponse({
+                "wrapperChips": {
+                    str(token): str(instruction)
+                    for token, instruction in wrapper_chips.items()
+                },
+            })
         return JSONResponse({
             "tokens": list(data.get("tokens", [])),
             "instruction": str(data.get("instruction", "")),
@@ -532,7 +568,13 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     @app.post("/api/jobs/{project_id}/draft")
     def post_draft(project_id: str, body: _DraftBody) -> JSONResponse:
         proj = _project_root(project_id)
-        payload = {"tokens": body.tokens, "instruction": body.instruction}
+        if body.wrapper_chips is not None:
+            payload = {"wrapperChips": body.wrapper_chips}
+        else:
+            payload = {
+                "tokens": body.tokens or [],
+                "instruction": body.instruction or "",
+            }
         encoded = json.dumps(payload).encode("utf-8")
         if len(encoded) > _MAX_DRAFT_BYTES:
             raise HTTPException(
@@ -553,8 +595,8 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     if _SFX_DIR.exists():
         app.mount("/sfx", StaticFiles(directory=str(_SFX_DIR)), name="sfx")
 
-    app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
-    app.mount("/output", StaticFiles(directory=str(output_root)), name="output")
+    app.mount("/static", NoStoreStaticFiles(directory=str(_STATIC_DIR)), name="static")
+    app.mount("/output", NoStoreStaticFiles(directory=str(output_root)), name="output")
     register_job_endpoints(app, output_dir=output_root)
     register_mutation_endpoints(app, output_dir=output_root)
     register_sse_endpoint(app)

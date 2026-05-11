@@ -261,6 +261,8 @@ journalctl --user -u cloudflared-named-tunnel -f
 
 **Auto-restart on AI sessions:** `scripts/restart-dashboard-if-changed.sh` is wired to the Claude Code and Codex `Stop` hooks. When a session ends with changes in `src/pipeline/`, the dashboard restarts automatically.
 
+**Static asset freshness:** Dashboard HTML and `/static/*.js` responses are served with `Cache-Control: no-store`, and HTML injects an mtime `?v=` token into JS URLs. Browser refresh should pick up frontend edits without restarting Cloudflare or manually clearing cache.
+
 **Service files:** `infra/systemd/user/` — copy to `~/.config/systemd/user/` and run `systemctl --user daemon-reload` to redeploy on a new machine.
 
 **Cloudflare tunnel:** Named tunnel `content-dashboard` → `dashboard.keeppro.io`. Config at `~/.cloudflared/config.yml`. Cloudflare Access restricts access to `t8522192@gmail.com`.

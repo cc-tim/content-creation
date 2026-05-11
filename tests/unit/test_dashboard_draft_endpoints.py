@@ -46,6 +46,30 @@ def test_post_draft_then_get_returns_saved(client: TestClient, tmp_path: Path):
     assert saved == payload
 
 
+def test_post_wrapper_chip_draft_then_get_returns_saved(
+    client: TestClient,
+    tmp_path: Path,
+):
+    payload = {
+        "wrapperChips": {
+            "@s9/visual": "make this darker",
+            "@s11/subtitle": "shorten this line",
+        },
+    }
+    resp = client.post("/api/jobs/42/draft", json=payload)
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True
+
+    resp2 = client.get("/api/jobs/42/draft")
+    assert resp2.status_code == 200
+    assert resp2.json() == payload
+
+    saved = json.loads(
+        (tmp_path / "output" / "projects" / "42" / "edit_draft.json").read_text()
+    )
+    assert saved == payload
+
+
 def test_post_draft_overwrites(client: TestClient):
     client.post("/api/jobs/42/draft", json={"tokens": ["@s1"], "instruction": "first"})
     client.post("/api/jobs/42/draft", json={"tokens": ["@s2"], "instruction": "second"})

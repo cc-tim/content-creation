@@ -12,9 +12,13 @@
       var resp = await fetch('/api/jobs/' + encodeURIComponent(projectId) + '/draft');
       if (!resp.ok) return { tokens: [], instruction: '' };
       var data = await resp.json();
+      if (data.wrapperChips && typeof data.wrapperChips === 'object' && !Array.isArray(data.wrapperChips)) {
+        return { wrapperChips: Object.assign({}, data.wrapperChips) };
+      }
       return {
         tokens: Array.isArray(data.tokens) ? data.tokens.slice() : [],
         instruction: typeof data.instruction === 'string' ? data.instruction : '',
+        wrapperChips: {},
       };
     }
 

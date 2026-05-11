@@ -162,7 +162,7 @@ No dashboard code changes required. Cloudflare terminates TLS and enforces the G
 | Tunnel disconnect | `Restart=always` reconnects; same Named Tunnel URL persists |
 | Mobile access | `dashboard.<domain>` → Cloudflare Access → Google login → dashboard |
 | Manual Python edit outside AI | `systemctl --user restart content-dashboard` (or `dashrs` shell alias) |
-| Frontend (JS/HTML) edit | Already reflects on browser refresh — no restart needed |
+| Frontend (JS/HTML) edit | Browser refresh loads fresh assets via no-store headers and mtime `?v=` script URLs; no Cloudflare restart or cache clear needed |
 
 ## Security
 
