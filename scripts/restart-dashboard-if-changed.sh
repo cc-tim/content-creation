@@ -7,7 +7,7 @@ PROJECT_DIR="/home/tim-huang/content-creation"
 CHANGED=$(git -C "$PROJECT_DIR" status --porcelain src/pipeline/ 2>/dev/null || true)
 
 if [[ -n "$CHANGED" ]]; then
-  systemctl --user restart content-dashboard 2>/dev/null || true
+  systemctl --user restart --no-block content-dashboard 2>/dev/null || true
 fi
 
 exit 0
