@@ -16,9 +16,16 @@ class Transition:
 
     from_scene: str
     to_scene: str
-    style: str  # none | fade | page-turn | slide | wipe
+    style: str  # none | fade | page-turn | book-page-turn | stock-book-page-turn | slide | wipe
     duration_sec: float
     sfx: str | None = None
+    page_count: int | None = None
+    renderer_mode: str = "generated"
+    asset_path: str | None = None
+    asset_source: str | None = None
+    asset_source_url: str | None = None
+    asset_license: str | None = None
+    asset_notes: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Transition:
@@ -28,6 +35,17 @@ class Transition:
             style=data["style"],
             duration_sec=float(data["duration_sec"]),
             sfx=data.get("sfx"),
+            page_count=(
+                max(1, min(3, int(data["page_count"])))
+                if data.get("page_count") is not None
+                else None
+            ),
+            renderer_mode=str(data.get("renderer_mode") or "generated"),
+            asset_path=data.get("asset_path") or None,
+            asset_source=data.get("asset_source") or None,
+            asset_source_url=data.get("asset_source_url") or None,
+            asset_license=data.get("asset_license") or None,
+            asset_notes=data.get("asset_notes") or None,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -39,6 +57,20 @@ class Transition:
         }
         if self.sfx is not None:
             out["sfx"] = self.sfx
+        if self.page_count is not None:
+            out["page_count"] = self.page_count
+        if self.renderer_mode != "generated":
+            out["renderer_mode"] = self.renderer_mode
+        if self.asset_path is not None:
+            out["asset_path"] = self.asset_path
+        if self.asset_source is not None:
+            out["asset_source"] = self.asset_source
+        if self.asset_source_url is not None:
+            out["asset_source_url"] = self.asset_source_url
+        if self.asset_license is not None:
+            out["asset_license"] = self.asset_license
+        if self.asset_notes is not None:
+            out["asset_notes"] = self.asset_notes
         return out
 
 
@@ -168,6 +200,17 @@ class Theme:
     font: str = "Noto Sans CJK TC"
     image_style: str = "flat minimalist illustration, simple clean lines, limited color palette"
     visual_style: str = ""  # per-video style override; takes priority over niche template
+    frame_style: str = ""  # optional render wrapper, e.g. open_book_page
+    content_inset: str = ""  # optional placement hint inside the frame
+    intro_transition_style: str = ""
+    intro_transition_duration_sec: str = ""
+    intro_transition_page_count: str = ""
+    intro_transition_renderer_mode: str = ""
+    intro_transition_asset_path: str = ""
+    intro_transition_asset_source: str = ""
+    intro_transition_asset_source_url: str = ""
+    intro_transition_asset_license: str = ""
+    intro_transition_asset_notes: str = ""
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -178,6 +221,17 @@ class Theme:
             "font": self.font,
             "image_style": self.image_style,
             "visual_style": self.visual_style,
+            "frame_style": self.frame_style,
+            "content_inset": self.content_inset,
+            "intro_transition_style": self.intro_transition_style,
+            "intro_transition_duration_sec": self.intro_transition_duration_sec,
+            "intro_transition_page_count": self.intro_transition_page_count,
+            "intro_transition_renderer_mode": self.intro_transition_renderer_mode,
+            "intro_transition_asset_path": self.intro_transition_asset_path,
+            "intro_transition_asset_source": self.intro_transition_asset_source,
+            "intro_transition_asset_source_url": self.intro_transition_asset_source_url,
+            "intro_transition_asset_license": self.intro_transition_asset_license,
+            "intro_transition_asset_notes": self.intro_transition_asset_notes,
         }
 
     @classmethod

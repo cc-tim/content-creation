@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from pipeline.dashboard.scanner import scan_projects
@@ -258,3 +259,89 @@ def test_scenes_json_takes_priority_over_storyboard(tmp_path: Path) -> None:
     [p] = scan_projects(tmp_path / "output")
     assert p.scenes[0]["narration"] == "From file"
     assert p.scenes[0]["duration_sec"] == 5.0
+
+
+def test_scanner_includes_transition_theme_and_intro_summary(tmp_path: Path) -> None:
+    storyboard = {
+        "theme": {
+            "frame_style": "open_book_page",
+            "content_inset": "center_page",
+            "intro_transition_style": "book-page-turn",
+            "intro_transition_duration_sec": "1.0",
+            "intro_transition_page_count": "2",
+            "intro_transition_renderer_mode": "licensed_clip",
+            "intro_transition_asset_path": "assets/transitions/book_page_flip.mp4",
+            "intro_transition_asset_source": "Artgrid",
+            "intro_transition_asset_license": "licensed full clip",
+        },
+        "transitions": [
+            {
+                "from": "s1",
+                "to": "s2",
+                "style": "stock-book-page-turn",
+                "duration_sec": 1.2,
+                "page_count": 3,
+                "renderer_mode": "licensed_clip",
+                "asset_path": "assets/transitions/book_page_flip.mp4",
+                "asset_source": "Artgrid",
+                "asset_license": "licensed full clip",
+                "asset_notes": "replace preview before publish",
+            }
+        ],
+        "scenes": [
+            {"id": "s1", "section": "hook", "narration": "First", "narration_est_sec": 1},
+            {"id": "s2", "section": "body", "narration": "Second", "narration_est_sec": 1},
+        ],
+    }
+    project_dir = _make_project(tmp_path, "2005")
+    (project_dir / "storyboard.json").write_text(json.dumps(storyboard))
+
+    [p] = scan_projects(tmp_path / "output")
+
+    assert p.theme["frame_style"] == "open_book_page"
+    assert p.intro_transition == {
+        "style": "book-page-turn",
+        "duration_sec": "1.0",
+        "page_count": "2",
+        "renderer_mode": "licensed_clip",
+        "asset_path": "assets/transitions/book_page_flip.mp4",
+        "asset_source": "Artgrid",
+        "asset_source_url": None,
+        "asset_license": "licensed full clip",
+        "asset_notes": None,
+        "asset_warning": None,
+    }
+    assert p.transitions == [
+        {
+            "from": "s1",
+            "to": "s2",
+            "style": "stock-book-page-turn",
+            "duration_sec": 1.2,
+            "page_count": 3,
+            "sfx": None,
+            "renderer_mode": "licensed_clip",
+            "asset_path": "assets/transitions/book_page_flip.mp4",
+            "asset_source": "Artgrid",
+            "asset_source_url": None,
+            "asset_license": "licensed full clip",
+            "asset_notes": "replace preview before publish",
+            "asset_warning": "Preview or watermarked stock asset noted. Replace it before publish.",
+        }
+    ]
+
+
+def test_scanner_warns_when_storyboard_newer_than_final_render(tmp_path: Path) -> None:
+    project_dir = _make_project(
+        tmp_path,
+        "2006",
+        files=["storyboard.json", "compose/final_zh-TW.mp4"],
+    )
+    final = project_dir / "compose" / "final_zh-TW.mp4"
+    storyboard = project_dir / "storyboard.json"
+    os.utime(final, (1000, 1000))
+    os.utime(storyboard, (2000, 2000))
+
+    [p] = scan_projects(tmp_path / "output")
+
+    assert p.render_freshness["stale"] is True
+    assert "Recompose needed" in p.render_freshness["warnings"][0]

@@ -70,7 +70,40 @@
     .transition-chip, .source-chip { padding:4px 8px; border-radius:4px; font-size:10px; font-family:monospace;
       cursor:pointer; background:#14213d; color:#93c5fd; border:1px solid #1d4ed8; white-space:nowrap; }
     .transition-chip:hover, .source-chip:hover { background:#1e3a5f; color:#bfdbfe; }
+    .transition-chip.tr-book { background:#3b2413; color:#f7c678; border-color:#a16207; }
+    .transition-chip.tr-motion { background:#14213d; color:#93c5fd; border-color:#1d4ed8; }
+    .transition-chip.tr-none { background:#171717; color:#64748b; border-color:#334155; }
+    .transition-chip.tr-stale { border-color:#ef4444; box-shadow:0 0 0 1px rgba(239,68,68,.25) inset; }
+    .transition-assets { grid-column:1/-1; border-top:1px solid #1e293b; margin-top:8px; padding-top:10px; }
+    .transition-assets-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:8px; }
+    .transition-asset-card { border:1px solid #1e293b; border-radius:6px; padding:8px 10px; background:#0f172a; min-width:0; }
+    .transition-asset-card.warning { border-color:#991b1b; background:#450a0a22; }
+    .transition-asset-name { font-size:11px; color:#e2e8f0; font-family:monospace; margin-bottom:4px; }
+    .transition-asset-meta { font-size:10px; color:#94a3b8; line-height:1.5; word-break:break-word; }
+    .transition-asset-meta code { color:#e2e8f0; }
+    .transition-asset-warning { color:#fca5a5; margin-top:4px; }
+    .contract-panel { grid-column:1/-1; border-top:1px solid #1e293b; margin-top:8px; padding-top:10px; }
+    .contract-title { font-size:11px; color:#cbd5e1; font-weight:600; margin-bottom:6px; }
+    .contract-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:6px; }
+    .contract-item { border:1px solid #1e293b; border-radius:4px; padding:6px 8px; min-width:0; }
+    .contract-item .ci-label { color:#cbd5e1; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .contract-item .ci-detail { color:#64748b; font-size:10px; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .contract-item.satisfied { border-color:#14532d; background:#052e1622; }
+    .contract-item.partial { border-color:#a16207; background:#451a0322; }
+    .contract-item.missing { border-color:#991b1b; background:#450a0a22; }
+    .preview-loop { grid-column:1/-1; border-top:1px solid #1e293b; margin-top:8px; padding-top:10px; }
+    .preview-title { font-size:11px; color:#cbd5e1; font-weight:600; margin-bottom:6px; }
+    .preview-section { margin-top:8px; }
+    .preview-section-label { font-size:10px; color:#64748b; margin-bottom:4px; text-transform:uppercase; letter-spacing:.06em; }
+    .preview-grid { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; }
+    .preview-card { min-width:180px; max-width:180px; border:1px solid #1e293b; border-radius:4px; padding:6px; background:#0f172a; }
+    .preview-card img { width:100%; display:block; border-radius:3px; background:#020617; }
+    .preview-card-label { font-size:10px; color:#cbd5e1; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .preview-empty { font-size:11px; color:#475569; }
     .detail-actions { display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:10px; }
+    .compose-action-btn { font-size:11px; padding:4px 10px; border-radius:4px; border:1px solid #2d3748;
+      background:#172554; color:#bfdbfe; cursor:pointer; white-space:nowrap; }
+    .compose-action-btn:hover { background:#1e3a8a; color:#eff6ff; }
     .scene-panels { display:flex; flex-direction:column; gap:8px; margin-top:2px; margin-bottom:10px; min-width:0; }
     .scene-narration, .scene-subtitle { background:#1e293b; border:1px solid #334155; border-radius:6px;
       padding:10px 14px; font-size:12px; color:#cbd5e1; line-height:1.7; user-select:text; cursor:text;
@@ -251,16 +284,99 @@ function render(data) {
 
 }
 
-function buildSceneStrip(scenes) {
+function transitionLabel(t, intro) {
+  if (!t || !t.style || t.style === 'none') return intro ? 'intro · none' : 'none';
+  const style = String(t.style).replace(/^stock-/, '');
+  const dur = t.duration_sec || t.duration || '';
+  const pages = t.page_count ? ` · ${t.page_count}p` : '';
+  const mode = transitionModeLabel(t);
+  const prefix = intro ? 'intro · ' : '';
+  return `${prefix}${style}${dur ? ` · ${dur}s` : ''}${pages}${mode ? ` · ${mode}` : ''}`;
+}
+
+function transitionClass(t, freshness) {
+  const style = (t && t.style) || 'none';
+  const classes = ['transition-chip'];
+  if (style === 'book-page-turn' || style === 'stock-book-page-turn' || style === 'page-turn') classes.push('tr-book');
+  else if (style === 'none') classes.push('tr-none');
+  else classes.push('tr-motion');
+  if (freshness && freshness.stale) classes.push('tr-stale');
+  return classes.join(' ');
+}
+
+function transitionBySeam(project) {
+  const map = {};
+  (project.transitions || []).forEach(t => {
+    if (t.from && t.to) map[`${t.from}->${t.to}`] = t;
+  });
+  return map;
+}
+
+function transitionRendererMode(t) {
+  if (!t) return 'generated';
+  if (t.renderer_mode) return t.renderer_mode;
+  return t.style === 'stock-book-page-turn' ? 'licensed_clip' : 'generated';
+}
+
+function transitionModeLabel(t) {
+  const mode = transitionRendererMode(t);
+  if (mode === 'licensed_clip') return 'stock clip';
+  if (mode === 'overlay') return 'overlay';
+  return '';
+}
+
+function transitionAssetEntries(project) {
+  const entries = [];
+  const intro = project.intro_transition;
+  if (intro && (intro.asset_path || transitionRendererMode(intro) !== 'generated')) {
+    entries.push(Object.assign({ seam: 'intro' }, intro));
+  }
+  (project.transitions || []).forEach((transition) => {
+    if (transition.asset_path || transitionRendererMode(transition) !== 'generated') {
+      entries.push(Object.assign({ seam: `${transition.from}→${transition.to}` }, transition));
+    }
+  });
+  return entries;
+}
+
+function renderTransitionAssets(project) {
+  const entries = transitionAssetEntries(project);
+  if (!entries.length) return '';
+  return `
+    <div class="transition-assets">
+      <div class="contract-title">Transition Assets</div>
+      <div class="transition-assets-grid">
+        ${entries.map((item) => `
+          <div class="transition-asset-card${item.asset_warning ? ' warning' : ''}">
+            <div class="transition-asset-name">${item.seam} · ${String(item.style || 'transition').replace(/^stock-/, '')} · ${transitionModeLabel(item) || 'generated'}</div>
+            <div class="transition-asset-meta">Asset: <code>${item.asset_path || 'unset'}</code></div>
+            ${item.asset_source ? `<div class="transition-asset-meta">Source: ${item.asset_source}${item.asset_source_url ? ` · <a href="${item.asset_source_url}" target="_blank">link</a>` : ''}</div>` : ''}
+            ${item.asset_license ? `<div class="transition-asset-meta">License: ${item.asset_license}</div>` : ''}
+            ${item.asset_notes ? `<div class="transition-asset-meta">Notes: ${item.asset_notes}</div>` : ''}
+            ${item.asset_warning ? `<div class="transition-asset-warning">${item.asset_warning}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+}
+
+function buildSceneStrip(project) {
+  const scenes = project.scenes || [];
+  const transitions = transitionBySeam(project);
+  const intro = project.intro_transition || {style: 'none'};
   const chips = scenes.map((s, i) => {
     const next = scenes[i + 1];
+    const seam = next ? transitions[`${s.id}->${next.id}`] || {style: 'none'} : null;
     return `
       <div class="scene-chip" data-idx="${i}" data-start="${s.start_sec}" data-edit-token="@${s.id}">${s.id} · ${s.section}</div>
-      ${next ? `<button class="transition-chip" type="button" data-from="${s.id}" data-to="${next.id}" data-edit-token="@${s.id}/transition">transition</button>` : ''}
+      ${next ? `<button class="${transitionClass(seam, project.render_freshness)}" type="button" data-from="${s.id}" data-to="${next.id}" data-edit-token="@${s.id}/transition">${transitionLabel(seam, false)}</button>` : ''}
     `;
   }).join('');
   return `
-    <div class="scene-strip">${chips}</div>
+    <div class="scene-strip">
+      ${scenes.length ? `<button class="${transitionClass(intro, project.render_freshness)}" type="button" data-intro="1" data-edit-token="@intro/transition">${transitionLabel(intro, true)}</button>` : ''}
+      ${chips}
+    </div>
     <div class="scene-panels">
       <div class="scene-narration">
         <div class="scene-panel-label">旁白 Narration
@@ -293,12 +409,29 @@ function makeDetailRow(p) {
   dr.innerHTML = `<td colspan="7"><div class="detail-panel">
     <div class="detail-actions">
       <span class="inflight-host" data-project-host data-project-id="${p.project_id}"></span>
+      <button class="compose-action-btn" type="button" data-compose-action="transitions" data-project-id="${p.project_id}">Recompose transitions</button>
+      <button class="compose-action-btn" type="button" data-compose-action="frame" data-project-id="${p.project_id}">Recompose frame</button>
+      <button class="compose-action-btn" type="button" data-compose-action="rescene" data-project-id="${p.project_id}">Recompose selected scene</button>
+      <button class="compose-action-btn" type="button" data-compose-action="reburn" data-project-id="${p.project_id}">Rebuild final only</button>
       <button class="edit-mode-toggle" type="button" data-project-id="${p.project_id}">Edit mode</button>
     </div>
     ${tabsHtml}
     <video controls src="${firstUrl}" data-edit-token="@s1/visual"></video>
-    ${p.scenes && p.scenes.length ? buildSceneStrip(p.scenes) : ''}
+    ${p.scenes && p.scenes.length ? buildSceneStrip(p) : ''}
+    ${renderTransitionAssets(p)}
     <div class="meta-grid">
+      <div class="contract-panel" data-contract-project-id="${p.project_id}">
+        <div class="contract-title">Production Contract</div>
+        <div class="contract-grid">
+          ${(p.render_freshness && p.render_freshness.warnings || []).map(w =>
+            `<div class="contract-item missing"><div class="ci-label">Render freshness</div><div class="ci-detail">${w}</div></div>`
+          ).join('') || '<div class="contract-item partial"><div class="ci-label">Production contract</div><div class="ci-detail">Loading checks...</div></div>'}
+        </div>
+      </div>
+      <div class="preview-loop" data-preview-project-id="${p.project_id}">
+        <div class="preview-title">Preview Loop</div>
+        <div class="preview-empty">Loading previews...</div>
+      </div>
       <div><span class="lbl">Project ID: </span><span style="font-family:monospace;color:#94a3b8">${p.project_id}</span></div>
       <div><span class="lbl">Locale: </span>${p.locale}${p.niche ? ' · '+p.niche : ''}</div>
       <div><span class="lbl">Title: </span>${p.title || '—'}</div>
@@ -325,6 +458,72 @@ function makeDetailRow(p) {
     </div>
   </div></td>`;
   return dr;
+}
+
+function contractStatusClass(status) {
+  if (status === 'satisfied') return 'satisfied';
+  if (status === 'missing') return 'missing';
+  return 'partial';
+}
+
+async function loadProductionContract(projectId, row) {
+  const panel = row.querySelector(`[data-contract-project-id="${projectId}"] .contract-grid`);
+  if (!panel) return;
+  try {
+    const resp = await fetch(`/api/projects/${encodeURIComponent(projectId)}/production-contract`);
+    if (!resp.ok) throw new Error(resp.status);
+    const data = await resp.json();
+    const checks = data.checks || [];
+    const styleItems = data.style_items || [];
+    const checkHtml = checks.map(check => `
+      <div class="contract-item ${contractStatusClass(check.status)}">
+        <div class="ci-label">${check.label}</div>
+        <div class="ci-detail">${check.detail || check.status}</div>
+      </div>
+    `).join('');
+    const styleHtml = styleItems.filter(item => item.status === 'missing').map(item => `
+      <div class="contract-item missing">
+        <div class="ci-label">${item.label}</div>
+        <div class="ci-detail">${item.suggested_fix || 'Update storyboard to match brief.'}</div>
+      </div>
+    `).join('');
+    panel.innerHTML = checkHtml + styleHtml || '<div class="contract-item partial"><div class="ci-label">No contract checks</div><div class="ci-detail">No explainer/style contract available.</div></div>';
+  } catch (err) {
+    panel.innerHTML = '<div class="contract-item partial"><div class="ci-label">Production contract unavailable</div><div class="ci-detail">Open verify page for detailed checks.</div></div>';
+  }
+}
+
+async function loadPreviewLoop(projectId, row) {
+  const panel = row.querySelector(`[data-preview-project-id="${projectId}"]`);
+  if (!panel) return;
+  try {
+    const resp = await fetch(`/api/projects/${encodeURIComponent(projectId)}/preview-loop`);
+    if (!resp.ok) throw new Error(resp.status);
+    const data = await resp.json();
+    const scenes = data.scenes || [];
+    const transitions = data.transitions || [];
+    const renderSection = (label, items) => {
+      if (!items.length) {
+        return `<div class="preview-section"><div class="preview-section-label">${label}</div><div class="preview-empty">No previews yet.</div></div>`;
+      }
+      return `<div class="preview-section">
+        <div class="preview-section-label">${label}</div>
+        <div class="preview-grid">
+          ${items.map(item => `
+            <a class="preview-card" href="${item.url}" target="_blank">
+              <img src="${item.url}?t=${Date.now()}" alt="${item.label}" loading="lazy">
+              <div class="preview-card-label">${item.label}</div>
+            </a>
+          `).join('')}
+        </div>
+      </div>`;
+    };
+    panel.innerHTML = `<div class="preview-title">Preview Loop</div>`
+      + renderSection('Transitions', transitions)
+      + renderSection('Scenes', scenes);
+  } catch (err) {
+    panel.innerHTML = '<div class="preview-title">Preview Loop</div><div class="preview-empty">Preview generation unavailable.</div>';
+  }
 }
 
 function toggleDetail(p) {
@@ -369,6 +568,8 @@ function toggleDetail(p) {
   const subPanel = detailRow.querySelector('.scene-subtitle');
   const sourceBtn = detailRow.querySelector('.nse-open-btn');
   const videoEl = detailRow.querySelector('video');
+  loadProductionContract(p.project_id, detailRow);
+  loadPreviewLoop(p.project_id, detailRow);
 
   function showSceneNar(idx) {
     const scene = p.scenes[idx];
@@ -451,6 +652,29 @@ async function refresh() {
   } catch (e) {
     ind.textContent = '↻ error';
     ind.style.color = '#ef4444';
+  }
+}
+
+async function triggerComposeAction(projectId, action, detailRow) {
+  let url = `/api/compose/${encodeURIComponent(projectId)}/${action}`;
+  let options = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
+  if (action === 'rescene') {
+    const activeChip = detailRow.querySelector('.scene-chip.sc-active') || detailRow.querySelector('.scene-chip');
+    if (!activeChip) return;
+    const project = currentData.find(p => p.project_id === projectId);
+    if (!project) return;
+    const scene = project.scenes[+activeChip.dataset.idx];
+    if (!scene) return;
+    options.body = JSON.stringify({ scenes: [scene.id] });
+  } else if (action === 'reburn') {
+    options.body = JSON.stringify({ variant: '' });
+  } else {
+    options.body = JSON.stringify({});
+  }
+  const resp = await fetch(url, options);
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({}));
+    throw new Error(body.detail || `compose ${action} failed`);
   }
 }
 
@@ -561,11 +785,48 @@ setInterval(refresh, 30000);
     if (!chip || window.EditMode?.isEnabled()) return;
     const detailRow = chip.closest('tr.detail-row');
     if (!detailRow || !window.TransitionEditor) return;
+    const project = currentData.find(p => p.project_id === detailRow.dataset.detailFor);
+    const transitions = project ? transitionBySeam(project) : {};
+    if (chip.dataset.intro) {
+      window.TransitionEditor.openIntro(
+        detailRow.dataset.detailFor,
+        { current: project ? project.intro_transition : null },
+      );
+      return;
+    }
     window.TransitionEditor.open(
       detailRow.dataset.detailFor,
       chip.dataset.from,
       chip.dataset.to,
+      { current: transitions[`${chip.dataset.from}->${chip.dataset.to}`] || null },
     );
+  });
+
+  document.getElementById('tbody').addEventListener('click', async (e) => {
+    const btn = e.target.closest('.compose-action-btn');
+    if (!btn) return;
+    const detailRow = btn.closest('tr.detail-row');
+    if (!detailRow) return;
+    const action = btn.dataset.composeAction;
+    const projectId = detailRow.dataset.detailFor;
+    const previous = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+    try {
+      await triggerComposeAction(projectId, action, detailRow);
+    } catch (err) {
+      console.warn(err);
+      btn.textContent = 'Failed';
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = previous;
+      }, 1200);
+      return;
+    }
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = previous;
+    }, 1200);
   });
 </script>
 <script>

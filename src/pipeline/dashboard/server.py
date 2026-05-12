@@ -8,6 +8,7 @@ import tomllib
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,10 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Streamin
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, RootModel
 
+from pipeline.cli_compose import frame as compose_frame
+from pipeline.cli_compose import reburn as compose_reburn
+from pipeline.cli_compose import rescene as compose_rescene
+from pipeline.cli_compose import transitions as compose_transitions
 from pipeline.cli_transition import apply_clear_transition, apply_set_transition
 from pipeline.config import PipelineConfig
 from pipeline.dashboard.agent_runner import ClaudeAgentRunner
@@ -92,6 +97,13 @@ class _TransitionSetBody(BaseModel):
     style: str
     duration_sec: float
     sfx: str | None = None
+    page_count: int | None = None
+    renderer_mode: str | None = None
+    asset_path: str | None = None
+    asset_source: str | None = None
+    asset_source_url: str | None = None
+    asset_license: str | None = None
+    asset_notes: str | None = None
 
 
 class _TransitionClearBody(BaseModel):
@@ -99,10 +111,44 @@ class _TransitionClearBody(BaseModel):
     to_scene: str
 
 
+class _IntroTransitionSetBody(BaseModel):
+    style: str
+    duration_sec: float
+    page_count: int | None = None
+    renderer_mode: str | None = None
+    asset_path: str | None = None
+    asset_source: str | None = None
+    asset_source_url: str | None = None
+    asset_license: str | None = None
+    asset_notes: str | None = None
+
+
+class _TransitionPreviewBody(BaseModel):
+    style: str
+    duration_sec: float
+    page_count: int | None = None
+    sfx: str | None = None
+    renderer_mode: str | None = None
+    asset_path: str | None = None
+    from_scene: str | None = None
+    to_scene: str | None = None
+    intro: bool = False
+    preview_name: str = "draft"
+
+
 class _DraftBody(BaseModel):
     tokens: list[str] | None = None
     instruction: str | None = None
     wrapper_chips: dict[str, str] | None = Field(default=None, alias="wrapperChips")
+
+
+class _ComposeReburnBody(BaseModel):
+    variant: str = ""
+
+
+class _ComposeResceneBody(BaseModel):
+    scenes: list[str]
+    force: bool = False
 
 
 class _JobSubmitBody(RootModel[dict[str, str] | dict[str, Any]]):
@@ -118,6 +164,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     output_root = output_dir.parent if output_dir.name == "projects" else output_dir
     projects_root = output_dir if output_dir.name == "projects" else output_dir / "projects"
     projects_root.mkdir(parents=True, exist_ok=True)
+    running_compose_actions: set[tuple[str, str]] = set()
 
     def _static_version() -> str:
         latest_mtime_ns = max(
@@ -198,6 +245,24 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
             }
             for entry in recent_mutations(proj, n=10)
         ])
+
+    @app.get("/api/projects/{project_id}/production-contract")
+    def get_production_contract(project_id: str) -> JSONResponse:
+        proj = _project_root(project_id)
+        return JSONResponse(_build_production_contract(project_id, proj))
+
+    @app.get("/api/projects/{project_id}/preview-loop")
+    def get_preview_loop(project_id: str) -> JSONResponse:
+        from pipeline.dashboard.preview import build_project_preview_manifest
+
+        proj = _project_root(project_id)
+        manifest = build_project_preview_manifest(proj)
+        for key in ("scenes", "transitions"):
+            for item in manifest.get(key, []):
+                path = item.get("path")
+                if path:
+                    item["url"] = f"/output/projects/{project_id}/{path}"
+        return JSONResponse(manifest)
 
     @app.get("/")
     def index() -> HTMLResponse:
@@ -285,10 +350,13 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         ]
         state = load_verifier_state(proj / "verifier_state.json")
         result = run_auto_checks(explainer.manifest, storyboard, state=state)
+        item_payloads = [_verifier_item_payload(it) for it in result.items]
         return JSONResponse({
             "project_id": project_id,
             "manifest": explainer.manifest.model_dump(),
-            "items": [it.model_dump() for it in result.items],
+            "items": item_payloads,
+            "style_items": [it for it in item_payloads if it["category"] == "style_requirement"],
+            "content_items": [it for it in item_payloads if it["category"] != "style_requirement"],
             "scenes_overview": scenes_overview,
             "used_count": result.used_count,
             "missing_count": result.missing_count,
@@ -461,6 +529,13 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
                 style=body.style,
                 duration_sec=body.duration_sec,
                 sfx=body.sfx,
+                page_count=body.page_count,
+                renderer_mode=body.renderer_mode,
+                asset_path=body.asset_path,
+                asset_source=body.asset_source,
+                asset_source_url=body.asset_source_url,
+                asset_license=body.asset_license,
+                asset_notes=body.asset_notes,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -473,6 +548,163 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
                 ),
             ) from exc
         return JSONResponse({"ok": True, "summary": summary})
+
+    @app.post("/api/transition/{project_id}/intro/set")
+    def post_intro_transition_set(
+        project_id: str,
+        body: _IntroTransitionSetBody,
+    ) -> JSONResponse:
+        proj = _project_root(project_id)
+        sb_path = proj / "storyboard.json"
+        if not sb_path.exists():
+            raise HTTPException(status_code=409, detail="storyboard.json not yet generated")
+        try:
+            from pipeline.composer.transitions import TransitionConfig
+
+            TransitionConfig(
+                style=body.style,
+                duration_sec=body.duration_sec,
+                sfx=None,
+                page_count=body.page_count,
+                renderer_mode=body.renderer_mode,
+                asset_path=body.asset_path,
+                asset_source=body.asset_source,
+                asset_source_url=body.asset_source_url,
+                asset_license=body.asset_license,
+                asset_notes=body.asset_notes,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        sb = Storyboard.load(sb_path)
+        sb.theme.intro_transition_style = body.style
+        sb.theme.intro_transition_duration_sec = str(body.duration_sec)
+        sb.theme.intro_transition_page_count = str(body.page_count or 2)
+        sb.theme.intro_transition_renderer_mode = body.renderer_mode or ""
+        sb.theme.intro_transition_asset_path = body.asset_path or ""
+        sb.theme.intro_transition_asset_source = body.asset_source or ""
+        sb.theme.intro_transition_asset_source_url = body.asset_source_url or ""
+        sb.theme.intro_transition_asset_license = body.asset_license or ""
+        sb.theme.intro_transition_asset_notes = body.asset_notes or ""
+        sb.save(sb_path)
+        summary = (
+            f"intro transition: {body.style} ({body.duration_sec}s)"
+            + (f" · {body.page_count}p" if body.page_count else "")
+            + (f" · {body.renderer_mode}" if body.renderer_mode else "")
+            + (f" · {body.asset_path}" if body.asset_path else "")
+        )
+        return JSONResponse({"ok": True, "summary": summary})
+
+    @app.post("/api/transition/{project_id}/intro/clear")
+    def post_intro_transition_clear(project_id: str) -> JSONResponse:
+        proj = _project_root(project_id)
+        sb_path = proj / "storyboard.json"
+        if not sb_path.exists():
+            raise HTTPException(status_code=409, detail="storyboard.json not yet generated")
+        sb = Storyboard.load(sb_path)
+        sb.theme.intro_transition_style = ""
+        sb.theme.intro_transition_duration_sec = ""
+        sb.theme.intro_transition_page_count = ""
+        sb.theme.intro_transition_renderer_mode = ""
+        sb.theme.intro_transition_asset_path = ""
+        sb.theme.intro_transition_asset_source = ""
+        sb.theme.intro_transition_asset_source_url = ""
+        sb.theme.intro_transition_asset_license = ""
+        sb.theme.intro_transition_asset_notes = ""
+        sb.save(sb_path)
+        return JSONResponse({"ok": True, "summary": "intro transition: cleared"})
+
+    @app.post("/api/transition/{project_id}/preview")
+    def post_transition_preview(
+        project_id: str,
+        body: _TransitionPreviewBody,
+    ) -> JSONResponse:
+        from pipeline.dashboard.preview import build_transition_preview_image
+
+        proj = _project_root(project_id)
+        try:
+            preview = build_transition_preview_image(
+                proj,
+                style=body.style,
+                duration_sec=body.duration_sec,
+                page_count=body.page_count,
+                sfx=body.sfx,
+                renderer_mode=body.renderer_mode,
+                asset_path=body.asset_path,
+                from_scene=body.from_scene,
+                to_scene=body.to_scene,
+                intro=body.intro,
+                preview_name=body.preview_name,
+            )
+        except (ValueError, FileNotFoundError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if preview is None:
+            return JSONResponse({"ok": True, "url": None, "message": "no preview available"})
+        rel = preview.relative_to(proj).as_posix()
+        return JSONResponse({"ok": True, "url": f"/output/projects/{project_id}/{rel}"})
+
+    @app.post("/api/compose/{project_id}/transitions")
+    async def post_compose_transitions(project_id: str) -> JSONResponse:
+        _project_root(project_id)
+        project_id_int = _project_id_as_int(project_id)
+        action_id = await _start_compose_action(
+            app,
+            running_compose_actions,
+            project_id=project_id,
+            action="transitions",
+            runner=lambda: compose_transitions(project_id=project_id_int),
+        )
+        return JSONResponse({"ok": True, "action_id": action_id})
+
+    @app.post("/api/compose/{project_id}/frame")
+    async def post_compose_frame(project_id: str) -> JSONResponse:
+        _project_root(project_id)
+        project_id_int = _project_id_as_int(project_id)
+        action_id = await _start_compose_action(
+            app,
+            running_compose_actions,
+            project_id=project_id,
+            action="frame",
+            runner=lambda: compose_frame(project_id=project_id_int),
+        )
+        return JSONResponse({"ok": True, "action_id": action_id})
+
+    @app.post("/api/compose/{project_id}/reburn")
+    async def post_compose_reburn(
+        project_id: str,
+        body: _ComposeReburnBody,
+    ) -> JSONResponse:
+        _project_root(project_id)
+        project_id_int = _project_id_as_int(project_id)
+        action_id = await _start_compose_action(
+            app,
+            running_compose_actions,
+            project_id=project_id,
+            action="reburn",
+            runner=lambda: compose_reburn(project_id=project_id_int, variant=body.variant),
+        )
+        return JSONResponse({"ok": True, "action_id": action_id})
+
+    @app.post("/api/compose/{project_id}/rescene")
+    async def post_compose_rescene(
+        project_id: str,
+        body: _ComposeResceneBody,
+    ) -> JSONResponse:
+        _project_root(project_id)
+        project_id_int = _project_id_as_int(project_id)
+        if not body.scenes:
+            raise HTTPException(status_code=400, detail="at least one scene is required")
+        action_id = await _start_compose_action(
+            app,
+            running_compose_actions,
+            project_id=project_id,
+            action="rescene",
+            runner=lambda: compose_rescene(
+                project_id=project_id_int,
+                scenes=body.scenes,
+                force=body.force,
+            ),
+        )
+        return JSONResponse({"ok": True, "action_id": action_id})
 
     @app.post("/api/transition/{project_id}/clear")
     def post_transition_clear(project_id: str, body: _TransitionClearBody) -> JSONResponse:
@@ -924,4 +1156,192 @@ def _to_dict(p: ProjectInfo) -> dict[str, object]:
         "final_video_url_path": p.final_video_url_path,
         "session_logs": p.session_logs[-20:],  # latest 20
         "scenes": p.scenes,
+        "transitions": p.transitions,
+        "intro_transition": p.intro_transition,
+        "theme": p.theme,
+        "render_freshness": p.render_freshness,
+    }
+
+
+def _project_id_as_int(project_id: str) -> int:
+    try:
+        return int(project_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"project_id {project_id!r} is not numeric",
+        ) from exc
+
+
+async def _start_compose_action(
+    app: FastAPI,
+    running_actions: set[tuple[str, str]],
+    *,
+    project_id: str,
+    action: str,
+    runner: Any,
+) -> str:
+    key = (project_id, action)
+    if key in running_actions:
+        raise HTTPException(
+            status_code=409,
+            detail=f"compose {action} already running for project {project_id}",
+        )
+    running_actions.add(key)
+    action_id = uuid.uuid4().hex[:12]
+    status_payload = {
+        "job_id": f"compose-{action}-{action_id}",
+        "status": "queued",
+        "tokens": [f"@compose/{action}"],
+        "instruction": f"compose {action}",
+        "started_at": None,
+        "finished_at": None,
+    }
+    emitter: SSEEmitter | None = getattr(app.state, "sse_emitter", None)
+    if emitter is not None:
+        emitter.publish_job_status(project_id, job_status=status_payload)
+
+    async def _run() -> None:
+        started_at = datetime.now().isoformat(timespec="seconds")
+        if emitter is not None:
+            emitter.publish_job_status(project_id, job_status={
+                    **status_payload,
+                    "status": "running",
+                    "started_at": started_at,
+                })
+        try:
+            await asyncio.to_thread(runner)
+        except Exception as exc:
+            if emitter is not None:
+                emitter.publish_job_status(project_id, job_status={
+                    **status_payload,
+                    "status": "failed",
+                    "started_at": started_at,
+                    "finished_at": datetime.now().isoformat(timespec="seconds"),
+                    "error": str(exc),
+                })
+        else:
+            if emitter is not None:
+                emitter.publish_job_status(project_id, job_status={
+                    **status_payload,
+                    "status": "done",
+                    "started_at": started_at,
+                    "finished_at": datetime.now().isoformat(timespec="seconds"),
+                })
+        finally:
+            running_actions.discard(key)
+
+    asyncio.create_task(_run(), name=f"compose-action-{project_id}-{action}")
+    return action_id
+
+
+def _verifier_item_payload(item: Any) -> dict[str, object]:
+    payload = item.model_dump()
+    if item.category == "style_requirement" and item.status == "missing":
+        payload["suggested_fix"] = _style_requirement_fix(item.label)
+    return payload
+
+
+def _style_requirement_fix(label: str) -> str:
+    fixes = {
+        "theme.frame_style=open_book_page": "Set storyboard.theme.frame_style to open_book_page.",
+        "theme.content_inset=center_page": "Set storyboard.theme.content_inset to center_page.",
+        "transitions include page-turn or book-page-turn": (
+            "Set the intro or history-scene transitions to book-page-turn."
+        ),
+    }
+    return fixes.get(label, "Update the storyboard so it matches the explainer video_brief.")
+
+
+def _contract_status(ok: bool | None) -> str:
+    if ok is True:
+        return "satisfied"
+    if ok is False:
+        return "missing"
+    return "partial"
+
+
+def _build_production_contract(project_id: str, proj: Path) -> dict[str, object]:
+    sb_path = proj / "storyboard.json"
+    if not sb_path.exists():
+        return {
+            "project_id": project_id,
+            "checks": [
+                {
+                    "label": "storyboard.json",
+                    "status": "missing",
+                    "detail": "Storyboard has not been generated yet.",
+                }
+            ],
+            "style_items": [],
+        }
+
+    storyboard = json.loads(sb_path.read_text(encoding="utf-8"))
+    theme = storyboard.get("theme") or {}
+    transitions = storyboard.get("transitions") or []
+    if not isinstance(theme, dict):
+        theme = {}
+    if not isinstance(transitions, list):
+        transitions = []
+
+    brief = ""
+    style_items: list[dict[str, object]] = []
+    manifest_payload: dict[str, object] | None = None
+    explainer_path = proj / "source" / "explainer.md"
+    if explainer_path.exists():
+        explainer = load_explainer(explainer_path)
+        manifest_payload = explainer.manifest.model_dump()
+        brief = explainer.manifest.video_brief or ""
+        state = load_verifier_state(proj / "verifier_state.json")
+        result = run_auto_checks(explainer.manifest, storyboard, state=state)
+        style_items = [
+            _verifier_item_payload(item)
+            for item in result.items
+            if item.category == "style_requirement"
+        ]
+
+    brief_lower = brief.lower()
+    requests_history = "narrative history" in brief_lower
+    book_turns = [
+        t for t in transitions
+        if isinstance(t, dict) and t.get("style") in {"book-page-turn", "stock-book-page-turn"}
+    ]
+    page_turns = [
+        t for t in transitions
+        if isinstance(t, dict) and t.get("style") in {"page-turn", "book-page-turn", "stock-book-page-turn"}
+    ]
+    checks = [
+        {
+            "label": "video_brief requests Narrative History",
+            "status": _contract_status(requests_history if explainer_path.exists() else None),
+            "detail": "source/explainer.md",
+        },
+        {
+            "label": "theme.frame_style = open_book_page",
+            "status": _contract_status(theme.get("frame_style") == "open_book_page"),
+            "detail": str(theme.get("frame_style") or "unset"),
+        },
+        {
+            "label": "theme.content_inset = center_page",
+            "status": _contract_status(theme.get("content_inset") == "center_page"),
+            "detail": str(theme.get("content_inset") or "unset"),
+        },
+        {
+            "label": "theme.intro_transition_style = book-page-turn",
+            "status": _contract_status(
+                theme.get("intro_transition_style") in {"book-page-turn", "stock-book-page-turn"}
+            ),
+            "detail": str(theme.get("intro_transition_style") or "unset"),
+        },
+        {
+            "label": "history transitions use book-page-turn",
+            "status": _contract_status(bool(book_turns) if page_turns else None),
+            "detail": f"{len(book_turns)} book-page-turn / {len(page_turns)} page-turn seams",
+        },
+    ]
+    return {
+        "project_id": project_id,
+        "manifest": manifest_payload,
+        "checks": checks,
+        "style_items": style_items,
     }

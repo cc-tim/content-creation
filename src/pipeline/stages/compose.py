@@ -14,6 +14,7 @@ from pipeline.composer.compartment import (
     build_compartment_loop,
     composite_compartment_on_scene,
 )
+from pipeline.composer.frame import composite_scene_frame
 from pipeline.composer.overlay import apply_overlay
 from pipeline.composer.overlay_rules import check_overlay_allowed
 from pipeline.composer.transitions import (
@@ -343,6 +344,7 @@ class ComposeStage(PipelineStage):
         storyboard = Storyboard.load(ctx.storyboard_path)
         width, height = get_resolution(storyboard.aspect_ratio)
         theme_dict = storyboard.theme.to_dict()
+        frame_style = theme_dict.get("frame_style") or None
 
         # --- Style anchor: source suitability → niche style → anchor image ---
         from pipeline.composer.style_anchor import extract_style_anchor
@@ -414,6 +416,7 @@ class ComposeStage(PipelineStage):
                     scenes_dir=scenes_dir,
                     source_video=ctx.video_path,
                     theme_dict=theme_dict,
+                    frame_style=frame_style,
                     ctx=ctx,
                     audio_segments=audio_segments,
                 )
@@ -507,6 +510,26 @@ class ComposeStage(PipelineStage):
             scene_ids=scene_id_seq,
             sb=storyboard,
             cache_dir=transitions_cache,
+            width=width,
+            height=height,
+            fps=30,
+        )
+        finals_with_transitions = await self._prepend_intro_transition_async(
+            scene_paths=finals_with_transitions,
+            first_scene=scene_finals[0] if scene_finals else None,
+            theme_dict=theme_dict,
+            cache_dir=transitions_cache,
+            compose_dir=compose_dir,
+            width=width,
+            height=height,
+            fps=30,
+        )
+        finals_no_overlay_with_transitions = await self._prepend_intro_transition_async(
+            scene_paths=finals_no_overlay_with_transitions,
+            first_scene=scene_finals_no_overlay[0] if scene_finals_no_overlay else None,
+            theme_dict=theme_dict,
+            cache_dir=transitions_cache,
+            compose_dir=compose_dir,
             width=width,
             height=height,
             fps=30,
@@ -627,6 +650,7 @@ class ComposeStage(PipelineStage):
         scenes_dir: Path,
         source_video: Path | None,
         theme_dict: dict[str, str],
+        frame_style: str | None,
         ctx: PipelineContext,
         audio_segments: list[dict],
     ) -> ComposeSceneResult:
@@ -638,8 +662,9 @@ class ComposeStage(PipelineStage):
 
         Never raises: failures produce black-screen fallback paths.
         """
-        scene_final = scenes_dir / f"{scene.id}_final.mp4"
-        scene_final_no_overlay = scenes_dir / f"{scene.id}_final_no_overlay.mp4"
+        frame_suffix = f"_{frame_style}" if frame_style else ""
+        scene_final = scenes_dir / f"{scene.id}_final{frame_suffix}.mp4"
+        scene_final_no_overlay = scenes_dir / f"{scene.id}_final_no_overlay{frame_suffix}.mp4"
 
         # Cache check
         if scene_final.exists() and scene_final_no_overlay.exists():
@@ -738,6 +763,21 @@ class ComposeStage(PipelineStage):
                     )
 
             # Step 3: Mux both variants
+            if frame_style:
+                vis = composite_scene_frame(
+                    vis,
+                    scenes_dir / f"{scene.id}_visual{frame_suffix}.mp4",
+                    frame_style=frame_style,
+                    width=width,
+                    height=height,
+                )
+                vis_before_overlay = composite_scene_frame(
+                    vis_before_overlay,
+                    scenes_dir / f"{scene.id}_visual_no_overlay{frame_suffix}.mp4",
+                    frame_style=frame_style,
+                    width=width,
+                    height=height,
+                )
             self._mux(vis, scene_final, audio_path)
             no_overlay_vis = vis_before_overlay if scene.overlay else vis
             self._mux(no_overlay_vis, scene_final_no_overlay, audio_path)
@@ -838,6 +878,98 @@ class ComposeStage(PipelineStage):
             if clip is not None:
                 out.append(clip)
         return out
+
+    async def _prepend_intro_transition_async(
+        self,
+        *,
+        scene_paths: list[Path],
+        first_scene: Path | None,
+        theme_dict: dict[str, str],
+        cache_dir: Path,
+        compose_dir: Path,
+        width: int,
+        height: int,
+        fps: int,
+    ) -> list[Path]:
+        style = theme_dict.get("intro_transition_style") or ""
+        if not style or first_scene is None or not scene_paths:
+            return scene_paths
+
+        duration_raw = theme_dict.get("intro_transition_duration_sec") or "0.9"
+        page_count_raw = theme_dict.get("intro_transition_page_count") or "2"
+        try:
+            duration = float(duration_raw)
+        except ValueError:
+            duration = 0.9
+        try:
+            page_count = max(1, min(3, int(page_count_raw)))
+        except ValueError:
+            page_count = 2
+
+        intro_src = self._book_start_plate(compose_dir, width, height, fps, duration)
+        cfg = TransitionConfig(
+            style=style,
+            duration_sec=duration,
+            sfx=None,
+            page_count=page_count if style in {"book-page-turn", "stock-book-page-turn"} else None,
+            renderer_mode=theme_dict.get("intro_transition_renderer_mode") or None,
+            asset_path=theme_dict.get("intro_transition_asset_path") or None,
+            asset_source=theme_dict.get("intro_transition_asset_source") or None,
+            asset_source_url=theme_dict.get("intro_transition_asset_source_url") or None,
+            asset_license=theme_dict.get("intro_transition_asset_license") or None,
+            asset_notes=theme_dict.get("intro_transition_asset_notes") or None,
+        )
+        loop = asyncio.get_running_loop()
+        executor = get_ffmpeg_executor()
+        clip = await loop.run_in_executor(
+            executor,
+            lambda: render_transition(
+                intro_src,
+                first_scene,
+                cfg,
+                cache_dir,
+                width=width,
+                height=height,
+                fps=fps,
+            ),
+        )
+        if clip is None:
+            return scene_paths
+        return [clip, *scene_paths]
+
+    def _book_start_plate(
+        self,
+        compose_dir: Path,
+        width: int,
+        height: int,
+        fps: int,
+        duration: float,
+    ) -> Path:
+        output = compose_dir / f"book_start_plate_{duration:.2f}.mp4"
+        if output.exists():
+            return output
+        base_h = max(36, int(height * 0.09))
+        run_ffmpeg([
+            "ffmpeg", "-y",
+            "-f", "lavfi", "-i", f"color=c=#2b1f14:s={width}x{height}:r={fps}:d={duration}",
+            "-vf",
+            (
+                f"drawbox=x={int(width * 0.09)}:y={int(height * 0.18)}:"
+                f"w={int(width * 0.82)}:h={int(height * 0.63)}:"
+                f"color=#5b2e19@0.96:t=fill,"
+                f"drawbox=x={int(width * 0.09)}:y={int(height * 0.18)}:"
+                f"w={int(width * 0.82)}:h={int(height * 0.63)}:"
+                f"color=#c79749@0.72:t=8,"
+                f"drawbox=x={int(width * 0.055)}:y={height - base_h}:"
+                f"w={int(width * 0.89)}:h={max(8, base_h // 3)}:"
+                f"color=#6f3f1e@0.92:t=fill"
+            ),
+            "-an",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "22",
+            "-pix_fmt", "yuv420p", "-r", str(fps),
+            str(output),
+        ])
+        return output
 
     async def _compose_mvp(self, ctx: PipelineContext, compose_dir: Path) -> Path:
         """Fallback: MVP compose (continuous source footage)."""

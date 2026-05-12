@@ -7,6 +7,12 @@ from typer.testing import CliRunner
 
 from pipeline.cli_compose import compose_app
 from pipeline.stages.base import PipelineContext
+from pipeline.storyboard import Scene, Storyboard
+
+
+def _close_coro(coro):
+    coro.close()
+    return None
 
 
 @pytest.fixture()
@@ -55,7 +61,7 @@ def test_rescene_deletes_scene_finals(project_dir, tmp_path):
     runner = CliRunner()
     with (
         patch("pipeline.cli_compose._resolve_work_dir", return_value=project_dir),
-        patch("pipeline.cli_compose.asyncio.run") as mock_run,
+        patch("pipeline.cli_compose.asyncio.run", side_effect=_close_coro) as mock_run,
     ):
         result = runner.invoke(compose_app, [
             "rescene", "--project-id", "9999", "--scene", "s1"
@@ -87,3 +93,55 @@ def test_reburn_calls_burn_pass_for_subs_no_overlay(project_dir):
     assert len(burned) == 1
     assert burned[0][0].name == "raw_no_overlay.mp4"
     assert burned[0][1].name == "final_zh-TW_subtitles_no_overlay.mp4"
+
+
+def test_transitions_rebuild_deletes_transition_and_concat_outputs(project_dir):
+    sb = Storyboard(
+        scenes=[
+            Scene(id="s1", section="content", narration="a", narration_est_sec=1.0),
+        ]
+    )
+    sb.save(project_dir / "storyboard.json")
+    transition_dir = project_dir / "compose" / "transitions"
+    transition_dir.mkdir()
+    (transition_dir / "old.mp4").write_bytes(b"old")
+    runner = CliRunner()
+
+    with (
+        patch("pipeline.cli_compose._resolve_work_dir", return_value=project_dir),
+        patch("pipeline.cli_compose.asyncio.run", side_effect=_close_coro) as mock_run,
+    ):
+        result = runner.invoke(compose_app, [
+            "transitions", "--project-id", "9999",
+        ])
+
+    assert result.exit_code == 0, result.output
+    assert not transition_dir.exists()
+    assert not (project_dir / "compose" / "raw.mp4").exists()
+    assert not (project_dir / "compose" / "final_zh-TW_subtitles_no_overlay.mp4").exists()
+    assert mock_run.called
+
+
+def test_frame_reuses_cached_visuals_and_rebuilds_outputs(project_dir):
+    sb = Storyboard(
+        scenes=[
+            Scene(id="s1", section="content", narration="a", narration_est_sec=1.0),
+        ]
+    )
+    sb.save(project_dir / "storyboard.json")
+    scenes_dir = project_dir / "compose" / "scenes"
+    (scenes_dir / "s1_visual.mp4").write_bytes(b"visual")
+    runner = CliRunner()
+
+    with (
+        patch("pipeline.cli_compose._resolve_work_dir", return_value=project_dir),
+        patch("pipeline.cli_compose._frame_scene_outputs") as frame_outputs,
+        patch("pipeline.cli_compose._rebuild_transitions_and_concat") as rebuild,
+    ):
+        result = runner.invoke(compose_app, [
+            "frame", "--project-id", "9999",
+        ])
+
+    assert result.exit_code == 0, result.output
+    assert frame_outputs.called
+    assert rebuild.called

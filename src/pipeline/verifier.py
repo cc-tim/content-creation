@@ -16,6 +16,7 @@ ItemCategory = Literal[
     "required_image",
     "required_clip",
     "required_sequence",
+    "style_requirement",
 ]
 
 
@@ -90,6 +91,42 @@ def _scene_visual_paths(storyboard: dict[str, Any]) -> set[str]:
         if isinstance(visual, dict) and visual.get("path"):
             paths.add(visual["path"])
     return paths
+
+
+def _brief_style_requirements(video_brief: str | None) -> list[tuple[str, bool]]:
+    if not video_brief:
+        return []
+    brief = video_brief.lower()
+    requirements: list[tuple[str, bool]] = []
+    if (
+        "narrative history" in brief
+        or "open book" in brief
+        or "book frame" in brief
+        or "embedded" in brief and "book" in brief
+    ):
+        requirements.append(("theme.frame_style=open_book_page", True))
+        requirements.append(("theme.content_inset=center_page", True))
+    if "page-turn" in brief or "page turn" in brief:
+        requirements.append(("transitions include page-turn or book-page-turn", True))
+    return requirements
+
+
+def _storyboard_satisfies_style_requirement(
+    storyboard: dict[str, Any],
+    requirement: str,
+) -> bool:
+    theme = storyboard.get("theme") or {}
+    transitions = storyboard.get("transitions") or []
+    if requirement == "theme.frame_style=open_book_page":
+        return theme.get("frame_style") == "open_book_page"
+    if requirement == "theme.content_inset=center_page":
+        return theme.get("content_inset") == "center_page"
+    if requirement == "transitions include page-turn or book-page-turn":
+        return any(
+            isinstance(t, dict) and t.get("style") in {"page-turn", "book-page-turn"}
+            for t in transitions
+        )
+    return False
 
 
 def _resolve_status(
@@ -168,6 +205,17 @@ def run_auto_checks(
             label=seq,
             status=_resolve_status(item_id, "missing", state),
             auto_checked=False,
+        ))
+
+    for i, (label, auto_check) in enumerate(_brief_style_requirements(manifest.video_brief)):
+        auto = "used" if _storyboard_satisfies_style_requirement(storyboard, label) else "missing"
+        item_id = f"style_requirement:{i}"
+        items.append(ItemStatus(
+            item_id=item_id,
+            category="style_requirement",
+            label=label,
+            status=_resolve_status(item_id, auto, state),
+            auto_checked=auto_check,
         ))
 
     used = sum(1 for it in items if it.status == "used")

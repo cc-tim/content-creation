@@ -7,7 +7,9 @@ import pytest
 
 from pipeline.composer.transitions import (
     REGISTRY,
+    SUPPORTED_RENDERER_MODES,
     SUPPORTED_STYLES,
+    BookPageTurnRenderer,
     HardCutRenderer,
     TransitionConfig,
     XfadeRenderer,
@@ -39,6 +41,38 @@ def test_transition_from_dict_with_sfx():
     assert t.sfx == "assets/sfx/page_flip.mp3"
 
 
+def test_transition_from_dict_with_page_count_clamps_to_supported_range():
+    t = Transition.from_dict({
+        "from": "s9",
+        "to": "s10",
+        "style": "book-page-turn",
+        "duration_sec": 0.9,
+        "page_count": 7,
+    })
+    assert t.page_count == 3
+
+
+def test_transition_from_dict_with_stock_metadata():
+    t = Transition.from_dict({
+        "from": "s1",
+        "to": "s2",
+        "style": "stock-book-page-turn",
+        "duration_sec": 1.2,
+        "renderer_mode": "licensed_clip",
+        "asset_path": "assets/transitions/book_page_flip.mp4",
+        "asset_source": "Artgrid",
+        "asset_source_url": "https://example.com/artgrid",
+        "asset_license": "licensed full clip",
+        "asset_notes": "replace preview before publish",
+    })
+    assert t.renderer_mode == "licensed_clip"
+    assert t.asset_path == "assets/transitions/book_page_flip.mp4"
+    assert t.asset_source == "Artgrid"
+    assert t.asset_source_url == "https://example.com/artgrid"
+    assert t.asset_license == "licensed full clip"
+    assert t.asset_notes == "replace preview before publish"
+
+
 def test_transition_to_dict_uses_from_to_keys():
     """Round-trip: to_dict emits 'from' and 'to' (not from_scene/to_scene)."""
     t = Transition(from_scene="s1", to_scene="s2", style="fade", duration_sec=0.3, sfx=None)
@@ -54,6 +88,39 @@ def test_transition_to_dict_omits_sfx_when_none():
     t = Transition(from_scene="s1", to_scene="s2", style="fade", duration_sec=0.3, sfx=None)
     out = t.to_dict()
     assert "sfx" not in out
+
+
+def test_transition_to_dict_includes_page_count_when_set():
+    t = Transition(
+        from_scene="s1",
+        to_scene="s2",
+        style="book-page-turn",
+        duration_sec=0.9,
+        page_count=2,
+    )
+    assert t.to_dict()["page_count"] == 2
+
+
+def test_transition_to_dict_includes_stock_metadata_when_set():
+    t = Transition(
+        from_scene="s1",
+        to_scene="s2",
+        style="stock-book-page-turn",
+        duration_sec=1.2,
+        renderer_mode="licensed_clip",
+        asset_path="assets/transitions/book_page_flip.mp4",
+        asset_source="Artgrid",
+        asset_source_url="https://example.com/artgrid",
+        asset_license="licensed",
+        asset_notes="use purchased clip",
+    )
+    out = t.to_dict()
+    assert out["renderer_mode"] == "licensed_clip"
+    assert out["asset_path"] == "assets/transitions/book_page_flip.mp4"
+    assert out["asset_source"] == "Artgrid"
+    assert out["asset_source_url"] == "https://example.com/artgrid"
+    assert out["asset_license"] == "licensed"
+    assert out["asset_notes"] == "use purchased clip"
 
 
 def _minimal_scene_dict(scene_id: str) -> dict:
@@ -141,17 +208,47 @@ def test_transition_config_rejects_unknown_style():
         TransitionConfig(style="ribbon", duration_sec=0.5, sfx=None)
 
 
+def test_transition_config_rejects_invalid_page_count():
+    with pytest.raises(ValueError, match="page_count"):
+        TransitionConfig(style="book-page-turn", duration_sec=0.5, sfx=None, page_count=4)
+
+
+def test_transition_config_rejects_stock_mode_without_asset_path():
+    with pytest.raises(ValueError, match="asset_path"):
+        TransitionConfig(style="stock-book-page-turn", duration_sec=0.5, sfx=None)
+
+
 def test_supported_styles_set_matches_spec():
-    assert {"none", "fade", "page-turn", "slide", "wipe"} == SUPPORTED_STYLES
+    assert {"none", "fade", "page-turn", "book-page-turn", "stock-book-page-turn", "slide", "wipe"} == SUPPORTED_STYLES
+
+
+def test_supported_renderer_modes_set_matches_spec():
+    assert {"generated", "licensed_clip", "overlay"} == SUPPORTED_RENDERER_MODES
 
 
 def test_transition_config_from_storyboard_transition():
     from pipeline.storyboard import Transition
-    t = Transition("s1", "s2", "page-turn", 0.5, "assets/sfx/page_flip.mp3")
+    t = Transition(
+        "s1",
+        "s2",
+        "stock-book-page-turn",
+        0.5,
+        "assets/sfx/page_flip.mp3",
+        2,
+        "licensed_clip",
+        "assets/transitions/book_page_flip.mp4",
+        "Artgrid",
+        "https://example.com/artgrid",
+        "licensed",
+        "use purchased clip",
+    )
     cfg = TransitionConfig.from_transition(t)
-    assert cfg.style == "page-turn"
+    assert cfg.style == "stock-book-page-turn"
     assert cfg.duration_sec == 0.5
     assert cfg.sfx == "assets/sfx/page_flip.mp3"
+    assert cfg.page_count == 2
+    assert cfg.renderer_mode == "licensed_clip"
+    assert cfg.asset_path == "assets/transitions/book_page_flip.mp4"
 
 
 def test_hard_cut_renderer_returns_none(tmp_path: Path):
@@ -245,6 +342,10 @@ def test_registry_page_turn_is_xfade_slideleft_in_v1():
     assert page_turn.xfade_name == "slideleft"
 
 
+def test_registry_book_page_turn_has_dedicated_renderer():
+    assert isinstance(REGISTRY["book-page-turn"], BookPageTurnRenderer)
+
+
 def test_registry_none_is_hard_cut():
     assert isinstance(REGISTRY["none"], HardCutRenderer)
 
@@ -273,6 +374,24 @@ def test_cache_key_differs_with_sfx(tmp_path: Path):
     cfg1 = TransitionConfig(style="fade", duration_sec=0.5, sfx=None)
     cfg2 = TransitionConfig(style="fade", duration_sec=0.5, sfx="assets/sfx/whoosh.mp3")
     assert transition_cache_key(a, b, cfg1) != transition_cache_key(a, b, cfg2)
+
+
+def test_cache_key_differs_with_asset_content(tmp_path: Path):
+    a = _make_test_clip(tmp_path / "a.mp4", duration=0.5, color="red")
+    b = _make_test_clip(tmp_path / "b.mp4", duration=0.5, color="blue")
+    asset = tmp_path / "book_page_flip.mp4"
+    asset.write_bytes(b"asset-v1")
+    cfg = TransitionConfig(
+        style="stock-book-page-turn",
+        duration_sec=0.5,
+        sfx=None,
+        renderer_mode="licensed_clip",
+        asset_path=str(asset),
+    )
+    key1 = transition_cache_key(a, b, cfg)
+    asset.write_bytes(b"asset-v2")
+    key2 = transition_cache_key(a, b, cfg)
+    assert key1 != key2
 
 
 def test_render_transition_returns_none_for_hard_cut(tmp_path: Path):

@@ -73,6 +73,46 @@ def test_set_with_sfx_writes_sfx(project_tree: Path):
     assert sb.transitions[0].sfx == "assets/sfx/page_flip.mp3"
 
 
+def test_set_with_page_count_writes_page_count(project_tree: Path):
+    runner = CliRunner()
+    result = runner.invoke(transition_app, [
+        "set", "--project-id", "42", "--from", "s1", "--to", "s2",
+        "--style", "book-page-turn", "--duration", "0.8", "--page-count", "3",
+    ])
+    assert result.exit_code == 0, result.output
+    sb = Storyboard.load(project_tree / "storyboard.json")
+    assert sb.transitions[0].style == "book-page-turn"
+    assert sb.transitions[0].page_count == 3
+
+
+def test_set_with_stock_asset_metadata_writes_transition_fields(project_tree: Path):
+    runner = CliRunner()
+    result = runner.invoke(transition_app, [
+        "set",
+        "--project-id", "42",
+        "--from", "s1",
+        "--to", "s2",
+        "--style", "stock-book-page-turn",
+        "--duration", "1.2",
+        "--renderer-mode", "licensed_clip",
+        "--asset-path", "assets/transitions/book_page_flip.mp4",
+        "--asset-source", "Artgrid",
+        "--asset-source-url", "https://example.com/artgrid",
+        "--asset-license", "licensed full clip",
+        "--asset-notes", "replace preview before publish",
+    ])
+    assert result.exit_code == 0, result.output
+    sb = Storyboard.load(project_tree / "storyboard.json")
+    transition = sb.transitions[0]
+    assert transition.style == "stock-book-page-turn"
+    assert transition.renderer_mode == "licensed_clip"
+    assert transition.asset_path == "assets/transitions/book_page_flip.mp4"
+    assert transition.asset_source == "Artgrid"
+    assert transition.asset_source_url == "https://example.com/artgrid"
+    assert transition.asset_license == "licensed full clip"
+    assert transition.asset_notes == "replace preview before publish"
+
+
 def test_set_updates_existing_transition_for_same_seam(project_tree: Path):
     runner = CliRunner()
     runner.invoke(transition_app, [

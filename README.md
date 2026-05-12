@@ -210,10 +210,14 @@ Variant-focus workflow:
 ```bash
 uv run pipeline compose set-variant --project-id <ID> --variant subtitles_no_overlay
 uv run pipeline compose rescene --project-id <ID> --scene s9 [--scene s12]
+uv run pipeline compose transitions --project-id <ID>    # rebuild transition clips + concat/finals only
+uv run pipeline compose frame --project-id <ID>          # rewrap cached scene visuals in current frame_style
 uv run pipeline compose reburn --project-id <ID>
 ```
 
 Safety: `compose rescene` errors if `--scene` covers more than half the storyboard. Use `compose reburn` for wide rebuilds. Pass `--force` to override.
+
+Transition asset workflow: seam transitions in `storyboard.json` can now declare `renderer_mode` plus optional stock metadata such as `asset_path`, `asset_source`, and `asset_license`. Use `renderer_mode=generated` for built-in transitions, `licensed_clip` for full-frame licensed stock clips, and `overlay` for alpha/green-screen overlay assets that sit on top of a generated base transition.
 
 Overlay vs. no_overlay: overlay text (`type: text_top`, `text_emphasis`) appears ONLY in overlay variants (plain, subtitles). Use `visual_text` in storyboard for visibility in `subtitles_no_overlay`.
 

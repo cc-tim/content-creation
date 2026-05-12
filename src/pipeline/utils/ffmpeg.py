@@ -167,5 +167,5 @@ def verify_is_image(path: Path) -> bool:
         img.verify()
         return True
     except Exception:
-        logger.warning("verify_is_image.failed", path=str(path))
+        logger.warning("verify_is_image.failed path=%s", path)
         return False

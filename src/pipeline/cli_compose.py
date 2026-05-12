@@ -8,6 +8,8 @@ from pathlib import Path
 import structlog
 import typer
 
+from pipeline.composer.base import get_resolution
+from pipeline.composer.frame import composite_scene_frame
 from pipeline.config import PipelineConfig
 from pipeline.session_log import SessionEntry, append_session, new_session_id
 from pipeline.stages.base import PipelineContext
@@ -50,6 +52,100 @@ def _delete_transition_cache_for_scenes(compose_dir: Path, scene_ids: list[str])
         import shutil
         shutil.rmtree(cache)
         logger.info("rescene.transition_cache_cleared", path=str(cache))
+
+
+def _delete_concat_outputs(compose_dir: Path, locale: str) -> list[str]:
+    removed: list[str] = []
+    patterns = [
+        "raw.mp4",
+        "raw_no_overlay.mp4",
+        f"final_{locale}.mp4",
+        f"final_{locale}_no_overlay.mp4",
+        f"final_{locale}_subtitles.mp4",
+        f"final_{locale}_subtitles_no_overlay.mp4",
+    ]
+    for name in patterns:
+        path = compose_dir / name
+        if path.exists():
+            path.unlink()
+            removed.append(name)
+    return removed
+
+
+def _load_storyboard(project_id: int, ctx: PipelineContext):
+    from pipeline.storyboard import Storyboard
+
+    if not ctx.storyboard_path or not ctx.storyboard_path.exists():
+        typer.echo("storyboard.json not found.", err=True)
+        raise typer.Exit(code=1)
+    return Storyboard.load(ctx.storyboard_path)
+
+
+def _current_frame_suffix(storyboard) -> str:
+    frame_style = storyboard.theme.frame_style or ""
+    return f"_{frame_style}" if frame_style else ""
+
+
+def _rebuild_transitions_and_concat(ctx: PipelineContext, storyboard) -> None:
+    compose_dir = ctx.work_dir / "compose"
+    _delete_transition_cache_for_scenes(compose_dir, [s.id for s in storyboard.scenes])
+    removed = _delete_concat_outputs(compose_dir, ctx.locale)
+    typer.echo(
+        "Rebuilding transitions and final concat..."
+        + (f" removed: {', '.join(removed)}" if removed else "")
+    )
+    asyncio.run(ComposeStage().run(ctx))
+
+
+def _frame_scene_outputs(work_dir: Path, ctx: PipelineContext, storyboard) -> None:
+    scenes_dir = work_dir / "compose" / "scenes"
+    width, height = get_resolution(storyboard.aspect_ratio)
+    frame_style = storyboard.theme.frame_style or None
+    frame_suffix = _current_frame_suffix(storyboard)
+    stage = ComposeStage()
+    audio_segments = ctx.segment_timings or []
+
+    for i, scene in enumerate(storyboard.scenes):
+        base_visual = scenes_dir / f"{scene.id}_visual.mp4"
+        overlay_visual = scenes_dir / f"{scene.id}_overlay.mp4"
+        if not base_visual.exists():
+            typer.echo(
+                f"Missing cached scene visual for {scene.id}: {base_visual.name}. "
+                "Run compose rescene for that scene first.",
+                err=True,
+            )
+            raise typer.Exit(code=2)
+
+        overlay_source = overlay_visual if overlay_visual.exists() else base_visual
+        framed_overlay = overlay_source
+        framed_plain = base_visual
+        if frame_style:
+            framed_overlay = composite_scene_frame(
+                overlay_source,
+                scenes_dir / f"{scene.id}_visual{frame_suffix}.mp4",
+                frame_style=frame_style,
+                width=width,
+                height=height,
+            )
+            framed_plain = composite_scene_frame(
+                base_visual,
+                scenes_dir / f"{scene.id}_visual_no_overlay{frame_suffix}.mp4",
+                frame_style=frame_style,
+                width=width,
+                height=height,
+            )
+
+        audio_path = Path(audio_segments[i]["path"]) if i < len(audio_segments) else None
+        stage._mux(
+            framed_overlay,
+            scenes_dir / f"{scene.id}_final{frame_suffix}.mp4",
+            audio_path,
+        )
+        stage._mux(
+            framed_plain,
+            scenes_dir / f"{scene.id}_final_no_overlay{frame_suffix}.mp4",
+            audio_path,
+        )
 
 
 @compose_app.command("set-variant")
@@ -215,6 +311,76 @@ def reburn(
         entry.outcome = "failed"
         entry.error = str(exc)[:200]
         entry.summary = f"reburn failed: {variant}"
+        append_session(work_dir, entry)
+        raise
+    append_session(work_dir, entry)
+
+
+@compose_app.command("transitions")
+def transitions(
+    project_id: int = typer.Option(..., "--project-id"),
+) -> None:
+    """Rebuild transition clips, concat raws, and final video without rerendering scenes."""
+    work_dir = _resolve_work_dir(project_id)
+    ctx = PipelineContext.load(work_dir / "context.json")
+    sb = _load_storyboard(project_id, ctx)
+    frame_suffix = _current_frame_suffix(sb)
+    scenes_dir = work_dir / "compose" / "scenes"
+    missing: list[str] = []
+    for scene in sb.scenes:
+        for suffix in (f"_final{frame_suffix}.mp4", f"_final_no_overlay{frame_suffix}.mp4"):
+            if not (scenes_dir / f"{scene.id}{suffix}").exists():
+                missing.append(f"{scene.id}{suffix}")
+    if missing:
+        typer.echo(
+            "Scene finals are missing; refusing to rerender scenes in `compose transitions`.\n"
+            f"Missing: {', '.join(missing[:8])}"
+            + (" ..." if len(missing) > 8 else ""),
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    entry = SessionEntry(
+        session_id=new_session_id(),
+        timestamp=datetime.now().isoformat(timespec="seconds"),
+        command="compose transitions",
+    )
+    try:
+        _rebuild_transitions_and_concat(ctx, sb)
+        entry.stages = ["compose"]
+        entry.summary = "compose transitions"
+        typer.echo("Done.")
+    except Exception as exc:
+        entry.outcome = "failed"
+        entry.error = str(exc)[:200]
+        entry.summary = "compose transitions failed"
+        append_session(work_dir, entry)
+        raise
+    append_session(work_dir, entry)
+
+
+@compose_app.command("frame")
+def frame(
+    project_id: int = typer.Option(..., "--project-id"),
+) -> None:
+    """Rebuild scene frame wrappers from cached visuals, then recompose transitions/finals."""
+    work_dir = _resolve_work_dir(project_id)
+    ctx = PipelineContext.load(work_dir / "context.json")
+    sb = _load_storyboard(project_id, ctx)
+    entry = SessionEntry(
+        session_id=new_session_id(),
+        timestamp=datetime.now().isoformat(timespec="seconds"),
+        command="compose frame",
+    )
+    try:
+        _frame_scene_outputs(work_dir, ctx, sb)
+        _rebuild_transitions_and_concat(ctx, sb)
+        entry.stages = ["compose"]
+        entry.summary = f"compose frame: {sb.theme.frame_style or 'none'}"
+        typer.echo("Done.")
+    except Exception as exc:
+        entry.outcome = "failed"
+        entry.error = str(exc)[:200]
+        entry.summary = "compose frame failed"
         append_session(work_dir, entry)
         raise
     append_session(work_dir, entry)

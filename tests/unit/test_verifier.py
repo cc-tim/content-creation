@@ -147,3 +147,47 @@ def test_verbatim_line_found_in_narration_en():
     result = run_auto_checks(manifest, storyboard)
     line = next(i for i in result.items if i.item_id == "verbatim_line:0")
     assert line.status == "used"
+
+
+def test_video_brief_style_requirements_missing_when_storyboard_drops_book_frame():
+    manifest = Manifest(
+        intent="video",
+        video_brief="Narrative History with an open book frame and page-turn animation.",
+    )
+    storyboard = {
+        "theme": {"visual_style": "archival history"},
+        "transitions": [{"from": "s1", "to": "s2", "style": "fade", "duration_sec": 0.5}],
+        "scenes": [],
+    }
+    result = run_auto_checks(manifest, storyboard)
+
+    statuses = {item.label: item.status for item in result.items if item.category == "style_requirement"}
+    assert statuses["theme.frame_style=open_book_page"] == "missing"
+    assert statuses["theme.content_inset=center_page"] == "missing"
+    assert statuses["transitions include page-turn or book-page-turn"] == "missing"
+
+
+def test_video_brief_style_requirements_used_when_storyboard_matches_book_frame():
+    manifest = Manifest(
+        intent="video",
+        video_brief="Narrative History with embedded content in an open book and page turns.",
+    )
+    storyboard = {
+        "theme": {
+            "visual_style": "archival history",
+            "frame_style": "open_book_page",
+            "content_inset": "center_page",
+        },
+        "transitions": [
+            {"from": "s1", "to": "s2", "style": "book-page-turn", "duration_sec": 0.5}
+        ],
+        "scenes": [],
+    }
+    result = run_auto_checks(manifest, storyboard)
+
+    statuses = {item.label: item.status for item in result.items if item.category == "style_requirement"}
+    assert statuses == {
+        "theme.frame_style=open_book_page": "used",
+        "theme.content_inset=center_page": "used",
+        "transitions include page-turn or book-page-turn": "used",
+    }

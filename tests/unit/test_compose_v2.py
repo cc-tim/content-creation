@@ -75,6 +75,70 @@ async def test_compose_uses_storyboard_when_available(sample_context):
     mock_render.assert_called_once()
 
 
+async def test_render_one_scene_applies_frame_wrapper_when_theme_requests_it(tmp_path):
+    from pipeline.stages.base import PipelineContext
+
+    scenes_dir = tmp_path / "compose" / "scenes"
+    scenes_dir.mkdir(parents=True)
+    visual = scenes_dir / "s1_visual.mp4"
+    visual.write_bytes(b"visual")
+    scene = Scene(
+        id="s1",
+        section="hook",
+        narration="test",
+        narration_est_sec=1.0,
+        visual={"type": "text_card", "text": "Hook"},
+        overlay=None,
+    )
+    ctx = PipelineContext(
+        project_id=1,
+        source_url="x",
+        locale="zh-TW",
+        work_dir=tmp_path,
+        burn_subtitles=False,
+    )
+    stage = ComposeStage()
+
+    def fake_frame(src, out, *, frame_style, width, height, fps=30):
+        out.write_bytes(b"framed")
+        return out
+
+    def fake_mux(vis, out, aud):
+        out.write_bytes(b"muxed")
+
+    with (
+        patch("pipeline.stages.compose.render_scene", return_value=visual),
+        patch("pipeline.stages.compose.check_overlay_allowed"),
+        patch("pipeline.stages.compose.composite_scene_frame", side_effect=fake_frame) as frame,
+        patch.object(stage, "_mux", side_effect=fake_mux),
+    ):
+        result = await stage._render_one_scene(
+            i=0,
+            scene=scene,
+            scene_dict={
+                "id": "s1",
+                "visual": scene.visual,
+                "overlay": scene.overlay,
+                "compartment": scene.compartment,
+                "narration": scene.narration,
+            },
+            duration=1.0,
+            audio_path=None,
+            width=1280,
+            height=720,
+            scenes_dir=scenes_dir,
+            source_video=None,
+            theme_dict={"frame_style": "open_book_page"},
+            frame_style="open_book_page",
+            ctx=ctx,
+            audio_segments=[],
+        )
+
+    assert result.scene_final.name == "s1_final_open_book_page.mp4"
+    assert result.scene_final_no_overlay.name == "s1_final_no_overlay_open_book_page.mp4"
+    assert frame.call_count == 2
+
+
 async def test_compose_falls_back_to_mvp(sample_context):
     """When no storyboard, use MVP compose."""
     source_dir = sample_context.work_dir / "source"
