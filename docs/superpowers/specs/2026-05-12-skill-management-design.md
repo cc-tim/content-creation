@@ -35,7 +35,7 @@ System-supplied or plugin-supplied skills (`superpowers:*`, `plugin:context7:*`,
 
 ## Architecture
 
-A flat git repo `~/skill-repo/` is the canonical store. User-level skills are exposed to both agents by **symlinking each agent's user-skills directory to the repo's `skills/` subdir** — edits are instantly visible to both. Project-level skills are **snapshot copies** tracked by `.skills.toml`, so a project repo travels self-contained: a clone of `content-creation` works on a machine that doesn't have `~/skill-repo/` checked out.
+A flat git repo `~/skill-repo/` is the canonical store. User-level skills are exposed to both agents by **symlinking each individual skill folder into the agent's user-skills directory** (`~/.claude/skills/<name>` and `~/.codex/skills/<name>` each point at `~/skill-repo/skills/<name>`) — edits are instantly visible to both. Per-skill (not parent-dir) symlinks preserve Codex's auto-managed `~/.codex/skills/.system/` bundled-skills dir. Project-level skills are **snapshot copies** tracked by `.skills.toml`, so a project repo travels self-contained: a clone of `content-creation` works on a machine that doesn't have `~/skill-repo/` checked out.
 
 A single Python CLI (`skill-sync`) handles all operations: search, sync, push, install, migrate, knowledge fetch, doctor.
 
@@ -63,8 +63,8 @@ A single Python CLI (`skill-sync`) handles all operations: search, sync, push, i
 ├── bin/skill-sync                   # CLI entrypoint
 └── README.md
 
-~/.claude/skills/  →  symlink to  ~/skill-repo/skills/
-~/.codex/skills/   →  symlink to  ~/skill-repo/skills/
+~/.claude/skills/<name>  →  symlink to  ~/skill-repo/skills/<name>   # per-skill, not parent-dir
+~/.codex/skills/<name>   →  symlink to  ~/skill-repo/skills/<name>   # per-skill; preserves .system/
 
 # Project layout:
 content-creation/
@@ -265,7 +265,7 @@ For routine ops the agent only sees the CLI's terse output. For analysis-grade t
 
 ## Open questions / future work
 
-- **Path verification.** Doc-fetcher reported Codex user-level path as `~/.agents/skills/`, but installed Codex on this machine uses `~/.codex/skills/`. Confirm during implementation; spec assumes `~/.codex/skills/` until disproven.
+- **Path verification (resolved 2026-05-12).** Codex CLI 0.130.0 on this machine reads from `~/.codex/skills/`. The official OpenAI doc cites `$HOME/.agents/skills` for USER scope, but `~/.agents/` does not exist on disk and Codex actively manages `~/.codex/skills/.system/`. Plan B verified end-to-end: symlinks at `~/.codex/skills/<name>` are picked up by `codex exec`, which listed all 5 user-level skills. Implementation targets `~/.codex/skills/`. If a future Codex version drops support for that path, extend `init_cmd.wire_symlinks` to also write into `~/.agents/skills/`.
 - **Cross-machine sync.** This spec is single-machine. If Tim adds a second workstation, both machines clone the same repo independently. No additional design needed.
 - **Skill quality evals.** Best-practice doc recommends building eval scenarios before each skill. Out of scope for v1 of this management system — but `skill-sync doctor` could grow an "eval status" check later.
 - **Skill versioning beyond sha.** Currently `.skills.toml` pins by sha. Semantic version pinning (`render = "^1.2"`) would need a release tagging convention. Defer.
