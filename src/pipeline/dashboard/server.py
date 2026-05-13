@@ -351,6 +351,10 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         state = load_verifier_state(proj / "verifier_state.json")
         result = run_auto_checks(explainer.manifest, storyboard, state=state)
         item_payloads = [_verifier_item_payload(it) for it in result.items]
+        project_info = next(
+            (p for p in scan_projects(output_root) if p.project_id == project_id),
+            None,
+        )
         return JSONResponse({
             "project_id": project_id,
             "manifest": explainer.manifest.model_dump(),
@@ -358,6 +362,8 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
             "style_items": [it for it in item_payloads if it["category"] == "style_requirement"],
             "content_items": [it for it in item_payloads if it["category"] != "style_requirement"],
             "scenes_overview": scenes_overview,
+            "video_variants": project_info.video_variants if project_info else [],
+            "final_video_url_path": project_info.final_video_url_path if project_info else None,
             "used_count": result.used_count,
             "missing_count": result.missing_count,
             "skipped_count": result.skipped_count,

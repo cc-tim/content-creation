@@ -97,6 +97,7 @@
     <h2>Final video</h2>
     <div class="video-wrap" data-edit-token="" id="video-wrap">
       <video id="video" controls></video>
+      <div id="video-error" class="empty" style="display:none;margin-top:8px"></div>
     </div>
     <h2>Scenes</h2>
     <div id="scenes"></div>
@@ -179,8 +180,23 @@ async function refresh() {
   }
 
   const v = document.getElementById("video");
-  v.src = `/output/${projectId}/compose/final_zh-TW.mp4`;
-  v.onerror = () => { v.style.display = "none"; };
+  const videoError = document.getElementById("video-error");
+  const finalUrl = data.final_video_url_path || (data.video_variants && data.video_variants[0] && data.video_variants[0].url);
+  if (finalUrl) {
+    v.style.display = "";
+    videoError.style.display = "none";
+    v.src = `${finalUrl}${finalUrl.includes("?") ? "&" : "?"}t=${Date.now()}`;
+    v.onerror = () => {
+      v.style.display = "none";
+      videoError.textContent = `Cannot load final video: ${finalUrl}`;
+      videoError.style.display = "";
+    };
+  } else {
+    v.removeAttribute("src");
+    v.style.display = "none";
+    videoError.textContent = "No final video variant found for this project.";
+    videoError.style.display = "";
+  }
   renderScenes(data.scenes_overview || []);
   wireVideoToken(v, data.scenes_overview || []);
 }

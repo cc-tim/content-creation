@@ -83,6 +83,27 @@ def test_status_rendered(tmp_path: Path) -> None:
     assert p.final_video_url_path == "/output/projects/1004/compose/final_zh-TW.mp4"
 
 
+def test_prefers_context_final_video_variant(tmp_path: Path) -> None:
+    final_rel = "compose/final_zh-TW_no_overlay.mp4"
+    _make_project(
+        tmp_path,
+        "1004-variants",
+        ctx_extra={
+            "preferred_variant": "no_overlay",
+            "final_video_path": f"output/projects/1004-variants/{final_rel}",
+        },
+        files=[
+            "compose/final_zh-TW.mp4",
+            final_rel,
+        ],
+    )
+
+    [p] = scan_projects(tmp_path / "output")
+
+    assert p.final_video_url_path == "/output/projects/1004-variants/compose/final_zh-TW_no_overlay.mp4"
+    assert p.video_variants[0]["label"] == "no_overlay"
+
+
 def test_status_published(tmp_path: Path) -> None:
     _make_project(
         tmp_path,

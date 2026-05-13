@@ -57,7 +57,10 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
                 meta = json.loads(meta_file.read_text())
 
         locale: str = ctx.get("locale", "")
-        variants = _find_all_final_videos(project_dir, locale)
+        variants = _order_final_videos(
+            _find_all_final_videos(project_dir, locale),
+            ctx,
+        )
         has_video = len(variants) > 0
         video_variants = [
             {"label": label, "url": "/output/" + str(path.relative_to(output_dir))}
@@ -162,6 +165,27 @@ def _find_all_final_videos(project_dir: Path, locale: str) -> list[tuple[str, Pa
     # canonical "final" variant first
     results.sort(key=lambda x: (x[0] != "final", x[0]))
     return results
+
+
+def _order_final_videos(
+    variants: list[tuple[str, Path]],
+    ctx: dict[str, object],
+) -> list[tuple[str, Path]]:
+    """Prefer the variant recorded in context over stale canonical finals."""
+    preferred = ctx.get("preferred_variant")
+    preferred_label = "final" if preferred == "plain" else str(preferred or "")
+    final_video_path = ctx.get("final_video_path")
+    final_name = Path(str(final_video_path)).name if final_video_path else ""
+
+    return sorted(
+        variants,
+        key=lambda item: (
+            bool(final_name) and item[1].name != final_name,
+            bool(preferred_label) and item[0] != preferred_label,
+            item[0] != "final",
+            item[0],
+        ),
+    )
 
 
 def _load_json(path: Path) -> dict[str, object]:

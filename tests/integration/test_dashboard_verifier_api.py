@@ -13,6 +13,19 @@ def project_dir(tmp_path: Path) -> Path:
     proj = proj_root / "abc123"
     (proj / "source").mkdir(parents=True)
     (proj / "compose").mkdir()
+    final_path = proj / "compose" / "final_zh-TW_no_overlay.mp4"
+    final_path.write_bytes(b"not a real mp4, but enough for dashboard discovery")
+    (proj / "context.json").write_text(
+        json.dumps(
+            {
+                "project_id": "abc123",
+                "locale": "zh-TW",
+                "preferred_variant": "no_overlay",
+                "final_video_path": str(final_path),
+            }
+        ),
+        encoding="utf-8",
+    )
 
     (proj / "source" / "explainer.md").write_text(
         """---
@@ -56,6 +69,8 @@ def test_get_verify_returns_manifest_and_items(project_dir: Path):
     assert any(it["item_id"] == "required_image:0" and it["status"] == "used" for it in data["items"])
     assert data["used_count"] == 2
     assert data["missing_count"] == 0
+    assert data["final_video_url_path"] == "/output/projects/abc123/compose/final_zh-TW_no_overlay.mp4"
+    assert data["video_variants"][0]["label"] == "no_overlay"
 
 
 def test_get_verify_unknown_project_returns_404(project_dir: Path):
