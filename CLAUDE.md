@@ -1,3 +1,7 @@
+---
+skill-repo: git@github.com:timhuang1018/skill-repo.git
+---
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
