@@ -39,3 +39,9 @@ Improvements and features to revisit after the v2 compose engine is stable.
 - [ ] **Interactive storyboard editor** — Rich TUI or browser-based storyboard viewer/editor.
 - [ ] **Voice preview** — Generate TTS for a single scene to preview before full render.
 - [ ] **Batch produce** — Process multiple URLs from a candidate list in sequence.
+
+## Skill Management (skill-repo)
+
+- [ ] **Project-skill migration** — Migrate `content-creation/skills/` (15 skills) into `~/skill-repo` using `skill-sync push` + `skill-sync install --scope project`. Per-skill human decision: repo-managed vs project-private. Generates `.skills.toml`. Plans A–E complete; this is the last unblocked follow-up.
+- [ ] **knowledge.py `<main>` selection** (Plan A #6, low priority) — Apply `<main>` CSS selector before markdownify on `developers.openai.com`; strip `\[​\]\(#[^)]+\)` anchors on `claude.com`. Reduces noise in KNOWLEDGE/ docs.
+- [ ] **Split `fetch_one` into fetch-and-hash vs write** (Plan A #7, low priority) — Eliminate mtime churn on unchanged KNOWLEDGE/ content by only writing when sha changes.
