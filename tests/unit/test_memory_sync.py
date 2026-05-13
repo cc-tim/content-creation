@@ -98,3 +98,83 @@ def test_check_doctor_flags_missing_frontmatter(tmp_path):
     am = make_agent_memory(tmp_path, lines, {"feedback/a.md": "# No frontmatter\n\nsome text\n"})
     violations = ms.check_doctor(am, ms.Config())
     assert any("frontmatter" in v for v in violations)
+
+
+def test_init_creates_typed_subdirs(tmp_path):
+    project = tmp_path / "myproject"
+    project.mkdir()
+    native_slug = str(project).replace("/", "-")
+    native_mem = tmp_path / ".claude" / "projects" / native_slug / "memory"
+    native_mem.mkdir(parents=True)
+    (native_mem / "feedback_test.md").write_text(
+        "---\nname: test\ndescription: test\nmetadata:\n  type: feedback\n---\n\nContent.\n"
+    )
+    (native_mem / "MEMORY.md").write_text(
+        "# Memory Index\n- [feedback_test.md](feedback_test.md) — a test entry\n"
+    )
+
+    ms.cmd_init(project, claude_home=tmp_path / ".claude")
+
+    agent_memory = project / ".agent-memory"
+    assert agent_memory.is_dir()
+    for subdir in ("feedback", "project", "reference", "user", "codex", "archive"):
+        assert (agent_memory / subdir).is_dir()
+    assert (agent_memory / "MEMORY.md").exists()
+    assert (agent_memory / "config.yml").exists()
+
+
+def test_init_creates_symlink(tmp_path):
+    project = tmp_path / "myproject"
+    project.mkdir()
+    native_slug = str(project).replace("/", "-")
+    native_mem = tmp_path / ".claude" / "projects" / native_slug / "memory"
+    native_mem.mkdir(parents=True)
+    (native_mem / "MEMORY.md").write_text("# Memory Index\n")
+
+    ms.cmd_init(project, claude_home=tmp_path / ".claude")
+
+    link = tmp_path / ".claude" / "projects" / native_slug / "memory"
+    assert link.is_symlink()
+    assert link.resolve() == (project / ".agent-memory").resolve()
+
+
+def test_init_migrates_files_to_typed_subdirs(tmp_path):
+    project = tmp_path / "myproject"
+    project.mkdir()
+    native_slug = str(project).replace("/", "-")
+    native_mem = tmp_path / ".claude" / "projects" / native_slug / "memory"
+    native_mem.mkdir(parents=True)
+    (native_mem / "feedback_wording.md").write_text(
+        "---\nname: wording\ndescription: wording rule\nmetadata:\n  type: feedback\n---\n\nDo X.\n\n**Why:** reason\n\n**How to apply:** always\n"
+    )
+    (native_mem / "project_pipeline.md").write_text(
+        "---\nname: pipeline\ndescription: pipeline facts\nmetadata:\n  type: project\n---\n\nFact.\n"
+    )
+    (native_mem / "MEMORY.md").write_text(
+        "# Memory Index\n"
+        "- [feedback_wording.md](feedback_wording.md) — wording rule\n"
+        "- [project_pipeline.md](project_pipeline.md) — pipeline facts\n"
+    )
+
+    ms.cmd_init(project, claude_home=tmp_path / ".claude")
+    am = project / ".agent-memory"
+
+    assert (am / "feedback" / "feedback_wording.md").exists()
+    assert (am / "project" / "project_pipeline.md").exists()
+    idx = ms.load_index(am)
+    paths = [e.path for e in idx.live_entries]
+    assert "feedback/feedback_wording.md" in paths
+    assert "project/project_pipeline.md" in paths
+
+
+def test_init_is_idempotent(tmp_path):
+    project = tmp_path / "myproject"
+    project.mkdir()
+    native_slug = str(project).replace("/", "-")
+    native_mem = tmp_path / ".claude" / "projects" / native_slug / "memory"
+    native_mem.mkdir(parents=True)
+    (native_mem / "MEMORY.md").write_text("# Memory Index\n")
+
+    ms.cmd_init(project, claude_home=tmp_path / ".claude")
+    ms.cmd_init(project, claude_home=tmp_path / ".claude")  # second call must not raise
+    assert (project / ".agent-memory").is_dir()
