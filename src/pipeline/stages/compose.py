@@ -105,6 +105,7 @@ def _render_book_start_cover(width: int, height: int, title: str) -> Image.Image
             outline=(213, 160, 71, alpha),
             width=max(2, int(width * 0.002)),
         )
+    _draw_gold_cover_ornaments(draw, cover, width, height)
     draw.rectangle(
         (
             int(width * 0.055),
@@ -137,15 +138,66 @@ def _draw_cover_grain(draw: ImageDraw.ImageDraw, cover: tuple[int, int, int, int
         )
 
 
+def _draw_gold_cover_ornaments(
+    draw: ImageDraw.ImageDraw,
+    cover: tuple[int, int, int, int],
+    width: int,
+    height: int,
+) -> None:
+    x0, y0, x1, y1 = cover
+    cx = (x0 + x1) // 2
+    top_y = y0 + int((y1 - y0) * 0.22)
+    bot_y = y1 - int((y1 - y0) * 0.22)
+    gold = (223, 168, 70, 150)
+    bright = (255, 229, 128, 130)
+    for y in (top_y, bot_y):
+        draw.line([(cx - int(width * 0.21), y), (cx + int(width * 0.21), y)], fill=gold, width=2)
+        draw.line([(cx - int(width * 0.15), y + 8), (cx + int(width * 0.15), y + 8)], fill=bright, width=1)
+        draw.ellipse((cx - 7, y - 7, cx + 7, y + 7), outline=bright, width=2)
+        for side in (-1, 1):
+            start = cx + side * int(width * 0.24)
+            draw.arc(
+                (start - 44, y - 18, start + 44, y + 18),
+                205 if side < 0 else -25,
+                335 if side < 0 else 155,
+                fill=gold,
+                width=2,
+            )
+    corner_pad = int(min(width, height) * 0.035)
+    for sx, sy in ((x0, y0), (x1, y0), (x0, y1), (x1, y1)):
+        side_x = 1 if sx == x0 else -1
+        side_y = 1 if sy == y0 else -1
+        origin = (sx + side_x * corner_pad, sy + side_y * corner_pad)
+        draw.line(
+            [origin, (origin[0] + side_x * int(width * 0.055), origin[1])],
+            fill=gold,
+            width=2,
+        )
+        draw.line(
+            [origin, (origin[0], origin[1] + side_y * int(height * 0.055))],
+            fill=gold,
+            width=2,
+        )
+        draw.ellipse(
+            (
+                origin[0] - 4,
+                origin[1] - 4,
+                origin[0] + 4,
+                origin[1] + 4,
+            ),
+            fill=bright,
+        )
+
+
 def _draw_gold_title(canvas: Image.Image, cover: tuple[int, int, int, int], title: str) -> None:
     x0, y0, x1, y1 = cover
     title = _display_book_title(title)
-    font_size = max(34, int(canvas.height * 0.07))
+    font_size = max(42, int(canvas.height * 0.082))
     small_size = max(16, int(canvas.height * 0.028))
     font = _title_font(font_size)
     small = _title_font(small_size)
     draw = ImageDraw.Draw(canvas, "RGBA")
-    lines = _wrap_title_lines(title, font, max_width=int((x1 - x0) * 0.68), max_lines=3)
+    lines = _wrap_title_lines(title, font, max_width=int((x1 - x0) * 0.76), max_lines=3)
     total_h = sum(_text_size(draw, line, font)[1] for line in lines)
     total_h += max(8, int(font_size * 0.20)) * (len(lines) - 1)
     start_y = y0 + (y1 - y0 - total_h) // 2 - int(canvas.height * 0.025)
@@ -155,8 +207,10 @@ def _draw_gold_title(canvas: Image.Image, cover: tuple[int, int, int, int], titl
         tw, th = _text_size(draw, line, font)
         x = x0 + (x1 - x0 - tw) // 2
         y = start_y + idx * (th + max(8, int(font_size * 0.20)))
-        draw.text((x + 4, y + 5), line, font=font, fill=(33, 18, 5, 180))
-        draw.text((x, y), line, font=font, fill=(194, 132, 36, 255))
+        draw.text((x + 5, y + 6), line, font=font, fill=(28, 14, 4, 190))
+        for ox, oy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            draw.text((x + ox, y + oy), line, font=font, fill=(116, 70, 18, 230))
+        draw.text((x, y), line, font=font, fill=(214, 150, 41, 255))
         draw.text((x + 1, y - 2), line, font=font, fill=(255, 234, 139, 220))
         shine_draw.text((x, y - 1), line, font=font, fill=(255, 246, 180, 120))
     shine = shine.filter(ImageFilter.GaussianBlur(radius=max(1, int(canvas.width * 0.002))))
@@ -1122,7 +1176,7 @@ class ComposeStage(PipelineStage):
     ) -> Path:
         title = _book_start_title(compose_dir)
         title_key = hashlib.sha1(title.encode("utf-8")).hexdigest()[:8]
-        output = compose_dir / f"book_start_plate_v2_{duration:.2f}_{title_key}.mp4"
+        output = compose_dir / f"book_start_plate_v3_{duration:.2f}_{title_key}.mp4"
         if output.exists():
             return output
         cover = _render_book_start_cover(width, height, title)

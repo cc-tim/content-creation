@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -82,8 +83,6 @@ def render_book_page_turn_v2(
     sfx: str | None = None,
 ) -> Path:
     spec = BookSceneSpec.open_book(width, height)
-    work = out.parent / f"{out.stem}_frames"
-    work.mkdir(parents=True, exist_ok=True)
     total_frames = max(2, int(round(duration_sec * fps)))
 
     image_a = _fit_canvas(Image.open(frame_a).convert("RGBA"), width, height)
@@ -91,41 +90,47 @@ def render_book_page_turn_v2(
     blank_page = _blank_book_canvas(spec)
     flip_count = max(1, min(8, int(page_count)))
 
-    for idx in range(total_frames):
-        raw = idx / max(1, total_frames - 1)
-        if flip_count <= 2:
-            progress = _ease_in_out_cubic(raw)
-            frame = _render_page_turn_frame(
-                image_a,
-                image_b,
-                spec=spec,
-                progress=progress,
-                raw_progress=raw,
-                page_count=flip_count,
-            )
-        else:
-            scaled = min(raw * flip_count, flip_count - 0.0001)
-            flip_idx = int(scaled)
-            local_raw = scaled - flip_idx
-            progress = _ease_in_out_cubic(local_raw)
-            source = image_a if flip_idx == 0 else blank_page
-            under = image_b if flip_idx == flip_count - 1 else _early_destination_page(
-                blank_page,
-                image_b,
-                raw,
-            )
-            frame = _render_page_turn_frame(
-                source,
-                under,
-                spec=spec,
-                progress=progress,
-                raw_progress=local_raw,
-                page_count=1,
-            )
-            _draw_page_stack_count(frame, spec, remaining=flip_count - flip_idx - 1)
-        frame.convert("RGB").save(work / f"frame_{idx:05d}.png", optimize=False)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=f"{out.stem}_frames_", dir=out.parent) as tmp:
+        work = Path(tmp)
+        for idx in range(total_frames):
+            raw = idx / max(1, total_frames - 1)
+            if flip_count <= 2:
+                progress = _ease_in_out_cubic(raw)
+                frame = _render_page_turn_frame(
+                    image_a,
+                    image_b,
+                    spec=spec,
+                    progress=progress,
+                    raw_progress=raw,
+                    page_count=flip_count,
+                )
+            else:
+                scaled = min(raw * flip_count, flip_count - 0.0001)
+                flip_idx = int(scaled)
+                local_raw = scaled - flip_idx
+                progress = _ease_in_out_cubic(local_raw)
+                source = image_a if flip_idx == 0 else _early_destination_page(
+                    blank_page,
+                    image_b,
+                    min(1.0, raw + 0.12),
+                )
+                under = image_b if flip_idx == flip_count - 1 else _early_destination_page(
+                    blank_page,
+                    image_b,
+                    min(1.0, raw + 0.24),
+                )
+                frame = _render_page_turn_frame(
+                    source,
+                    under,
+                    spec=spec,
+                    progress=progress,
+                    raw_progress=local_raw,
+                    page_count=1,
+                )
+                _draw_page_stack_count(frame, spec, remaining=flip_count - flip_idx - 1)
+            frame.convert("RGB").save(work / f"frame_{idx:05d}.png", optimize=False)
 
-    try:
         _encode_frame_sequence(
             work / "frame_%05d.png",
             out,
@@ -133,10 +138,6 @@ def render_book_page_turn_v2(
             duration_sec=duration_sec,
             sfx=sfx,
         )
-    finally:
-        for frame in work.glob("frame_*.png"):
-            frame.unlink(missing_ok=True)
-        work.rmdir()
     return out
 
 
@@ -268,30 +269,30 @@ def _draw_soft_gutter(canvas: Image.Image, spec: BookSceneSpec) -> None:
     draw = ImageDraw.Draw(shadow, "RGBA")
     draw.line(
         [(gutter_x, page.y + 14), (gutter_x, page.y + page.h - 14)],
-        fill=(108, 77, 38, 34),
+        fill=(129, 112, 76, 16),
         width=max(1, int(spec.width * 0.002)),
     )
-    shadow = shadow.filter(ImageFilter.GaussianBlur(radius=max(3, int(spec.width * 0.006))))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(radius=max(5, int(spec.width * 0.010))))
     canvas.alpha_composite(shadow)
     draw = ImageDraw.Draw(canvas, "RGBA")
     draw.line(
         [(gutter_x - 2, page.y + 18), (gutter_x - 2, page.y + page.h - 18)],
-        fill=(255, 247, 219, 28),
+        fill=(255, 250, 228, 18),
         width=1,
     )
     draw.line(
         [(gutter_x + 2, page.y + 18), (gutter_x + 2, page.y + page.h - 18)],
-        fill=(141, 105, 58, 22),
+        fill=(171, 143, 92, 12),
         width=1,
     )
 
 
 def _early_destination_page(blank_page: Image.Image, image_b: Image.Image, raw_progress: float) -> Image.Image:
-    reveal = min(1.0, max(0.0, (raw_progress - 0.36) / 0.46))
+    reveal = min(1.0, max(0.0, (raw_progress - 0.22) / 0.58))
     if reveal <= 0:
         return blank_page
     eased = _ease_in_out_cubic(reveal)
-    return Image.blend(blank_page, image_b, min(0.82, eased * 0.82))
+    return Image.blend(blank_page, image_b, min(0.90, eased * 0.90))
 
 
 def _draw_page_stack_count(canvas: Image.Image, spec: BookSceneSpec, *, remaining: int) -> None:
@@ -371,7 +372,7 @@ def _draw_trailing_blank_sheets(
             (x, page.y - 3, x + sheet_w, page.y + page.h + 3),
             radius=3,
             fill=(252, 241, 214, alpha),
-            outline=(135, 91, 43, min(90, alpha + 20)),
+            outline=(184, 154, 100, min(54, alpha + 10)),
             width=1,
         )
 
@@ -388,9 +389,9 @@ def _draw_contact_shadow(canvas: Image.Image, spec: BookSceneSpec, progress: flo
     quad = _sheet_quad(page, center_x, sheet_w, skew, lift)
 
     mask = Image.new("L", (spec.width, spec.height), 0)
-    ImageDraw.Draw(mask).polygon(quad, fill=int(135 * curve))
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=max(4, int(spec.width * 0.012))))
-    shadow = Image.new("RGBA", (spec.width, spec.height), (26, 18, 11, 0))
+    ImageDraw.Draw(mask).polygon(quad, fill=int(78 * curve))
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=max(6, int(spec.width * 0.016))))
+    shadow = Image.new("RGBA", (spec.width, spec.height), (42, 36, 28, 0))
     shadow.putalpha(mask)
     canvas.alpha_composite(shadow)
 
@@ -403,13 +404,13 @@ def _shade_turning_page(page_image: Image.Image, progress: float) -> Image.Image
     draw = ImageDraw.Draw(overlay, "RGBA")
     for x in range(w):
         nx = x / max(1, w - 1)
-        edge_shadow = int(100 * curve * nx)
+        edge_shadow = int(58 * curve * nx)
         back_tint = int(42 * curve * (1.0 - abs(nx - 0.58)))
         highlight = int(58 * curve * max(0.0, 1.0 - abs(nx - 0.32) / 0.13))
         if back_tint:
             draw.line((x, 0, x, h), fill=(245, 218, 166, back_tint))
         if edge_shadow:
-            draw.line((x, 0, x, h), fill=(34, 22, 12, edge_shadow))
+            draw.line((x, 0, x, h), fill=(64, 55, 43, edge_shadow))
         if highlight:
             draw.line((x, 0, x, h), fill=(255, 250, 225, highlight))
     return Image.alpha_composite(page, overlay)
@@ -452,8 +453,8 @@ def _draw_page_edges(canvas: Image.Image, spec: BookSceneSpec, progress: float) 
     lift = page.h * 0.035 * curve
     quad = _sheet_quad(page, center_x, sheet_w, skew, lift)
     draw = ImageDraw.Draw(canvas, "RGBA")
-    draw.line([quad[0], quad[3]], fill=(255, 248, 224, int(180 * curve)), width=2)
-    draw.line([quad[1], quad[2]], fill=(47, 29, 14, int(145 * curve)), width=2)
+    draw.line([quad[0], quad[3]], fill=(255, 249, 229, int(145 * curve)), width=2)
+    draw.line([quad[1], quad[2]], fill=(122, 99, 63, int(78 * curve)), width=2)
 
 
 def _sheet_quad(

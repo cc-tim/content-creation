@@ -13,6 +13,7 @@ allows, or `book-page-turn` for the faster basic generated path.
 from __future__ import annotations
 
 import hashlib
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -25,6 +26,8 @@ from pipeline.utils.ffmpeg import run_ffmpeg
 
 logger = structlog.get_logger()
 _REPO_ROOT = Path(__file__).resolve().parents[3]
+_CACHE_LOCKS_GUARD = threading.Lock()
+_CACHE_LOCKS: dict[str, threading.Lock] = {}
 
 SUPPORTED_STYLES: set[str] = {
     "none",
@@ -42,12 +45,22 @@ BOOK_PAGE_STYLES: set[str] = {
     "stock-book-page-turn",
 }
 MAX_BOOK_PAGE_COUNT = 8
-BOOK_PAGE_TURN_V2_RENDER_VERSION = "book-page-turn-v2.3"
+BOOK_PAGE_TURN_V2_RENDER_VERSION = "book-page-turn-v2.5"
 SUPPORTED_RENDERER_MODES: set[str] = {
     "generated",
     "licensed_clip",
     "overlay",
 }
+
+
+def _transition_cache_lock(out: Path) -> threading.Lock:
+    key = str(out)
+    with _CACHE_LOCKS_GUARD:
+        lock = _CACHE_LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _CACHE_LOCKS[key] = lock
+        return lock
 
 
 @dataclass(frozen=True)
@@ -643,21 +656,22 @@ def render_transition(
     cache_dir.mkdir(parents=True, exist_ok=True)
     key = transition_cache_key(scene_a, scene_b, cfg)
     out = cache_dir / f"{key}.mp4"
-    if out.exists():
-        logger.info("transition.cache_hit", key=key, style=cfg.style)
-        return out
-    logger.info(
-        "transition.render",
-        key=key,
-        style=cfg.style,
-        renderer_mode=cfg.effective_renderer_mode,
-        duration=cfg.duration_sec,
-        asset_path=cfg.asset_path,
-    )
-    if cfg.effective_renderer_mode == "licensed_clip":
-        renderer: TransitionRenderer = LicensedClipRenderer()
-    elif cfg.effective_renderer_mode == "overlay":
-        renderer = OverlayAssetRenderer()
-    else:
-        renderer = _generated_renderer(cfg.normalized_style)
-    return renderer.render(scene_a, scene_b, cfg, out, width=width, height=height, fps=fps)
+    with _transition_cache_lock(out):
+        if out.exists():
+            logger.info("transition.cache_hit", key=key, style=cfg.style)
+            return out
+        logger.info(
+            "transition.render",
+            key=key,
+            style=cfg.style,
+            renderer_mode=cfg.effective_renderer_mode,
+            duration=cfg.duration_sec,
+            asset_path=cfg.asset_path,
+        )
+        if cfg.effective_renderer_mode == "licensed_clip":
+            renderer: TransitionRenderer = LicensedClipRenderer()
+        elif cfg.effective_renderer_mode == "overlay":
+            renderer = OverlayAssetRenderer()
+        else:
+            renderer = _generated_renderer(cfg.normalized_style)
+        return renderer.render(scene_a, scene_b, cfg, out, width=width, height=height, fps=fps)

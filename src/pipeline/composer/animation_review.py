@@ -457,7 +457,7 @@ def build_findings(
             ))
 
         center_ratio = float(stats.get("center_brown_column_ratio", 0.0))
-        if center_ratio > 0.18:
+        if center_ratio > 0.30:
             center = max(frame_metrics, key=lambda m: m.center_brown_score)
             findings.append(ReviewFinding(
                 "warn",
@@ -468,7 +468,7 @@ def build_findings(
                 "Narrow or soften the gutter, match it to paper tone, or hide it with page texture/shadow continuity.",
             ))
 
-        late_cutoff = len(delta_metrics) * 0.70
+        late_cutoff = len(delta_metrics) * 0.80
         late_spikes = [
             m for idx, m in enumerate(delta_metrics)
             if idx >= late_cutoff and m.mean_abs_delta > float(stats["spike_threshold"])
@@ -490,7 +490,7 @@ def build_findings(
             sum(1 for m in early_frames if m.brown_cover_like) / max(1, len(early_frames))
         )
         title_detail = max((m.edge_mean for m in early_frames), default=0.0)
-        if cover_ratio > 0.55 and title_detail < 20.0:
+        if cover_ratio > 0.55 and title_detail < 18.0:
             findings.append(ReviewFinding(
                 "warn",
                 early_frames[0].frame if early_frames else None,
@@ -760,7 +760,15 @@ def _center_brown_score(image: Image.Image) -> float:
     right_rgb = _rgb_mean(right)
     side_luma = (_luma(left_rgb) + _luma(right_rgb)) / 2
     center_luma = _luma(c)
+    center_std = float(ImageStat.Stat(center.convert("L")).stddev[0])
     brown_chroma = max(0.0, c[0] - c[2]) * 0.25 + max(0.0, c[0] - c[1]) * 0.15
+    if (
+        not (c[0] > c[1] > c[2])
+        or center_luma < 38.0
+        or brown_chroma < 8.0
+        or center_std > 36.0
+    ):
+        return 0.0
     return max(0.0, side_luma - center_luma) + brown_chroma
 
 

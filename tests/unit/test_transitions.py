@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -440,6 +442,41 @@ def test_render_transition_caches_result(tmp_path: Path):
     p2 = render_transition(a, b, cfg, cache_dir, width=320, height=180, fps=30)
     assert p2 == p1
     assert p2.stat().st_mtime == mtime1  # not re-rendered
+
+
+def test_render_transition_serializes_duplicate_cache_renders(tmp_path: Path, monkeypatch):
+    a = tmp_path / "a.mp4"
+    b = tmp_path / "b.mp4"
+    a.write_bytes(b"same-a")
+    b.write_bytes(b"same-b")
+    cache_dir = tmp_path / "cache"
+    cfg = TransitionConfig(style="fade", duration_sec=0.5, sfx=None)
+    calls = 0
+
+    class SlowRenderer:
+        def render(self, scene_a, scene_b, cfg, out, *, width, height, fps):
+            nonlocal calls
+            calls += 1
+            time.sleep(0.05)
+            out.write_bytes(b"clip")
+            return out
+
+    monkeypatch.setattr(
+        "pipeline.composer.transitions._generated_renderer",
+        lambda style: SlowRenderer(),
+    )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(
+            executor.map(
+                lambda _: render_transition(a, b, cfg, cache_dir, width=320, height=180, fps=30),
+                range(2),
+            )
+        )
+
+    assert results[0] == results[1]
+    assert results[0] is not None and results[0].read_bytes() == b"clip"
+    assert calls == 1
 
 
 def test_book_page_turn_v2_renderer_emits_clip(tmp_path: Path):

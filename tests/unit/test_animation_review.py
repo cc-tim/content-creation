@@ -44,6 +44,29 @@ def test_transition_findings_flag_blank_page_and_center_column(tmp_path: Path) -
     assert "center_brown_column_artifact" in finding_types
 
 
+def test_center_column_detector_ignores_black_scene_matte(tmp_path: Path) -> None:
+    frames: list[Path] = []
+    for idx in range(12):
+        path = tmp_path / "frames" / f"frame_{idx:05d}.png"
+        _write_frame(path, (236, 224, 192))
+        image = Image.open(path).convert("RGB")
+        draw = ImageDraw.Draw(image)
+        draw.rectangle((76, 10, 84, 80), fill=(12, 12, 12))
+        image.save(path)
+        frames.append(path)
+
+    frame_metrics, delta_metrics = compute_metrics(frames, fps=30)
+    stats = summarize_metrics(frame_metrics, delta_metrics)
+    findings = build_findings(
+        ReviewTarget("s1_s2", tmp_path / "clip.mp4", "transition"),
+        frame_metrics,
+        delta_metrics,
+        stats,
+    )
+
+    assert "center_brown_column_artifact" not in {finding.type for finding in findings}
+
+
 def test_intro_findings_flag_empty_brown_cover(tmp_path: Path) -> None:
     frames: list[Path] = []
     for idx in range(10):
