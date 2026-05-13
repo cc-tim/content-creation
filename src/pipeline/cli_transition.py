@@ -18,11 +18,11 @@ from pipeline.storyboard import Storyboard, Transition
 transition_app = typer.Typer(name="transition", help="Per-seam transition commands")
 
 
-def _resolve_work_dir(project_id: int) -> Path:
+def _resolve_work_dir(project_id: int | str) -> Path:
     return PipelineConfig().OUTPUT_DIR / "projects" / str(project_id)
 
 
-def _load_storyboard(project_id: int) -> tuple[Path, Storyboard]:
+def _load_storyboard(project_id: int | str) -> tuple[Path, Storyboard]:
     work = _resolve_work_dir(project_id)
     sb_path = work / "storyboard.json"
     if not sb_path.exists():
@@ -222,3 +222,82 @@ def clear_transition(
         to_scene=to_scene,
     )
     typer.echo(summary)
+
+
+@transition_app.command("review")
+def review_transition_animation(
+    project_id: str | None = typer.Option(
+        None,
+        "--project-id",
+        help="Project id to review from output/projects/<id>.",
+    ),
+    clip: Path | None = typer.Option(
+        None,
+        "--clip",
+        help="Review one standalone transition/scene clip instead of a project.",
+    ),
+    label: str = typer.Option("clip", "--label", help="Label for --clip output."),
+    first: int = typer.Option(4, "--first", help="Number of transition clips to review."),
+    include_scenes: bool = typer.Option(
+        False,
+        "--include-scenes/--no-include-scenes",
+        help="Also review the first scene clips for static-hold or in-scene motion issues.",
+    ),
+    first_scenes: int = typer.Option(3, "--first-scenes", help="Number of scenes to review."),
+    out_dir: Path | None = typer.Option(
+        None,
+        "--out-dir",
+        help="Output directory for review artifacts.",
+    ),
+    variant: str = typer.Option(
+        "no_overlay",
+        "--variant",
+        help="Scene variant used to resolve transition cache keys: no_overlay or final.",
+    ),
+    max_samples: int = typer.Option(
+        18,
+        "--max-samples",
+        help="Maximum sampled frames per contact sheet.",
+    ),
+) -> None:
+    """Generate agent-readable animation review artifacts and metrics."""
+    from pipeline.composer.animation_review import (
+        ReviewTarget,
+        review_project,
+        review_targets,
+    )
+
+    if clip is not None:
+        output = out_dir or Path("tmp") / "animation-review"
+        reviews = review_targets(
+            [ReviewTarget(label, clip, "clip")],
+            output,
+            max_samples=max_samples,
+        )
+    else:
+        if project_id is None:
+            typer.echo("--project-id or --clip is required", err=True)
+            raise typer.Exit(code=1)
+        project_root = _resolve_work_dir(project_id)
+        if not (project_root / "storyboard.json").exists():
+            typer.echo(f"storyboard.json not found at {project_root}", err=True)
+            raise typer.Exit(code=1)
+        reviews = review_project(
+            project_root,
+            first=first,
+            include_scenes=include_scenes,
+            first_scenes=first_scenes,
+            out_dir=out_dir,
+            variant=variant,
+            max_samples=max_samples,
+        )
+
+    summary_path = Path(reviews[0].artifacts["metrics_json"]).parents[1] / "summary.md"
+    typer.echo(f"animation review: {len(reviews)} clip(s)")
+    typer.echo(f"summary: {summary_path}")
+    for review in reviews:
+        finding_count = len(review.findings)
+        typer.echo(
+            f"{review.label}: {review.agent_review_status} "
+            f"({finding_count} finding{'s' if finding_count != 1 else ''})"
+        )

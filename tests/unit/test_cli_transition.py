@@ -223,3 +223,56 @@ def test_apply_clear_transition_returns_noop_summary_when_absent(project_tree: P
 
     summary = apply_clear_transition(project_id=42, from_scene="s1", to_scene="s2")
     assert "no transition" in summary.lower() or "nothing" in summary.lower()
+
+
+def test_review_requires_project_or_clip() -> None:
+    runner = CliRunner()
+    result = runner.invoke(transition_app, ["review"])
+
+    assert result.exit_code != 0
+    assert "--project-id or --clip is required" in result.output
+
+
+def test_review_clip_invokes_animation_review(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from pipeline.composer.animation_review import ClipReview
+
+    clip = tmp_path / "clip.mp4"
+    clip.write_bytes(b"video")
+    called: dict[str, object] = {}
+
+    def _fake_review_targets(targets, out_dir, *, max_samples=18, scale_width=320):
+        called["targets"] = targets
+        called["out_dir"] = out_dir
+        called["max_samples"] = max_samples
+        metrics_json = out_dir / "my_clip" / "metrics.json"
+        metrics_json.parent.mkdir(parents=True)
+        metrics_json.write_text("{}")
+        return [
+            ClipReview(
+                label="my_clip",
+                clip=str(clip),
+                kind="clip",
+                duration_sec=1.0,
+                fps=30.0,
+                frame_count=30,
+                technical_status="pass",
+                motion_status="pass",
+                agent_review_status="pass",
+                confidence="high",
+                stats={},
+                findings=[],
+                artifacts={"metrics_json": str(metrics_json)},
+            )
+        ]
+
+    monkeypatch.setattr("pipeline.composer.animation_review.review_targets", _fake_review_targets)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        transition_app,
+        ["review", "--clip", str(clip), "--label", "my_clip", "--out-dir", str(tmp_path / "out")],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "animation review: 1 clip(s)" in result.output
+    assert called["max_samples"] == 18
