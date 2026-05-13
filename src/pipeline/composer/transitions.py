@@ -45,12 +45,13 @@ BOOK_PAGE_STYLES: set[str] = {
     "stock-book-page-turn",
 }
 MAX_BOOK_PAGE_COUNT = 8
-BOOK_PAGE_TURN_V2_RENDER_VERSION = "book-page-turn-v2.6"
+BOOK_PAGE_TURN_V2_RENDER_VERSION = "book-page-turn-v2.7"
 SUPPORTED_RENDERER_MODES: set[str] = {
     "generated",
     "licensed_clip",
     "overlay",
 }
+SUPPORTED_PAGE_SURFACES: set[str] = {"destination_preview", "calligraphy_texture"}
 
 
 def _transition_cache_lock(out: Path) -> threading.Lock:
@@ -77,6 +78,7 @@ class TransitionConfig:
     asset_source_url: str | None = None
     asset_license: str | None = None
     asset_notes: str | None = None
+    page_surface: str | None = None
 
     def __post_init__(self) -> None:
         if self.style not in SUPPORTED_STYLES:
@@ -91,6 +93,14 @@ class TransitionConfig:
             )
         if self.page_count is not None and not 1 <= self.page_count <= MAX_BOOK_PAGE_COUNT:
             raise ValueError(f"page_count must be between 1 and {MAX_BOOK_PAGE_COUNT}")
+        if self.page_surface is not None:
+            if self.page_surface not in SUPPORTED_PAGE_SURFACES:
+                raise ValueError(
+                    f"Unknown transition page_surface: {self.page_surface!r}. "
+                    f"Supported: {sorted(SUPPORTED_PAGE_SURFACES)}"
+                )
+            if self.style not in BOOK_PAGE_STYLES:
+                raise ValueError("page_surface is only supported for book-page-turn styles")
         if self.effective_renderer_mode != "generated" and not self.asset_path:
             raise ValueError("asset_path is required when renderer_mode is licensed_clip or overlay")
 
@@ -107,6 +117,7 @@ class TransitionConfig:
             asset_source_url=t.asset_source_url,
             asset_license=t.asset_license,
             asset_notes=t.asset_notes,
+            page_surface=t.page_surface,
         )
 
     @property
@@ -122,6 +133,12 @@ class TransitionConfig:
         if self.style == "stock-book-page-turn":
             return "book-page-turn"
         return self.style
+
+    @property
+    def effective_page_surface(self) -> str:
+        if self.style in BOOK_PAGE_STYLES:
+            return self.page_surface or "destination_preview"
+        return ""
 
 
 class TransitionRenderer(Protocol):
@@ -424,6 +441,7 @@ class BookPageTurnV2Renderer:
                 fps=fps,
                 duration_sec=cfg.duration_sec,
                 page_count=cfg.page_count or 2,
+                page_surface=cfg.effective_page_surface,
                 sfx=cfg.sfx,
             )
         finally:
@@ -620,6 +638,7 @@ def transition_cache_key(scene_a: Path, scene_b: Path, cfg: TransitionConfig) ->
     h.update(f"{cfg.duration_sec:.4f}".encode())
     h.update((cfg.sfx or "").encode())
     h.update(str(cfg.page_count or "").encode())
+    h.update(cfg.effective_page_surface.encode())
     if cfg.style == "book-page-turn-v2":
         h.update(BOOK_PAGE_TURN_V2_RENDER_VERSION.encode())
     if cfg.asset_path:

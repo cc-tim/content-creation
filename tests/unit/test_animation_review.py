@@ -42,6 +42,61 @@ def test_transition_findings_flag_blank_page_and_center_column(tmp_path: Path) -
     finding_types = {finding.type for finding in findings}
     assert "blank_page_dominance" in finding_types
     assert "center_brown_column_artifact" in finding_types
+    blank = next(f for f in findings if f.type == "blank_page_dominance")
+    assert blank.severity == "fail"
+
+
+def test_book_turn_requires_explicit_page_surface_for_multi_page_review(tmp_path: Path) -> None:
+    frames: list[Path] = []
+    for idx in range(12):
+        path = tmp_path / "frames" / f"frame_{idx:05d}.png"
+        _write_frame(path, (180, 150, 115))
+        frames.append(path)
+
+    frame_metrics, delta_metrics = compute_metrics(frames, fps=30)
+    stats = summarize_metrics(frame_metrics, delta_metrics)
+    findings = build_findings(
+        ReviewTarget(
+            "s1_s2",
+            tmp_path / "clip.mp4",
+            "transition",
+            style="book-page-turn-v2",
+            page_count=5,
+        ),
+        frame_metrics,
+        delta_metrics,
+        stats,
+    )
+
+    missing = next(f for f in findings if f.type == "page_surface_contract_missing")
+    assert missing.severity == "fail"
+
+
+def test_calligraphy_surface_requirement_fails_without_texture(tmp_path: Path) -> None:
+    frames: list[Path] = []
+    for idx in range(12):
+        path = tmp_path / "frames" / f"frame_{idx:05d}.png"
+        _write_frame(path, (120, 120, 120))
+        frames.append(path)
+
+    frame_metrics, delta_metrics = compute_metrics(frames, fps=30)
+    stats = summarize_metrics(frame_metrics, delta_metrics)
+    findings = build_findings(
+        ReviewTarget(
+            "s1_s2",
+            tmp_path / "clip.mp4",
+            "transition",
+            style="book-page-turn-v2",
+            page_count=5,
+            page_surface="calligraphy_texture",
+        ),
+        frame_metrics,
+        delta_metrics,
+        stats,
+    )
+
+    missing = next(f for f in findings if f.type == "calligraphy_texture_missing")
+    assert missing.severity == "fail"
 
 
 def test_center_column_detector_ignores_black_scene_matte(tmp_path: Path) -> None:
@@ -144,6 +199,6 @@ def test_review_frame_files_writes_agent_readable_artifacts(tmp_path: Path) -> N
         duration_sec=8 / 30,
     )
 
-    assert review.agent_review_status == "warn"
+    assert review.agent_review_status == "fail"
     for artifact in review.artifacts.values():
         assert Path(artifact).exists()

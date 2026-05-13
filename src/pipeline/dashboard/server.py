@@ -105,6 +105,7 @@ class _TransitionSetBody(BaseModel):
     asset_source_url: str | None = None
     asset_license: str | None = None
     asset_notes: str | None = None
+    page_surface: str | None = None
 
 
 class _TransitionClearBody(BaseModel):
@@ -122,6 +123,7 @@ class _IntroTransitionSetBody(BaseModel):
     asset_source_url: str | None = None
     asset_license: str | None = None
     asset_notes: str | None = None
+    page_surface: str | None = None
 
 
 class _TransitionPreviewBody(BaseModel):
@@ -131,6 +133,7 @@ class _TransitionPreviewBody(BaseModel):
     sfx: str | None = None
     renderer_mode: str | None = None
     asset_path: str | None = None
+    page_surface: str | None = None
     from_scene: str | None = None
     to_scene: str | None = None
     intro: bool = False
@@ -540,6 +543,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
                 asset_source_url=body.asset_source_url,
                 asset_license=body.asset_license,
                 asset_notes=body.asset_notes,
+                page_surface=body.page_surface,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -576,6 +580,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
                 asset_source_url=body.asset_source_url,
                 asset_license=body.asset_license,
                 asset_notes=body.asset_notes,
+                page_surface=body.page_surface,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -589,11 +594,13 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         sb.theme.intro_transition_asset_source_url = body.asset_source_url or ""
         sb.theme.intro_transition_asset_license = body.asset_license or ""
         sb.theme.intro_transition_asset_notes = body.asset_notes or ""
+        sb.theme.intro_transition_page_surface = body.page_surface or ""
         sb.save(sb_path)
         summary = (
             f"intro transition: {body.style} ({body.duration_sec}s)"
             + (f" · {body.page_count}p" if body.page_count else "")
             + (f" · {body.renderer_mode}" if body.renderer_mode else "")
+            + (f" · surface={body.page_surface}" if body.page_surface else "")
             + (f" · {body.asset_path}" if body.asset_path else "")
         )
         return JSONResponse({"ok": True, "summary": summary})
@@ -614,6 +621,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         sb.theme.intro_transition_asset_source_url = ""
         sb.theme.intro_transition_asset_license = ""
         sb.theme.intro_transition_asset_notes = ""
+        sb.theme.intro_transition_page_surface = ""
         sb.save(sb_path)
         return JSONResponse({"ok": True, "summary": "intro transition: cleared"})
 
@@ -634,6 +642,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
                 sfx=body.sfx,
                 renderer_mode=body.renderer_mode,
                 asset_path=body.asset_path,
+                page_surface=body.page_surface,
                 from_scene=body.from_scene,
                 to_scene=body.to_scene,
                 intro=body.intro,

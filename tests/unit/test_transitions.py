@@ -10,6 +10,7 @@ import pytest
 from pipeline.composer.transitions import (
     BOOK_PAGE_STYLES,
     REGISTRY,
+    SUPPORTED_PAGE_SURFACES,
     SUPPORTED_RENDERER_MODES,
     SUPPORTED_STYLES,
     BookPageTurnRenderer,
@@ -54,6 +55,18 @@ def test_transition_from_dict_with_page_count_clamps_to_supported_range():
         "page_count": 99,
     })
     assert t.page_count == 8
+
+
+def test_transition_from_dict_with_page_surface():
+    t = Transition.from_dict({
+        "from": "s1",
+        "to": "s2",
+        "style": "book-page-turn-v2",
+        "duration_sec": 1.2,
+        "page_count": 5,
+        "page_surface": "calligraphy_texture",
+    })
+    assert t.page_surface == "calligraphy_texture"
 
 
 def test_transition_from_dict_with_stock_metadata():
@@ -103,6 +116,18 @@ def test_transition_to_dict_includes_page_count_when_set():
         page_count=2,
     )
     assert t.to_dict()["page_count"] == 2
+
+
+def test_transition_to_dict_includes_page_surface_when_set():
+    t = Transition(
+        from_scene="s1",
+        to_scene="s2",
+        style="book-page-turn-v2",
+        duration_sec=0.9,
+        page_count=5,
+        page_surface="calligraphy_texture",
+    )
+    assert t.to_dict()["page_surface"] == "calligraphy_texture"
 
 
 def test_transition_to_dict_includes_stock_metadata_when_set():
@@ -217,6 +242,21 @@ def test_transition_config_rejects_invalid_page_count():
         TransitionConfig(style="book-page-turn", duration_sec=0.5, sfx=None, page_count=9)
 
 
+def test_transition_config_rejects_invalid_page_surface():
+    with pytest.raises(ValueError, match="page_surface"):
+        TransitionConfig(
+            style="book-page-turn-v2",
+            duration_sec=0.5,
+            sfx=None,
+            page_surface="illuminated_script",
+        )
+
+
+def test_transition_config_rejects_page_surface_on_non_book_style():
+    with pytest.raises(ValueError, match="page_surface"):
+        TransitionConfig(style="fade", duration_sec=0.5, sfx=None, page_surface="calligraphy_texture")
+
+
 def test_transition_config_rejects_stock_mode_without_asset_path():
     with pytest.raises(ValueError, match="asset_path"):
         TransitionConfig(style="stock-book-page-turn", duration_sec=0.5, sfx=None)
@@ -247,6 +287,10 @@ def test_supported_renderer_modes_set_matches_spec():
     assert {"generated", "licensed_clip", "overlay"} == SUPPORTED_RENDERER_MODES
 
 
+def test_supported_page_surfaces_set_matches_spec():
+    assert {"destination_preview", "calligraphy_texture"} == SUPPORTED_PAGE_SURFACES
+
+
 def test_transition_config_from_storyboard_transition():
     from pipeline.storyboard import Transition
     t = Transition(
@@ -270,6 +314,20 @@ def test_transition_config_from_storyboard_transition():
     assert cfg.page_count == 2
     assert cfg.renderer_mode == "licensed_clip"
     assert cfg.asset_path == "assets/transitions/book_page_flip.mp4"
+
+
+def test_transition_config_from_storyboard_transition_preserves_page_surface():
+    t = Transition(
+        from_scene="s1",
+        to_scene="s2",
+        style="book-page-turn-v2",
+        duration_sec=1.2,
+        page_count=5,
+        page_surface="calligraphy_texture",
+    )
+    cfg = TransitionConfig.from_transition(t)
+    assert cfg.page_surface == "calligraphy_texture"
+    assert cfg.effective_page_surface == "calligraphy_texture"
 
 
 def test_hard_cut_renderer_returns_none(tmp_path: Path):
@@ -398,6 +456,26 @@ def test_cache_key_differs_with_sfx(tmp_path: Path):
     b = _make_test_clip(tmp_path / "b.mp4", duration=0.5, color="blue")
     cfg1 = TransitionConfig(style="fade", duration_sec=0.5, sfx=None)
     cfg2 = TransitionConfig(style="fade", duration_sec=0.5, sfx="assets/sfx/whoosh.mp3")
+    assert transition_cache_key(a, b, cfg1) != transition_cache_key(a, b, cfg2)
+
+
+def test_cache_key_differs_with_page_surface(tmp_path: Path):
+    a = _make_test_clip(tmp_path / "a.mp4", duration=0.5, color="red")
+    b = _make_test_clip(tmp_path / "b.mp4", duration=0.5, color="blue")
+    cfg1 = TransitionConfig(
+        style="book-page-turn-v2",
+        duration_sec=0.5,
+        sfx=None,
+        page_count=5,
+        page_surface="destination_preview",
+    )
+    cfg2 = TransitionConfig(
+        style="book-page-turn-v2",
+        duration_sec=0.5,
+        sfx=None,
+        page_count=5,
+        page_surface="calligraphy_texture",
+    )
     assert transition_cache_key(a, b, cfg1) != transition_cache_key(a, b, cfg2)
 
 

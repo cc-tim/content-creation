@@ -7,6 +7,7 @@ import typer
 
 from pipeline.composer.transitions import (
     MAX_BOOK_PAGE_COUNT,
+    SUPPORTED_PAGE_SURFACES,
     SUPPORTED_RENDERER_MODES,
     SUPPORTED_STYLES,
     TransitionConfig,
@@ -50,6 +51,7 @@ def apply_set_transition(
     asset_source_url: str | None = None,
     asset_license: str | None = None,
     asset_notes: str | None = None,
+    page_surface: str | None = None,
 ) -> str:
     """Set or replace a transition on a project's storyboard."""
     if style not in SUPPORTED_STYLES:
@@ -75,6 +77,7 @@ def apply_set_transition(
         asset_source_url=asset_source_url,
         asset_license=asset_license,
         asset_notes=asset_notes,
+        page_surface=page_surface,
     )
     sb_path, sb = _load_storyboard(project_id)
     ids = _scene_ids(sb)
@@ -100,6 +103,7 @@ def apply_set_transition(
         asset_source_url=asset_source_url,
         asset_license=asset_license,
         asset_notes=asset_notes,
+        page_surface=page_surface,
     ))
     sb.save(sb_path)
 
@@ -107,6 +111,7 @@ def apply_set_transition(
         f"transition {from_scene}→{to_scene}: {style} ({duration_sec}s)"
         + (f" · {page_count}p" if page_count else "")
         + (f" · {renderer_mode}" if renderer_mode and renderer_mode != "generated" else "")
+        + (f" · surface={page_surface}" if page_surface else "")
         + (f" · {asset_path}" if asset_path else "")
         + (f" + {sfx}" if sfx else "")
     )
@@ -119,6 +124,7 @@ def apply_set_transition(
             f"--style {style} --duration {duration_sec}"
             + (f" --page-count {page_count}" if page_count else "")
             + (f" --renderer-mode {renderer_mode}" if renderer_mode else "")
+            + (f" --page-surface {page_surface}" if page_surface else "")
             + (f" --asset-path {asset_path}" if asset_path else "")
             + (f" --asset-source {asset_source}" if asset_source else "")
             + (f" --asset-source-url {asset_source_url}" if asset_source_url else "")
@@ -180,6 +186,11 @@ def set_transition(
         "--renderer-mode",
         help=f"Optional renderer mode: {', '.join(sorted(SUPPORTED_RENDERER_MODES))}",
     ),
+    page_surface: str | None = typer.Option(
+        None,
+        "--page-surface",
+        help=f"Optional book-page surface: {', '.join(sorted(SUPPORTED_PAGE_SURFACES))}",
+    ),
     asset_path: str | None = typer.Option(None, "--asset-path", help="Optional stock asset path"),
     asset_source: str | None = typer.Option(None, "--asset-source", help="Optional stock source note"),
     asset_source_url: str | None = typer.Option(None, "--asset-source-url", help="Optional stock source URL"),
@@ -197,6 +208,7 @@ def set_transition(
             sfx=sfx,
             page_count=page_count,
             renderer_mode=renderer_mode,
+            page_surface=page_surface,
             asset_path=asset_path,
             asset_source=asset_source,
             asset_source_url=asset_source_url,

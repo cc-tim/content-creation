@@ -85,6 +85,18 @@ def test_set_with_page_count_writes_page_count(project_tree: Path):
     assert sb.transitions[0].page_count == 5
 
 
+def test_set_with_page_surface_writes_page_surface(project_tree: Path):
+    runner = CliRunner()
+    result = runner.invoke(transition_app, [
+        "set", "--project-id", "42", "--from", "s1", "--to", "s2",
+        "--style", "book-page-turn-v2", "--duration", "1.4",
+        "--page-count", "5", "--page-surface", "calligraphy_texture",
+    ])
+    assert result.exit_code == 0, result.output
+    sb = Storyboard.load(project_tree / "storyboard.json")
+    assert sb.transitions[0].page_surface == "calligraphy_texture"
+
+
 def test_set_with_stock_asset_metadata_writes_transition_fields(project_tree: Path):
     runner = CliRunner()
     result = runner.invoke(transition_app, [

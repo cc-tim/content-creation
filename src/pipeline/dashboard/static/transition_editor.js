@@ -281,6 +281,7 @@
           style: current && current.style ? current.style : 'none',
           duration_sec: current && current.duration_sec ? parseFloat(current.duration_sec) : 0,
           page_count: current && current.page_count ? parseInt(current.page_count, 10) : null,
+          page_surface: current && current.page_surface ? current.page_surface : null,
           renderer_mode: current && current.renderer_mode ? current.renderer_mode : null,
           asset_path: current && current.asset_path ? current.asset_path : null,
           preview_name: 'current_intro',
@@ -292,6 +293,7 @@
         style: current && current.style ? current.style : 'none',
         duration_sec: current && current.duration_sec ? parseFloat(current.duration_sec) : 0,
         page_count: current && current.page_count ? parseInt(current.page_count, 10) : null,
+        page_surface: current && current.page_surface ? current.page_surface : null,
         sfx: current && current.sfx ? current.sfx : null,
         renderer_mode: current && current.renderer_mode ? current.renderer_mode : null,
         asset_path: current && current.asset_path ? current.asset_path : null,
@@ -308,6 +310,7 @@
         asset_source_url: current.asset_source_url || null,
         asset_license: current.asset_license || null,
         asset_notes: current.asset_notes || null,
+        page_surface: current.page_surface || null,
       };
     }
 
@@ -321,6 +324,7 @@
         duration_sec: parseFloat(durationInput.value || '0') || 0,
         page_count: isBookPageStyle(styleSelect.value) ? parseInt(pageCountInput.value || '2', 10) : null,
         sfx: sfxSelect.value || null,
+        page_surface: preserved.page_surface || null,
         preview_name: (isIntro ? 'draft_intro' : 'draft_' + fromScene + '_' + toScene),
       }, preserved);
     }
@@ -444,6 +448,7 @@
         duration_sec: duration,
         sfx: sfxSelect.value || null,
         page_count: isBookPageStyle(style) ? parseInt(pageCountInput.value || '2', 10) : null,
+        page_surface: preserveCurrentAssetFields().page_surface || null,
       };
       Object.assign(payload, preserveCurrentAssetFields());
       var request = isIntro && style === 'none'
@@ -453,6 +458,7 @@
           style: style,
           duration_sec: duration,
           page_count: isBookPageStyle(style) ? parseInt(pageCountInput.value || '2', 10) : null,
+          page_surface: preserveCurrentAssetFields().page_surface || null,
           renderer_mode: preserveCurrentAssetFields().renderer_mode || null,
           asset_path: preserveCurrentAssetFields().asset_path || null,
           asset_source: preserveCurrentAssetFields().asset_source || null,

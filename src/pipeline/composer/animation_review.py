@@ -27,6 +27,8 @@ class ReviewTarget:
     path: Path
     kind: ReviewKind
     style: str = ""
+    page_count: int | None = None
+    page_surface: str | None = None
 
 
 @dataclass(frozen=True)
@@ -38,6 +40,7 @@ class FrameMetric:
     edge_mean: float
     center_brown_score: float
     cover_gold_detail_ratio: float
+    calligraphy_texture_like: bool
     blank_like: bool
     brown_cover_like: bool
 
@@ -84,6 +87,9 @@ class ClipReview:
     agent_review_status: ReviewStatus
     confidence: Literal["low", "medium", "high"]
     stats: dict[str, float | int]
+    style: str = ""
+    page_count: int | None = None
+    page_surface: str | None = None
     findings: list[ReviewFinding] = field(default_factory=list)
     artifacts: dict[str, str] = field(default_factory=dict)
 
@@ -100,6 +106,9 @@ class ClipReview:
             "agent_review_status": self.agent_review_status,
             "confidence": self.confidence,
             "stats": self.stats,
+            "style": self.style,
+            "page_count": self.page_count,
+            "page_surface": self.page_surface,
             "findings": [finding.to_dict() for finding in self.findings],
             "artifacts": self.artifacts,
         }
@@ -245,6 +254,9 @@ def review_frame_files(
         agent_review_status=agent_status,
         confidence="high" if len(frames) >= 12 else "medium",
         stats=stats,
+        style=target.style,
+        page_count=target.page_count,
+        page_surface=target.page_surface,
         findings=findings,
         artifacts=artifacts,
     )
@@ -362,6 +374,7 @@ def summarize_metrics(
         if m.center_brown_score > 13.0 and not m.brown_cover_like
     ]
     brown_cover_frames = [m for m in frame_metrics if m.brown_cover_like]
+    calligraphy_frames = [m for m in frame_metrics if m.calligraphy_texture_like]
     return {
         "delta_min": min(deltas),
         "delta_median": median_delta,
@@ -387,6 +400,8 @@ def summarize_metrics(
         "center_brown_score_max": max(m.center_brown_score for m in frame_metrics),
         "brown_cover_like_frame_count": len(brown_cover_frames),
         "brown_cover_like_ratio": len(brown_cover_frames) / len(frame_metrics),
+        "calligraphy_texture_like_frame_count": len(calligraphy_frames),
+        "calligraphy_texture_like_ratio": len(calligraphy_frames) / len(frame_metrics),
         "distinct_motion_bins": _distinct_motion_bins(deltas),
     }
 
@@ -423,6 +438,29 @@ def build_findings(
             ))
 
     if target.kind == "transition":
+        if target.style in BOOK_PAGE_STYLES and (target.page_count or 0) > 2 and not target.page_surface:
+            findings.append(ReviewFinding(
+                "fail",
+                None,
+                None,
+                "page_surface_contract_missing",
+                "Multi-page book turns need an explicit page-surface contract.",
+                "Set page_surface to calligraphy_texture or destination_preview. "
+                "If the renderer cannot satisfy it, implement the page_surface mode in book_scene.py "
+                "and include it in transition_cache_key before accepting the review.",
+            ))
+        if target.page_surface == "calligraphy_texture":
+            calligraphy_ratio = float(stats.get("calligraphy_texture_like_ratio", 0.0))
+            if calligraphy_ratio < 0.18:
+                findings.append(ReviewFinding(
+                    "fail",
+                    None,
+                    None,
+                    "calligraphy_texture_missing",
+                    "The transition requires ancient/calligraphy page texture, but the sampled frames do not show enough of that surface.",
+                    "Render with page_surface=calligraphy_texture. If the mode is unavailable, add a reusable "
+                    "calligraphy page surface in book_scene.py and wire it through TransitionConfig, storyboard JSON, and the cache key.",
+                ))
         spike_count = int(stats.get("spike_count", 0))
         if spike_count > 3:
             first_spike = _first_delta_above(delta_metrics, float(stats["spike_threshold"]))
@@ -449,12 +487,13 @@ def build_findings(
         if blank_ratio > 0.32:
             blank = next((m for m in frame_metrics if m.blank_like), None)
             findings.append(ReviewFinding(
-                "warn",
+                "fail",
                 blank.frame if blank else None,
                 blank.time_sec if blank else None,
                 "blank_page_dominance",
                 "Blank or low-detail book pages dominate a substantial part of the transition.",
-                "Fill blank pages with low-contrast ancient text/calligraphy texture so the flip reads intentional and premium.",
+                "Fill pages with the required low-contrast ancient text/calligraphy texture. "
+                "If that mode is missing, implement page_surface=calligraphy_texture before treating the animation as passing.",
             ))
 
         center_ratio = float(stats.get("center_brown_column_ratio", 0.0))
@@ -619,6 +658,8 @@ def _resolve_transition_clip(
         clip,
         "transition",
         style=transition.style,
+        page_count=transition.page_count,
+        page_surface=transition.page_surface,
     )
 
 
@@ -633,7 +674,18 @@ def _resolve_intro_transition_clip(
         return None
     concat_intro = _intro_clip_from_concat(project_root, variant=variant)
     if concat_intro is not None:
-        return ReviewTarget("intro", concat_intro, "transition", style=style)
+        return ReviewTarget(
+            "intro",
+            concat_intro,
+            "transition",
+            style=style,
+            page_count=(
+                int(storyboard.theme.intro_transition_page_count or "2")
+                if style in BOOK_PAGE_STYLES
+                else None
+            ),
+            page_surface=storyboard.theme.intro_transition_page_surface or None,
+        )
     first_scene = _resolve_scene_clip(project_root, storyboard, storyboard.scenes[0].id, variant=variant)
     if first_scene is None:
         return None
@@ -656,6 +708,7 @@ def _resolve_intro_transition_clip(
             asset_source_url=storyboard.theme.intro_transition_asset_source_url or None,
             asset_license=storyboard.theme.intro_transition_asset_license or None,
             asset_notes=storyboard.theme.intro_transition_asset_notes or None,
+            page_surface=storyboard.theme.intro_transition_page_surface or None,
         )
     except ValueError:
         return None
@@ -663,7 +716,14 @@ def _resolve_intro_transition_clip(
     clip = compose_dir / "transitions" / f"{key}.mp4"
     if not clip.exists():
         return None
-    return ReviewTarget("intro", clip, "transition", style=style)
+    return ReviewTarget(
+        "intro",
+        clip,
+        "transition",
+        style=style,
+        page_count=page_count if style in BOOK_PAGE_STYLES else None,
+        page_surface=storyboard.theme.intro_transition_page_surface or None,
+    )
 
 
 def _intro_clip_from_concat(project_root: Path, *, variant: str) -> Path | None:
@@ -735,6 +795,7 @@ def _frame_metric(
     edge_mean = _mean_luma(edge)
     center_brown_score = _center_brown_score(image)
     cover_gold_detail_ratio = _cover_gold_detail_ratio(image)
+    calligraphy_texture_like = _calligraphy_texture_like(image)
     brown_cover_like = _brown_cover_like(image, edge_mean)
     blank_like = 132 <= luma <= 238 and edge_mean < 22.0 and not brown_cover_like
     return FrameMetric(
@@ -745,6 +806,7 @@ def _frame_metric(
         edge_mean=edge_mean,
         center_brown_score=center_brown_score,
         cover_gold_detail_ratio=cover_gold_detail_ratio,
+        calligraphy_texture_like=calligraphy_texture_like,
         blank_like=blank_like,
         brown_cover_like=brown_cover_like,
     )
@@ -798,6 +860,28 @@ def _cover_gold_detail_ratio(image: Image.Image) -> float:
         if r > 145 and g > 95 and b < 95 and r - g > 28 and g - b > 20:
             gold_pixels += 1
     return gold_pixels / max(1, crop.width * crop.height)
+
+
+def _calligraphy_texture_like(image: Image.Image) -> bool:
+    w, h = image.size
+    crop = image.crop((int(w * 0.08), int(h * 0.10), int(w * 0.92), int(h * 0.86))).convert("RGB")
+    data = crop.tobytes()
+    if not data:
+        return False
+    warm_paper = 0
+    brown_ink = 0
+    total = crop.width * crop.height
+    for idx in range(0, len(data), 3):
+        r = data[idx]
+        g = data[idx + 1]
+        b = data[idx + 2]
+        if r >= 170 and g >= 145 and b >= 105 and r >= g >= b:
+            warm_paper += 1
+        if 95 <= r <= 230 and 70 <= g <= 205 and 35 <= b <= 175 and r >= g >= b and (r - b) >= 24:
+            brown_ink += 1
+    warm_ratio = warm_paper / max(1, total)
+    ink_ratio = brown_ink / max(1, total)
+    return warm_ratio >= 0.28 and 0.015 <= ink_ratio <= 0.70
 
 
 def _rgb_mean(image: Image.Image) -> tuple[float, float, float]:
@@ -856,6 +940,8 @@ def _status_for_findings(findings: list[ReviewFinding], *, category: str) -> Rev
             "static_scene_hold",
             "repeated_motion_spikes",
             "motion_spike",
+            "page_surface_contract_missing",
+            "calligraphy_texture_missing",
             "blank_page_dominance",
             "center_brown_column_artifact",
             "late_reveal_pulse",
@@ -931,6 +1017,9 @@ def _render_markdown(reviews: list[ClipReview]) -> str:
             "",
             f"- clip: `{review.clip}`",
             f"- kind: {review.kind}",
+            f"- style: {review.style or 'n/a'}",
+            f"- page_count: {review.page_count or 'n/a'}",
+            f"- page_surface: {review.page_surface or 'n/a'}",
             f"- duration: {review.duration_sec:.3f}s",
             f"- fps: {review.fps:.2f}",
             f"- frames: {review.frame_count}",

@@ -1177,6 +1177,7 @@ class ComposeStage(PipelineStage):
             asset_source_url=theme_dict.get("intro_transition_asset_source_url") or None,
             asset_license=theme_dict.get("intro_transition_asset_license") or None,
             asset_notes=theme_dict.get("intro_transition_asset_notes") or None,
+            page_surface=theme_dict.get("intro_transition_page_surface") or None,
         )
         loop = asyncio.get_running_loop()
         executor = get_ffmpeg_executor()

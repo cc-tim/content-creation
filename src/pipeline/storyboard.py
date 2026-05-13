@@ -26,6 +26,7 @@ class Transition:
     asset_source_url: str | None = None
     asset_license: str | None = None
     asset_notes: str | None = None
+    page_surface: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Transition:
@@ -46,6 +47,7 @@ class Transition:
             asset_source_url=data.get("asset_source_url") or None,
             asset_license=data.get("asset_license") or None,
             asset_notes=data.get("asset_notes") or None,
+            page_surface=data.get("page_surface") or None,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -71,6 +73,8 @@ class Transition:
             out["asset_license"] = self.asset_license
         if self.asset_notes is not None:
             out["asset_notes"] = self.asset_notes
+        if self.page_surface is not None:
+            out["page_surface"] = self.page_surface
         return out
 
 
@@ -211,6 +215,7 @@ class Theme:
     intro_transition_asset_source_url: str = ""
     intro_transition_asset_license: str = ""
     intro_transition_asset_notes: str = ""
+    intro_transition_page_surface: str = ""
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -232,6 +237,7 @@ class Theme:
             "intro_transition_asset_source_url": self.intro_transition_asset_source_url,
             "intro_transition_asset_license": self.intro_transition_asset_license,
             "intro_transition_asset_notes": self.intro_transition_asset_notes,
+            "intro_transition_page_surface": self.intro_transition_page_surface,
         }
 
     @classmethod

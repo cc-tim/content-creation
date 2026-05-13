@@ -93,6 +93,18 @@ def test_set_transition_with_page_count(client: TestClient, tmp_path: Path):
     assert sb.transitions[0].page_count == 5
 
 
+def test_set_transition_with_page_surface(client: TestClient, tmp_path: Path):
+    resp = client.post("/api/transition/42/set", json={
+        "from_scene": "s1", "to_scene": "s2",
+        "style": "book-page-turn-v2", "duration_sec": 1.4,
+        "page_count": 5,
+        "page_surface": "calligraphy_texture",
+    })
+    assert resp.status_code == 200
+    sb = Storyboard.load(tmp_path / "output" / "projects" / "42" / "storyboard.json")
+    assert sb.transitions[0].page_surface == "calligraphy_texture"
+
+
 def test_set_transition_with_stock_asset_metadata(client: TestClient, tmp_path: Path):
     resp = client.post("/api/transition/42/set", json={
         "from_scene": "s1",
@@ -129,6 +141,18 @@ def test_set_intro_transition_writes_theme(client: TestClient, tmp_path: Path):
     assert sb.theme.intro_transition_style == "book-page-turn"
     assert sb.theme.intro_transition_duration_sec == "1.0"
     assert sb.theme.intro_transition_page_count == "2"
+
+
+def test_set_intro_transition_with_page_surface(client: TestClient, tmp_path: Path):
+    resp = client.post("/api/transition/42/intro/set", json={
+        "style": "book-page-turn",
+        "duration_sec": 1.0,
+        "page_count": 2,
+        "page_surface": "calligraphy_texture",
+    })
+    assert resp.status_code == 200
+    sb = Storyboard.load(tmp_path / "output" / "projects" / "42" / "storyboard.json")
+    assert sb.theme.intro_transition_page_surface == "calligraphy_texture"
 
 
 def test_set_intro_transition_with_stock_asset_metadata(client: TestClient, tmp_path: Path):
@@ -168,6 +192,7 @@ def test_clear_intro_transition_clears_theme(client: TestClient, tmp_path: Path)
     assert sb.theme.intro_transition_page_count == ""
     assert sb.theme.intro_transition_renderer_mode == ""
     assert sb.theme.intro_transition_asset_path == ""
+    assert sb.theme.intro_transition_page_surface == ""
 
 
 def test_compose_transitions_endpoint_starts_action(

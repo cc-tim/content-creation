@@ -262,6 +262,7 @@ def build_intro_transition_preview(
             asset_source_url=storyboard.theme.intro_transition_asset_source_url or None,
             asset_license=storyboard.theme.intro_transition_asset_license or None,
             asset_notes=storyboard.theme.intro_transition_asset_notes or None,
+            page_surface=storyboard.theme.intro_transition_page_surface or None,
         )
     except ValueError:
         return None
@@ -290,6 +291,7 @@ def build_transition_preview_image(
     sfx: str | None = None,
     renderer_mode: str | None = None,
     asset_path: str | None = None,
+    page_surface: str | None = None,
     from_scene: str | None = None,
     to_scene: str | None = None,
     intro: bool = False,
@@ -307,6 +309,7 @@ def build_transition_preview_image(
         page_count=page_count if style in BOOK_PAGE_STYLES else None,
         renderer_mode=renderer_mode,
         asset_path=asset_path,
+        page_surface=page_surface,
     )
     if intro:
         clip = _render_intro_preview_clip(project_root, storyboard, cfg)
