@@ -217,6 +217,8 @@ uv run pipeline compose reburn --project-id <ID>
 
 Safety: `compose rescene` errors if `--scene` covers more than half the storyboard. Use `compose reburn` for wide rebuilds. Pass `--force` to override.
 
+Final artifact durability: compose writes `raw.mp4` and `final_*.mp4` through sibling temp files, atomically replaces the prior playable file only after FFmpeg succeeds, and validates final videos with `ffprobe`. Publish outro concat uses the same atomic helper for `final_with_outro.mp4`.
+
 Transition asset workflow: seam transitions in `storyboard.json` can now declare `renderer_mode` plus optional stock metadata such as `asset_path`, `asset_source`, and `asset_license`. Use `renderer_mode=generated` for built-in transitions, `licensed_clip` for full-frame licensed stock clips, and `overlay` for alpha/green-screen overlay assets that sit on top of a generated base transition.
 
 Overlay vs. no_overlay: overlay text (`type: text_top`, `text_emphasis`) appears ONLY in overlay variants (plain, subtitles). Use `visual_text` in storyboard for visibility in `subtitles_no_overlay`.
@@ -263,9 +265,11 @@ journalctl --user -u content-dashboard -f
 journalctl --user -u cloudflared-named-tunnel -f
 ```
 
-**Auto-restart on AI sessions:** `scripts/restart-dashboard-if-changed.sh` is wired to the Claude Code and Codex `Stop` hooks. When a session ends with changes in `src/pipeline/`, the dashboard restarts automatically.
+**Auto-restart on AI sessions:** `scripts/restart-dashboard-if-changed.sh` is wired to the Claude Code and Codex `Stop` hooks. When a session ends with changes in `src/pipeline/`, the dashboard restarts automatically. If a dashboard-launched compose action is running, the hook records a pending restart and exits; the dashboard performs the restart after the compose action finishes so an in-progress MP4 is not interrupted mid-write.
 
 **Static asset freshness:** Dashboard HTML and `/static/*.js` responses are served with `Cache-Control: no-store`, and HTML injects an mtime `?v=` token into JS URLs. Browser refresh should pick up frontend edits without restarting Cloudflare or manually clearing cache.
+
+**Playable video gate:** The dashboard only advertises final video variants that pass a short `ffprobe` duration check. A corrupt or interrupted `final_*.mp4` is treated as not rendered instead of being shown in the player.
 
 **Service files:** `infra/systemd/user/` — copy to `~/.config/systemd/user/` and run `systemctl --user daemon-reload` to redeploy on a new machine.
 

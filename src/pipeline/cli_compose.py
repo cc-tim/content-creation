@@ -55,21 +55,8 @@ def _delete_transition_cache_for_scenes(compose_dir: Path, scene_ids: list[str])
 
 
 def _delete_concat_outputs(compose_dir: Path, locale: str) -> list[str]:
-    removed: list[str] = []
-    patterns = [
-        "raw.mp4",
-        "raw_no_overlay.mp4",
-        f"final_{locale}.mp4",
-        f"final_{locale}_no_overlay.mp4",
-        f"final_{locale}_subtitles.mp4",
-        f"final_{locale}_subtitles_no_overlay.mp4",
-    ]
-    for name in patterns:
-        path = compose_dir / name
-        if path.exists():
-            path.unlink()
-            removed.append(name)
-    return removed
+    """Keep current raw/final artifacts until atomic replacements succeed."""
+    return []
 
 
 def _load_storyboard(project_id: int | str, ctx: PipelineContext):
@@ -94,7 +81,9 @@ def _rebuild_transitions_and_concat(ctx: PipelineContext, storyboard) -> None:
         "Rebuilding transitions and final concat..."
         + (f" removed: {', '.join(removed)}" if removed else "")
     )
-    asyncio.run(ComposeStage().run(ctx))
+    updated_ctx = asyncio.run(ComposeStage().run(ctx))
+    if updated_ctx is not None:
+        updated_ctx.save()
 
 
 def _frame_scene_outputs(work_dir: Path, ctx: PipelineContext, storyboard) -> None:

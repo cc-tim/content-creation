@@ -7,6 +7,14 @@ from fastapi.testclient import TestClient
 from pipeline.dashboard.server import create_app
 
 
+@pytest.fixture(autouse=True)
+def _trust_fake_videos(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pipeline.dashboard.scanner._is_playable_video",
+        lambda path: path.exists(),
+    )
+
+
 @pytest.fixture
 def project_dir(tmp_path: Path) -> Path:
     proj_root = tmp_path / "projects"

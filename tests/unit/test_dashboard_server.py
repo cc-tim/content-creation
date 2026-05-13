@@ -3,9 +3,18 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from pipeline.dashboard.server import create_app
+
+
+@pytest.fixture(autouse=True)
+def _trust_fake_videos(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pipeline.dashboard.scanner._is_playable_video",
+        lambda path: path.exists(),
+    )
 
 
 def _output_dir(tmp_path: Path) -> Path:

@@ -8,6 +8,20 @@ from pipeline.stages.compose import ComposeStage
 from pipeline.storyboard import Scene, Storyboard
 
 
+@pytest.fixture(autouse=True)
+def _skip_media_validation(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pipeline.stages.compose._assert_playable_video", lambda *_args, **_kwargs: None)
+
+    def fake_atomic(cmd, output, timeout=600):
+        from pipeline.stages import compose as compose_module
+
+        result = compose_module.run_ffmpeg(cmd)
+        output.write_bytes(b"mp4")
+        return result
+
+    monkeypatch.setattr("pipeline.stages.compose.run_ffmpeg_atomic", fake_atomic)
+
+
 async def test_compose_uses_storyboard_when_available(sample_context):
     """When storyboard exists, use scene-by-scene rendering."""
     # Create storyboard

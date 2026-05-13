@@ -37,7 +37,7 @@ def _scene_ids(sb: Storyboard) -> set[str]:
 
 def apply_set_transition(
     *,
-    project_id: int,
+    project_id: int | str,
     from_scene: str,
     to_scene: str,
     style: str,
@@ -133,7 +133,7 @@ def apply_set_transition(
 
 def apply_clear_transition(
     *,
-    project_id: int,
+    project_id: int | str,
     from_scene: str,
     to_scene: str,
 ) -> str:
@@ -160,7 +160,7 @@ def apply_clear_transition(
 
 @transition_app.command("set")
 def set_transition(
-    project_id: int = typer.Option(..., "--project-id"),
+    project_id: str = typer.Option(..., "--project-id"),
     from_scene: str = typer.Option(..., "--from", help="Source scene id (e.g. s9)"),
     to_scene: str = typer.Option(..., "--to", help="Destination scene id (e.g. s10)"),
     style: str = typer.Option(
@@ -211,7 +211,7 @@ def set_transition(
 
 @transition_app.command("clear")
 def clear_transition(
-    project_id: int = typer.Option(..., "--project-id"),
+    project_id: str = typer.Option(..., "--project-id"),
     from_scene: str = typer.Option(..., "--from"),
     to_scene: str = typer.Option(..., "--to"),
 ) -> None:

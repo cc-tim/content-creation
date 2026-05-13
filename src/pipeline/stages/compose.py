@@ -33,6 +33,7 @@ from pipeline.utils.ffmpeg import (
     get_ffmpeg_executor,
     init_ffmpeg_executor,
     run_ffmpeg,
+    run_ffmpeg_atomic,
 )
 
 logger = structlog.get_logger()
@@ -298,14 +299,15 @@ def _burn_subtitle_pass(
     """Burn subtitles from subtitle_path into src, writing to dst."""
     escaped_sub = str(subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
     subtitle_style = _build_subtitle_style(theme_dict)
-    run_ffmpeg([
+    run_ffmpeg_atomic([
         "ffmpeg", "-y", "-i", str(src),
         "-vf", f"subtitles={escaped_sub}:force_style='{subtitle_style}'",
         "-c:v", "libx264", "-preset", "medium",
         "-b:v", "2000k", "-minrate", "1000k", "-maxrate", "4000k", "-bufsize", "8000k",
         "-c:a", "copy",
         str(dst),
-    ])
+    ], dst)
+    _assert_playable_video(dst)
 
 
 def _quality_pass(src: Path, dst: Path) -> None:
@@ -314,13 +316,41 @@ def _quality_pass(src: Path, dst: Path) -> None:
     CRF-only encoding on static content (slides, Ken Burns) can produce
     <400 kbps; VBV caps ensure adequate bitrate for 720p (2 Mbps target).
     """
-    run_ffmpeg([
+    run_ffmpeg_atomic([
         "ffmpeg", "-y", "-i", str(src),
         "-c:v", "libx264", "-preset", "medium",
         "-b:v", "2000k", "-minrate", "1000k", "-maxrate", "4000k", "-bufsize", "8000k",
         "-c:a", "copy",
         str(dst),
-    ])
+    ], dst)
+    _assert_playable_video(dst)
+
+
+def _assert_playable_video(path: Path, min_duration_sec: float = 0.1) -> None:
+    if not path.exists() or path.stat().st_size <= 0:
+        raise RuntimeError(f"final video was not written: {path}")
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+        )
+        duration = float(result.stdout.strip())
+    except Exception as exc:
+        raise RuntimeError(f"final video is not playable: {path}") from exc
+    if duration < min_duration_sec:
+        raise RuntimeError(f"final video duration is too short: {path}")
 
 
 def _get_duration_sec(path: Path) -> float:
@@ -1238,7 +1268,8 @@ class ComposeStage(PipelineStage):
             "128k",
             str(final_path),
         ]
-        run_ffmpeg(cmd)
+        run_ffmpeg_atomic(cmd, final_path)
+        _assert_playable_video(final_path)
         return final_path
 
     @staticmethod
@@ -1341,7 +1372,7 @@ class ComposeStage(PipelineStage):
             encoding="utf-8",
         )
         # Stream-copy video (already H.264); re-encode audio to normalize sample rates
-        run_ffmpeg(
+        run_ffmpeg_atomic(
             [
                 "ffmpeg",
                 "-y",
@@ -1360,5 +1391,7 @@ class ComposeStage(PipelineStage):
                 "-b:a",
                 "128k",
                 str(output),
-            ]
+            ],
+            output,
         )
+        _assert_playable_video(output)

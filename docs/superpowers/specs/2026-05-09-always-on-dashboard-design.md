@@ -16,7 +16,8 @@ Keep the content dashboard permanently accessible at a stable HTTPS URL (mobile-
                    ▼
    scripts/restart-dashboard-if-changed.sh
      └─ git status --porcelain src/pipeline/
-          ├─ changes found → systemctl --user restart content-dashboard
+          ├─ changes found + no active compose → systemctl --user restart --no-block content-dashboard
+          ├─ changes found + active compose    → write output/.dashboard-restart-pending
           └─ no changes   → exit 0 (no-op)
 
 [systemd user services]
@@ -40,7 +41,9 @@ Invoked by both Claude Code and Codex on their `Stop` event. Receives stdin JSON
 git status --porcelain src/pipeline/
 ```
 
-If output is non-empty (any modified, added, deleted, or untracked file under `src/pipeline/`), restarts the dashboard service via `systemctl --user restart content-dashboard`. Always exits 0 so neither agent is blocked from stopping.
+If output is non-empty (any modified, added, deleted, or untracked file under `src/pipeline/`), restarts the dashboard service via `systemctl --user restart --no-block content-dashboard`. Always exits 0 so neither agent is blocked from stopping.
+
+If dashboard-launched compose work is active, the script does not restart immediately. Active jobs are marked under `output/.dashboard-compose-actions/`; the hook writes `output/.dashboard-restart-pending` and exits. `src/pipeline/dashboard/server.py` removes the active marker when the compose action finishes and performs the pending restart once no compose markers remain. This prevents dashboard restarts from interrupting FFmpeg while it is writing an MP4 trailer.
 
 Scope is `src/pipeline/` broadly — changes to any pipeline module (not just `dashboard/`) can affect dashboard behavior.
 
@@ -155,7 +158,8 @@ No dashboard code changes required. Cloudflare terminates TLS and enforces the G
 
 | Scenario | Behavior |
 |---|---|
-| AI session with `src/pipeline/` changes | Stop hook → diff detects changes → `systemctl --user restart content-dashboard` |
+| AI session with `src/pipeline/` changes and no active compose | Stop hook → diff detects changes → `systemctl --user restart --no-block content-dashboard` |
+| AI session with `src/pipeline/` changes during dashboard compose | Stop hook → writes `output/.dashboard-restart-pending` → dashboard restarts after compose markers clear |
 | AI session with no code changes | Stop hook → diff empty → exits 0, no restart |
 | Machine reboot | Both systemd services auto-start via `WantedBy=default.target` |
 | Dashboard crash | `Restart=on-failure` brings it back within 5s |

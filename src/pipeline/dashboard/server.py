@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import json
 import re
+import subprocess
 import tomllib
 import uuid
 from collections.abc import AsyncIterator
@@ -165,6 +166,11 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     projects_root = output_dir if output_dir.name == "projects" else output_dir / "projects"
     projects_root.mkdir(parents=True, exist_ok=True)
     running_compose_actions: set[tuple[str, str]] = set()
+    compose_action_dir = output_root / ".dashboard-compose-actions"
+    pending_restart_marker = output_root / ".dashboard-restart-pending"
+    compose_action_dir.mkdir(parents=True, exist_ok=True)
+    for stale_marker in compose_action_dir.glob("*.json"):
+        stale_marker.unlink(missing_ok=True)
 
     def _static_version() -> str:
         latest_mtime_ns = max(
@@ -223,6 +229,8 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
             await watcher.stop()
 
     app = FastAPI(title="Content Dashboard", lifespan=lifespan)
+    app.state.compose_action_dir = compose_action_dir
+    app.state.pending_restart_marker = pending_restart_marker
 
     @app.get("/api/projects")
     def get_projects() -> list[dict[str, object]]:
@@ -518,18 +526,8 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     def post_transition_set(project_id: str, body: _TransitionSetBody) -> JSONResponse:
         _project_root(project_id)
         try:
-            project_id_int = int(project_id)
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"project_id {project_id!r} is not numeric; "
-                    "transition CLI requires int ids"
-                ),
-            ) from exc
-        try:
             summary = apply_set_transition(
-                project_id=project_id_int,
+                project_id=project_id,
                 from_scene=body.from_scene,
                 to_scene=body.to_scene,
                 style=body.style,
@@ -651,26 +649,24 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     @app.post("/api/compose/{project_id}/transitions")
     async def post_compose_transitions(project_id: str) -> JSONResponse:
         _project_root(project_id)
-        project_id_int = _project_id_as_int(project_id)
         action_id = await _start_compose_action(
             app,
             running_compose_actions,
             project_id=project_id,
             action="transitions",
-            runner=lambda: compose_transitions(project_id=project_id_int),
+            runner=lambda: compose_transitions(project_id=project_id),
         )
         return JSONResponse({"ok": True, "action_id": action_id})
 
     @app.post("/api/compose/{project_id}/frame")
     async def post_compose_frame(project_id: str) -> JSONResponse:
         _project_root(project_id)
-        project_id_int = _project_id_as_int(project_id)
         action_id = await _start_compose_action(
             app,
             running_compose_actions,
             project_id=project_id,
             action="frame",
-            runner=lambda: compose_frame(project_id=project_id_int),
+            runner=lambda: compose_frame(project_id=project_id),
         )
         return JSONResponse({"ok": True, "action_id": action_id})
 
@@ -680,13 +676,12 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         body: _ComposeReburnBody,
     ) -> JSONResponse:
         _project_root(project_id)
-        project_id_int = _project_id_as_int(project_id)
         action_id = await _start_compose_action(
             app,
             running_compose_actions,
             project_id=project_id,
             action="reburn",
-            runner=lambda: compose_reburn(project_id=project_id_int, variant=body.variant),
+            runner=lambda: compose_reburn(project_id=project_id, variant=body.variant),
         )
         return JSONResponse({"ok": True, "action_id": action_id})
 
@@ -696,7 +691,6 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
         body: _ComposeResceneBody,
     ) -> JSONResponse:
         _project_root(project_id)
-        project_id_int = _project_id_as_int(project_id)
         if not body.scenes:
             raise HTTPException(status_code=400, detail="at least one scene is required")
         action_id = await _start_compose_action(
@@ -705,7 +699,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
             project_id=project_id,
             action="rescene",
             runner=lambda: compose_rescene(
-                project_id=project_id_int,
+                project_id=project_id,
                 scenes=body.scenes,
                 force=body.force,
             ),
@@ -716,18 +710,8 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     def post_transition_clear(project_id: str, body: _TransitionClearBody) -> JSONResponse:
         _project_root(project_id)
         try:
-            project_id_int = int(project_id)
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"project_id {project_id!r} is not numeric; "
-                    "transition CLI requires int ids"
-                ),
-            ) from exc
-        try:
             summary = apply_clear_transition(
-                project_id=project_id_int,
+                project_id=project_id,
                 from_scene=body.from_scene,
                 to_scene=body.to_scene,
             )
@@ -1168,17 +1152,6 @@ def _to_dict(p: ProjectInfo) -> dict[str, object]:
         "render_freshness": p.render_freshness,
     }
 
-
-def _project_id_as_int(project_id: str) -> int:
-    try:
-        return int(project_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=f"project_id {project_id!r} is not numeric",
-        ) from exc
-
-
 async def _start_compose_action(
     app: FastAPI,
     running_actions: set[tuple[str, str]],
@@ -1195,6 +1168,7 @@ async def _start_compose_action(
         )
     running_actions.add(key)
     action_id = uuid.uuid4().hex[:12]
+    marker = _write_compose_action_marker(app, project_id, action, action_id)
     status_payload = {
         "job_id": f"compose-{action}-{action_id}",
         "status": "queued",
@@ -1235,10 +1209,54 @@ async def _start_compose_action(
                     "finished_at": datetime.now().isoformat(timespec="seconds"),
                 })
         finally:
+            marker.unlink(missing_ok=True)
             running_actions.discard(key)
+            _restart_dashboard_if_pending(app)
 
     asyncio.create_task(_run(), name=f"compose-action-{project_id}-{action}")
     return action_id
+
+
+def _write_compose_action_marker(
+    app: FastAPI,
+    project_id: str,
+    action: str,
+    action_id: str,
+) -> Path:
+    marker_dir = Path(app.state.compose_action_dir)
+    marker_dir.mkdir(parents=True, exist_ok=True)
+    marker = marker_dir / f"{project_id}-{action}-{action_id}.json"
+    marker.write_text(
+        json.dumps(
+            {
+                "project_id": project_id,
+                "action": action,
+                "action_id": action_id,
+                "started_at": datetime.now().isoformat(timespec="seconds"),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return marker
+
+
+def _restart_dashboard_if_pending(app: FastAPI) -> None:
+    pending = Path(app.state.pending_restart_marker)
+    if not pending.exists():
+        return
+    marker_dir = Path(app.state.compose_action_dir)
+    if marker_dir.exists() and any(marker_dir.glob("*.json")):
+        return
+    pending.unlink(missing_ok=True)
+    with contextlib.suppress(Exception):
+        subprocess.run(
+            ["systemctl", "--user", "restart", "--no-block", "content-dashboard"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
 
 
 def _verifier_item_payload(item: Any) -> dict[str, object]:

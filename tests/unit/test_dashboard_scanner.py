@@ -4,7 +4,17 @@ import json
 import os
 from pathlib import Path
 
+import pytest
+
 from pipeline.dashboard.scanner import scan_projects
+
+
+@pytest.fixture(autouse=True)
+def _trust_fake_videos(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "pipeline.dashboard.scanner._is_playable_video",
+        lambda path: path.exists(),
+    )
 
 
 def _make_project(
@@ -81,6 +91,21 @@ def test_status_rendered(tmp_path: Path) -> None:
     assert p.status == "rendered"
     assert p.has_video is True
     assert p.final_video_url_path == "/output/projects/1004/compose/final_zh-TW.mp4"
+
+
+def test_skips_unplayable_final_video(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _make_project(
+        tmp_path,
+        "1004-bad-video",
+        files=["source/video.mp4", "knowledge.json", "storyboard.json", "compose/final_zh-TW.mp4"],
+    )
+    monkeypatch.setattr("pipeline.dashboard.scanner._is_playable_video", lambda _path: False)
+
+    [p] = scan_projects(tmp_path / "output")
+
+    assert p.status == "storyboard"
+    assert p.has_video is False
+    assert p.final_video_url_path is None
 
 
 def test_prefers_context_final_video_variant(tmp_path: Path) -> None:

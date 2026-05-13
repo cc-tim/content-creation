@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import shutil
 import subprocess
 import threading
@@ -92,7 +93,7 @@ def ffmpeg_concat(inputs: list[Path], output: Path) -> None:
         encoding="utf-8",
     )
     try:
-        run_ffmpeg(build_concat_cmd(str(list_file), str(output)))
+        run_ffmpeg_atomic(build_concat_cmd(str(list_file), str(output)), output)
     finally:
         list_file.unlink(missing_ok=True)
 
@@ -106,6 +107,34 @@ def run_ffmpeg(cmd: list[str], timeout: int = 600) -> subprocess.CompletedProces
         timeout=timeout,
         check=True,
     )
+
+
+def run_ffmpeg_atomic(
+    cmd: list[str],
+    output: Path,
+    timeout: int = 600,
+) -> subprocess.CompletedProcess[str]:
+    """Run ffmpeg into a sibling temp file, then atomically replace output.
+
+    This keeps the previously playable artifact intact if ffmpeg is interrupted
+    by a service restart or timeout while writing the MP4 trailer.
+    """
+    output = Path(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    tmp = output.with_name(
+        f".{output.stem}.{os.getpid()}.{threading.get_ident()}.tmp{output.suffix}"
+    )
+    tmp.unlink(missing_ok=True)
+
+    atomic_cmd = [*cmd]
+    atomic_cmd[-1] = str(tmp)
+    try:
+        result = run_ffmpeg(atomic_cmd, timeout=timeout)
+        tmp.replace(output)
+        return result
+    except Exception:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 # -- async / parallel infrastructure --

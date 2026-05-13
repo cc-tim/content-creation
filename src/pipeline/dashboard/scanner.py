@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import json
 import re
+import subprocess
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -112,7 +113,7 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
         results.append(
             ProjectInfo(
                 project_id=project_dir.name,
-                status=_derive_status(ctx, project_dir, locale),
+                status=_derive_status(ctx, project_dir, has_video),
                 title=meta.get("title"),  # type: ignore[arg-type]
                 locale=locale,
                 niche=ctx.get("niche"),
@@ -136,10 +137,10 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
     return results
 
 
-def _derive_status(ctx: dict[str, object], project_dir: Path, locale: str) -> str:
+def _derive_status(ctx: dict[str, object], project_dir: Path, has_video: bool) -> str:
     if ctx.get("youtube_video_id"):
         return "published"
-    if _find_all_final_videos(project_dir, locale):
+    if has_video:
         return "rendered"
     if (project_dir / "storyboard.json").exists():
         return "storyboard"
@@ -159,12 +160,39 @@ def _find_all_final_videos(project_dir: Path, locale: str) -> list[tuple[str, Pa
     prefix = f"final_{locale}"
     results = []
     for path in sorted(compose_dir.glob(f"{prefix}*.mp4")):
+        if not _is_playable_video(path):
+            continue
         suffix = path.stem[len(prefix) :].lstrip("_")
         label = suffix or "final"
         results.append((label, path))
     # canonical "final" variant first
     results.sort(key=lambda x: (x[0] != "final", x[0]))
     return results
+
+
+def _is_playable_video(path: Path) -> bool:
+    try:
+        if path.stat().st_size <= 0:
+            return False
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+        return float(result.stdout.strip()) > 0.1
+    except Exception:
+        return False
 
 
 def _order_final_videos(

@@ -58,6 +58,29 @@ def test_set_transition_with_sfx(client: TestClient, tmp_path: Path):
     assert sb.transitions[0].sfx == "assets/sfx/whoosh.mp3"
 
 
+def test_set_transition_accepts_string_project_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    out_root = tmp_path / "output"
+    projects_dir = out_root / "projects"
+    _seed_project(projects_dir, "abc-story")
+    monkeypatch.setattr(
+        "pipeline.cli_transition.PipelineConfig",
+        lambda: type("C", (), {"OUTPUT_DIR": out_root})(),
+    )
+    client = TestClient(create_app(projects_dir))
+
+    resp = client.post("/api/transition/abc-story/set", json={
+        "from_scene": "s1", "to_scene": "s2",
+        "style": "fade", "duration_sec": 0.3,
+    })
+
+    assert resp.status_code == 200, resp.text
+    sb = Storyboard.load(tmp_path / "output" / "projects" / "abc-story" / "storyboard.json")
+    assert sb.transitions[0].style == "fade"
+
+
 def test_set_transition_with_page_count(client: TestClient, tmp_path: Path):
     resp = client.post("/api/transition/42/set", json={
         "from_scene": "s1", "to_scene": "s2",
@@ -163,6 +186,30 @@ def test_compose_transitions_endpoint_starts_action(
     assert resp.status_code == 200
     assert resp.json()["action_id"] == "action123"
     assert called == {"project_id": "42", "action": "transitions"}
+
+
+def test_compose_endpoint_accepts_string_project_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    out_root = tmp_path / "output"
+    projects_dir = out_root / "projects"
+    _seed_project(projects_dir, "abc-story")
+    client = TestClient(create_app(projects_dir))
+    called = {}
+
+    async def fake_start(app, running_actions, *, project_id, action, runner):
+        called["project_id"] = project_id
+        called["action"] = action
+        return "action-string"
+
+    monkeypatch.setattr("pipeline.dashboard.server._start_compose_action", fake_start)
+
+    resp = client.post("/api/compose/abc-story/transitions")
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["action_id"] == "action-string"
+    assert called == {"project_id": "abc-story", "action": "transitions"}
 
 
 def test_compose_frame_endpoint_starts_action(

@@ -118,8 +118,8 @@ def test_transitions_rebuild_deletes_transition_and_concat_outputs(project_dir):
 
     assert result.exit_code == 0, result.output
     assert not transition_dir.exists()
-    assert not (project_dir / "compose" / "raw.mp4").exists()
-    assert not (project_dir / "compose" / "final_zh-TW_subtitles_no_overlay.mp4").exists()
+    assert (project_dir / "compose" / "raw.mp4").exists()
+    assert (project_dir / "compose" / "final_zh-TW_subtitles_no_overlay.mp4").exists()
     assert mock_run.called
 
 

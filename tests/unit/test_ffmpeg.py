@@ -1,3 +1,9 @@
+import subprocess
+from pathlib import Path
+
+import pytest
+
+from pipeline.utils import ffmpeg
 from pipeline.utils.ffmpeg import (
     build_burn_subtitles_cmd,
     build_concat_cmd,
@@ -37,3 +43,56 @@ def test_concat_cmd(tmp_path):
     )
     assert "concat" in " ".join(cmd)
     assert "final.mp4" in cmd
+
+
+def test_ffmpeg_concat_uses_atomic_output(tmp_path, monkeypatch):
+    output = tmp_path / "final.mp4"
+    inputs = [tmp_path / "a.mp4", tmp_path / "b.mp4"]
+    seen = {}
+
+    def fake_atomic(cmd: list[str], output_path: Path, timeout: int = 600):
+        seen["cmd"] = cmd
+        seen["output"] = output_path
+        seen["timeout"] = timeout
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(ffmpeg, "run_ffmpeg_atomic", fake_atomic)
+
+    ffmpeg.ffmpeg_concat(inputs, output)
+
+    assert seen["output"] == output
+    assert seen["cmd"][-1] == str(output)
+    assert not (tmp_path / "_concat_final.txt").exists()
+
+
+def test_run_ffmpeg_atomic_replaces_output_after_success(tmp_path, monkeypatch):
+    output = tmp_path / "final.mp4"
+    output.write_text("old", encoding="utf-8")
+
+    def fake_run(cmd: list[str], timeout: int = 600):
+        Path(cmd[-1]).write_text("new", encoding="utf-8")
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(ffmpeg, "run_ffmpeg", fake_run)
+
+    ffmpeg.run_ffmpeg_atomic(["ffmpeg", "-y", "final.mp4"], output)
+
+    assert output.read_text(encoding="utf-8") == "new"
+    assert not list(tmp_path.glob(".final.*.tmp.mp4"))
+
+
+def test_run_ffmpeg_atomic_keeps_existing_output_on_failure(tmp_path, monkeypatch):
+    output = tmp_path / "final.mp4"
+    output.write_text("old", encoding="utf-8")
+
+    def fake_run(cmd: list[str], timeout: int = 600):
+        Path(cmd[-1]).write_text("partial", encoding="utf-8")
+        raise RuntimeError("encode interrupted")
+
+    monkeypatch.setattr(ffmpeg, "run_ffmpeg", fake_run)
+
+    with pytest.raises(RuntimeError, match="encode interrupted"):
+        ffmpeg.run_ffmpeg_atomic(["ffmpeg", "-y", "final.mp4"], output)
+
+    assert output.read_text(encoding="utf-8") == "old"
+    assert not list(tmp_path.glob(".final.*.tmp.mp4"))

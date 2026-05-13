@@ -118,6 +118,8 @@ output/projects/{project_id}/
 
 > **Note:** `--start-from tts` and `--start-from compose` load `context.json` automatically — no `--url` needed if you provide `--project-id`.
 
+> **Final artifact safety:** Compose writes raw/final MP4 outputs to sibling temp files first, atomically replaces the prior output only after FFmpeg succeeds, and validates finals with `ffprobe`. Dashboard project scanning only advertises playable `final_*.mp4` variants, so an interrupted encode is not shown as a playable final.
+
 ---
 
 ### Storyboard editing helpers
