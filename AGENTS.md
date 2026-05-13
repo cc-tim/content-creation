@@ -20,6 +20,7 @@ Before anything else:
 2. Read `~/.openclaw/workspace/USER.md` — who you're helping
 3. Read `CLAUDE.md` — full project architecture, commands, and design decisions
 4. Read `~/.openclaw/workspace/memory/` recent files for conversation continuity
+5. Read `.agent-memory/MEMORY.md` — shared agent memories (feedback, project facts, preferences)
 
 ## Project at a Glance
 
