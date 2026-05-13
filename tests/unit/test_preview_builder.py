@@ -107,6 +107,7 @@ def test_build_project_preview_manifest_collects_scene_and_transition_previews(t
     with (
         patch("pipeline.dashboard.preview.ensure_scene_preview") as scene_preview,
         patch("pipeline.dashboard.preview.ensure_transition_preview") as transition_preview,
+        patch("pipeline.dashboard.preview.ensure_transition_motion_review") as motion_review,
         patch("pipeline.dashboard.preview.resolve_transition_clip", return_value=transition_clip),
         patch("pipeline.dashboard.preview.build_intro_transition_preview", return_value=None),
     ):
@@ -114,8 +115,12 @@ def test_build_project_preview_manifest_collects_scene_and_transition_previews(t
 
     assert [item["id"] for item in manifest["scenes"]] == ["s1", "s2"]
     assert manifest["transitions"][0]["id"] == "s1->s2"
+    assert manifest["transitions"][0]["motion_path"] == (
+        "compose/previews/transitions_motion/s1_s2.jpg"
+    )
     assert scene_preview.call_count == 2
     assert transition_preview.call_count == 1
+    assert motion_review.call_count == 1
 
 
 def test_build_transition_preview_image_renders_draft_preview(tmp_path: Path) -> None:
@@ -145,11 +150,15 @@ def test_build_transition_preview_image_renders_draft_preview(tmp_path: Path) ->
             project,
             from_scene="s1",
             to_scene="s2",
-            style="fade",
+            style="book-page-turn-v2",
             duration_sec=0.5,
+            page_count=2,
             preview_name="draft_case",
         )
 
     assert preview == project / "compose" / "previews" / "transitions" / "draft_case.jpg"
     assert render_transition.called
+    cfg = render_transition.call_args.args[2]
+    assert cfg.style == "book-page-turn-v2"
+    assert cfg.page_count == 2
     assert ensure_preview.called

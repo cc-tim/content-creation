@@ -61,13 +61,13 @@ def test_set_transition_with_sfx(client: TestClient, tmp_path: Path):
 def test_set_transition_with_page_count(client: TestClient, tmp_path: Path):
     resp = client.post("/api/transition/42/set", json={
         "from_scene": "s1", "to_scene": "s2",
-        "style": "book-page-turn", "duration_sec": 0.8,
-        "page_count": 3,
+        "style": "book-page-turn-v2", "duration_sec": 1.4,
+        "page_count": 5,
     })
     assert resp.status_code == 200
     sb = Storyboard.load(tmp_path / "output" / "projects" / "42" / "storyboard.json")
-    assert sb.transitions[0].style == "book-page-turn"
-    assert sb.transitions[0].page_count == 3
+    assert sb.transitions[0].style == "book-page-turn-v2"
+    assert sb.transitions[0].page_count == 5
 
 
 def test_set_transition_with_stock_asset_metadata(client: TestClient, tmp_path: Path):

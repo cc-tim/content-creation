@@ -6,10 +6,12 @@ from pathlib import Path
 import pytest
 
 from pipeline.composer.transitions import (
+    BOOK_PAGE_STYLES,
     REGISTRY,
     SUPPORTED_RENDERER_MODES,
     SUPPORTED_STYLES,
     BookPageTurnRenderer,
+    BookPageTurnV2Renderer,
     HardCutRenderer,
     TransitionConfig,
     XfadeRenderer,
@@ -47,9 +49,9 @@ def test_transition_from_dict_with_page_count_clamps_to_supported_range():
         "to": "s10",
         "style": "book-page-turn",
         "duration_sec": 0.9,
-        "page_count": 7,
+        "page_count": 99,
     })
-    assert t.page_count == 3
+    assert t.page_count == 8
 
 
 def test_transition_from_dict_with_stock_metadata():
@@ -210,7 +212,7 @@ def test_transition_config_rejects_unknown_style():
 
 def test_transition_config_rejects_invalid_page_count():
     with pytest.raises(ValueError, match="page_count"):
-        TransitionConfig(style="book-page-turn", duration_sec=0.5, sfx=None, page_count=4)
+        TransitionConfig(style="book-page-turn", duration_sec=0.5, sfx=None, page_count=9)
 
 
 def test_transition_config_rejects_stock_mode_without_asset_path():
@@ -219,7 +221,24 @@ def test_transition_config_rejects_stock_mode_without_asset_path():
 
 
 def test_supported_styles_set_matches_spec():
-    assert {"none", "fade", "page-turn", "book-page-turn", "stock-book-page-turn", "slide", "wipe"} == SUPPORTED_STYLES
+    assert {
+        "none",
+        "fade",
+        "page-turn",
+        "book-page-turn",
+        "book-page-turn-v2",
+        "stock-book-page-turn",
+        "slide",
+        "wipe",
+    } == SUPPORTED_STYLES
+
+
+def test_book_page_styles_include_v2():
+    assert {
+        "book-page-turn",
+        "book-page-turn-v2",
+        "stock-book-page-turn",
+    } == BOOK_PAGE_STYLES
 
 
 def test_supported_renderer_modes_set_matches_spec():
@@ -346,6 +365,10 @@ def test_registry_book_page_turn_has_dedicated_renderer():
     assert isinstance(REGISTRY["book-page-turn"], BookPageTurnRenderer)
 
 
+def test_registry_book_page_turn_v2_has_dedicated_renderer():
+    assert isinstance(REGISTRY["book-page-turn-v2"], BookPageTurnV2Renderer)
+
+
 def test_registry_none_is_hard_cut():
     assert isinstance(REGISTRY["none"], HardCutRenderer)
 
@@ -417,3 +440,16 @@ def test_render_transition_caches_result(tmp_path: Path):
     p2 = render_transition(a, b, cfg, cache_dir, width=320, height=180, fps=30)
     assert p2 == p1
     assert p2.stat().st_mtime == mtime1  # not re-rendered
+
+
+def test_book_page_turn_v2_renderer_emits_clip(tmp_path: Path):
+    a = _make_test_clip(tmp_path / "a.mp4", duration=0.5, color="red", width=160, height=90, fps=12)
+    b = _make_test_clip(tmp_path / "b.mp4", duration=0.5, color="blue", width=160, height=90, fps=12)
+    out = tmp_path / "t.mp4"
+    cfg = TransitionConfig(style="book-page-turn-v2", duration_sec=0.5, sfx=None, page_count=5)
+
+    renderer = BookPageTurnV2Renderer()
+    result = renderer.render(a, b, cfg, out, width=160, height=90, fps=12)
+
+    assert result == out
+    assert out.exists() and out.stat().st_size > 0

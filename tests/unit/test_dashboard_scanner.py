@@ -261,6 +261,45 @@ def test_scenes_json_takes_priority_over_storyboard(tmp_path: Path) -> None:
     assert p.scenes[0]["duration_sec"] == 5.0
 
 
+def test_scanner_attaches_scene_camera_motion_from_storyboard(tmp_path: Path) -> None:
+    scenes_json = [
+        {
+            "id": "s1",
+            "section": "hook",
+            "start_sec": 0.0,
+            "duration_sec": 5.0,
+            "narration": "From file",
+        }
+    ]
+    camera_motion = {
+        "type": "slow_push_pan",
+        "focus_point": {"x": 0.66, "y": 0.69},
+        "zoom_end": 2.35,
+    }
+    storyboard = {
+        "scenes": [
+            {
+                "id": "s1",
+                "section": "hook",
+                "narration": "From storyboard",
+                "narration_est_sec": 99.0,
+                "pause_after_sec": 0,
+                "visual": {"type": "article_image", "camera_motion": camera_motion},
+            }
+        ]
+    }
+    project_dir = _make_project(tmp_path, "2004-camera")
+    (project_dir / "storyboard.json").write_text(json.dumps(storyboard))
+    compose_dir = project_dir / "compose"
+    compose_dir.mkdir()
+    (compose_dir / "scenes.json").write_text(json.dumps(scenes_json))
+
+    [p] = scan_projects(tmp_path / "output")
+
+    assert p.scenes[0]["narration"] == "From file"
+    assert p.scenes[0]["camera_motion"] == camera_motion
+
+
 def test_scanner_includes_transition_theme_and_intro_summary(tmp_path: Path) -> None:
     storyboard = {
         "theme": {

@@ -2,39 +2,16 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import cast
 
+from pipeline.composer.book_scene import BookSceneSpec
 from pipeline.utils.ffmpeg import run_ffmpeg
 
 SUPPORTED_FRAME_STYLES: set[str] = {"open_book_page"}
 
 
 def _open_book_geometry(width: int, height: int) -> dict[str, int | str]:
-    margin_x = int(width * 0.065)
-    margin_y = int(height * 0.075)
-    page_x = margin_x
-    page_y = margin_y
-    page_w = width - margin_x * 2
-    page_h = height - margin_y * 2
-    inset_x = page_x + int(page_w * 0.075)
-    inset_y = page_y + int(page_h * 0.105)
-    inset_w = page_w - int(page_w * 0.15)
-    inset_h = page_h - int(page_h * 0.21)
-
-    return {
-        "page_x": page_x,
-        "page_y": page_y,
-        "page_w": page_w,
-        "page_h": page_h,
-        "inset_x": inset_x,
-        "inset_y": inset_y,
-        "inset_w": inset_w,
-        "inset_h": inset_h,
-        "bg": "#2b1f14",
-        "page": "#f4ead2",
-        "page_edge": "#caa766",
-        "shadow": "#1a120b",
-        "gutter": "#d9c299",
-    }
+    return BookSceneSpec.open_book(width, height).as_frame_geometry()
 
 
 def composite_scene_frame(
@@ -73,14 +50,14 @@ def _composite_open_book_page(
 ) -> Path:
     g = _open_book_geometry(width, height)
     duration = _probe_duration_sec(src)
-    page_x = g["page_x"]
-    page_y = g["page_y"]
-    page_w = g["page_w"]
-    page_h = g["page_h"]
-    inset_x = g["inset_x"]
-    inset_y = g["inset_y"]
-    inset_w = g["inset_w"]
-    inset_h = g["inset_h"]
+    page_x = cast(int, g["page_x"])
+    page_y = cast(int, g["page_y"])
+    page_w = cast(int, g["page_w"])
+    page_h = cast(int, g["page_h"])
+    inset_x = cast(int, g["inset_x"])
+    inset_y = cast(int, g["inset_y"])
+    inset_w = cast(int, g["inset_w"])
+    inset_h = cast(int, g["inset_h"])
 
     book_filter = (
         f"[1:v]"

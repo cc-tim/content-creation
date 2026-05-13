@@ -6,6 +6,7 @@ from pathlib import Path
 import typer
 
 from pipeline.composer.transitions import (
+    MAX_BOOK_PAGE_COUNT,
     SUPPORTED_RENDERER_MODES,
     SUPPORTED_STYLES,
     TransitionConfig,
@@ -61,8 +62,8 @@ def apply_set_transition(
             f"Unknown renderer_mode {renderer_mode!r}. Choose from: "
             f"{', '.join(sorted(SUPPORTED_RENDERER_MODES))}"
         )
-    if page_count is not None and not 1 <= page_count <= 3:
-        raise ValueError("page_count must be between 1 and 3")
+    if page_count is not None and not 1 <= page_count <= MAX_BOOK_PAGE_COUNT:
+        raise ValueError(f"page_count must be between 1 and {MAX_BOOK_PAGE_COUNT}")
     TransitionConfig(
         style=style,
         duration_sec=duration_sec,
@@ -172,7 +173,7 @@ def set_transition(
     page_count: int | None = typer.Option(
         None,
         "--page-count",
-        help="Optional page count for book-page-turn transitions (1-3)",
+        help=f"Optional page count for book-page-turn transitions (1-{MAX_BOOK_PAGE_COUNT})",
     ),
     renderer_mode: str | None = typer.Option(
         None,

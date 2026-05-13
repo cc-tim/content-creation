@@ -18,6 +18,8 @@ from pipeline.composer.frame import composite_scene_frame
 from pipeline.composer.overlay import apply_overlay
 from pipeline.composer.overlay_rules import check_overlay_allowed
 from pipeline.composer.transitions import (
+    BOOK_PAGE_STYLES,
+    MAX_BOOK_PAGE_COUNT,
     TransitionConfig,
     render_transition,
 )
@@ -902,7 +904,7 @@ class ComposeStage(PipelineStage):
         except ValueError:
             duration = 0.9
         try:
-            page_count = max(1, min(3, int(page_count_raw)))
+            page_count = max(1, min(MAX_BOOK_PAGE_COUNT, int(page_count_raw)))
         except ValueError:
             page_count = 2
 
@@ -911,7 +913,7 @@ class ComposeStage(PipelineStage):
             style=style,
             duration_sec=duration,
             sfx=None,
-            page_count=page_count if style in {"book-page-turn", "stock-book-page-turn"} else None,
+            page_count=page_count if style in BOOK_PAGE_STYLES else None,
             renderer_mode=theme_dict.get("intro_transition_renderer_mode") or None,
             asset_path=theme_dict.get("intro_transition_asset_path") or None,
             asset_source=theme_dict.get("intro_transition_asset_source") or None,

@@ -34,7 +34,11 @@
     + '@media (max-width:520px){.te-row{display:block}.te-row label{display:block;margin-bottom:4px}'
     + '.te-note{margin-left:0}.te-actions{justify-content:stretch}.te-actions button{flex:1}}';
 
-  var TRANSITION_STYLES = ['none', 'fade', 'page-turn', 'book-page-turn', 'stock-book-page-turn', 'slide', 'wipe'];
+  var TRANSITION_STYLES = ['none', 'fade', 'page-turn', 'book-page-turn', 'book-page-turn-v2', 'stock-book-page-turn', 'slide', 'wipe'];
+
+  function isBookPageStyle(style) {
+    return style === 'book-page-turn' || style === 'book-page-turn-v2' || style === 'stock-book-page-turn';
+  }
 
   function ensureStyle() {
     if (document.getElementById('te-style')) return;
@@ -217,7 +221,7 @@
       + '<div class="te-row"><label for="te-duration-input">Duration (sec)</label>'
       + '<input id="te-duration-input" class="te-duration" type="number" min="0" max="3" step="0.05" value="0.5"></div>'
       + '<div class="te-row te-page-row"><label for="te-page-count-input">Page count</label>'
-      + '<input id="te-page-count-input" class="te-page-count" type="number" min="1" max="3" step="1" value="2"></div>'
+      + '<input id="te-page-count-input" class="te-page-count" type="number" min="1" max="8" step="1" value="2"></div>'
       + '<div class="te-row"><label for="te-sfx-select">SFX</label>'
       + '<select id="te-sfx-select" class="te-sfx">' + optionHtml('', 'silent') + '</select></div>'
       + '<div class="te-row"><label for="te-sfx-upload">Upload custom</label>'
@@ -315,7 +319,7 @@
         to_scene: toScene,
         style: styleSelect.value,
         duration_sec: parseFloat(durationInput.value || '0') || 0,
-        page_count: /book-page-turn$/.test(styleSelect.value) ? parseInt(pageCountInput.value || '2', 10) : null,
+        page_count: isBookPageStyle(styleSelect.value) ? parseInt(pageCountInput.value || '2', 10) : null,
         sfx: sfxSelect.value || null,
         preview_name: (isIntro ? 'draft_intro' : 'draft_' + fromScene + '_' + toScene),
       }, preserved);
@@ -361,7 +365,7 @@
     }
 
     function syncPageCountVisibility() {
-      pageRow.style.display = /book-page-turn$/.test(styleSelect.value) ? '' : 'none';
+      pageRow.style.display = isBookPageStyle(styleSelect.value) ? '' : 'none';
     }
 
     function onKeydown(event) {
@@ -439,7 +443,7 @@
         style: style,
         duration_sec: duration,
         sfx: sfxSelect.value || null,
-        page_count: /book-page-turn$/.test(style) ? parseInt(pageCountInput.value || '2', 10) : null,
+        page_count: isBookPageStyle(style) ? parseInt(pageCountInput.value || '2', 10) : null,
       };
       Object.assign(payload, preserveCurrentAssetFields());
       var request = isIntro && style === 'none'
@@ -448,7 +452,7 @@
         ? setIntroTransition(projectId, {
           style: style,
           duration_sec: duration,
-          page_count: /book-page-turn$/.test(style) ? parseInt(pageCountInput.value || '2', 10) : null,
+          page_count: isBookPageStyle(style) ? parseInt(pageCountInput.value || '2', 10) : null,
           renderer_mode: preserveCurrentAssetFields().renderer_mode || null,
           asset_path: preserveCurrentAssetFields().asset_path || null,
           asset_source: preserveCurrentAssetFields().asset_source || null,

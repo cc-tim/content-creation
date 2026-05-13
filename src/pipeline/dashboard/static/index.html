@@ -67,13 +67,14 @@
     .scene-chip:hover { background:#1e293b; color:#94a3b8; }
     .scene-chip.sc-past { background:#161616; color:#374151; border-color:#161616; }
     .scene-chip.sc-active { background:#1e3a5f; color:#93c5fd; border-color:#3b82f6; }
-    .transition-chip, .source-chip { padding:4px 8px; border-radius:4px; font-size:10px; font-family:monospace;
+    .transition-chip, .source-chip, .camera-chip { padding:4px 8px; border-radius:4px; font-size:10px; font-family:monospace;
       cursor:pointer; background:#14213d; color:#93c5fd; border:1px solid #1d4ed8; white-space:nowrap; }
-    .transition-chip:hover, .source-chip:hover { background:#1e3a5f; color:#bfdbfe; }
+    .transition-chip:hover, .source-chip:hover, .camera-chip:hover { background:#1e3a5f; color:#bfdbfe; }
     .transition-chip.tr-book { background:#3b2413; color:#f7c678; border-color:#a16207; }
     .transition-chip.tr-motion { background:#14213d; color:#93c5fd; border-color:#1d4ed8; }
     .transition-chip.tr-none { background:#171717; color:#64748b; border-color:#334155; }
     .transition-chip.tr-stale { border-color:#ef4444; box-shadow:0 0 0 1px rgba(239,68,68,.25) inset; }
+    .camera-chip { background:#163227; color:#86efac; border-color:#15803d; }
     .transition-assets { grid-column:1/-1; border-top:1px solid #1e293b; margin-top:8px; padding-top:10px; }
     .transition-assets-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:8px; }
     .transition-asset-card { border:1px solid #1e293b; border-radius:6px; padding:8px 10px; background:#0f172a; min-width:0; }
@@ -294,10 +295,34 @@ function transitionLabel(t, intro) {
   return `${prefix}${style}${dur ? ` · ${dur}s` : ''}${pages}${mode ? ` · ${mode}` : ''}`;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function cameraMotionLabel(motion) {
+  if (!motion || !motion.type) return '';
+  const type = String(motion.type).replace(/_/g, '-');
+  const zoom = motion.zoom_end ? ` · ${motion.zoom_end}x` : '';
+  return `camera · ${type}${zoom}`;
+}
+
+function cameraMotionChip(scene) {
+  const motion = scene.camera_motion;
+  const label = cameraMotionLabel(motion);
+  if (!label) return '';
+  const title = motion.direction || motion.end_frame || label;
+  return `<button class="camera-chip" type="button" data-edit-token="@${scene.id}/camera" title="${escapeHtml(title)}">${escapeHtml(label)}</button>`;
+}
+
 function transitionClass(t, freshness) {
   const style = (t && t.style) || 'none';
   const classes = ['transition-chip'];
-  if (style === 'book-page-turn' || style === 'stock-book-page-turn' || style === 'page-turn') classes.push('tr-book');
+  if (style === 'book-page-turn' || style === 'book-page-turn-v2' || style === 'stock-book-page-turn' || style === 'page-turn') classes.push('tr-book');
   else if (style === 'none') classes.push('tr-none');
   else classes.push('tr-motion');
   if (freshness && freshness.stale) classes.push('tr-stale');
@@ -369,6 +394,7 @@ function buildSceneStrip(project) {
     const seam = next ? transitions[`${s.id}->${next.id}`] || {style: 'none'} : null;
     return `
       <div class="scene-chip" data-idx="${i}" data-start="${s.start_sec}" data-edit-token="@${s.id}">${s.id} · ${s.section}</div>
+      ${cameraMotionChip(s)}
       ${next ? `<button class="${transitionClass(seam, project.render_freshness)}" type="button" data-from="${s.id}" data-to="${next.id}" data-edit-token="@${s.id}/transition">${transitionLabel(seam, false)}</button>` : ''}
     `;
   }).join('');

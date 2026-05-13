@@ -29,6 +29,7 @@ def image_to_video(
     duration_sec: float,
     width: int = 1280,
     height: int = 720,
+    camera_motion: dict[str, Any] | None = None,
 ) -> Path:
     """Convert a static image to a video segment with a slow Ken Burns zoom-in.
 
@@ -37,20 +38,22 @@ def image_to_video(
     """
     fps = 30
     frames = max(1, int(duration_sec * fps))
-    # Constant zoom speed: 0.0001 per frame → reaches 10% zoom after ~33s
-    zoom_per_frame = 0.0001
-    zoom_max = 1.10
-    scaled_w = int(width * 1.3)
-    scaled_h = int(height * 1.3)
-    vf = (
-        f"scale={scaled_w}:{scaled_h}:force_original_aspect_ratio=increase,"
-        f"crop={scaled_w}:{scaled_h},"
-        f"zoompan="
-        f"z='min(zoom+{zoom_per_frame},{zoom_max})':"
-        f"x='iw/2-(iw/zoom/2)':"
-        f"y='ih/2-(ih/zoom/2)':"
-        f"d={frames}:s={width}x{height}:fps={fps}"
-    )
+    vf = _camera_motion_filter(image_path, camera_motion, frames, width, height, fps)
+    if vf is None:
+        # Constant zoom speed: 0.0001 per frame -> reaches 10% zoom after ~33s
+        zoom_per_frame = 0.0001
+        zoom_max = 1.10
+        scaled_w = int(width * 1.3)
+        scaled_h = int(height * 1.3)
+        vf = (
+            f"scale={scaled_w}:{scaled_h}:force_original_aspect_ratio=increase,"
+            f"crop={scaled_w}:{scaled_h},"
+            f"zoompan="
+            f"z='min(zoom+{zoom_per_frame},{zoom_max})':"
+            f"x='iw/2-(iw/zoom/2)':"
+            f"y='ih/2-(ih/zoom/2)':"
+            f"d={frames}:s={width}x{height}:fps={fps}"
+        )
     run_ffmpeg(
         [
             "ffmpeg",
@@ -77,6 +80,64 @@ def image_to_video(
         ]
     )
     return output_path
+
+
+def _camera_motion_filter(
+    image_path: Path,
+    camera_motion: dict[str, Any] | None,
+    frames: int,
+    width: int,
+    height: int,
+    fps: int,
+) -> str | None:
+    if not camera_motion or camera_motion.get("type") not in {"slow_push_pan", "ken_burns"}:
+        return None
+    focus = camera_motion.get("focus_point")
+    if not isinstance(focus, dict):
+        return None
+
+    focus_x = _coerce_float(focus.get("x"), 0.5)
+    focus_y = _coerce_float(focus.get("y"), 0.5)
+    focus_x = max(0.0, min(1.0, focus_x))
+    focus_y = max(0.0, min(1.0, focus_y))
+    zoom_end = max(1.0, min(4.0, _coerce_float(camera_motion.get("zoom_end"), 1.35)))
+
+    source_w, source_h = _image_dimensions(image_path)
+    scale = min(width / source_w, height / source_h)
+    fitted_w = source_w * scale
+    fitted_h = source_h * scale
+    pad_x = (width - fitted_w) / 2.0
+    pad_y = (height - fitted_h) / 2.0
+    target_x = pad_x + focus_x * fitted_w
+    target_y = pad_y + focus_y * fitted_h
+    last_frame = max(1, frames - 1)
+
+    return (
+        f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+        f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=0x18120b,"
+        f"zoompan="
+        f"z='1+{zoom_end - 1:.6f}*on/{last_frame}':"
+        f"x='max(0,min(iw-iw/zoom,(iw/2-iw/(2*zoom))*(1-on/{last_frame})"
+        f"+({target_x:.3f}-iw/(2*zoom))*on/{last_frame}))':"
+        f"y='max(0,min(ih-ih/zoom,(ih/2-ih/(2*zoom))*(1-on/{last_frame})"
+        f"+({target_y:.3f}-ih/(2*zoom))*on/{last_frame}))':"
+        f"d={frames}:s={width}x{height}:fps={fps},"
+        f"setsar=1"
+    )
+
+
+def _image_dimensions(path: Path) -> tuple[int, int]:
+    from PIL import Image
+
+    with Image.open(path) as image:
+        return image.size
+
+
+def _coerce_float(value: Any, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def render_scene(
@@ -189,7 +250,15 @@ def render_scene(
                 fallback, duration_sec, width, height, work_dir, scene_id, theme
             )
         output = work_dir / f"{scene_id}_visual.mp4"
-        return image_to_video(img_path, output, duration_sec, width, height)
+        camera_motion = visual.get("camera_motion")
+        return image_to_video(
+            img_path,
+            output,
+            duration_sec,
+            width,
+            height,
+            camera_motion=camera_motion if isinstance(camera_motion, dict) else None,
+        )
 
     elif visual_type == "still_frame":
         from pipeline.composer.still_frame import render_still_frame

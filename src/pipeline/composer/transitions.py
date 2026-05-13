@@ -6,7 +6,8 @@ missing entries mean a hard cut.
 
 Most v1 styles use ffmpeg's built-in `xfade` filter. The legacy
 `page-turn` style remains an alias to `xfade slideleft`; projects that need
-a visible book/page metaphor should use `book-page-turn`.
+a visible book/page metaphor should use `book-page-turn-v2` when render time
+allows, or `book-page-turn` for the faster basic generated path.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from typing import Protocol
 
 import structlog
 
+from pipeline.composer.book_scene import extract_video_frame, render_book_page_turn_v2
 from pipeline.storyboard import Transition
 from pipeline.utils.ffmpeg import run_ffmpeg
 
@@ -29,10 +31,18 @@ SUPPORTED_STYLES: set[str] = {
     "fade",
     "page-turn",
     "book-page-turn",
+    "book-page-turn-v2",
     "stock-book-page-turn",
     "slide",
     "wipe",
 }
+BOOK_PAGE_STYLES: set[str] = {
+    "book-page-turn",
+    "book-page-turn-v2",
+    "stock-book-page-turn",
+}
+MAX_BOOK_PAGE_COUNT = 8
+BOOK_PAGE_TURN_V2_RENDER_VERSION = "book-page-turn-v2.2"
 SUPPORTED_RENDERER_MODES: set[str] = {
     "generated",
     "licensed_clip",
@@ -66,8 +76,8 @@ class TransitionConfig:
                 f"Unknown transition renderer_mode: {self.renderer_mode!r}. "
                 f"Supported: {sorted(SUPPORTED_RENDERER_MODES)}"
             )
-        if self.page_count is not None and not 1 <= self.page_count <= 3:
-            raise ValueError("page_count must be between 1 and 3")
+        if self.page_count is not None and not 1 <= self.page_count <= MAX_BOOK_PAGE_COUNT:
+            raise ValueError(f"page_count must be between 1 and {MAX_BOOK_PAGE_COUNT}")
         if self.effective_renderer_mode != "generated" and not self.asset_path:
             raise ValueError("asset_path is required when renderer_mode is licensed_clip or overlay")
 
@@ -371,6 +381,43 @@ class BookPageTurnRenderer:
         return ",".join(filters) + ","
 
 
+class BookPageTurnV2Renderer:
+    """Renders a higher-fidelity book page turn from real frame imagery."""
+
+    def render(
+        self,
+        scene_a: Path,
+        scene_b: Path,
+        cfg: TransitionConfig,
+        out: Path,
+        *,
+        width: int,
+        height: int,
+        fps: int,
+    ) -> Path | None:
+        work = out.parent
+        work.mkdir(parents=True, exist_ok=True)
+        frame_a = work / f"{out.stem}_a.png"
+        frame_b = work / f"{out.stem}_b.png"
+        try:
+            extract_video_frame(scene_a, frame_a, first=False)
+            extract_video_frame(scene_b, frame_b, first=True)
+            return render_book_page_turn_v2(
+                frame_a=frame_a,
+                frame_b=frame_b,
+                out=out,
+                width=width,
+                height=height,
+                fps=fps,
+                duration_sec=cfg.duration_sec,
+                page_count=cfg.page_count or 2,
+                sfx=cfg.sfx,
+            )
+        finally:
+            frame_a.unlink(missing_ok=True)
+            frame_b.unlink(missing_ok=True)
+
+
 class LicensedClipRenderer:
     """Uses a licensed full-frame clip as the transition video."""
 
@@ -492,6 +539,7 @@ REGISTRY: dict[str, TransitionRenderer] = {
     "fade":      XfadeRenderer(xfade_name="fade"),
     "page-turn": XfadeRenderer(xfade_name="slideleft"),  # v1 alias; swap to OverlayRenderer later
     "book-page-turn": BookPageTurnRenderer(),
+    "book-page-turn-v2": BookPageTurnV2Renderer(),
     "stock-book-page-turn": BookPageTurnRenderer(),
     "slide":     XfadeRenderer(xfade_name="slideleft"),
     "wipe":      XfadeRenderer(xfade_name="wiperight"),
@@ -559,6 +607,8 @@ def transition_cache_key(scene_a: Path, scene_b: Path, cfg: TransitionConfig) ->
     h.update(f"{cfg.duration_sec:.4f}".encode())
     h.update((cfg.sfx or "").encode())
     h.update(str(cfg.page_count or "").encode())
+    if cfg.style == "book-page-turn-v2":
+        h.update(BOOK_PAGE_TURN_V2_RENDER_VERSION.encode())
     if cfg.asset_path:
         h.update(cfg.asset_path.encode())
         try:

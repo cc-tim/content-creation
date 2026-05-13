@@ -88,6 +88,9 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
         elif storyboard_data:
             scenes = _estimate_scenes_from_storyboard_data(storyboard_data)
 
+        if scenes and storyboard_data:
+            _attach_storyboard_scene_metadata(scenes, storyboard_data)
+
         if scenes:
             srt_path = project_dir / "audio" / f"subtitles_{locale}.srt"
             srt_entries = _parse_srt(srt_path)
@@ -189,6 +192,30 @@ def _estimate_scenes_from_storyboard_data(data: dict[str, object]) -> list[dict[
         )
         start += dur
     return result
+
+
+def _attach_storyboard_scene_metadata(
+    scenes: list[dict[str, object]],
+    storyboard: dict[str, object],
+) -> None:
+    storyboard_scenes = storyboard.get("scenes", [])
+    if not isinstance(storyboard_scenes, list):
+        return
+    by_id = {
+        str(scene.get("id")): scene
+        for scene in storyboard_scenes
+        if isinstance(scene, dict) and scene.get("id")
+    }
+    for scene in scenes:
+        source = by_id.get(str(scene.get("id") or ""))
+        if not isinstance(source, dict):
+            continue
+        visual = source.get("visual")
+        if not isinstance(visual, dict):
+            continue
+        camera_motion = visual.get("camera_motion")
+        if isinstance(camera_motion, dict):
+            scene["camera_motion"] = camera_motion
 
 
 def _transition_summaries(storyboard: dict[str, object]) -> list[dict[str, object]]:

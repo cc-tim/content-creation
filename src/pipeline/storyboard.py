@@ -16,7 +16,7 @@ class Transition:
 
     from_scene: str
     to_scene: str
-    style: str  # none | fade | page-turn | book-page-turn | stock-book-page-turn | slide | wipe
+    style: str  # none | fade | page-turn | book-page-turn | book-page-turn-v2 | stock-book-page-turn | slide | wipe
     duration_sec: float
     sfx: str | None = None
     page_count: int | None = None
@@ -36,7 +36,7 @@ class Transition:
             duration_sec=float(data["duration_sec"]),
             sfx=data.get("sfx"),
             page_count=(
-                max(1, min(3, int(data["page_count"])))
+                max(1, min(8, int(data["page_count"])))
                 if data.get("page_count") is not None
                 else None
             ),

@@ -77,12 +77,12 @@ def test_set_with_page_count_writes_page_count(project_tree: Path):
     runner = CliRunner()
     result = runner.invoke(transition_app, [
         "set", "--project-id", "42", "--from", "s1", "--to", "s2",
-        "--style", "book-page-turn", "--duration", "0.8", "--page-count", "3",
+        "--style", "book-page-turn-v2", "--duration", "1.4", "--page-count", "5",
     ])
     assert result.exit_code == 0, result.output
     sb = Storyboard.load(project_tree / "storyboard.json")
-    assert sb.transitions[0].style == "book-page-turn"
-    assert sb.transitions[0].page_count == 3
+    assert sb.transitions[0].style == "book-page-turn-v2"
+    assert sb.transitions[0].page_count == 5
 
 
 def test_set_with_stock_asset_metadata_writes_transition_fields(project_tree: Path):

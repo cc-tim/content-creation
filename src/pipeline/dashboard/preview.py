@@ -8,7 +8,12 @@ from pathlib import Path
 from typing import Any, Literal
 
 from pipeline.composer.base import get_resolution
-from pipeline.composer.transitions import TransitionConfig, render_transition, transition_cache_key
+from pipeline.composer.transitions import (
+    BOOK_PAGE_STYLES,
+    TransitionConfig,
+    render_transition,
+    transition_cache_key,
+)
 from pipeline.storyboard import Storyboard
 from pipeline.utils.ffmpeg import run_ffmpeg
 
@@ -111,11 +116,16 @@ def build_project_preview_manifest(project_root: Path) -> dict[str, list[dict[st
         preview_path = (
             previews_dir / "transitions" / f"{transition.from_scene}_{transition.to_scene}.jpg"
         )
+        motion_path = (
+            previews_dir / "transitions_motion" / f"{transition.from_scene}_{transition.to_scene}.jpg"
+        )
         ensure_transition_preview(clip, preview_path)
+        ensure_transition_motion_review(clip, motion_path)
         transition_items.append({
             "id": f"{transition.from_scene}->{transition.to_scene}",
             "label": f"{transition.from_scene} to {transition.to_scene} · {transition.style}",
             "path": preview_path.relative_to(project_root).as_posix(),
+            "motion_path": motion_path.relative_to(project_root).as_posix(),
         })
 
     intro_item = build_intro_transition_preview(project_root, storyboard, previews_dir)
@@ -160,6 +170,35 @@ def ensure_transition_preview(transition_video: Path, out_path: Path) -> Path:
         str(transition_video),
         "-vf",
         f"fps={fps:.4f},scale=240:-1,tile=4x1",
+        "-frames:v",
+        "1",
+        "-q:v",
+        "3",
+        str(out_path),
+    ])
+    return out_path
+
+
+def ensure_transition_motion_review(
+    transition_video: Path,
+    out_path: Path,
+    *,
+    max_frames: int = 60,
+    tile_cols: int = 10,
+) -> Path:
+    if out_path.exists() and out_path.stat().st_mtime >= transition_video.stat().st_mtime:
+        return out_path
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    duration = max(0.1, _probe_duration_sec(transition_video))
+    frame_count = max(1, min(max_frames, int(round(duration * 30))))
+    tile_rows = max(1, (frame_count + tile_cols - 1) // tile_cols)
+    run_ffmpeg([
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(transition_video),
+        "-vf",
+        f"select='lt(n,{max_frames})',scale=220:-1,tile={tile_cols}x{tile_rows}",
         "-frames:v",
         "1",
         "-q:v",
@@ -216,7 +255,7 @@ def build_intro_transition_preview(
             style=style,
             duration_sec=duration,
             sfx=None,
-            page_count=page_count if style in {"book-page-turn", "stock-book-page-turn"} else None,
+            page_count=page_count if style in BOOK_PAGE_STYLES else None,
             renderer_mode=storyboard.theme.intro_transition_renderer_mode or None,
             asset_path=storyboard.theme.intro_transition_asset_path or None,
             asset_source=storyboard.theme.intro_transition_asset_source or None,
@@ -231,11 +270,14 @@ def build_intro_transition_preview(
     if not clip.exists():
         return None
     preview_path = previews_dir / "transitions" / "intro.jpg"
+    motion_path = previews_dir / "transitions_motion" / "intro.jpg"
     ensure_transition_preview(clip, preview_path)
+    ensure_transition_motion_review(clip, motion_path)
     return {
         "id": "intro",
         "label": f"intro · {style}",
         "path": preview_path.relative_to(project_root).as_posix(),
+        "motion_path": motion_path.relative_to(project_root).as_posix(),
     }
 
 
@@ -262,7 +304,7 @@ def build_transition_preview_image(
         style=style,
         duration_sec=duration_sec,
         sfx=sfx,
-        page_count=page_count if style in {"book-page-turn", "stock-book-page-turn"} else None,
+        page_count=page_count if style in BOOK_PAGE_STYLES else None,
         renderer_mode=renderer_mode,
         asset_path=asset_path,
     )

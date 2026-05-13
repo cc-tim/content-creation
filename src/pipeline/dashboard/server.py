@@ -1247,7 +1247,7 @@ def _style_requirement_fix(label: str) -> str:
         "theme.frame_style=open_book_page": "Set storyboard.theme.frame_style to open_book_page.",
         "theme.content_inset=center_page": "Set storyboard.theme.content_inset to center_page.",
         "transitions include page-turn or book-page-turn": (
-            "Set the intro or history-scene transitions to book-page-turn."
+            "Set the intro or history-scene transitions to book-page-turn-v2."
         ),
     }
     return fixes.get(label, "Update the storyboard so it matches the explainer video_brief.")
@@ -1304,11 +1304,14 @@ def _build_production_contract(project_id: str, proj: Path) -> dict[str, object]
     requests_history = "narrative history" in brief_lower
     book_turns = [
         t for t in transitions
-        if isinstance(t, dict) and t.get("style") in {"book-page-turn", "stock-book-page-turn"}
+        if isinstance(t, dict)
+        and t.get("style") in {"book-page-turn", "book-page-turn-v2", "stock-book-page-turn"}
     ]
     page_turns = [
         t for t in transitions
-        if isinstance(t, dict) and t.get("style") in {"page-turn", "book-page-turn", "stock-book-page-turn"}
+        if isinstance(t, dict)
+        and t.get("style")
+        in {"page-turn", "book-page-turn", "book-page-turn-v2", "stock-book-page-turn"}
     ]
     checks = [
         {
@@ -1327,16 +1330,17 @@ def _build_production_contract(project_id: str, proj: Path) -> dict[str, object]
             "detail": str(theme.get("content_inset") or "unset"),
         },
         {
-            "label": "theme.intro_transition_style = book-page-turn",
+            "label": "theme.intro_transition_style = book-page-turn-v2",
             "status": _contract_status(
-                theme.get("intro_transition_style") in {"book-page-turn", "stock-book-page-turn"}
+                theme.get("intro_transition_style")
+                in {"book-page-turn", "book-page-turn-v2", "stock-book-page-turn"}
             ),
             "detail": str(theme.get("intro_transition_style") or "unset"),
         },
         {
-            "label": "history transitions use book-page-turn",
+            "label": "history transitions use book-page-turn-v2",
             "status": _contract_status(bool(book_turns) if page_turns else None),
-            "detail": f"{len(book_turns)} book-page-turn / {len(page_turns)} page-turn seams",
+            "detail": f"{len(book_turns)} book-page-turn/v2 / {len(page_turns)} page-turn seams",
         },
     ]
     return {

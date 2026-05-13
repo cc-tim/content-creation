@@ -123,7 +123,8 @@ def _storyboard_satisfies_style_requirement(
         return theme.get("content_inset") == "center_page"
     if requirement == "transitions include page-turn or book-page-turn":
         return any(
-            isinstance(t, dict) and t.get("style") in {"page-turn", "book-page-turn"}
+            isinstance(t, dict)
+            and t.get("style") in {"page-turn", "book-page-turn", "book-page-turn-v2"}
             for t in transitions
         )
     return False

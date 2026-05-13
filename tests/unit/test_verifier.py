@@ -179,7 +179,7 @@ def test_video_brief_style_requirements_used_when_storyboard_matches_book_frame(
             "content_inset": "center_page",
         },
         "transitions": [
-            {"from": "s1", "to": "s2", "style": "book-page-turn", "duration_sec": 0.5}
+            {"from": "s1", "to": "s2", "style": "book-page-turn-v2", "duration_sec": 0.5}
         ],
         "scenes": [],
     }
