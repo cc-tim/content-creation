@@ -37,6 +37,7 @@ class FrameMetric:
     dark_ratio: float
     edge_mean: float
     center_brown_score: float
+    cover_gold_detail_ratio: float
     blank_like: bool
     brown_cover_like: bool
 
@@ -490,7 +491,8 @@ def build_findings(
             sum(1 for m in early_frames if m.brown_cover_like) / max(1, len(early_frames))
         )
         title_detail = max((m.edge_mean for m in early_frames), default=0.0)
-        if cover_ratio > 0.55 and title_detail < 18.0:
+        gold_detail = max((m.cover_gold_detail_ratio for m in early_frames), default=0.0)
+        if cover_ratio > 0.55 and title_detail < 18.0 and gold_detail < 0.001:
             findings.append(ReviewFinding(
                 "warn",
                 early_frames[0].frame if early_frames else None,
@@ -732,6 +734,7 @@ def _frame_metric(
     dark_ratio = sum(gray.histogram()[:8]) / (gray.width * gray.height)
     edge_mean = _mean_luma(edge)
     center_brown_score = _center_brown_score(image)
+    cover_gold_detail_ratio = _cover_gold_detail_ratio(image)
     brown_cover_like = _brown_cover_like(image, edge_mean)
     blank_like = 132 <= luma <= 238 and edge_mean < 22.0 and not brown_cover_like
     return FrameMetric(
@@ -741,6 +744,7 @@ def _frame_metric(
         dark_ratio=dark_ratio,
         edge_mean=edge_mean,
         center_brown_score=center_brown_score,
+        cover_gold_detail_ratio=cover_gold_detail_ratio,
         blank_like=blank_like,
         brown_cover_like=brown_cover_like,
     )
@@ -778,6 +782,22 @@ def _brown_cover_like(image: Image.Image, edge_mean: float) -> bool:
     r, g, b = _rgb_mean(crop)
     luma = _luma((r, g, b))
     return r > g > b and 38 <= luma <= 130 and edge_mean < 20.0
+
+
+def _cover_gold_detail_ratio(image: Image.Image) -> float:
+    w, h = image.size
+    crop = image.crop((int(w * 0.08), int(h * 0.10), int(w * 0.92), int(h * 0.82))).convert("RGB")
+    data = crop.tobytes()
+    if not data:
+        return 0.0
+    gold_pixels = 0
+    for idx in range(0, len(data), 3):
+        r = data[idx]
+        g = data[idx + 1]
+        b = data[idx + 2]
+        if r > 145 and g > 95 and b < 95 and r - g > 28 and g - b > 20:
+            gold_pixels += 1
+    return gold_pixels / max(1, crop.width * crop.height)
 
 
 def _rgb_mean(image: Image.Image) -> tuple[float, float, float]:

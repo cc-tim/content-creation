@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
+from PIL import Image
 
-from pipeline.composer.animation_review import compute_metrics, summarize_metrics
-from pipeline.composer.book_scene import BookSceneSpec, _blank_book_canvas
+from pipeline.composer.book_scene import BookSceneSpec, _multi_page_turn_surfaces
 
 
 def test_open_book_spec_matches_existing_frame_geometry() -> None:
@@ -18,13 +17,14 @@ def test_open_book_spec_matches_existing_frame_geometry() -> None:
     assert spec.as_frame_geometry()["inset_w"] == 947
 
 
-def test_blank_book_canvas_has_textured_pages_without_strong_center_column(tmp_path: Path) -> None:
-    spec = BookSceneSpec.open_book(1280, 720)
-    frame = tmp_path / "frame_00000.png"
-    _blank_book_canvas(spec).convert("RGB").save(frame)
+def test_multi_page_turn_surfaces_repeat_destination_scene_after_first_flip() -> None:
+    source_scene = Image.new("RGBA", (16, 9), "red")
+    destination_scene = Image.new("RGBA", (16, 9), "blue")
 
-    frame_metrics, delta_metrics = compute_metrics([frame, frame], fps=30)
-    stats = summarize_metrics(frame_metrics, delta_metrics)
+    first_source, first_under = _multi_page_turn_surfaces(source_scene, destination_scene, 0)
+    repeat_source, repeat_under = _multi_page_turn_surfaces(source_scene, destination_scene, 1)
 
-    assert stats["blank_like_frame_count"] == 0
-    assert stats["center_brown_column_frame_count"] == 0
+    assert first_source is source_scene
+    assert first_under is destination_scene
+    assert repeat_source is destination_scene
+    assert repeat_under is destination_scene

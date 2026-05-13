@@ -86,6 +86,30 @@ def test_intro_findings_flag_empty_brown_cover(tmp_path: Path) -> None:
     assert "intro_empty_brown_cover" in {finding.type for finding in findings}
 
 
+def test_intro_cover_with_gold_title_detail_is_not_empty(tmp_path: Path) -> None:
+    frames: list[Path] = []
+    for idx in range(10):
+        path = tmp_path / "intro" / f"frame_{idx:05d}.png"
+        _write_frame(path, (92, 49, 25))
+        image = Image.open(path).convert("RGB")
+        draw = ImageDraw.Draw(image)
+        draw.rectangle((44, 34, 116, 42), fill=(220, 155, 42))
+        draw.rectangle((62, 50, 98, 54), fill=(255, 225, 120))
+        image.save(path)
+        frames.append(path)
+
+    frame_metrics, delta_metrics = compute_metrics(frames, fps=30)
+    stats = summarize_metrics(frame_metrics, delta_metrics)
+    findings = build_findings(
+        ReviewTarget("intro", tmp_path / "clip.mp4", "transition"),
+        frame_metrics,
+        delta_metrics,
+        stats,
+    )
+
+    assert "intro_empty_brown_cover" not in {finding.type for finding in findings}
+
+
 def test_scene_findings_flag_static_hold(tmp_path: Path) -> None:
     frames: list[Path] = []
     for idx in range(14):

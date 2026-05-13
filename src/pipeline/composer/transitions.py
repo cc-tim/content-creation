@@ -45,7 +45,7 @@ BOOK_PAGE_STYLES: set[str] = {
     "stock-book-page-turn",
 }
 MAX_BOOK_PAGE_COUNT = 8
-BOOK_PAGE_TURN_V2_RENDER_VERSION = "book-page-turn-v2.5"
+BOOK_PAGE_TURN_V2_RENDER_VERSION = "book-page-turn-v2.6"
 SUPPORTED_RENDERER_MODES: set[str] = {
     "generated",
     "licensed_clip",
