@@ -109,7 +109,11 @@ def render_book_page_turn_v2(
             local_raw = scaled - flip_idx
             progress = _ease_in_out_cubic(local_raw)
             source = image_a if flip_idx == 0 else blank_page
-            under = image_b if flip_idx == flip_count - 1 else blank_page
+            under = image_b if flip_idx == flip_count - 1 else _early_destination_page(
+                blank_page,
+                image_b,
+                raw,
+            )
             frame = _render_page_turn_frame(
                 source,
                 under,
@@ -151,11 +155,9 @@ def _blank_book_canvas(spec: BookSceneSpec) -> Image.Image:
         outline=(202, 167, 102, 255),
         width=5,
     )
-    gutter_x = page.x + page.w // 2
-    draw.rectangle(
-        (gutter_x - 4, page.y + 10, gutter_x + 4, page.y + page.h - 10),
-        fill=(194, 166, 112, 82),
-    )
+    _draw_paper_grain(canvas, spec)
+    _draw_calligraphy_texture(canvas, spec)
+    _draw_soft_gutter(canvas, spec)
     for idx in range(7):
         x = page.x + 18 + idx * 5
         draw.line(
@@ -176,6 +178,120 @@ def _blank_book_canvas(spec: BookSceneSpec) -> Image.Image:
         width=2,
     )
     return canvas
+
+
+def _draw_paper_grain(canvas: Image.Image, spec: BookSceneSpec) -> None:
+    page = spec.page
+    draw = ImageDraw.Draw(canvas, "RGBA")
+    for idx in range(28):
+        y = page.y + 18 + (idx * 37) % max(1, page.h - 36)
+        alpha = 10 + idx % 13
+        draw.line(
+            [(page.x + 20, y), (page.x + page.w - 20, y + ((idx % 5) - 2))],
+            fill=(150, 116, 68, alpha),
+            width=1,
+        )
+    for idx in range(22):
+        x = page.x + 24 + (idx * 53) % max(1, page.w - 48)
+        alpha = 8 + idx % 9
+        draw.line(
+            [(x, page.y + 20), (x + ((idx % 7) - 3), page.y + page.h - 22)],
+            fill=(255, 250, 226, alpha),
+            width=1,
+        )
+
+
+def _draw_calligraphy_texture(canvas: Image.Image, spec: BookSceneSpec) -> None:
+    page = spec.page
+    gutter_x = page.x + page.w // 2
+    draw = ImageDraw.Draw(canvas, "RGBA")
+    regions = [
+        (
+            page.x + int(page.w * 0.11),
+            page.y + int(page.h * 0.15),
+            gutter_x - int(page.w * 0.055),
+            page.y + int(page.h * 0.81),
+        ),
+        (
+            gutter_x + int(page.w * 0.055),
+            page.y + int(page.h * 0.15),
+            page.x + page.w - int(page.w * 0.11),
+            page.y + int(page.h * 0.81),
+        ),
+    ]
+    for region_idx, (x0, y0, x1, y1) in enumerate(regions):
+        col_gap = max(14, int(spec.width * 0.018))
+        row_gap = max(16, int(spec.height * 0.028))
+        for col_idx, x in enumerate(range(x0, x1, col_gap)):
+            if col_idx % 5 == 4:
+                continue
+            for row_idx, y in enumerate(range(y0, y1, row_gap)):
+                seed = (region_idx + 1) * 97 + col_idx * 17 + row_idx * 11
+                length = max(9, int(col_gap * (0.50 + (seed % 5) * 0.08)))
+                height = max(7, int(row_gap * (0.38 + (seed % 4) * 0.07)))
+                alpha = 25 + seed % 32
+                ink = (92, 62, 31, alpha)
+                if seed % 3 == 0:
+                    draw.arc((x, y, x + length, y + height), 200, 338, fill=ink, width=1)
+                    draw.line(
+                        [(x + length // 2, y + 2), (x + length // 2 - 4, y + height)],
+                        fill=ink,
+                        width=1,
+                    )
+                elif seed % 3 == 1:
+                    draw.line([(x, y + height // 2), (x + length, y + 1)], fill=ink, width=1)
+                    draw.line(
+                        [(x + length // 3, y + 1), (x + length // 3 + 2, y + height)],
+                        fill=ink,
+                        width=1,
+                    )
+                    draw.arc((x + 2, y + 2, x + length, y + height + 2), 25, 140, fill=ink, width=1)
+                else:
+                    draw.line([(x + 2, y), (x + length - 1, y + height // 2)], fill=ink, width=1)
+                    draw.line(
+                        [(x + length - 2, y + height // 2), (x + 4, y + height)],
+                        fill=ink,
+                        width=1,
+                    )
+                if row_idx % 4 == 0:
+                    draw.line(
+                        [(x + length + 3, y + 3), (min(x1, x + length + col_gap // 2), y + 3)],
+                        fill=(132, 92, 48, max(14, alpha - 18)),
+                        width=1,
+                    )
+
+
+def _draw_soft_gutter(canvas: Image.Image, spec: BookSceneSpec) -> None:
+    page = spec.page
+    gutter_x = page.x + page.w // 2
+    shadow = Image.new("RGBA", (spec.width, spec.height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(shadow, "RGBA")
+    draw.line(
+        [(gutter_x, page.y + 14), (gutter_x, page.y + page.h - 14)],
+        fill=(108, 77, 38, 34),
+        width=max(1, int(spec.width * 0.002)),
+    )
+    shadow = shadow.filter(ImageFilter.GaussianBlur(radius=max(3, int(spec.width * 0.006))))
+    canvas.alpha_composite(shadow)
+    draw = ImageDraw.Draw(canvas, "RGBA")
+    draw.line(
+        [(gutter_x - 2, page.y + 18), (gutter_x - 2, page.y + page.h - 18)],
+        fill=(255, 247, 219, 28),
+        width=1,
+    )
+    draw.line(
+        [(gutter_x + 2, page.y + 18), (gutter_x + 2, page.y + page.h - 18)],
+        fill=(141, 105, 58, 22),
+        width=1,
+    )
+
+
+def _early_destination_page(blank_page: Image.Image, image_b: Image.Image, raw_progress: float) -> Image.Image:
+    reveal = min(1.0, max(0.0, (raw_progress - 0.36) / 0.46))
+    if reveal <= 0:
+        return blank_page
+    eased = _ease_in_out_cubic(reveal)
+    return Image.blend(blank_page, image_b, min(0.82, eased * 0.82))
 
 
 def _draw_page_stack_count(canvas: Image.Image, spec: BookSceneSpec, *, remaining: int) -> None:
@@ -224,6 +340,9 @@ def _render_page_turn_frame(
 
     sheet = _shade_turning_page(outgoing_page, progress)
     warped = _warp_page_to_canvas(sheet, spec, progress)
+    blur_radius = 0.35 + math.sin(math.pi * progress) * 0.85
+    if blur_radius > 0.45:
+        warped = warped.filter(ImageFilter.GaussianBlur(radius=blur_radius))
     base.alpha_composite(warped)
     _draw_page_edges(base, spec, progress)
     return base

@@ -307,8 +307,11 @@ function escapeHtml(value) {
 function cameraMotionLabel(motion) {
   if (!motion || !motion.type) return '';
   const type = String(motion.type).replace(/_/g, '-');
+  const phases = motion.hold_start_sec && motion.move_sec && motion.hold_end_sec
+    ? ` · ${motion.hold_start_sec}/${motion.move_sec}/${motion.hold_end_sec}s`
+    : '';
   const zoom = motion.zoom_end ? ` · ${motion.zoom_end}x` : '';
-  return `camera · ${type}${zoom}`;
+  return `camera · ${type}${phases}${zoom}`;
 }
 
 function cameraMotionChip(scene) {

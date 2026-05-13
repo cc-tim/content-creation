@@ -27,7 +27,7 @@ _VARIANT_SUFFIXES = {
 }
 
 
-def _resolve_work_dir(project_id: int) -> Path:
+def _resolve_work_dir(project_id: int | str) -> Path:
     config = PipelineConfig()
     return config.OUTPUT_DIR / "projects" / str(project_id)
 
@@ -72,7 +72,7 @@ def _delete_concat_outputs(compose_dir: Path, locale: str) -> list[str]:
     return removed
 
 
-def _load_storyboard(project_id: int, ctx: PipelineContext):
+def _load_storyboard(project_id: int | str, ctx: PipelineContext):
     from pipeline.storyboard import Storyboard
 
     if not ctx.storyboard_path or not ctx.storyboard_path.exists():
@@ -150,7 +150,7 @@ def _frame_scene_outputs(work_dir: Path, ctx: PipelineContext, storyboard) -> No
 
 @compose_app.command("set-variant")
 def set_variant(
-    project_id: int = typer.Option(..., "--project-id"),
+    project_id: str = typer.Option(..., "--project-id"),
     variant: str = typer.Option(..., "--variant", help=f"One of: {', '.join(_VARIANTS)}"),
 ) -> None:
     """Lock the preferred output variant in context.json."""
@@ -172,7 +172,7 @@ def set_variant(
 
 @compose_app.command("rescene")
 def rescene(
-    project_id: int = typer.Option(..., "--project-id"),
+    project_id: str = typer.Option(..., "--project-id"),
     scenes: list[str] = typer.Option(
         ..., "--scene", help="Scene ID to invalidate (repeat for multiple)"
     ),
@@ -244,7 +244,7 @@ def rescene(
 
 @compose_app.command("reburn")
 def reburn(
-    project_id: int = typer.Option(..., "--project-id"),
+    project_id: str = typer.Option(..., "--project-id"),
     variant: str = typer.Option(
         "",
         "--variant",
@@ -318,7 +318,7 @@ def reburn(
 
 @compose_app.command("transitions")
 def transitions(
-    project_id: int = typer.Option(..., "--project-id"),
+    project_id: str = typer.Option(..., "--project-id"),
 ) -> None:
     """Rebuild transition clips, concat raws, and final video without rerendering scenes."""
     work_dir = _resolve_work_dir(project_id)
@@ -360,7 +360,7 @@ def transitions(
 
 @compose_app.command("frame")
 def frame(
-    project_id: int = typer.Option(..., "--project-id"),
+    project_id: str = typer.Option(..., "--project-id"),
 ) -> None:
     """Rebuild scene frame wrappers from cached visuals, then recompose transitions/finals."""
     work_dir = _resolve_work_dir(project_id)
@@ -388,7 +388,7 @@ def frame(
 
 @compose_app.command("clean")
 def clean(
-    project_id: int = typer.Option(..., "--project-id"),
+    project_id: str = typer.Option(..., "--project-id"),
     dry_run: bool = typer.Option(False, "--dry-run", help="List files that would be removed without deleting."),
 ) -> None:
     """Delete final variant files that are not the preferred_variant.

@@ -7,6 +7,7 @@ from typer.testing import CliRunner
 
 from pipeline.cli_compose import compose_app
 from pipeline.stages.base import PipelineContext
+from pipeline.stages.compose import _book_start_title, _render_book_start_cover
 from pipeline.storyboard import Scene, Storyboard
 
 
@@ -145,3 +146,44 @@ def test_frame_reuses_cached_visuals_and_rebuilds_outputs(project_dir):
     assert result.exit_code == 0, result.output
     assert frame_outputs.called
     assert rebuild.called
+
+
+def test_frame_accepts_string_project_id(project_dir):
+    runner = CliRunner()
+    with (
+        patch("pipeline.cli_compose._resolve_work_dir", return_value=project_dir) as resolve,
+        patch("pipeline.cli_compose._frame_scene_outputs"),
+        patch("pipeline.cli_compose._rebuild_transitions_and_concat"),
+    ):
+        result = runner.invoke(compose_app, [
+            "frame", "--project-id", "20260504-115232-baby-walker-story",
+        ])
+
+    assert result.exit_code == 0, result.output
+    resolve.assert_called_once_with("20260504-115232-baby-walker-story")
+
+
+def test_book_start_title_reads_explainer_frontmatter(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    compose_dir = project / "compose"
+    source_dir = project / "source"
+    source_dir.mkdir(parents=True)
+    compose_dir.mkdir()
+    (source_dir / "explainer.md").write_text(
+        '---\ntitle: "Baby Walkers: A 600-Year Design"\n---\n',
+        encoding="utf-8",
+    )
+
+    assert _book_start_title(compose_dir) == "Baby Walkers: A 600-Year Design"
+
+
+def test_render_book_start_cover_adds_gold_title_detail() -> None:
+    image = _render_book_start_cover(640, 360, "Baby Walkers: A 600-Year Design")
+    data = image.convert("RGB").tobytes()
+
+    gold_pixels = sum(
+        1
+        for idx in range(0, len(data), 3)
+        if data[idx] > 180 and data[idx + 1] > 120 and data[idx + 2] < 90
+    )
+    assert gold_pixels > 200

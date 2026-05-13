@@ -3,7 +3,12 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from pipeline.composer.base import _camera_motion_filter, get_resolution
+from pipeline.composer.base import (
+    _camera_motion_canvas,
+    _camera_motion_progress,
+    _is_camera_motion,
+    get_resolution,
+)
 
 
 def test_get_resolution_16_9():
@@ -35,41 +40,42 @@ def test_render_scene_unknown_type():
         )
 
 
-def test_camera_motion_filter_targets_normalized_focus_point(tmp_path: Path):
-    image_path = tmp_path / "source.jpg"
-    Image.new("RGB", (557, 534), "white").save(image_path)
+def test_camera_motion_canvas_targets_normalized_focus_point():
+    source = Image.new("RGB", (557, 534), "white")
 
-    vf = _camera_motion_filter(
-        image_path,
+    _base, target = _camera_motion_canvas(
+        source,
         {
             "type": "slow_push_pan",
             "focus_point": {"x": 0.66, "y": 0.69},
             "zoom_end": 2.35,
         },
-        frames=324,
         width=1280,
         height=720,
-        fps=30,
     )
 
-    assert vf is not None
-    assert "zoompan" in vf
-    assert "2.350000" not in vf
-    assert "1.350000" in vf
-    assert "760." in vf
-    assert "496." in vf
+    assert target[0] == pytest.approx(760, abs=1)
+    assert target[1] == pytest.approx(497, abs=1)
 
 
-def test_camera_motion_filter_ignores_unconfigured_motion(tmp_path: Path):
-    image_path = tmp_path / "source.jpg"
-    Image.new("RGB", (100, 100), "white").save(image_path)
+def test_camera_motion_progress_uses_hold_move_hold_phases():
+    motion = {
+        "type": "slow_push_pan",
+        "focus_point": {"x": 0.66, "y": 0.69},
+        "hold_start_sec": 2.4,
+        "move_sec": 4.3,
+        "hold_end_sec": 4.0,
+    }
 
-    assert _camera_motion_filter(image_path, None, 10, 1280, 720, 30) is None
-    assert _camera_motion_filter(
-        image_path,
-        {"type": "unknown", "focus_point": {"x": 0.5, "y": 0.5}},
-        10,
-        1280,
-        720,
-        30,
-    ) is None
+    assert _camera_motion_progress(0, 324, 30, motion) == 0.0
+    assert _camera_motion_progress(72, 324, 30, motion) == 0.0
+    assert _camera_motion_progress(137, 324, 30, motion) == pytest.approx(0.5, abs=0.08)
+    assert _camera_motion_progress(205, 324, 30, motion) == 1.0
+    assert _camera_motion_progress(323, 324, 30, motion) == 1.0
+
+
+def test_camera_motion_detection_requires_focus_point():
+    assert _is_camera_motion(None) is False
+    assert _is_camera_motion({"type": "unknown", "focus_point": {"x": 0.5, "y": 0.5}}) is False
+    assert _is_camera_motion({"type": "slow_push_pan"}) is False
+    assert _is_camera_motion({"type": "slow_push_pan", "focus_point": {"x": 0.5, "y": 0.5}})

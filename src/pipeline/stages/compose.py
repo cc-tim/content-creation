@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import subprocess
 from dataclasses import dataclass
@@ -8,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from pipeline.composer.base import get_resolution, render_scene
 from pipeline.composer.compartment import (
@@ -63,6 +65,177 @@ def _build_subtitle_style(theme_dict: dict[str, str]) -> str:
         f"PrimaryColour={primary},OutlineColour={outline_color},"
         f"Outline=2,Shadow=0,Alignment=2,MarginV=20"
     )
+
+
+def _book_start_title(compose_dir: Path) -> str:
+    explainer = compose_dir.parent / "source" / "explainer.md"
+    if explainer.exists():
+        head = explainer.read_text(encoding="utf-8", errors="ignore")[:4096]
+        for line in head.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("title:"):
+                return stripped.split(":", 1)[1].strip().strip("\"'") or "Narrative History"
+        for line in head.splitlines():
+            if line.startswith("# "):
+                return line[2:].strip() or "Narrative History"
+    return "Narrative History"
+
+
+def _render_book_start_cover(width: int, height: int, title: str) -> Image.Image:
+    canvas = Image.new("RGB", (width, height), "#2b1f14")
+    draw = ImageDraw.Draw(canvas, "RGBA")
+    cover = (
+        int(width * 0.09),
+        int(height * 0.18),
+        int(width * 0.91),
+        int(height * 0.81),
+    )
+    base_h = max(36, int(height * 0.09))
+    draw.rounded_rectangle(
+        (cover[0] + 18, cover[1] + 18, cover[2] + 20, cover[3] + 22),
+        radius=8,
+        fill=(16, 10, 5, 120),
+    )
+    draw.rounded_rectangle(cover, radius=7, fill=(91, 46, 25, 248))
+    _draw_cover_grain(draw, cover)
+    for inset, alpha in ((0, 220), (8, 150), (18, 80)):
+        draw.rounded_rectangle(
+            (cover[0] + inset, cover[1] + inset, cover[2] - inset, cover[3] - inset),
+            radius=6,
+            outline=(213, 160, 71, alpha),
+            width=max(2, int(width * 0.002)),
+        )
+    draw.rectangle(
+        (
+            int(width * 0.055),
+            height - base_h,
+            int(width * 0.945),
+            height - base_h + max(8, base_h // 3),
+        ),
+        fill=(111, 63, 30, 235),
+    )
+    _draw_gold_title(canvas, cover, title)
+    return canvas
+
+
+def _draw_cover_grain(draw: ImageDraw.ImageDraw, cover: tuple[int, int, int, int]) -> None:
+    x0, y0, x1, y1 = cover
+    for idx in range(58):
+        y = y0 + 18 + (idx * 29) % max(1, y1 - y0 - 36)
+        alpha = 12 + idx % 18
+        draw.line(
+            [(x0 + 22, y), (x1 - 24, y + ((idx % 7) - 3))],
+            fill=(128, 75, 38, alpha),
+            width=1,
+        )
+    for idx in range(34):
+        x = x0 + 18 + (idx * 41) % max(1, x1 - x0 - 36)
+        draw.line(
+            [(x, y0 + 20), (x + ((idx % 5) - 2), y1 - 22)],
+            fill=(42, 22, 12, 14 + idx % 13),
+            width=1,
+        )
+
+
+def _draw_gold_title(canvas: Image.Image, cover: tuple[int, int, int, int], title: str) -> None:
+    x0, y0, x1, y1 = cover
+    title = _display_book_title(title)
+    font_size = max(34, int(canvas.height * 0.07))
+    small_size = max(16, int(canvas.height * 0.028))
+    font = _title_font(font_size)
+    small = _title_font(small_size)
+    draw = ImageDraw.Draw(canvas, "RGBA")
+    lines = _wrap_title_lines(title, font, max_width=int((x1 - x0) * 0.68), max_lines=3)
+    total_h = sum(_text_size(draw, line, font)[1] for line in lines)
+    total_h += max(8, int(font_size * 0.20)) * (len(lines) - 1)
+    start_y = y0 + (y1 - y0 - total_h) // 2 - int(canvas.height * 0.025)
+    shine = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+    shine_draw = ImageDraw.Draw(shine, "RGBA")
+    for idx, line in enumerate(lines):
+        tw, th = _text_size(draw, line, font)
+        x = x0 + (x1 - x0 - tw) // 2
+        y = start_y + idx * (th + max(8, int(font_size * 0.20)))
+        draw.text((x + 4, y + 5), line, font=font, fill=(33, 18, 5, 180))
+        draw.text((x, y), line, font=font, fill=(194, 132, 36, 255))
+        draw.text((x + 1, y - 2), line, font=font, fill=(255, 234, 139, 220))
+        shine_draw.text((x, y - 1), line, font=font, fill=(255, 246, 180, 120))
+    shine = shine.filter(ImageFilter.GaussianBlur(radius=max(1, int(canvas.width * 0.002))))
+    canvas.paste(Image.alpha_composite(canvas.convert("RGBA"), shine).convert("RGB"))
+    subtitle = "NARRATIVE HISTORY"
+    sw, sh = _text_size(draw, subtitle, small)
+    sx = x0 + (x1 - x0 - sw) // 2
+    sy = y1 - int((y1 - y0) * 0.20)
+    draw.text((sx, sy), subtitle, font=small, fill=(226, 173, 70, 190))
+    draw.line(
+        [(sx - int(canvas.width * 0.05), sy + sh // 2), (sx - 12, sy + sh // 2)],
+        fill=(205, 151, 64, 120),
+        width=2,
+    )
+    draw.line(
+        [(sx + sw + 12, sy + sh // 2), (sx + sw + int(canvas.width * 0.05), sy + sh // 2)],
+        fill=(205, 151, 64, 120),
+        width=2,
+    )
+
+
+def _display_book_title(title: str) -> str:
+    if ":" in title:
+        first, second = title.split(":", 1)
+        second = second.strip()
+        if second:
+            return f"{first.strip()}: {second.split(' That ', 1)[0].strip()}"
+    return title.strip()[:72] or "Narrative History"
+
+
+def _title_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    for name in ("NotoSerifCJK-Regular.ttc", "DejaVuSerif.ttf"):
+        try:
+            return ImageFont.truetype(name, size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
+
+
+def _wrap_title_lines(
+    title: str,
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+    *,
+    max_width: int,
+    max_lines: int,
+) -> list[str]:
+    words = title.split()
+    if not words:
+        return ["Narrative History"]
+    draw = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    lines: list[str] = []
+    current = words[0]
+    consumed = 1
+    for word in words[1:]:
+        candidate = f"{current} {word}"
+        if _text_size(draw, candidate, font)[0] <= max_width:
+            current = candidate
+            consumed += 1
+            continue
+        lines.append(current)
+        current = word
+        consumed += 1
+        if len(lines) == max_lines - 1:
+            break
+    remaining_words = words[consumed:]
+    if remaining_words:
+        current = " ".join([current, *remaining_words])
+    if len(lines) < max_lines:
+        lines.append(current.strip())
+    return [line for line in lines if line]
+
+
+def _text_size(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+) -> tuple[int, int]:
+    box = draw.textbbox((0, 0), text, font=font)
+    return box[2] - box[0], box[3] - box[1]
 
 
 def _burn_subtitle_pass(
@@ -947,30 +1120,23 @@ class ComposeStage(PipelineStage):
         fps: int,
         duration: float,
     ) -> Path:
-        output = compose_dir / f"book_start_plate_{duration:.2f}.mp4"
+        title = _book_start_title(compose_dir)
+        title_key = hashlib.sha1(title.encode("utf-8")).hexdigest()[:8]
+        output = compose_dir / f"book_start_plate_v2_{duration:.2f}_{title_key}.mp4"
         if output.exists():
             return output
-        base_h = max(36, int(height * 0.09))
+        cover = _render_book_start_cover(width, height, title)
+        cover_path = compose_dir / f"{output.stem}.png"
+        cover.save(cover_path)
         run_ffmpeg([
             "ffmpeg", "-y",
-            "-f", "lavfi", "-i", f"color=c=#2b1f14:s={width}x{height}:r={fps}:d={duration}",
-            "-vf",
-            (
-                f"drawbox=x={int(width * 0.09)}:y={int(height * 0.18)}:"
-                f"w={int(width * 0.82)}:h={int(height * 0.63)}:"
-                f"color=#5b2e19@0.96:t=fill,"
-                f"drawbox=x={int(width * 0.09)}:y={int(height * 0.18)}:"
-                f"w={int(width * 0.82)}:h={int(height * 0.63)}:"
-                f"color=#c79749@0.72:t=8,"
-                f"drawbox=x={int(width * 0.055)}:y={height - base_h}:"
-                f"w={int(width * 0.89)}:h={max(8, base_h // 3)}:"
-                f"color=#6f3f1e@0.92:t=fill"
-            ),
+            "-loop", "1", "-t", str(duration), "-i", str(cover_path),
             "-an",
             "-c:v", "libx264", "-preset", "medium", "-crf", "22",
             "-pix_fmt", "yuv420p", "-r", str(fps),
             str(output),
         ])
+        cover_path.unlink(missing_ok=True)
         return output
 
     async def _compose_mvp(self, ctx: PipelineContext, compose_dir: Path) -> Path:
