@@ -57,3 +57,25 @@ def test_key_reset_hint_uses_label_when_known(tmp_path, monkeypatch):
     )
 
     assert helper.key_reset_hint("fal", key).endswith("keymanager.py reset fal fal-main")
+
+
+def test_generate_cache_miss_does_not_treat_cwd_as_cached_file(tmp_path, monkeypatch):
+    helper = _load_helper()
+    source = tmp_path / "source.png"
+    out = tmp_path / "out.png"
+    source.write_bytes(b"source")
+    monkeypatch.setattr(helper, "CACHE_DIR", tmp_path / "cache")
+    monkeypatch.setattr(helper, "CACHE_INDEX", tmp_path / "cache" / "index.json")
+    monkeypatch.setattr(helper, "get_key", lambda provider: "fal_key")
+    monkeypatch.setattr(helper, "call_fal", lambda source, instruction, target_aspect, api_key: "https://example.test/out.png")
+
+    def fake_download(url, dest):
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(b"edited")
+
+    monkeypatch.setattr(helper, "download", fake_download)
+
+    result = helper.generate(source, "extend", "947:484", out, "outpaint", use_cache=True)
+
+    assert result == out
+    assert out.read_bytes() == b"edited"
