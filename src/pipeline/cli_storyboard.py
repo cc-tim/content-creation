@@ -18,7 +18,14 @@ _console = Console()
 _RECORDING_EXTS = (".wav", ".mp3", ".m4a")
 
 _ALLOWED_FIELDS = {"narration", "narration_est_sec", "pause_after_sec", "section"}
-_ALLOWED_VISUAL_FIELDS = {"style_modifier", "edit_mode", "edit_type", "edit_instruction", "edit_strength"}
+_ALLOWED_VISUAL_FIELDS = {
+    "style_modifier",
+    "edit_mode",
+    "edit_type",
+    "edit_instruction",
+    "edit_strength",
+    "refit_path",
+}
 _ALLOWED_SECTIONS = {
     "hook",
     "context",
@@ -73,6 +80,10 @@ def _resolve_voice_profile(registry: VoiceRegistry, voice_id: str | None) -> Voi
 
 
 def _coerce_visual_value(field: str, raw: str) -> object:
+    if field == "refit_path":
+        if raw.lower() in ("null", "none", ""):
+            return None
+        return raw
     if field == "edit_mode":
         if raw.lower() in ("true", "1", "yes"):
             return True
@@ -220,7 +231,10 @@ def set_field(
         value = _coerce_visual_value(subfield, raw_value)
         if scene.visual is None:
             scene.visual = {}
-        scene.visual[subfield] = value
+        if subfield == "refit_path" and value is None:
+            scene.visual.pop(subfield, None)
+        else:
+            scene.visual[subfield] = value
         label = f"{scene_id}.visual.{subfield}"
     else:
         if field not in _ALLOWED_FIELDS:

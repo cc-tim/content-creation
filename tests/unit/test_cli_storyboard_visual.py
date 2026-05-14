@@ -99,3 +99,30 @@ def test_existing_fields_still_work(tmp_path):
     assert result.exit_code == 0
     sb = json.loads((tmp_path / "storyboard.json").read_text())
     assert sb["scenes"][0]["narration"] == "new text"
+
+
+def test_set_refit_path(tmp_path):
+    _write_sb(tmp_path)
+    result = runner.invoke(app, [
+        "storyboard", "set", "s5", "visual.refit_path=output/projects/p/edits/s5_crop.png",
+        "--work-dir", str(tmp_path),
+    ])
+    assert result.exit_code == 0, result.output
+    sb = json.loads((tmp_path / "storyboard.json").read_text())
+    assert sb["scenes"][0]["visual"]["refit_path"] == "output/projects/p/edits/s5_crop.png"
+
+
+def test_clear_refit_path_with_null(tmp_path):
+    _write_sb(tmp_path)
+    sb_path = tmp_path / "storyboard.json"
+    sb = json.loads(sb_path.read_text())
+    sb["scenes"][0]["visual"]["refit_path"] = "output/projects/p/edits/s5_crop.png"
+    sb_path.write_text(json.dumps(sb), encoding="utf-8")
+
+    result = runner.invoke(app, [
+        "storyboard", "set", "s5", "visual.refit_path=null",
+        "--work-dir", str(tmp_path),
+    ])
+    assert result.exit_code == 0, result.output
+    sb = json.loads(sb_path.read_text())
+    assert "refit_path" not in sb["scenes"][0]["visual"]
