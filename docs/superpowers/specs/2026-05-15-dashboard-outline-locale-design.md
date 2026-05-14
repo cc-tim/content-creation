@@ -49,14 +49,21 @@ Two gaps surfaced while working on project `20260504-115232-baby-walker-story`:
 - `narration_est_sec` stays, but its meaning becomes the *shared duration budget*
   for the beat — every locale targets it. This is correct for MLA, where all
   locales share one timeline.
-- `Scene.from_dict` accepts both shapes: old flat (`narration: str` +
-  optional `narration_en`) is folded into the locale map keyed by the project's
-  primary locale and `"en"`. `to_dict` always writes the new shape.
+- `Scene.from_dict` accepts both shapes. Because a bare scene dict carries no
+  locale, the primary locale is passed down: `Storyboard.from_dict` reads a new
+  top-level `primary_locale` field on the storyboard and passes it to
+  `Scene.from_dict(data, primary_locale=...)`. Old flat (`narration: str` +
+  optional `narration_en`) is then folded into `{primary_locale: narration}`
+  plus `{"en": narration_en}` when present. `to_dict` always writes the new shape.
 - Helper methods that read narration (`narration_for_tts`, duration sums) take a
   `locale` argument and read `narration[locale]`.
 
 Storyboard top-level `title` / `description` also become locale maps (they are
-already generated per-locale today, merely stored flat).
+already generated per-locale today, merely stored flat). A top-level
+`primary_locale` field is added to the storyboard; `DirectStage` writes it for
+new projects and the migration writes it for existing ones. When an old
+storyboard predates the field, `Storyboard.from_dict` falls back to deriving the
+primary locale from the `storyboard_<locale>.json` filename.
 
 ## Section 2 — Pipeline restructure (Approach A)
 
@@ -86,8 +93,9 @@ A one-time migration over every `output/projects/*/storyboard.json`:
 
 - **Schema migration** (mechanical, no LLM): flat `narration` →
   `{primary_locale: narration}`; fold `narration_en` → `narration["en"]`; same
-  for `title` / `description`. Idempotent — detects already-migrated files and
-  skips them.
+  for `title` / `description`; write the top-level `primary_locale` field
+  (derived from the `storyboard_<locale>.json` filename). Idempotent — detects
+  already-migrated files and skips them.
 - **Beat backfill** (one LLM call per project): for storyboards with no `beat`
   fields, send all scenes' narration + section to Claude and get back a `beat`
   per scene.
