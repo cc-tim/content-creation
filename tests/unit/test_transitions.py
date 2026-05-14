@@ -587,6 +587,12 @@ def test_effective_sfx_returns_default_for_all_book_page_styles():
     for style in ("book-page-turn", "book-page-turn-v2"):
         cfg = TransitionConfig(style=style, duration_sec=1.5, sfx=None)
         assert cfg.effective_sfx == str(_DEFAULT_BOOK_PAGE_SFX), f"failed for {style}"
+    # stock-book-page-turn requires asset_path + renderer_mode; its effective_sfx also uses the default
+    cfg_stock = TransitionConfig(
+        style="stock-book-page-turn", duration_sec=1.5, sfx=None,
+        renderer_mode="licensed_clip", asset_path="assets/transitions/placeholder.mp4",
+    )
+    assert cfg_stock.effective_sfx == str(_DEFAULT_BOOK_PAGE_SFX), "failed for stock-book-page-turn"
 
 
 def test_effective_sfx_returns_none_for_non_book_styles():

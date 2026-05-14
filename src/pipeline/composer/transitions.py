@@ -202,7 +202,7 @@ class XfadeRenderer:
       2. Build a static-frame video clip of cfg.duration_sec from each PNG
          (with silent stereo audio at 48kHz to match the project standard).
       3. Apply xfade between the two clips for cfg.duration_sec.
-      4. If cfg.sfx is set, amix the sfx into the audio track.
+      4. If cfg.effective_sfx is set, amix the sfx into the audio track.
       5. Encode H.264 + AAC with the same params as scene clips so the
          master concat demuxer can stream-copy the result.
     """
