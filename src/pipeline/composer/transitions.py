@@ -26,6 +26,7 @@ from pipeline.utils.ffmpeg import run_ffmpeg
 
 logger = structlog.get_logger()
 _REPO_ROOT = Path(__file__).resolve().parents[3]
+_DEFAULT_BOOK_PAGE_SFX: Path = _REPO_ROOT / "assets" / "sfx" / "page_turn.wav"
 _CACHE_LOCKS_GUARD = threading.Lock()
 _CACHE_LOCKS: dict[str, threading.Lock] = {}
 
@@ -139,6 +140,14 @@ class TransitionConfig:
         if self.style in BOOK_PAGE_STYLES:
             return self.page_surface or "destination_preview"
         return ""
+
+    @property
+    def effective_sfx(self) -> str | None:
+        if self.sfx is not None:
+            return self.sfx or None          # "" → opt-out (None)
+        if self.style in BOOK_PAGE_STYLES and _DEFAULT_BOOK_PAGE_SFX.exists():
+            return str(_DEFAULT_BOOK_PAGE_SFX)
+        return None
 
 
 class TransitionRenderer(Protocol):
@@ -636,7 +645,7 @@ def transition_cache_key(scene_a: Path, scene_b: Path, cfg: TransitionConfig) ->
     h.update(cfg.style.encode())
     h.update(cfg.effective_renderer_mode.encode())
     h.update(f"{cfg.duration_sec:.4f}".encode())
-    h.update((cfg.sfx or "").encode())
+    h.update((cfg.effective_sfx or "").encode())
     h.update(str(cfg.page_count or "").encode())
     h.update(cfg.effective_page_surface.encode())
     if cfg.style == "book-page-turn-v2":
