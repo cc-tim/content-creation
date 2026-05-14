@@ -254,8 +254,8 @@ class XfadeRenderer:
             "-loop", "1", "-t", str(d), "-i", str(frame_b),
             "-f", "lavfi", "-t", str(d), "-i", "anullsrc=r=48000:cl=stereo",
         ]
-        if cfg.sfx:
-            cmd += ["-i", cfg.sfx]
+        if cfg.effective_sfx:
+            cmd += ["-i", cfg.effective_sfx]
             audio_filter = "[2:a][3:a]amix=inputs=2:duration=first:dropout_transition=0[a]"
         else:
             audio_filter = "[2:a]anull[a]"
@@ -348,8 +348,8 @@ class BookPageTurnRenderer:
             "-loop", "1", "-t", str(d), "-i", str(frame_b),
             "-f", "lavfi", "-t", str(d), "-i", "anullsrc=r=48000:cl=stereo",
         ]
-        if cfg.sfx:
-            cmd += ["-i", cfg.sfx]
+        if cfg.effective_sfx:
+            cmd += ["-i", cfg.effective_sfx]
             audio_filter = "[2:a][3:a]amix=inputs=2:duration=first:dropout_transition=0[a]"
         else:
             audio_filter = "[2:a]anull[a]"
@@ -451,7 +451,7 @@ class BookPageTurnV2Renderer:
                 duration_sec=cfg.duration_sec,
                 page_count=cfg.page_count or 2,
                 page_surface=cfg.effective_page_surface,
-                sfx=cfg.sfx,
+                sfx=cfg.effective_sfx,
             )
         finally:
             frame_a.unlink(missing_ok=True)
@@ -479,8 +479,8 @@ class LicensedClipRenderer:
             "-stream_loop", "-1", "-i", str(asset),
             "-f", "lavfi", "-t", str(d), "-i", "anullsrc=r=48000:cl=stereo",
         ]
-        if cfg.sfx:
-            cmd += ["-i", cfg.sfx]
+        if cfg.effective_sfx:
+            cmd += ["-i", cfg.effective_sfx]
             audio_filter = "[1:a][2:a]amix=inputs=2:duration=first:dropout_transition=0[a]"
         else:
             audio_filter = "[1:a]anull[a]"
@@ -548,8 +548,8 @@ class OverlayAssetRenderer:
             "-stream_loop", "-1", "-i", str(asset),
             "-f", "lavfi", "-t", str(d), "-i", "anullsrc=r=48000:cl=stereo",
         ]
-        if cfg.sfx:
-            cmd += ["-i", cfg.sfx]
+        if cfg.effective_sfx:
+            cmd += ["-i", cfg.effective_sfx]
             audio_filter = "[2:a][3:a]amix=inputs=2:duration=first:dropout_transition=0[a]"
         else:
             audio_filter = "[2:a]anull[a]"
