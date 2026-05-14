@@ -1,6 +1,6 @@
 ---
 name: produce
-description: Run the full YouTube porting pipeline OR the wiki-explainer porting pipeline. For YouTube: pass a URL. For wiki explainers: pass a path to a `.md` file with `intent: video` frontmatter. Covers: acquire → analyze → storyboard → TTS → compose.
+description: "Run the full YouTube porting pipeline OR the wiki-explainer porting pipeline. For YouTube: pass a URL. For wiki explainers: pass a path to a `.md` file with `intent: video` frontmatter. Covers: acquire → analyze → storyboard → TTS → compose."
 version: 1.0.0
 metadata:
   openclaw:

@@ -1,10 +1,11 @@
 [skills]
 evaluate-video = { sha = "fa1f63ff4dbe", installed = "2026-05-13" }
+fit-image = { sha = "ad4fd0e2a6b2", installed = "2026-05-14" }
 knowledge = { sha = "61eccce7bd44", installed = "2026-05-13" }
-produce = { sha = "3216cf0c8136", installed = "2026-05-13" }
+produce = { sha = "93a2ed095231", installed = "2026-05-14" }
 publish = { sha = "43399386b375", installed = "2026-05-13" }
 render = { sha = "fb25c881cc8f", installed = "2026-05-13" }
-scene-update = { sha = "4b6cb1fa6d8f", installed = "2026-05-13" }
+scene-update = { sha = "7c1d9056741d", installed = "2026-05-14" }
 shorts = { sha = "6a969116f310", installed = "2026-05-13" }
 status = { sha = "1d72ab57afe0", installed = "2026-05-13" }
 storyboard = { sha = "e30ede2ffbc1", installed = "2026-05-13" }

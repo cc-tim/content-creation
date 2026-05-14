@@ -130,9 +130,17 @@ uv run pipeline compose reburn --project-id <ID>
 ```bash
 # Edit storyboard.json with `storyboard set` for safe fields:
 uv run pipeline storyboard set <scene_id> overlay.text="新的標題"
+```
 
-# For complex visual changes, edit storyboard.json directly via Python.
-# Then re-render only the affected scene:
+If the scene visual type is `article_image` or `image`, invoke fit-image for the changed scene:
+
+```text
+fit-image --project-id <ID> <scene_id> --apply
+```
+
+Then re-render only the affected scene:
+
+```bash
 uv run pipeline compose rescene --project-id <ID> --scene <scene_id>
 ```
 
@@ -219,6 +227,7 @@ you also changed subtitles or theme.
 - Overlay types: `title`, `namecard`, `text_top`, `text_left`, `text_emphasis` (never `text`)
 - Never put overlay on `text_card` or `slide` visuals — creates text-on-text overlap
 - Overlay y position ≤ 0.70 to avoid subtitle collision
+- After changing an `article_image` or `image` visual: run `fit-image --project-id <ID> <scene_id> --apply` before `compose rescene`.
 - After narration changes: always rescene to regenerate TTS before reburn
 - Pass `--scene <id>` for every changed scene — and only the changed scenes
 
