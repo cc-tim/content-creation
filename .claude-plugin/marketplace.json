@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "content-creation",
-      "description": "YouTube porting pipeline skills: produce, scene-update, render, publish, voice-variant, evaluate-video, knowledge, shorts, status, storyboard.",
+      "description": "YouTube porting pipeline skills: produce, scene-update, render, publish, voice-variant, evaluate-video, knowledge, shorts, status, storyboard, visual-review, fit-image.",
       "source": "./",
       "category": "workflow"
     }
