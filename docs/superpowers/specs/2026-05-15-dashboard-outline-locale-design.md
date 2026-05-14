@@ -39,31 +39,43 @@ Two gaps surfaced while working on project `20260504-115232-baby-walker-story`:
 
 ## Section 1 — Storyboard schema & model
 
+To keep blast radius low (`scene.narration` is read in ~15 files that have no
+locale in hand), the primary locale's narration stays a plain `str`; secondary
+locales live in a sidecar map.
+
 `Scene` dataclass (`src/pipeline/storyboard.py:141`):
 
-- `narration: str` → `narration: dict[str, str]` — locale-keyed map, e.g.
-  `{"zh-TW": "…", "en": "…"}`. The `narration_en: str | None` special-case field
-  is removed.
-- New `beat: str` — a language-neutral one-line statement of what the scene must
-  accomplish (e.g. "establishes the 600-year design stasis").
+- `narration: str` stays — holds the **primary locale's** narration text.
+  Existing call sites that read `scene.narration` keep working unchanged.
+- `narration_en: str | None` is **removed** and replaced by
+  `narration_alt: dict[str, str]` — secondary locales keyed by locale code,
+  e.g. `{"en": "…"}`.
+- New `beat: str` (default `""`) — a language-neutral one-line statement of what
+  the scene must accomplish (e.g. "establishes the 600-year design stasis").
 - `narration_est_sec` stays, but its meaning becomes the *shared duration budget*
   for the beat — every locale targets it. This is correct for MLA, where all
   locales share one timeline.
-- `Scene.from_dict` accepts both shapes. Because a bare scene dict carries no
-  locale, the primary locale is passed down: `Storyboard.from_dict` reads a new
-  top-level `primary_locale` field on the storyboard and passes it to
-  `Scene.from_dict(data, primary_locale=...)`. Old flat (`narration: str` +
-  optional `narration_en`) is then folded into `{primary_locale: narration}`
-  plus `{"en": narration_en}` when present. `to_dict` always writes the new shape.
-- Helper methods that read narration (`narration_for_tts`, duration sums) take a
-  `locale` argument and read `narration[locale]`.
+- New helper `Scene.narration_for(locale, primary_locale)` → returns
+  `self.narration` when `locale == primary_locale`, else
+  `self.narration_alt.get(locale, "")`.
+- `Scene.from_dict` accepts both shapes: old `narration_en` (if present) is
+  folded into `narration_alt["en"]`; `beat` defaults to `""` when absent.
+  `to_dict` always writes the new shape (`narration`, `narration_alt`, `beat`),
+  omitting `narration_alt` when empty.
 
-Storyboard top-level `title` / `description` also become locale maps (they are
-already generated per-locale today, merely stored flat). A top-level
-`primary_locale` field is added to the storyboard; `DirectStage` writes it for
-new projects and the migration writes it for existing ones. When an old
-storyboard predates the field, `Storyboard.from_dict` falls back to deriving the
-primary locale from the `storyboard_<locale>.json` filename.
+`Storyboard` dataclass:
+
+- New `primary_locale: str` field (default `"zh-TW"`). `to_dict` writes it;
+  `from_dict` reads `data.get("primary_locale", "zh-TW")`.
+- `derive_script(locale: str | None = None)` — `locale` defaults to
+  `self.primary_locale`; reads each scene via `narration_for(locale,
+  self.primary_locale)`.
+- `title` / `description` stay `str | None` (primary locale); new
+  `title_alt: dict[str, str]` and `description_alt: dict[str, str]` hold
+  secondary locales.
+
+`DirectStage` and the migration both write the top-level `primary_locale` field.
+The migration derives it from the project's `context.json` `locale` value.
 
 ## Section 2 — Pipeline restructure (Approach A)
 
@@ -91,11 +103,12 @@ instead of `narration` / `narration_en`.
 
 A one-time migration over every `output/projects/*/storyboard.json`:
 
-- **Schema migration** (mechanical, no LLM): flat `narration` →
-  `{primary_locale: narration}`; fold `narration_en` → `narration["en"]`; same
-  for `title` / `description`; write the top-level `primary_locale` field
-  (derived from the `storyboard_<locale>.json` filename). Idempotent — detects
-  already-migrated files and skips them.
+- **Schema migration** (mechanical, no LLM): fold `narration_en` →
+  `narration_alt["en"]` and drop the old key; write the top-level
+  `primary_locale` field (derived from the project's `context.json` `locale`
+  value). `narration` itself is unchanged (already the primary-locale string).
+  Idempotent — detects already-migrated files (no `narration_en`, has
+  `primary_locale`) and skips them.
 - **Beat backfill** (one LLM call per project): for storyboards with no `beat`
   fields, send all scenes' narration + section to Claude and get back a `beat`
   per scene.
@@ -108,9 +121,10 @@ loadable.
 ## Section 4 — Dashboard: scanner, outline view, locale switcher
 
 **Scanner** (`src/pipeline/dashboard/scanner.py`): expose `beat` per scene;
-expose `narration` as the full locale map (not just primary); detect available
-locales from `narration` keys plus which have `narration_<locale>.mp3` /
-`subtitles_<locale>.srt` on disk. Add a `locales` list to the project record.
+expose per-scene narration as a locale map built from `primary_locale` +
+`narration` + `narration_alt`; detect available locales from that map plus which
+have `narration_<locale>.mp3` / `subtitles_<locale>.srt` on disk. Add a
+`locales` list and `primary_locale` to the project record.
 
 **Outline view** — a new collapsible panel above the scene strip:
 
