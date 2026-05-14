@@ -568,3 +568,50 @@ def test_book_page_turn_v2_renderer_emits_clip(tmp_path: Path):
 
     assert result == out
     assert out.exists() and out.stat().st_size > 0
+
+
+# ---------------------------------------------------------------------------
+# effective_sfx property
+# ---------------------------------------------------------------------------
+
+def test_effective_sfx_returns_default_for_book_page_turn_v2_when_sfx_none():
+    """With sfx=None, book-page-turn-v2 gets the bundled default SFX path."""
+    from pipeline.composer.transitions import _DEFAULT_BOOK_PAGE_SFX
+    cfg = TransitionConfig(style="book-page-turn-v2", duration_sec=1.5, sfx=None)
+    assert cfg.effective_sfx == str(_DEFAULT_BOOK_PAGE_SFX)
+
+
+def test_effective_sfx_returns_default_for_all_book_page_styles():
+    """All BOOK_PAGE_STYLES get the default SFX when sfx is None."""
+    from pipeline.composer.transitions import _DEFAULT_BOOK_PAGE_SFX
+    for style in ("book-page-turn", "book-page-turn-v2"):
+        cfg = TransitionConfig(style=style, duration_sec=1.5, sfx=None)
+        assert cfg.effective_sfx == str(_DEFAULT_BOOK_PAGE_SFX), f"failed for {style}"
+
+
+def test_effective_sfx_returns_none_for_non_book_styles():
+    """Non-book styles return None even when sfx is not set."""
+    for style in ("fade", "slide", "wipe", "page-turn", "none"):
+        cfg = TransitionConfig(style=style, duration_sec=0.5, sfx=None)
+        assert cfg.effective_sfx is None, f"expected None for {style}"
+
+
+def test_effective_sfx_empty_string_opt_out():
+    """sfx='' disables the default — effective_sfx returns None."""
+    cfg = TransitionConfig(style="book-page-turn-v2", duration_sec=1.5, sfx="")
+    assert cfg.effective_sfx is None
+
+
+def test_effective_sfx_explicit_path_overrides_default():
+    """An explicit sfx path is returned as-is, overriding the default."""
+    cfg = TransitionConfig(style="book-page-turn-v2", duration_sec=1.5, sfx="assets/sfx/custom.wav")
+    assert cfg.effective_sfx == "assets/sfx/custom.wav"
+
+
+def test_cache_key_differs_for_book_page_turn_v2_with_and_without_default_sfx(tmp_path: Path):
+    """Cache key changes when effective_sfx differs (default vs opt-out)."""
+    a = _make_test_clip(tmp_path / "a.mp4", duration=0.5, color="red")
+    b = _make_test_clip(tmp_path / "b.mp4", duration=0.5, color="blue")
+    cfg_default = TransitionConfig(style="book-page-turn-v2", duration_sec=1.5, sfx=None)
+    cfg_optout = TransitionConfig(style="book-page-turn-v2", duration_sec=1.5, sfx="")
+    assert transition_cache_key(a, b, cfg_default) != transition_cache_key(a, b, cfg_optout)
