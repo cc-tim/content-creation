@@ -156,7 +156,18 @@ at least one scene's visual; `required_sequence` shapes scene order;
 
 ## Phase 4 — Render
 
-After user approves storyboard:
+After user approves storyboard, run fit-image before TTS/compose. This is required even
+when the user used `--skip-review`: image fit is a render-correctness step, not a text
+review step.
+
+Invoke the `fit-image` skill:
+
+```text
+fit-image --project-id <ID> --apply
+```
+
+Then resume TTS/compose:
+
 ```bash
 uv run pipeline produce --url "<URL>" --project-id <ID> --locale zh-TW --start-from tts --skip-review
 ```
