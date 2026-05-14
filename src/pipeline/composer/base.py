@@ -53,6 +53,7 @@ def image_to_video(
     # Constant zoom speed: 0.0001 per frame -> reaches 10% zoom after ~33s
     zoom_per_frame = 0.0001
     zoom_max = 1.10
+    pix_fmt = _intermediate_h264_pix_fmt(width, height)
     scaled_w = int(width * 1.3)
     scaled_h = int(height * 1.3)
     vf = (
@@ -83,7 +84,7 @@ def image_to_video(
             "-crf",
             "23",
             "-pix_fmt",
-            "yuv420p",
+            pix_fmt,
             "-r",
             str(fps),
             str(output_path),
@@ -114,6 +115,7 @@ def _camera_motion_to_video(
 
     source = Image.open(image_path).convert("RGB")
     base, target = _camera_motion_canvas(source, camera_motion, width, height)
+    pix_fmt = _intermediate_h264_pix_fmt(width, height)
     zoom_end = max(1.0, min(4.0, _coerce_float(camera_motion.get("zoom_end"), 1.35)))
     start_center = (width / 2.0, height / 2.0)
 
@@ -164,13 +166,19 @@ def _camera_motion_to_video(
                 "-crf",
                 "23",
                 "-pix_fmt",
-                "yuv420p",
+                pix_fmt,
                 "-r",
                 str(fps),
                 str(output_path),
             ]
         )
     return output_path
+
+
+def _intermediate_h264_pix_fmt(width: int, height: int) -> str:
+    if width % 2 == 0 and height % 2 == 0:
+        return "yuv420p"
+    return "yuv444p"
 
 
 def _camera_motion_canvas(
@@ -340,7 +348,7 @@ def render_scene(
         return render_rich_slide(visual, duration_sec, width, height, work_dir, scene_id, theme)
 
     elif visual_type in ("article_image", "image"):
-        from pipeline.composer.refit import effective_image_path
+        from pipeline.composer.refit import effective_image_path, target_box
 
         img_path = effective_image_path(visual)
         if not img_path.exists():
@@ -373,12 +381,13 @@ def render_scene(
             )
         output = work_dir / f"{scene_id}_visual.mp4"
         camera_motion = visual.get("camera_motion")
+        render_w, render_h = target_box(theme, width, height)
         return image_to_video(
             img_path,
             output,
             duration_sec,
-            width,
-            height,
+            render_w,
+            render_h,
             camera_motion=camera_motion if isinstance(camera_motion, dict) else None,
         )
 

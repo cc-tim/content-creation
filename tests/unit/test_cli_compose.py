@@ -60,6 +60,10 @@ def test_set_variant_updates_context(project_dir, tmp_path):
 def test_rescene_deletes_scene_finals(project_dir, tmp_path):
     """rescene deletes sN_final.mp4 and sN_final_no_overlay.mp4, then re-runs compose."""
     runner = CliRunner()
+    scenes_dir = project_dir / "compose" / "scenes"
+    (scenes_dir / "s1_final_open_book_page.mp4").write_bytes(b"s1f_frame")
+    (scenes_dir / "s1_final_no_overlay_open_book_page.mp4").write_bytes(b"s1f_no_ov_frame")
+    (scenes_dir / "s10_final_open_book_page.mp4").write_bytes(b"s10f_frame")
     with (
         patch("pipeline.cli_compose._resolve_work_dir", return_value=project_dir),
         patch("pipeline.cli_compose.asyncio.run", side_effect=_close_coro) as mock_run,
@@ -68,9 +72,11 @@ def test_rescene_deletes_scene_finals(project_dir, tmp_path):
             "rescene", "--project-id", "9999", "--scene", "s1"
         ])
     assert result.exit_code == 0, result.output
-    scenes_dir = project_dir / "compose" / "scenes"
     assert not (scenes_dir / "s1_final.mp4").exists()
     assert not (scenes_dir / "s1_final_no_overlay.mp4").exists()
+    assert not (scenes_dir / "s1_final_open_book_page.mp4").exists()
+    assert not (scenes_dir / "s1_final_no_overlay_open_book_page.mp4").exists()
+    assert (scenes_dir / "s10_final_open_book_page.mp4").exists()
     assert mock_run.called
 
 

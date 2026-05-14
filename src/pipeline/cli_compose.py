@@ -54,6 +54,17 @@ def _delete_transition_cache_for_scenes(compose_dir: Path, scene_ids: list[str])
         logger.info("rescene.transition_cache_cleared", path=str(cache))
 
 
+def _scene_final_cache_paths(scenes_dir: Path, scene_id: str) -> list[Path]:
+    """Return final scene outputs that can make rescene incorrectly cache-hit."""
+    paths: list[Path] = [
+        scenes_dir / f"{scene_id}_final.mp4",
+        scenes_dir / f"{scene_id}_final_no_overlay.mp4",
+    ]
+    paths.extend(sorted(scenes_dir.glob(f"{scene_id}_final_*.mp4")))
+    paths.extend(sorted(scenes_dir.glob(f"{scene_id}_final_no_overlay_*.mp4")))
+    return list(dict.fromkeys(paths))
+
+
 def _delete_concat_outputs(compose_dir: Path, locale: str) -> list[str]:
     """Keep current raw/final artifacts until atomic replacements succeed."""
     return []
@@ -196,8 +207,7 @@ def rescene(
     purge_old(work_dir / "compose" / "scenes")
     scenes_dir = work_dir / "compose" / "scenes"
     for scene_id in scenes:
-        for suffix in ("_final.mp4", "_final_no_overlay.mp4"):
-            p = scenes_dir / f"{scene_id}{suffix}"
+        for p in _scene_final_cache_paths(scenes_dir, scene_id):
             if p.exists():
                 p.unlink()
                 logger.info("compose.rescene.deleted", path=str(p))

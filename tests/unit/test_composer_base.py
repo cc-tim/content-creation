@@ -6,6 +6,7 @@ from PIL import Image
 from pipeline.composer.base import (
     _camera_motion_canvas,
     _camera_motion_progress,
+    _intermediate_h264_pix_fmt,
     _is_camera_motion,
     get_resolution,
 )
@@ -79,3 +80,8 @@ def test_camera_motion_detection_requires_focus_point():
     assert _is_camera_motion({"type": "unknown", "focus_point": {"x": 0.5, "y": 0.5}}) is False
     assert _is_camera_motion({"type": "slow_push_pan"}) is False
     assert _is_camera_motion({"type": "slow_push_pan", "focus_point": {"x": 0.5, "y": 0.5}})
+
+
+def test_odd_intermediate_video_dimensions_use_non_subsampled_pix_fmt():
+    assert _intermediate_h264_pix_fmt(1280, 720) == "yuv420p"
+    assert _intermediate_h264_pix_fmt(947, 484) == "yuv444p"
