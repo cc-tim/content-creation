@@ -132,12 +132,13 @@ def render_book_page_turn_v2(
                 _draw_page_stack_count(frame, spec, remaining=flip_count - flip_idx - 1)
             frame.convert("RGB").save(work / f"frame_{idx:05d}.png", optimize=False)
 
+        paged_sfx = _build_paged_sfx_track(sfx, flip_count, duration_sec, work / "paged_sfx.aac") if sfx else None
         _encode_frame_sequence(
             work / "frame_%05d.png",
             out,
             fps=fps,
             duration_sec=duration_sec,
-            sfx=sfx,
+            sfx=paged_sfx,
         )
     return out
 
@@ -534,6 +535,31 @@ def _ease_in_out_cubic(value: float) -> float:
     if value < 0.5:
         return 4 * value * value * value
     return 1 - pow(-2 * value + 2, 3) / 2
+
+
+def _build_paged_sfx_track(sfx_path: str, page_count: int, duration_sec: float, out: Path) -> str:
+    """Build a composite SFX track that plays sfx_path once at the start of each page flip."""
+    gap_ms = duration_sec / page_count * 1000
+    cmd = ["ffmpeg", "-y"]
+    for _ in range(page_count):
+        cmd += ["-i", sfx_path]
+    filters = [
+        f"[{i}:a]adelay={int(i * gap_ms)}|{int(i * gap_ms)}[a{i}]"
+        for i in range(page_count)
+    ]
+    mix_inputs = "".join(f"[a{i}]" for i in range(page_count))
+    filters.append(
+        f"{mix_inputs}amix=inputs={page_count}:normalize=0,"
+        f"atrim=end={duration_sec}[out]"
+    )
+    cmd += [
+        "-filter_complex", ";".join(filters),
+        "-map", "[out]",
+        "-c:a", "aac", "-ar", "48000", "-b:a", "128k",
+        str(out),
+    ]
+    run_ffmpeg(cmd)
+    return str(out)
 
 
 def _encode_frame_sequence(
