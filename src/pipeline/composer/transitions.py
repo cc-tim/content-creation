@@ -645,7 +645,7 @@ def transition_cache_key(scene_a: Path, scene_b: Path, cfg: TransitionConfig) ->
     h.update(cfg.style.encode())
     h.update(cfg.effective_renderer_mode.encode())
     h.update(f"{cfg.duration_sec:.4f}".encode())
-    h.update((cfg.effective_sfx or "").encode())
+    h.update((cfg.effective_sfx or "").encode())  # path only; replace file → clear cache manually
     h.update(str(cfg.page_count or "").encode())
     h.update(cfg.effective_page_surface.encode())
     if cfg.style == "book-page-turn-v2":
