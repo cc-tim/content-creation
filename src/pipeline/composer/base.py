@@ -339,10 +339,17 @@ def render_scene(
 
         return render_rich_slide(visual, duration_sec, width, height, work_dir, scene_id, theme)
 
-    elif visual_type == "article_image":
-        img_path = Path(visual.get("path", ""))
+    elif visual_type in ("article_image", "image"):
+        from pipeline.composer.refit import effective_image_path
+
+        img_path = effective_image_path(visual)
         if not img_path.exists():
-            logger.warning("article_image.missing", path=str(img_path), scene=scene_id)
+            logger.warning(
+                "file_image.missing",
+                path=str(img_path),
+                scene=scene_id,
+                visual_type=visual_type,
+            )
             from pipeline.composer.text_card import render_text_card
 
             fallback = {"type": "text_card", "text": visual.get("alt", scene_id)}
@@ -352,7 +359,12 @@ def render_scene(
         from pipeline.utils.ffmpeg import verify_is_image
 
         if not verify_is_image(img_path):
-            logger.warning("article_image.invalid", path=str(img_path), scene=scene_id)
+            logger.warning(
+                "file_image.invalid",
+                path=str(img_path),
+                scene=scene_id,
+                visual_type=visual_type,
+            )
             from pipeline.composer.text_card import render_text_card
 
             fallback = {"type": "text_card", "text": visual.get("alt", scene_id)}
