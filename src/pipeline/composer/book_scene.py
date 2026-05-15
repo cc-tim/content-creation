@@ -537,16 +537,46 @@ def _ease_in_out_cubic(value: float) -> float:
     return 1 - pow(-2 * value + 2, 3) / 2
 
 
+def _atempo_chain(ratio: float) -> str:
+    """Build a comma-separated atempo filter chain. Each atempo accepts 0.5..2.0."""
+    ratio = max(0.25, min(8.0, ratio))
+    parts: list[str] = []
+    remaining = ratio
+    while remaining > 2.0:
+        parts.append("atempo=2.0")
+        remaining /= 2.0
+    while remaining < 0.5:
+        parts.append("atempo=0.5")
+        remaining /= 0.5
+    parts.append(f"atempo={remaining:.4f}")
+    return ",".join(parts)
+
+
 def _build_paged_sfx_track(sfx_path: str, page_count: int, duration_sec: float, out: Path) -> str:
-    """Build a composite SFX track that plays sfx_path once at the start of each page flip."""
-    gap_ms = duration_sec / page_count * 1000
+    """Build a composite SFX track that plays sfx_path once at the start of each page flip.
+
+    Time-stretches each hit so it fits within the gap between flips (with a 50ms
+    overlap tolerance). Prevents smearing when page_count is high.
+    """
+    gap_sec = duration_sec / page_count
+    target_hit_sec = gap_sec + 0.05
+    source_sec = media_duration_sec(Path(sfx_path))
+    speedup = max(1.0, source_sec / target_hit_sec) if target_hit_sec > 0 else 1.0
+    atempo = _atempo_chain(speedup) if speedup > 1.001 else None
+
+    gap_ms = gap_sec * 1000
     cmd = ["ffmpeg", "-y"]
     for _ in range(page_count):
         cmd += ["-i", sfx_path]
-    filters = [
-        f"[{i}:a]adelay={int(i * gap_ms)}|{int(i * gap_ms)}[a{i}]"
-        for i in range(page_count)
-    ]
+    filters = []
+    for i in range(page_count):
+        delay_ms = int(i * gap_ms)
+        stage_in = f"[{i}:a]"
+        stage_out = f"[a{i}]"
+        chain = f"adelay={delay_ms}|{delay_ms}"
+        if atempo:
+            chain = f"{atempo},{chain}"
+        filters.append(f"{stage_in}{chain}{stage_out}")
     mix_inputs = "".join(f"[a{i}]" for i in range(page_count))
     filters.append(
         f"{mix_inputs}amix=inputs={page_count}:normalize=0,"
