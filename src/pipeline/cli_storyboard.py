@@ -290,11 +290,19 @@ def migrate(
     all_projects: bool = typer.Option(False, "--all", help="Migrate every project"),
 ) -> None:
     """Migrate storyboard.json files to the beat/narration_alt schema."""
+    # Check mutual exclusion
+    if all_projects and project_id:
+        raise typer.BadParameter("Pass --project-id or --all, not both")
+
     projects_root = Path("output/projects")
     if all_projects:
         targets = sorted(projects_root.glob("*/"))
     elif project_id:
-        targets = [projects_root / project_id]
+        # Validate that the project exists before attempting migration
+        target_path = projects_root / project_id
+        if not (target_path / "storyboard.json").exists():
+            raise typer.BadParameter(f"project '{project_id}' not found at {target_path}")
+        targets = [target_path]
     else:
         raise typer.BadParameter("Pass --project-id <id> or --all")
 
