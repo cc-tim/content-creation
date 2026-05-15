@@ -67,14 +67,8 @@ async def test_direct_outputs_storyboard(sample_context, direct_fixture):
     assert sb.scenes[0].section == "hook"
     assert sb.format == "standard"
 
-    # Script derived from storyboard
-    assert ctx.script_path is not None
-    assert ctx.script_path.exists()
-    script = ctx.script_path.read_text()
-    assert "[HOOK]" in script
-    assert "時速超過160" in script
-    # Script should NOT contain visual data
-    assert '"type": "clip"' not in script
+    # DirectStage no longer writes a script; ScriptwriteStage handles that.
+    assert ctx.script_path is None
 
     # Backwards compat
     assert ctx.story_structure is not None
@@ -396,3 +390,17 @@ async def test_direct_warns_on_scene_count_drift(
     # Check stdout for the warning event name instead.
     captured = capsys.readouterr()
     assert "scene_drift" in captured.out or "scene_count_mismatch" in captured.out
+
+
+def test_direct_prompt_requests_beat_not_narration():
+    from pipeline.knowledge import KnowledgeMeta
+    meta = KnowledgeMeta(source_type="manual", source_url="", title="test", locale="zh-TW")
+    knowledge = Knowledge(meta=meta, facts=[], entities=[], timeline=[])
+    prompt = build_direct_prompt(
+        knowledge, "zh-TW", "standard", "dramatic",
+        strategies_text="", reference_storyboard_json=None,
+        constraints_text="", clip_budget_text="", intro_template_text="",
+        niche=None,
+    )
+    assert '"beat"' in prompt
+    assert "Narration text in target locale" not in prompt

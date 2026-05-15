@@ -195,6 +195,8 @@ OVERLAY (optional per scene, renders on top of visual):
 
 Each scene references fact IDs from the knowledge base.
 
+For each scene, write a language-neutral beat (NOT narration text):
+
 Return ONLY valid JSON:
 {{
   "title": "YouTube title in target locale, ~60 chars, applying loaded strategies",
@@ -203,7 +205,7 @@ Return ONLY valid JSON:
     {{
       "id": "s1",
       "section": "hook|context|rising|climax|aftermath|analysis|content|punchline",
-      "narration": "Narration text in target locale",
+      "beat": "language-neutral one-line statement of what this scene accomplishes (intent, NOT narration text, NOT a wording summary)",
       "narration_est_sec": 13,
       "facts_ref": ["f1"],
       "visual": {{"type": "...", ...}},
@@ -555,6 +557,8 @@ class DirectStage(PipelineStage):
             raw_text = raw_text.split("\n", 1)[1].rsplit("```", 1)[0]
 
         result = json.loads(raw_text)
+        for scene in result.get("scenes", []):
+            scene.setdefault("narration", "")
 
         # Build storyboard
         storyboard = Storyboard.from_dict(
@@ -563,6 +567,7 @@ class DirectStage(PipelineStage):
                 "format": self.fmt,
                 "target_duration_sec": 60 if self.fmt == "short" else 720,
                 "aspect_ratio": "9:16" if self.fmt == "short" else "16:9",
+                "primary_locale": ctx.locale,
                 "title": result.get("title"),
                 "description": result.get("description"),
                 **{k: v for k, v in result.items() if k not in ("title", "description")},
@@ -608,18 +613,11 @@ class DirectStage(PipelineStage):
         storyboard.save(storyboard_path)
         ctx.storyboard_path = storyboard_path
 
-        # Derive script.md for TTS
-        script_text = storyboard.derive_script()
-        script_dir = ctx.work_dir / "script"
-        script_dir.mkdir(parents=True, exist_ok=True)
-        script_path = script_dir / f"script_{ctx.locale}.md"
-        script_path.write_text(script_text, encoding="utf-8")
-        ctx.script_path = script_path
-
         # Backwards compat: populate old fields
         ctx.story_structure = {
             "beats": [
-                {"beat": s.section, "description": s.narration[:50]} for s in storyboard.scenes
+                {"id": s.id, "section": s.section, "beat": s.beat}
+                for s in storyboard.scenes
             ],
         }
 
@@ -644,7 +642,7 @@ class DirectStage(PipelineStage):
                     logger.warning("direct.metadata.skipped", reason=str(exc))
                 else:
                     synopsis = "\n".join(
-                        f"{s.section}: {s.narration[:120]}" for s in storyboard.scenes
+                        f"{s.section}: {s.beat}" for s in storyboard.scenes
                     )
                     write_metadata_for_project(
                         work_dir=ctx.work_dir,
