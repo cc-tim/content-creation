@@ -69,7 +69,12 @@ def _write_narration_for_locale(scenes: list[Scene], locale: str) -> dict[str, s
     raw = response.content[0].text
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"scriptwrite: Claude returned non-JSON for locale {locale!r}: {e}\nRaw: {raw[:200]}"
+        ) from e
 
 
 class ScriptwriteStage(PipelineStage):
@@ -93,6 +98,8 @@ class ScriptwriteStage(PipelineStage):
             narration_by_id = _write_narration_for_locale(storyboard.scenes, locale)
             for scene in storyboard.scenes:
                 text = narration_by_id.get(scene.id, "")
+                if scene.id not in narration_by_id:
+                    logger.warning("scriptwrite.missing_scene", scene_id=scene.id, locale=locale)
                 if locale == storyboard.primary_locale:
                     scene.narration = text
                 else:
@@ -106,7 +113,7 @@ class ScriptwriteStage(PipelineStage):
         script_dir = ctx.work_dir / "script"
         script_dir.mkdir(parents=True, exist_ok=True)
         script_path = script_dir / f"script_{ctx.locale}.md"
-        script_path.write_text(storyboard.derive_script(), encoding="utf-8")
+        script_path.write_text(storyboard.derive_script(locale=ctx.locale), encoding="utf-8")
         ctx.script_path = script_path
 
         logger.info("scriptwrite.complete", locales=locales)
