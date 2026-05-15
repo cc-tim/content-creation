@@ -141,9 +141,10 @@ class NarrationSource:
 class Scene:
     id: str
     section: str  # hook | context | rising | climax | aftermath | analysis | content | punchline
-    narration: str
+    narration: str  # primary locale narration text
     narration_est_sec: float
-    narration_en: str | None = None
+    beat: str = ""  # language-neutral one-line statement of scene intent
+    narration_alt: dict[str, str] = field(default_factory=dict)  # secondary locales, keyed by locale code
     facts_ref: list[str] = field(default_factory=list)
     visual: dict[str, Any] = field(default_factory=dict)
     overlay: dict[str, Any] | None = None
@@ -156,12 +157,18 @@ class Scene:
     def from_dict(cls, data: dict[str, Any]) -> Scene:
         ns_raw = data.get("narration_source")
         narration_source = NarrationSource.from_dict(ns_raw) if ns_raw else None
+        narration_alt = dict(data.get("narration_alt", {}))
+        # Backward compat: old flat schema stored the English track as narration_en.
+        old_en = data.get("narration_en")
+        if old_en is not None and "en" not in narration_alt:
+            narration_alt["en"] = old_en
         return cls(
             id=data["id"],
             section=data["section"],
             narration=data["narration"],
             narration_est_sec=data["narration_est_sec"],
-            narration_en=data.get("narration_en"),
+            beat=data.get("beat", ""),
+            narration_alt=narration_alt,
             facts_ref=list(data.get("facts_ref", [])),
             visual=dict(data.get("visual", {})),
             overlay=data.get("overlay"),
@@ -175,6 +182,7 @@ class Scene:
         out: dict[str, Any] = {
             "id": self.id,
             "section": self.section,
+            "beat": self.beat,
             "narration": self.narration,
             "narration_est_sec": self.narration_est_sec,
             "facts_ref": self.facts_ref,
@@ -182,8 +190,8 @@ class Scene:
             "overlay": self.overlay,
             "pause_after_sec": self.pause_after_sec,
         }
-        if self.narration_en is not None:
-            out["narration_en"] = self.narration_en
+        if self.narration_alt:
+            out["narration_alt"] = self.narration_alt
         if self.compartment is not None:
             out["compartment"] = self.compartment
         if self.narration_source is not None:
@@ -191,6 +199,12 @@ class Scene:
         if self.subtitle_override is not None:
             out["subtitle_override"] = self.subtitle_override
         return out
+
+    def narration_for(self, locale: str, primary_locale: str) -> str:
+        """Return the narration text for a locale; '' if that locale is absent."""
+        if locale == primary_locale:
+            return self.narration
+        return self.narration_alt.get(locale, "")
 
 
 @dataclass

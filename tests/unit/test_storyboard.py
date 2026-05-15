@@ -149,7 +149,7 @@ def test_scene_narration_en_optional():
         narration_est_sec=2.0,
         visual={"type": "text_card", "text": "hi"},
     )
-    assert s.narration_en is None
+    assert s.narration_alt == {}
 
 
 def test_scene_narration_en_roundtrips():
@@ -164,11 +164,85 @@ def test_scene_narration_en_roundtrips():
         narration="你好",
         narration_est_sec=2.0,
         visual={"type": "text_card", "text": "hi"},
-        narration_en="Hello",
+        narration_alt={"en": "Hello"},
     )
     sb = Storyboard(scenes=[s])
     with tempfile.TemporaryDirectory() as d:
         p = pathlib.Path(d) / "sb.json"
         sb.save(p)
         sb2 = Storyboard.load(p)
-    assert sb2.scenes[0].narration_en == "Hello"
+    assert sb2.scenes[0].narration_alt == {"en": "Hello"}
+
+
+def test_scene_from_dict_new_shape():
+    from pipeline.storyboard import Scene
+
+    scene = Scene.from_dict({
+        "id": "s1",
+        "section": "hook",
+        "beat": "establishes the 600-year design stasis",
+        "narration": "西元一千四百四十年……",
+        "narration_alt": {"en": "Year 1440..."},
+        "narration_est_sec": 8.0,
+    })
+    assert scene.beat == "establishes the 600-year design stasis"
+    assert scene.narration == "西元一千四百四十年……"
+    assert scene.narration_alt == {"en": "Year 1440..."}
+
+
+def test_scene_from_dict_old_shape_folds_narration_en():
+    from pipeline.storyboard import Scene
+
+    scene = Scene.from_dict({
+        "id": "s1",
+        "section": "hook",
+        "narration": "西元一千四百四十年……",
+        "narration_en": "Year 1440...",
+        "narration_est_sec": 8.0,
+    })
+    assert scene.beat == ""
+    assert scene.narration == "西元一千四百四十年……"
+    assert scene.narration_alt == {"en": "Year 1440..."}
+
+
+def test_scene_to_dict_round_trip():
+    from pipeline.storyboard import Scene
+
+    data = {
+        "id": "s1",
+        "section": "hook",
+        "beat": "b",
+        "narration": "primary",
+        "narration_alt": {"en": "secondary"},
+        "narration_est_sec": 8.0,
+        "facts_ref": [],
+        "visual": {},
+        "overlay": None,
+        "pause_after_sec": 0.5,
+    }
+    out = Scene.from_dict(data).to_dict()
+    assert out["beat"] == "b"
+    assert out["narration"] == "primary"
+    assert out["narration_alt"] == {"en": "secondary"}
+    assert "narration_en" not in out
+
+
+def test_scene_to_dict_omits_empty_narration_alt():
+    from pipeline.storyboard import Scene
+
+    scene = Scene.from_dict({
+        "id": "s1", "section": "hook", "narration": "x", "narration_est_sec": 5.0,
+    })
+    assert "narration_alt" not in scene.to_dict()
+
+
+def test_scene_narration_for():
+    from pipeline.storyboard import Scene
+
+    scene = Scene.from_dict({
+        "id": "s1", "section": "hook", "narration": "primary",
+        "narration_alt": {"en": "english"}, "narration_est_sec": 5.0,
+    })
+    assert scene.narration_for("zh-TW", "zh-TW") == "primary"
+    assert scene.narration_for("en", "zh-TW") == "english"
+    assert scene.narration_for("ja", "zh-TW") == ""
