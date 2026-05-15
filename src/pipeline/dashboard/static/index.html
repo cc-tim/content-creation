@@ -449,7 +449,7 @@ function buildOutlinePanel(project) {
     const dur = band.scenes.reduce((a, s) => a + (s.duration_sec || 0), 0);
     const rows = band.scenes.map(s => {
       const vtype = (s.camera_motion && 'image') || (s.visual && s.visual.type) || s.visual_type || '';
-      const beat = s.beat || '(no beat)';
+      const beat = escapeHtml(s.beat || '(no beat)');
       return `<div class="outline-row" data-idx="${scenes.indexOf(s)}" data-edit-token="@${s.id}">
         <span class="outline-id">${s.id}</span>
         <span class="outline-dur">${Math.round(s.duration_sec || 0)}s</span>
@@ -458,7 +458,7 @@ function buildOutlinePanel(project) {
       </div>`;
     }).join('');
     return `<div class="outline-band">
-      <div class="outline-band-hdr">${band.section} · ${band.scenes.length} scenes · ${Math.round(dur)}s</div>
+      <div class="outline-band-hdr">${escapeHtml(band.section)} · ${band.scenes.length} scenes · ${Math.round(dur)}s</div>
       ${rows}
     </div>`;
   }).join('');
