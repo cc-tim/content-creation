@@ -246,3 +246,46 @@ def test_scene_narration_for():
     assert scene.narration_for("zh-TW", "zh-TW") == "primary"
     assert scene.narration_for("en", "zh-TW") == "english"
     assert scene.narration_for("ja", "zh-TW") == ""
+
+
+from pipeline.storyboard import Storyboard
+
+
+def _sb(**over):
+    base = {
+        "version": 1,
+        "primary_locale": "zh-TW",
+        "scenes": [
+            {"id": "s1", "section": "hook", "beat": "b1", "narration": "主要一",
+             "narration_alt": {"en": "primary one"}, "narration_est_sec": 5.0,
+             "pause_after_sec": 0.0},
+            {"id": "s2", "section": "context", "beat": "b2", "narration": "主要二",
+             "narration_alt": {"en": "primary two"}, "narration_est_sec": 5.0,
+             "pause_after_sec": 0.0},
+        ],
+    }
+    base.update(over)
+    return Storyboard.from_dict(base)
+
+
+def test_storyboard_primary_locale_round_trip():
+    sb = _sb()
+    assert sb.primary_locale == "zh-TW"
+    assert sb.to_dict()["primary_locale"] == "zh-TW"
+
+
+def test_storyboard_primary_locale_defaults():
+    sb = Storyboard.from_dict({"version": 1, "scenes": []})
+    assert sb.primary_locale == "zh-TW"
+
+
+def test_derive_script_defaults_to_primary():
+    script = _sb().derive_script()
+    assert "主要一" in script and "主要二" in script
+    assert "primary one" not in script
+
+
+def test_derive_script_secondary_locale():
+    script = _sb().derive_script(locale="en")
+    assert "primary one" in script and "primary two" in script
+    assert "主要一" not in script

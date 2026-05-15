@@ -272,6 +272,9 @@ class Storyboard:
     theme: Theme = field(default_factory=Theme)
     title: str | None = None
     description: str | None = None
+    title_alt: dict[str, str] = field(default_factory=dict)
+    description_alt: dict[str, str] = field(default_factory=dict)
+    primary_locale: str = "zh-TW"
 
     # --- Serialization ---
 
@@ -288,6 +291,11 @@ class Storyboard:
             out["title"] = self.title
         if self.description is not None:
             out["description"] = self.description
+        if self.title_alt:
+            out["title_alt"] = self.title_alt
+        if self.description_alt:
+            out["description_alt"] = self.description_alt
+        out["primary_locale"] = self.primary_locale
         if self.transitions:
             out["transitions"] = [t.to_dict() for t in self.transitions]
         return out
@@ -307,6 +315,9 @@ class Storyboard:
             theme=theme,
             title=data.get("title"),
             description=data.get("description"),
+            title_alt=dict(data.get("title_alt", {})),
+            description_alt=dict(data.get("description_alt", {})),
+            primary_locale=data.get("primary_locale", "zh-TW"),
             transitions=transitions,
         )
 
@@ -323,21 +334,19 @@ class Storyboard:
 
     # --- Script Derivation ---
 
-    def derive_script(self) -> str:
-        """Produce clean narration text for TTS.
+    def derive_script(self, locale: str | None = None) -> str:
+        """Produce clean narration text for TTS, for the given locale.
 
         Concatenates scene narration with section markers that TTS
-        can filter out. This replaces the old script.md format.
+        can filter out. `locale` defaults to the primary locale.
         """
+        loc = locale or self.primary_locale
         lines: list[str] = []
         for scene in self.scenes:
-            # Section marker (TTS filters these out)
             lines.append(f"[{scene.section.upper()}]")
             lines.append("")
-            # Narration text
-            lines.append(scene.narration)
+            lines.append(scene.narration_for(loc, self.primary_locale))
             lines.append("")
-            # Pause marker if needed
             if scene.pause_after_sec > 0:
                 lines.append(f"[PAUSE:{int(scene.pause_after_sec)}s]")
                 lines.append("")
