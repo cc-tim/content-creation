@@ -81,8 +81,14 @@ def render_book_page_turn_v2(
     duration_sec: float,
     page_count: int = 2,
     page_surface: str = "destination_preview",
-    sfx: str | None = None,
 ) -> Path:
+    """Render the silent v2 book-page-turn clip.
+
+    Audio (SFX) is layered on later by ``_mux_transition_audio`` so that
+    iterating on SFX doesn't repay the cost of frame-by-frame PIL rendering.
+    The clip still carries a silent anullsrc track so downstream concat
+    matches stream layouts.
+    """
     if page_surface not in {"destination_preview", "calligraphy_texture"}:
         raise ValueError(f"unsupported book page surface: {page_surface!r}")
     spec = BookSceneSpec.open_book(width, height)
@@ -132,13 +138,11 @@ def render_book_page_turn_v2(
                 _draw_page_stack_count(frame, spec, remaining=flip_count - flip_idx - 1)
             frame.convert("RGB").save(work / f"frame_{idx:05d}.png", optimize=False)
 
-        paged_sfx = _build_paged_sfx_track(sfx, flip_count, duration_sec, work / "paged_sfx.aac") if sfx else None
         _encode_frame_sequence(
             work / "frame_%05d.png",
             out,
             fps=fps,
             duration_sec=duration_sec,
-            sfx=paged_sfx,
         )
     return out
 
@@ -578,20 +582,13 @@ def _encode_frame_sequence(
     *,
     fps: int,
     duration_sec: float,
-    sfx: str | None,
 ) -> None:
+    """Encode a PNG sequence into a silent H.264 mp4 with a stereo anullsrc track."""
     cmd: list[str] = [
         "ffmpeg", "-y",
         "-framerate", str(fps), "-i", str(pattern),
         "-f", "lavfi", "-t", str(duration_sec), "-i", "anullsrc=r=48000:cl=stereo",
-    ]
-    if sfx:
-        cmd += ["-i", sfx]
-        audio_filter = "[1:a][2:a]amix=inputs=2:duration=first:dropout_transition=0[a]"
-    else:
-        audio_filter = "[1:a]anull[a]"
-    cmd += [
-        "-filter_complex", audio_filter,
+        "-filter_complex", "[1:a]anull[a]",
         "-map", "0:v", "-map", "[a]",
         "-t", str(duration_sec),
         "-c:v", "libx264", "-preset", "medium", "-crf", "20",

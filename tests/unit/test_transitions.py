@@ -382,8 +382,34 @@ def test_xfade_renderer_emits_clip_of_expected_duration(tmp_path: Path):
     assert 0.4 <= duration <= 0.6, f"Expected ~0.5s, got {duration}s"
 
 
-def test_xfade_renderer_with_sfx_mixes_audio(tmp_path: Path):
-    """sfx file is mixed into the transition's audio track."""
+def test_xfade_renderer_produces_silent_clip(tmp_path: Path):
+    """XfadeRenderer.render() now produces a silent (anullsrc) clip.
+
+    SFX is layered on later by `_mux_transition_audio` so the silent encode
+    can be cached and reused across SFX iteration cycles.
+    """
+    a = _make_test_clip(tmp_path / "a.mp4", duration=1.0, color="red")
+    b = _make_test_clip(tmp_path / "b.mp4", duration=1.0, color="blue")
+    out = tmp_path / "t.mp4"
+    cfg = TransitionConfig(style="fade", duration_sec=0.5, sfx=None)
+
+    renderer = XfadeRenderer(xfade_name="fade")
+    result = renderer.render(a, b, cfg, out, width=320, height=180, fps=30)
+
+    assert result == out
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a",
+         "-show_entries", "stream=codec_name",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(out)],
+        capture_output=True, text=True, check=True,
+    )
+    assert probe.stdout.strip() == "aac"
+
+
+def test_render_transition_with_sfx_produces_audible_audio(tmp_path: Path):
+    """End-to-end: render_transition with SFX produces a clip whose audio mix
+    is non-silent. Verifies the two-level cache + mux step wire up correctly.
+    """
     a = _make_test_clip(tmp_path / "a.mp4", duration=1.0, color="red")
     b = _make_test_clip(tmp_path / "b.mp4", duration=1.0, color="blue")
     sfx = tmp_path / "sfx.wav"
@@ -393,21 +419,80 @@ def test_xfade_renderer_with_sfx_mixes_audio(tmp_path: Path):
          "-c:a", "pcm_s16le", str(sfx)],
         check=True,
     )
-    out = tmp_path / "t.mp4"
+    cache_dir = tmp_path / "cache"
     cfg = TransitionConfig(style="fade", duration_sec=0.5, sfx=str(sfx))
 
-    renderer = XfadeRenderer(xfade_name="fade")
-    result = renderer.render(a, b, cfg, out, width=320, height=180, fps=30)
+    final = render_transition(a, b, cfg, cache_dir, width=320, height=180, fps=30)
+    assert final is not None and final.exists()
 
-    assert result == out
-    # Verify the output has an audio stream
-    probe = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "a",
-         "-show_entries", "stream=codec_name",
-         "-of", "default=noprint_wrappers=1:nokey=1", str(out)],
+    rms = subprocess.run(
+        ["ffmpeg", "-i", str(final), "-af", "astats=metadata=1:reset=0",
+         "-f", "null", "-"],
         capture_output=True, text=True, check=True,
+    ).stderr
+    # astats logs Overall.RMS_level on stderr; -inf means dead silence.
+    assert "Overall" in rms
+    assert "-inf" not in rms.split("RMS level dB:")[-1].splitlines()[0] if "RMS level dB:" in rms else True
+
+
+def test_render_transition_caches_silent_across_sfx_changes(tmp_path: Path, monkeypatch):
+    """Changing only the SFX should reuse the cached silent clip and re-mux only."""
+    a = _make_test_clip(tmp_path / "a.mp4", duration=0.5, color="red")
+    b = _make_test_clip(tmp_path / "b.mp4", duration=0.5, color="blue")
+    sfx1 = tmp_path / "sfx1.wav"
+    sfx2 = tmp_path / "sfx2.wav"
+    for path, freq in [(sfx1, 440), (sfx2, 880)]:
+        subprocess.run(
+            ["ffmpeg", "-y", "-loglevel", "error",
+             "-f", "lavfi", "-i", f"sine=frequency={freq}:duration=0.4",
+             "-c:a", "pcm_s16le", str(path)],
+            check=True,
+        )
+    cache_dir = tmp_path / "cache"
+
+    render_calls = 0
+    real_render = XfadeRenderer.render
+
+    def counted_render(self, *args, **kwargs):
+        nonlocal render_calls
+        render_calls += 1
+        return real_render(self, *args, **kwargs)
+
+    monkeypatch.setattr(XfadeRenderer, "render", counted_render)
+
+    cfg1 = TransitionConfig(style="fade", duration_sec=0.4, sfx=str(sfx1))
+    cfg2 = TransitionConfig(style="fade", duration_sec=0.4, sfx=str(sfx2))
+
+    out1 = render_transition(a, b, cfg1, cache_dir, width=320, height=180, fps=30)
+    out2 = render_transition(a, b, cfg2, cache_dir, width=320, height=180, fps=30)
+
+    assert out1 is not None and out2 is not None
+    assert out1 != out2  # different SFX → different final cache key
+    assert render_calls == 1  # silent clip rendered once, reused for the second SFX
+    silent_clips = list(cache_dir.glob("*.silent.mp4"))
+    assert len(silent_clips) == 1
+
+
+def test_audio_cache_key_changes_when_sfx_file_content_changes(tmp_path: Path):
+    """Editing the SFX file in place must invalidate cached muxed clips."""
+    from pipeline.composer.transitions import _audio_cache_key
+    sfx = tmp_path / "sfx.wav"
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error",
+         "-f", "lavfi", "-i", "sine=frequency=440:duration=0.3",
+         "-c:a", "pcm_s16le", str(sfx)],
+        check=True,
     )
-    assert probe.stdout.strip() == "aac"
+    cfg = TransitionConfig(style="fade", duration_sec=0.5, sfx=str(sfx))
+    key_v1 = _audio_cache_key(cfg)
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error",
+         "-f", "lavfi", "-i", "sine=frequency=880:duration=0.3",
+         "-c:a", "pcm_s16le", str(sfx)],
+        check=True,
+    )
+    key_v2 = _audio_cache_key(cfg)
+    assert key_v1 != key_v2
 
 
 def test_registry_covers_all_supported_styles():
@@ -529,19 +614,30 @@ def test_render_transition_serializes_duplicate_cache_renders(tmp_path: Path, mo
     b.write_bytes(b"same-b")
     cache_dir = tmp_path / "cache"
     cfg = TransitionConfig(style="fade", duration_sec=0.5, sfx=None)
-    calls = 0
+    render_calls = 0
+    mux_calls = 0
 
     class SlowRenderer:
         def render(self, scene_a, scene_b, cfg, out, *, width, height, fps):
-            nonlocal calls
-            calls += 1
+            nonlocal render_calls
+            render_calls += 1
             time.sleep(0.05)
-            out.write_bytes(b"clip")
+            out.write_bytes(b"silent-clip")
             return out
+
+    def fake_mux(silent_clip, cfg, out):
+        nonlocal mux_calls
+        mux_calls += 1
+        time.sleep(0.05)
+        out.write_bytes(b"muxed-clip")
 
     monkeypatch.setattr(
         "pipeline.composer.transitions._generated_renderer",
         lambda style: SlowRenderer(),
+    )
+    monkeypatch.setattr(
+        "pipeline.composer.transitions._mux_transition_audio",
+        fake_mux,
     )
 
     with ThreadPoolExecutor(max_workers=2) as executor:
@@ -553,8 +649,9 @@ def test_render_transition_serializes_duplicate_cache_renders(tmp_path: Path, mo
         )
 
     assert results[0] == results[1]
-    assert results[0] is not None and results[0].read_bytes() == b"clip"
-    assert calls == 1
+    assert results[0] is not None and results[0].read_bytes() == b"muxed-clip"
+    assert render_calls == 1
+    assert mux_calls == 1
 
 
 def test_book_page_turn_v2_renderer_emits_clip(tmp_path: Path):

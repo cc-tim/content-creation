@@ -20,7 +20,11 @@ from typing import Protocol
 
 import structlog
 
-from pipeline.composer.book_scene import extract_video_frame, render_book_page_turn_v2
+from pipeline.composer.book_scene import (
+    _build_paged_sfx_track,
+    extract_video_frame,
+    render_book_page_turn_v2,
+)
 from pipeline.storyboard import Transition
 from pipeline.utils.ffmpeg import run_ffmpeg
 
@@ -195,16 +199,17 @@ class HardCutRenderer:
 
 
 class XfadeRenderer:
-    """Renders a transition using ffmpeg's xfade filter.
+    """Renders a *silent* transition using ffmpeg's xfade filter.
 
     Pipeline:
       1. Extract the last frame of scene_a and first frame of scene_b as PNG.
       2. Build a static-frame video clip of cfg.duration_sec from each PNG
          (with silent stereo audio at 48kHz to match the project standard).
       3. Apply xfade between the two clips for cfg.duration_sec.
-      4. If cfg.effective_sfx is set, amix the sfx into the audio track.
-      5. Encode H.264 + AAC with the same params as scene clips so the
-         master concat demuxer can stream-copy the result.
+      4. Encode H.264 + AAC silent so the audio mux step can stream-copy
+         the video later when SFX is added.
+
+    Audio is layered on top of this clip by `_mux_transition_audio`.
     """
 
     def __init__(self, xfade_name: str) -> None:
@@ -238,29 +243,19 @@ class XfadeRenderer:
             "-frames:v", "1", "-update", "1", str(frame_b),
         ])
 
-        # 3. Build the xfade + audio pipeline in one ffmpeg invocation.
+        # 3. Build the silent xfade clip in one ffmpeg invocation.
         d = cfg.duration_sec
-        # filter_complex pieces
         video_filter = (
             f"[0:v]scale={width}:{height},setsar=1,fps={fps},format=yuv420p[va];"
             f"[1:v]scale={width}:{height},setsar=1,fps={fps},format=yuv420p[vb];"
             f"[va][vb]xfade=transition={self.xfade_name}:duration={d}:offset=0[v]"
         )
-        # Inputs: two static images looped, one anullsrc for silent base audio,
-        # plus the sfx file if provided.
         cmd: list[str] = [
             "ffmpeg", "-y",
             "-loop", "1", "-t", str(d), "-i", str(frame_a),
             "-loop", "1", "-t", str(d), "-i", str(frame_b),
             "-f", "lavfi", "-t", str(d), "-i", "anullsrc=r=48000:cl=stereo",
-        ]
-        if cfg.effective_sfx:
-            cmd += ["-i", cfg.effective_sfx]
-            audio_filter = "[2:a][3:a]amix=inputs=2:duration=first:dropout_transition=0[a]"
-        else:
-            audio_filter = "[2:a]anull[a]"
-        cmd += [
-            "-filter_complex", f"{video_filter};{audio_filter}",
+            "-filter_complex", f"{video_filter};[2:a]anull[a]",
             "-map", "[v]", "-map", "[a]",
             "-t", str(d),
             "-c:v", "libx264", "-preset", "medium", "-crf", "23",
@@ -269,14 +264,16 @@ class XfadeRenderer:
             "-shortest", str(out),
         ]
         run_ffmpeg(cmd)
-        # Cleanup intermediates
         frame_a.unlink(missing_ok=True)
         frame_b.unlink(missing_ok=True)
         return out
 
 
 class BookPageTurnRenderer:
-    """Renders a book-aware page flip with visible sheets and cover base."""
+    """Renders a *silent* book-aware page flip with visible sheets and cover base.
+
+    Audio is layered on top of this clip by `_mux_transition_audio`.
+    """
 
     def render(
         self,
@@ -347,14 +344,7 @@ class BookPageTurnRenderer:
             "-loop", "1", "-t", str(d), "-i", str(frame_a),
             "-loop", "1", "-t", str(d), "-i", str(frame_b),
             "-f", "lavfi", "-t", str(d), "-i", "anullsrc=r=48000:cl=stereo",
-        ]
-        if cfg.effective_sfx:
-            cmd += ["-i", cfg.effective_sfx]
-            audio_filter = "[2:a][3:a]amix=inputs=2:duration=first:dropout_transition=0[a]"
-        else:
-            audio_filter = "[2:a]anull[a]"
-        cmd += [
-            "-filter_complex", f"{video_filter};{audio_filter}",
+            "-filter_complex", f"{video_filter};[2:a]anull[a]",
             "-map", "[v]", "-map", "[a]",
             "-t", str(d),
             "-c:v", "libx264", "-preset", "medium", "-crf", "22",
@@ -421,7 +411,13 @@ class BookPageTurnRenderer:
 
 
 class BookPageTurnV2Renderer:
-    """Renders a higher-fidelity book page turn from real frame imagery."""
+    """Renders a *silent*, higher-fidelity book page turn from real frame imagery.
+
+    Frame-by-frame PIL rendering plus the silent encode pass is the expensive
+    step (~3 minutes per clip on the smoke project). Splitting it out from
+    audio means SFX swaps reuse the cached silent .mp4 and only pay for a
+    few-second mux. Audio is added later by `_mux_transition_audio`.
+    """
 
     def render(
         self,
@@ -451,7 +447,6 @@ class BookPageTurnV2Renderer:
                 duration_sec=cfg.duration_sec,
                 page_count=cfg.page_count or 2,
                 page_surface=cfg.effective_page_surface,
-                sfx=cfg.effective_sfx,
             )
         finally:
             frame_a.unlink(missing_ok=True)
@@ -459,7 +454,10 @@ class BookPageTurnV2Renderer:
 
 
 class LicensedClipRenderer:
-    """Uses a licensed full-frame clip as the transition video."""
+    """Uses a licensed full-frame clip as the transition video (silent).
+
+    Audio is layered on top of this clip by `_mux_transition_audio`.
+    """
 
     def render(
         self,
@@ -474,22 +472,15 @@ class LicensedClipRenderer:
     ) -> Path | None:
         asset = _resolve_asset_path(scene_a, cfg)
         d = cfg.duration_sec
-        cmd: list[str] = [
-            "ffmpeg", "-y",
-            "-stream_loop", "-1", "-i", str(asset),
-            "-f", "lavfi", "-t", str(d), "-i", "anullsrc=r=48000:cl=stereo",
-        ]
-        if cfg.effective_sfx:
-            cmd += ["-i", cfg.effective_sfx]
-            audio_filter = "[1:a][2:a]amix=inputs=2:duration=first:dropout_transition=0[a]"
-        else:
-            audio_filter = "[1:a]anull[a]"
         video_filter = (
             f"[0:v]scale={width}:{height}:force_original_aspect_ratio=increase,"
             f"crop={width}:{height},setsar=1,fps={fps},format=yuv420p[v]"
         )
-        cmd += [
-            "-filter_complex", f"{video_filter};{audio_filter}",
+        cmd: list[str] = [
+            "ffmpeg", "-y",
+            "-stream_loop", "-1", "-i", str(asset),
+            "-f", "lavfi", "-t", str(d), "-i", "anullsrc=r=48000:cl=stereo",
+            "-filter_complex", f"{video_filter};[1:a]anull[a]",
             "-map", "[v]", "-map", "[a]",
             "-t", str(d),
             "-c:v", "libx264", "-preset", "medium", "-crf", "22",
@@ -502,7 +493,10 @@ class LicensedClipRenderer:
 
 
 class OverlayAssetRenderer:
-    """Overlays an alpha or green-screen stock asset on a generated base transition."""
+    """Overlays an alpha or green-screen stock asset on a generated base transition.
+
+    Produces a silent clip; audio is layered on top by `_mux_transition_audio`.
+    """
 
     def render(
         self,
@@ -542,17 +536,6 @@ class OverlayAssetRenderer:
             f"color={'black@0' if alpha_asset else '0x00FF00'},fps={fps},"
             + ("format=rgba[overlay]" if alpha_asset else "colorkey=0x00FF00:0.30:0.12,format=rgba[overlay]")
         )
-        cmd: list[str] = [
-            "ffmpeg", "-y",
-            "-i", str(base_clip),
-            "-stream_loop", "-1", "-i", str(asset),
-            "-f", "lavfi", "-t", str(d), "-i", "anullsrc=r=48000:cl=stereo",
-        ]
-        if cfg.effective_sfx:
-            cmd += ["-i", cfg.effective_sfx]
-            audio_filter = "[2:a][3:a]amix=inputs=2:duration=first:dropout_transition=0[a]"
-        else:
-            audio_filter = "[2:a]anull[a]"
         video_filter = (
             f"[0:v]scale={width}:{height},setsar=1,fps={fps},format=yuv420p[base];"
             f"{overlay_filter};"
@@ -560,8 +543,11 @@ class OverlayAssetRenderer:
         )
         try:
             run_ffmpeg([
-                *cmd,
-                "-filter_complex", f"{video_filter};{audio_filter}",
+                "ffmpeg", "-y",
+                "-i", str(base_clip),
+                "-stream_loop", "-1", "-i", str(asset),
+                "-f", "lavfi", "-t", str(d), "-i", "anullsrc=r=48000:cl=stereo",
+                "-filter_complex", f"{video_filter};[2:a]anull[a]",
                 "-map", "[v]", "-map", "[a]",
                 "-t", str(d),
                 "-c:v", "libx264", "-preset", "medium", "-crf", "22",
@@ -639,13 +625,16 @@ def _file_sha1_short(path: Path, *, n_bytes: int = 65536) -> str:
     return h.hexdigest()[:16]
 
 
-def transition_cache_key(scene_a: Path, scene_b: Path, cfg: TransitionConfig) -> str:
-    """Cache key from style + duration + sfx + content hashes of adjacent scenes."""
+def _visual_cache_key(scene_a: Path, scene_b: Path, cfg: TransitionConfig) -> str:
+    """Cache key for the silent (no-audio) transition clip.
+
+    Excludes SFX entirely so swapping the SFX reuses the cached silent clip
+    instead of re-rendering frames.
+    """
     h = hashlib.sha1()
     h.update(cfg.style.encode())
     h.update(cfg.effective_renderer_mode.encode())
     h.update(f"{cfg.duration_sec:.4f}".encode())
-    h.update((cfg.effective_sfx or "").encode())  # path only; replace file → clear cache manually
     h.update(str(cfg.page_count or "").encode())
     h.update(cfg.effective_page_surface.encode())
     if cfg.style == "book-page-turn-v2":
@@ -663,6 +652,84 @@ def transition_cache_key(scene_a: Path, scene_b: Path, cfg: TransitionConfig) ->
     return h.hexdigest()
 
 
+def _audio_cache_key(cfg: TransitionConfig) -> str:
+    """Cache key fragment for the audio mux step.
+
+    Hashes the SFX file *content* (not just path) so editing the WAV in
+    place properly invalidates muxed clips. Paging parameters are also
+    included because they shape the paged-SFX track.
+    """
+    sfx = cfg.effective_sfx
+    if not sfx:
+        return ""
+    h = hashlib.sha1()
+    sfx_path = Path(sfx)
+    if sfx_path.exists():
+        h.update(_file_sha1_short(sfx_path).encode())
+    else:
+        h.update(sfx.encode())
+    if cfg.style == "book-page-turn-v2":
+        h.update(b"|paged|")
+        h.update(str(cfg.page_count or "").encode())
+        h.update(f"{cfg.duration_sec:.4f}".encode())
+    return h.hexdigest()[:16]
+
+
+def transition_cache_key(scene_a: Path, scene_b: Path, cfg: TransitionConfig) -> str:
+    """Final-clip cache key: combines the visual key with the audio-mux key.
+
+    Same 40-char sha1 hex digest as before; SFX file content is folded into
+    the audio half so in-place SFX edits invalidate cleanly.
+    """
+    h = hashlib.sha1()
+    h.update(_visual_cache_key(scene_a, scene_b, cfg).encode())
+    h.update(_audio_cache_key(cfg).encode())
+    return h.hexdigest()
+
+
+def _mux_transition_audio(silent_clip: Path, cfg: TransitionConfig, out: Path) -> None:
+    """Layer SFX onto a silent transition clip and write the final muxed file.
+
+    Video is stream-copied — the silent encode is the cached output of the
+    renderer. Audio is rebuilt from the silent clip's anullsrc track plus
+    the SFX. For book-page-turn-v2 the SFX is first paged across the page
+    flips via :func:`_build_paged_sfx_track`; other styles use a simple
+    one-hit amix.
+    """
+    sfx = cfg.effective_sfx
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if not sfx:
+        run_ffmpeg(["ffmpeg", "-y", "-i", str(silent_clip), "-c", "copy", str(out)])
+        return
+
+    paged_sfx_path: Path | None = None
+    if cfg.style == "book-page-turn-v2":
+        paged_sfx_path = out.parent / f"{out.stem}.paged_sfx.aac"
+        _build_paged_sfx_track(
+            sfx, cfg.page_count or 2, cfg.duration_sec, paged_sfx_path
+        )
+        sfx_input = str(paged_sfx_path)
+    else:
+        sfx_input = sfx
+
+    try:
+        run_ffmpeg([
+            "ffmpeg", "-y",
+            "-i", str(silent_clip),
+            "-i", sfx_input,
+            "-filter_complex",
+            "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=0[a]",
+            "-map", "0:v", "-map", "[a]",
+            "-c:v", "copy",
+            "-c:a", "aac", "-ar", "48000", "-b:a", "128k",
+            "-shortest",
+            str(out),
+        ])
+    finally:
+        if paged_sfx_path is not None:
+            paged_sfx_path.unlink(missing_ok=True)
+
+
 def render_transition(
     scene_a: Path,
     scene_b: Path,
@@ -675,31 +742,68 @@ def render_transition(
 ) -> Path | None:
     """Render a transition clip into the cache directory.
 
-    Returns the path to the rendered clip, or None for hard-cut transitions
-    (no clip is needed; the master concat stitches scenes directly).
-    Cache hit: returns existing path without re-rendering.
+    Returns the path to the rendered clip, or None for hard-cut transitions.
+    Two-level cache:
+
+    1. ``{visual_key}.silent.mp4`` — frames + silent audio. Slow to build
+       (frame-by-frame PIL for v2, etc). Keyed on visual params only.
+    2. ``{full_key}.mp4`` — final clip with SFX muxed on top. Fast to build
+       (video stream-copy + AAC encode of the audio mix).
+
+    SFX-only iteration loops hit the silent cache and only repay the few
+    seconds of audio mux.
     """
     if cfg.style == "none" and cfg.effective_renderer_mode == "generated":
         return None
     cache_dir.mkdir(parents=True, exist_ok=True)
-    key = transition_cache_key(scene_a, scene_b, cfg)
-    out = cache_dir / f"{key}.mp4"
-    with _transition_cache_lock(out):
-        if out.exists():
-            logger.info("transition.cache_hit", key=key, style=cfg.style)
-            return out
+
+    visual_key = _visual_cache_key(scene_a, scene_b, cfg)
+    full_key = transition_cache_key(scene_a, scene_b, cfg)
+    silent_out = cache_dir / f"{visual_key}.silent.mp4"
+    final_out = cache_dir / f"{full_key}.mp4"
+
+    with _transition_cache_lock(final_out):
+        if final_out.exists():
+            logger.info("transition.cache_hit", key=full_key, style=cfg.style)
+            return final_out
+
+        with _transition_cache_lock(silent_out):
+            if silent_out.exists():
+                logger.info(
+                    "transition.silent_cache_hit",
+                    key=visual_key,
+                    style=cfg.style,
+                )
+            else:
+                logger.info(
+                    "transition.render_silent",
+                    key=visual_key,
+                    style=cfg.style,
+                    renderer_mode=cfg.effective_renderer_mode,
+                    duration=cfg.duration_sec,
+                    asset_path=cfg.asset_path,
+                )
+                if cfg.effective_renderer_mode == "licensed_clip":
+                    renderer: TransitionRenderer = LicensedClipRenderer()
+                elif cfg.effective_renderer_mode == "overlay":
+                    renderer = OverlayAssetRenderer()
+                else:
+                    renderer = _generated_renderer(cfg.normalized_style)
+                renderer.render(
+                    scene_a,
+                    scene_b,
+                    cfg,
+                    silent_out,
+                    width=width,
+                    height=height,
+                    fps=fps,
+                )
+
         logger.info(
-            "transition.render",
-            key=key,
+            "transition.mux",
+            key=full_key,
             style=cfg.style,
-            renderer_mode=cfg.effective_renderer_mode,
-            duration=cfg.duration_sec,
-            asset_path=cfg.asset_path,
+            has_sfx=cfg.effective_sfx is not None,
         )
-        if cfg.effective_renderer_mode == "licensed_clip":
-            renderer: TransitionRenderer = LicensedClipRenderer()
-        elif cfg.effective_renderer_mode == "overlay":
-            renderer = OverlayAssetRenderer()
-        else:
-            renderer = _generated_renderer(cfg.normalized_style)
-        return renderer.render(scene_a, scene_b, cfg, out, width=width, height=height, fps=fps)
+        _mux_transition_audio(silent_out, cfg, final_out)
+        return final_out
