@@ -309,7 +309,7 @@ class TtsStage(PipelineStage):
         audio_dir: Path,
         scene_pauses_ms: list[int],
     ) -> PipelineContext:
-        """Run a second TTS pass for secondary_locale using scene.narration_en."""
+        """Run a second TTS pass for secondary_locale using scene.narration_alt."""
         logger.info("tts.secondary.start", locale=ctx.secondary_locale)
 
         if not ctx.storyboard_path or not ctx.storyboard_path.exists():
@@ -322,8 +322,9 @@ class TtsStage(PipelineStage):
         storyboard = Storyboard.load(ctx.storyboard_path)
         scenes = storyboard.scenes
 
-        # Collect EN narration segments; None → empty string (synthesize_pass will warn+skip).
-        en_segments = [s.narration_en if s.narration_en is not None else "" for s in scenes]
+        # Collect secondary-locale narration segments; missing → empty string (synthesize_pass will warn+skip).
+        sec_locale = ctx.secondary_locale or "en"
+        en_segments = [s.narration_alt.get(sec_locale, "") for s in scenes]
         en_scene_ids = [s.id for s in scenes]
 
         if ctx.secondary_voice_id:

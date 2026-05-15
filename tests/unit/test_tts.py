@@ -445,7 +445,7 @@ def _make_mla_storyboard(tmp_path, scenes_data):
             id=d["id"],
             section=d.get("section", "hook"),
             narration=d["narration"],
-            narration_en=d.get("narration_en"),
+            narration_alt={"en": d["narration_en"]} if d.get("narration_en") is not None else {},
             narration_est_sec=d.get("narration_est_sec", 3.0),
             visual={"type": "text_card", "text": d.get("visual_text", "v")},
             pause_after_sec=d.get("pause_after_sec", 0.0),
