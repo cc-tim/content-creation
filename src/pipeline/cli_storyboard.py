@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -257,3 +258,53 @@ def set_field(
         command=f"storyboard set {scene_id} {field}=...",
         summary=f"storyboard set: {label}",
     ))
+
+
+def migrate_storyboard_file(path: Path, primary_locale: str) -> bool:
+    """Migrate one storyboard.json to the beat/narration_alt schema in place.
+
+    Returns True if the file was changed, False if it was already migrated.
+    """
+    data = json.loads(path.read_text(encoding="utf-8"))
+    already = "primary_locale" in data and all(
+        "narration_en" not in s for s in data.get("scenes", [])
+    )
+    if already:
+        return False
+    data["primary_locale"] = data.get("primary_locale", primary_locale)
+    for scene in data.get("scenes", []):
+        scene.setdefault("beat", "")
+        old_en = scene.pop("narration_en", None)
+        if old_en is not None:
+            alt = scene.setdefault("narration_alt", {})
+            alt.setdefault("en", old_en)
+    path.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    return True
+
+
+@storyboard_app.command("migrate")
+def migrate(
+    project_id: str = typer.Option(None, "--project-id", help="Migrate one project"),
+    all_projects: bool = typer.Option(False, "--all", help="Migrate every project"),
+) -> None:
+    """Migrate storyboard.json files to the beat/narration_alt schema."""
+    projects_root = Path("output/projects")
+    if all_projects:
+        targets = sorted(projects_root.glob("*/"))
+    elif project_id:
+        targets = [projects_root / project_id]
+    else:
+        raise typer.BadParameter("Pass --project-id <id> or --all")
+
+    for project_dir in targets:
+        sb_path = project_dir / "storyboard.json"
+        ctx_path = project_dir / "context.json"
+        if not sb_path.exists() or not ctx_path.exists():
+            continue
+        ctx = json.loads(ctx_path.read_text(encoding="utf-8"))
+        primary_locale = ctx.get("locale", "zh-TW")
+        changed = migrate_storyboard_file(sb_path, primary_locale=primary_locale)
+        status = "migrated" if changed else "already current"
+        typer.echo(f"{project_dir.name}: {status}")
