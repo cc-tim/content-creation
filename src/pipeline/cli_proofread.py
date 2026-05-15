@@ -26,6 +26,11 @@ _SYSTEM_PROMPT = """\
 - NARRATION（旁白）：會被 TTS 語音合成讀出的文字
 - OVERLAY（畫面標題）：會顯示在影片畫面上的文字
 
+每個場景會標註 SECTION（段落角色），例如：
+- hook / context：開場與背景，應該以平實的事實陳述為主
+- rising / climax / aftermath：張力與高潮，可使用較有力的修辭
+- analysis / content / punchline：結尾分析或收束
+
 校稿重點：
 1. 如有 OVERLAY，審閱標題語法：
    - 語法是否正確、結構是否完整
@@ -35,13 +40,28 @@ _SYSTEM_PROMPT = """\
    - 常見問題：以「，是...」、「，而是...」、「，但...」開頭的片段（缺乏主語或前提）
    - 常見問題：以否定詞「不是...，是...」作為標題開頭（像是句子的後半段）
    - 建議改法：改成正向陳述或加上主語，例如「關鍵：...」、「真相：...」
-2. NARRATION 旁白：
+2. NARRATION 旁白語法：
    - 語句是否流暢自然
    - 有沒有明顯語法錯誤或用詞不當
+3. NARRATION 語氣與「AI 寫作味」檢查（重要）：
+   - 在 hook 或 context 段落出現的「重音收尾句」：例如「X 年沒換過」、「從未改變」、
+     「永遠不變」、「完全相同」、「徹底顛覆」、「再也回不去了」——這些屬於高潮句型，
+     不應該出現在開場/背景段。請建議改為事實陳述。
+   - 不必要的最高級或誇飾：「最」、「絕對」、「唯一」、「永遠」、「徹底」——若沒有
+     扎實事實支撐，建議改為帶有對冲詞的版本（「幾乎」、「大致」、「將近」、「在...範圍內」）。
+   - 排比句的浮誇收尾：「同一個 X、同一個 Y、同一個 Z」這類三連排比，若事實上 X/Y/Z
+     並非真的相同，要求列出哪一項與圖像/事實不符。
+   - 對於 climax / punchline 段落，這些修辭是允許的，不要誤報。
+4. 事實內部一致性：narration 中具體名詞（座椅、輪子、年代、人名）若與其他場景互相矛盾，
+   或描述了畫面顯然不存在的物件（純文字無法 100% 驗證，但若有跨場景矛盾請指出），標記出來。
 
 格式要求（嚴格遵守）：
 每個問題一個條目，使用以下格式：
-ISSUE|scene_id|OVERLAY or NARRATION|原文|建議|原因
+ISSUE|scene_id|OVERLAY or NARRATION or TONE|原文|建議|原因
+
+- TONE 類型用於語氣與 AI 味問題（不一定是文法錯）
+- NARRATION 類型用於語法/用詞錯誤
+- 原因要簡短說明屬於哪一類（例如「hook 段落出現高潮句型」、「無事實支撐的最高級」）
 
 如果完全沒有問題，只輸出：OK
 
@@ -76,6 +96,7 @@ def _format_for_review(storyboard_path: Path) -> str:
     lines = []
     has_overlay = False
     for s in sb.scenes:
+        lines.append(f"[{s.id}] SECTION: {s.section}")
         lines.append(f"[{s.id}] NARRATION: {s.narration}")
         if s.overlay:
             text = s.overlay.get("text", "")
@@ -144,12 +165,12 @@ def apply_issues(storyboard_path: Path, issues: list[dict]) -> int:
     data = json.loads(storyboard_path.read_text(encoding="utf-8"))
     applied = 0
     for iss in issues:
-        if iss["type"] not in ("NARRATION", "OVERLAY"):
+        if iss["type"] not in ("NARRATION", "OVERLAY", "TONE"):
             continue
         for s in data["scenes"]:
             if s["id"] != iss["scene_id"]:
                 continue
-            if iss["type"] == "NARRATION":
+            if iss["type"] in ("NARRATION", "TONE"):
                 if iss["original"] in s.get("narration", ""):
                     s["narration"] = s["narration"].replace(iss["original"], iss["suggested"])
                     applied += 1

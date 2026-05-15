@@ -9,6 +9,7 @@ import typer
 
 from pipeline.cli_compose import compose_app
 from pipeline.cli_image import image_app
+from pipeline.cli_image_alignment import image_alignment_app
 from pipeline.cli_metadata import metadata_app
 from pipeline.cli_mutate import mutate_app
 from pipeline.cli_narration import narration_app
@@ -45,6 +46,7 @@ app.add_typer(metadata_app, name="metadata")
 app.add_typer(narration_app, name="narration")
 app.add_typer(gallery_app, name="gallery")
 app.add_typer(proofread_app, name="proofread")
+app.add_typer(image_alignment_app, name="image-alignment")
 app.add_typer(storytell_app, name="storytell")
 app.add_typer(visual_review_app, name="visual-review")
 app.add_typer(compose_app, name="compose")
@@ -265,6 +267,29 @@ def produce(
                 except Exception as exc:
                     typer.echo(f"  (proofread skipped: {exc})")
 
+            # Auto image-alignment: vision check narration vs. existing images
+            if result.ctx.storyboard_path and result.ctx.storyboard_path.exists():
+                typer.echo("\nChecking narration↔image alignment (Claude Haiku vision)...")
+                try:
+                    from pipeline.cli_image_alignment import (
+                        check_alignment,
+                        print_alignment_table,
+                    )
+
+                    al_issues = check_alignment(result.ctx.work_dir)
+                    if al_issues:
+                        print_alignment_table(al_issues)
+                        typer.echo(
+                            f"\nFound {len(al_issues)} alignment issue(s) — "
+                            "review manually and edit storyboard before TTS.\n"
+                            "  (image-alignment --apply available but suggestions "
+                            "often need human editing; do not run blindly.)"
+                        )
+                    else:
+                        typer.echo("  ✓ Narration aligns with images.")
+                except Exception as exc:
+                    typer.echo(f"  (image-alignment skipped: {exc})")
+
             # Auto-storytell: narrative flow review at the review gate
             if result.ctx.storyboard_path and result.ctx.storyboard_path.exists():
                 typer.echo("\nReviewing narrative flow (Claude Haiku)...")
@@ -310,6 +335,26 @@ def produce(
                         typer.echo(f"  proofread: auto-applied {n}/{len(issues)} fix(es)")
                 except Exception as exc:
                     typer.echo(f"  (proofread skipped: {exc})")
+
+            # Image-alignment under --skip-review: REPORT ONLY, never auto-apply.
+            # Vision-pass suggestions can change a scene's meaning even within the same
+            # language (model substitutes a description-of-image for the scene's intent).
+            # Flag them so the operator can address before publish — never silently rewrite.
+            if result.ctx.storyboard_path and result.ctx.storyboard_path.exists():
+                try:
+                    from pipeline.cli_image_alignment import check_alignment
+
+                    al_issues = check_alignment(result.ctx.work_dir)
+                    if al_issues:
+                        major_al = [i for i in al_issues if i.get("severity") == "MAJOR"]
+                        typer.echo(
+                            f"  image-alignment: {len(al_issues)} issue(s) "
+                            f"({len(major_al)} MAJOR) — NOT auto-applied. "
+                            f"Run: uv run pipeline image-alignment run "
+                            f"--project-id {project_id}"
+                        )
+                except Exception as exc:
+                    typer.echo(f"  (image-alignment skipped: {exc})")
 
             # Auto-apply storytell MINOR fixes in --skip-review. MAJOR issues are skipped
             # because they may require scene reordering or hook rewrites — changes that need

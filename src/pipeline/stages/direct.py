@@ -195,7 +195,21 @@ OVERLAY (optional per scene, renders on top of visual):
 
 Each scene references fact IDs from the knowledge base.
 
-For each scene, write a language-neutral beat (NOT narration text):
+For each scene, write a language-neutral beat (NOT narration text).
+
+BEAT TONE BY SECTION (important — controls how the narration writer downstream phrases each scene):
+- hook / context: state the fact neutrally. Avoid words like "Emphasizes...", "Reveals the shocking...",
+  "Underscores the dramatic...", "Highlights how unchanged...". Use plain verbs: "Notes that...",
+  "Introduces...", "Establishes...", "Shows...". Hook scenes need curiosity, not climax.
+- rising: may use mild escalation words ("Builds tension via...", "Raises the stakes...").
+- climax / aftermath / punchline: dramatic verbs allowed ("Delivers the shocking moment...",
+  "Reveals the irreversible cost...", "Lands the final twist...").
+- analysis / content: explanatory tone ("Explains why...", "Compares X and Y...").
+Bad beat (hook): "Emphasizes the unchanged nature of walker design over 600 years"
+Good beat (hook): "Notes that the walker concept persisted in similar form across nearly six centuries"
+Rule: the dramatized framing must be earned by where the scene sits in the arc; if you push a
+climax-style beat into a hook scene, the downstream narration will pick up that tone and read as
+artificial AI writing.
 
 Return ONLY valid JSON:
 {{
