@@ -47,11 +47,12 @@
 
   /* Stage label pill */
   .stage { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: .05em; }
-  .s-acquire  { background: #1a2f1a; color: #3fb950; }
-  .s-analyze  { background: #1a1f2e; color: #58a6ff; }
-  .s-direct   { background: #251f2e; color: #bc8cff; }
-  .s-tts      { background: #2e2218; color: #d29922; }
-  .s-compose  { background: #2e1c1c; color: #f85149; }
+  .s-acquire     { background: #1a2f1a; color: #3fb950; }
+  .s-analyze     { background: #1a1f2e; color: #58a6ff; }
+  .s-direct      { background: #251f2e; color: #bc8cff; }
+  .s-scriptwrite { background: #1f2a2e; color: #38bdf8; }
+  .s-tts         { background: #2e2218; color: #d29922; }
+  .s-compose     { background: #2e1c1c; color: #f85149; }
   .s-publish  { background: #1a2a2e; color: #39c5cf; }
   .s-external { background: #2a2420; color: #e3b341; }
   .s-monitor  { background: #1e2a1e; color: #56d364; }
@@ -129,7 +130,7 @@ uv run pipeline produce \<br>
 &nbsp;&nbsp;<span class="flag">--locale</span> zh-TW \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># zh-TW | ja | es-MX</span><br>
 &nbsp;&nbsp;<span class="flag">--niche</span> parenting \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># auto-detected from channels.toml; "none" to skip metadata</span><br>
 &nbsp;&nbsp;<span class="flag">--voice</span> tim-zhtw \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># optional; auto-selects per locale from voices/registry.json</span><br>
-&nbsp;&nbsp;<span class="flag">--start-from</span> tts \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># resume from a specific stage</span><br>
+&nbsp;&nbsp;<span class="flag">--start-from</span> scriptwrite \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># resume from a specific stage (scriptwrite|tts|compose)</span><br>
 &nbsp;&nbsp;<span class="flag">--skip-review</span> \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># bypass human review gate (auto-apply proofread + storytell MINOR fixes)</span><br>
 &nbsp;&nbsp;<span class="flag">--subtitles</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># burn subtitles into final video</span>
 </div>
@@ -155,23 +156,30 @@ flowchart TD
 
   subgraph DIR["③ DIRECT"]
     direction LR
-    C1["Claude Sonnet\nstoryboard.json\nscene-by-scene plan"]
+    C1["Claude Sonnet\nstoryboard.json\nbeats + visual hints skeleton"]
     C2["Claude API\nmetadata.json\ntitle · tags · description"]
     C3["channels.toml\nniche→profile routing"]
     C1 ~~~ C2 ~~~ C3
+  end
+
+  subgraph SW["④ SCRIPTWRITE"]
+    direction LR
+    SW1["Claude Sonnet\nper-locale narration\nfrom beats"]
+    SW2["primary → scene.narration\nsecondary → narration_alt[locale]"]
+    SW1 ~~~ SW2
   end
 
   subgraph RGATE["⏸ HUMAN REVIEW GATE"]
     direction LR
     RG1["🤖 proofread\nClaude Haiku\ntext + grammar issues"]
     RG2["🤖 storytell\nClaude Haiku\nnarrative flow · MINOR auto-apply"]
-    RG3["✏️ Human edit\nstoryboard.json · metadata.json\nthen --start-from tts"]
+    RG3["✏️ Human edit\nstoryboard.json · metadata.json\nthen --start-from scriptwrite or tts"]
     RG1 ~~~ RG2 ~~~ RG3
   end
 
   GEN_IMG(["🎨 generate-image skill\ndraft $0.003 → production $0.040\nKeyframes · title cards · maps\n→ place in compose/assets/"])
 
-  subgraph TTS_S["④ TTS"]
+  subgraph TTS_S["⑤ TTS"]
     direction LR
     T0["voices/registry.json\nroutes --voice → engine"]
     T1["edge-tts\nfree · primary"]
@@ -182,14 +190,14 @@ flowchart TD
     T0 ~~~ T1 ~~~ T2 ~~~ T3 ~~~ T4 ~~~ T5
   end
 
-  subgraph COMP["⑤ COMPOSE"]
+  subgraph COMP["⑥ COMPOSE"]
     direction LR
     V1["FFmpeg\nvideo assembly"]
     V2["Subtitle burn\nNoto CJK fonts"]
     V1 ~~~ V2
   end
 
-  subgraph PUB["⑥ PUBLISH  (explicit — never auto)"]
+  subgraph PUB["⑦ PUBLISH  (explicit — never auto)"]
     direction LR
     P0["Outro attach\nffmpeg concat\n(pre-preflight)"]
     P1["Phase A\nvideos.insert\n→ youtube_video_id"]
@@ -200,7 +208,7 @@ flowchart TD
 
   OUTPUT(["✅ compose/final_zh-TW.mp4"])
 
-  URL --> ACQ --> ANA --> DIR --> RGATE --> TTS_S --> COMP --> OUTPUT --> PUB
+  URL --> ACQ --> ANA --> DIR --> SW --> RGATE --> TTS_S --> COMP --> OUTPUT --> PUB
   GEN_IMG --> COMP
 </pre>
 </div>
@@ -245,12 +253,23 @@ flowchart TD
     <tr>
       <td><span class="stage s-direct">DIRECT</span></td>
       <td>Storyboard generation</td><td>Claude Sonnet API</td><td>~$0.05/video</td>
-      <td><span class="badge b-stable">stable</span></td><td>Scene plan with narration + visual hints</td>
+      <td><span class="badge b-stable">stable</span></td><td>Scene skeleton: beats + visual hints; <code>narration</code> filled by SCRIPTWRITE</td>
     </tr>
     <tr>
       <td><span class="stage s-direct">DIRECT</span></td>
       <td>Metadata generation</td><td>Claude API + <code>channels.toml</code></td><td>~$0.01/video</td>
       <td><span class="badge b-stable">stable</span></td><td>Title, description, tags; skipped if <code>--niche none</code></td>
+    </tr>
+    <!-- SCRIPTWRITE -->
+    <tr>
+      <td><span class="stage s-scriptwrite">SCRIPTWRITE</span></td>
+      <td>Narration authoring</td><td>Claude Sonnet API</td><td>~$0.05/video</td>
+      <td><span class="badge b-new">new</span></td><td>One Claude call per locale; writes <code>scene.narration</code> (primary) and <code>narration_alt[locale]</code> (secondary) from beats</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-scriptwrite">SCRIPTWRITE</span></td>
+      <td>Script derivation</td><td><code>storyboard.derive_script(locale)</code></td><td>free</td>
+      <td><span class="badge b-new">new</span></td><td>Generates <code>script/script_{locale}.md</code> for TTS; resume with <code>--start-from scriptwrite</code> to re-run narration only</td>
     </tr>
     <!-- REVIEW GATE -->
     <tr>
