@@ -284,10 +284,52 @@ def migrate_storyboard_file(path: Path, primary_locale: str) -> bool:
     return True
 
 
+def _generate_beats(scenes: list[dict]) -> dict[str, str]:
+    """Ask Claude for a one-line language-neutral beat per scene."""
+    from pipeline.config import PipelineConfig
+    from pipeline.stages.analyze import get_anthropic_client
+
+    client = get_anthropic_client()
+    config = PipelineConfig()
+    scene_lines = "\n".join(
+        f"{s['id']} [{s['section']}]: {s['narration'][:200]}" for s in scenes
+    )
+    prompt = (
+        "For each scene below, write a one-line, language-neutral 'beat' — a short "
+        "statement of what the scene accomplishes in the story (its intent), NOT a "
+        "summary of its wording. Return ONLY valid JSON mapping scene id to beat string.\n\n"
+        f"{scene_lines}"
+    )
+    response = client.messages.create(
+        model=config.CLAUDE_MODEL,
+        max_tokens=4096,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = response.content[0].text
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+    return json.loads(raw)
+
+
+def backfill_beats_file(path: Path) -> bool:
+    """Fill empty `beat` fields in a storyboard via one LLM call. Returns True if changed."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    scenes = data.get("scenes", [])
+    if not scenes or all(s.get("beat") for s in scenes):
+        return False
+    beats = _generate_beats(scenes)
+    for scene in scenes:
+        if not scene.get("beat"):
+            scene["beat"] = beats.get(scene["id"], "")
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    return True
+
+
 @storyboard_app.command("migrate")
 def migrate(
     project_id: str = typer.Option(None, "--project-id", help="Migrate one project"),
     all_projects: bool = typer.Option(False, "--all", help="Migrate every project"),
+    backfill_beats: bool = typer.Option(False, "--backfill-beats", help="Backfill empty beats via LLM"),
 ) -> None:
     """Migrate storyboard.json files to the beat/narration_alt schema."""
     # Check mutual exclusion
@@ -316,3 +358,6 @@ def migrate(
         changed = migrate_storyboard_file(sb_path, primary_locale=primary_locale)
         status = "migrated" if changed else "already current"
         typer.echo(f"{project_dir.name}: {status}")
+        if backfill_beats:
+            if backfill_beats_file(sb_path):
+                typer.echo(f"{project_dir.name}: beats backfilled")
