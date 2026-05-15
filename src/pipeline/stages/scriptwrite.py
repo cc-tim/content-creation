@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import json
-import re
-from typing import Any
 
 import structlog
 
 from pipeline.config import PipelineConfig
 from pipeline.stages.analyze import get_anthropic_client
 from pipeline.stages.base import PipelineContext, PipelineStage
+from pipeline.storyboard import Scene, Storyboard
 
 logger = structlog.get_logger()
 
@@ -18,6 +17,7 @@ LOCALE_INSTRUCTIONS = {
         "Explain US-specific context (legal system, geography, policing norms) "
         "that Taiwanese audiences need. Use conversational but authoritative tone."
     ),
+    "en": "Write in clear, conversational English for a US/international audience.",
     "ja": (
         "Write in Japanese. Use appropriate keigo level for documentary narration. "
         "Add cultural context bridging US and Japanese norms."
@@ -29,82 +29,47 @@ LOCALE_INSTRUCTIONS = {
 }
 
 
-def build_scriptwrite_prompt(
-    story_structure: dict[str, Any],
-    knowledge_graph: dict[str, Any],
-    locale: str,
-) -> str:
-    """Build the Claude prompt for script adaptation (NOT translation)."""
-    locale_instruction = LOCALE_INSTRUCTIONS.get(locale, LOCALE_INSTRUCTIONS["zh-TW"])
-
-    return f"""You are a scriptwriter for a YouTube channel. Write a NEW, ORIGINAL script
-based on the story analysis below. This is NOT a translation — it is a cultural adaptation.
-Restructure the narrative for maximum engagement with the target audience.
+def build_scriptwrite_prompt(scenes: list[Scene], locale: str) -> str:
+    """Build the Claude prompt that writes narration for every beat in one locale."""
+    locale_instruction = LOCALE_INSTRUCTIONS.get(locale, LOCALE_INSTRUCTIONS["en"])
+    beat_lines = "\n".join(
+        f'{s.id} [{s.section}] (~{s.narration_est_sec:.0f}s): {s.beat}'
+        for s in scenes
+    )
+    return f"""You are a scriptwriter for a YouTube channel. For each scene beat below,
+write the narration in the target locale. This is a cultural adaptation, NOT a
+translation — give the narration the locale's own voice and idiom while hitting the
+beat's intent.
 
 LOCALE: {locale}
 LANGUAGE INSTRUCTION: {locale_instruction}
 
-STORY STRUCTURE:
-{json.dumps(story_structure, indent=2, ensure_ascii=False)}
+RULES:
+- Each scene's narration must fit its duration budget (the ~Ns hint). Stay close to it.
+- Hit the beat's intent; do not invent new story facts.
+- Plain narration text only — no markers, no meta-commentary.
 
-KNOWLEDGE GRAPH:
-{json.dumps(knowledge_graph, indent=2, ensure_ascii=False)}
+SCENE BEATS:
+{beat_lines}
 
-VIDEO STRUCTURE (follow this):
-- [HOOK] (0-30s): Start with the most dramatic moment out of context
-- [CONTEXT] (30s-2min): Map, people, setting, background
-- [RISING] (2-6min): Escalation of events
-- [CLIMAX] (6-8min): Peak tension
-- [AFTERMATH] (8-10min): Resolution, consequences
-- [ANALYSIS] (10-12min): Commentary, broader implications
-
-USE THESE MARKERS in your script:
-- [CLIP:MM:SS-MM:SS] — reference a source video segment
-- [OVERLAY:map:Location] — map overlay
-- [OVERLAY:namecard:Name, Age, Role] — name card
-- [OVERLAY:text:Important Info] — text card
-- [OVERLAY:title:Title Text] — title card
-- [PAUSE:Ns] — dramatic pause (N seconds)
-
-Plain text = narration (will be sent to TTS).
-
-Keep source clips SHORT (5-15 seconds each). Original narration must be 50-70%+ of the video.
-
-Write ONLY the script with markers. No meta-commentary."""
+Return ONLY valid JSON mapping scene id to narration string, e.g.
+{{"s1": "...", "s2": "..."}}"""
 
 
-def parse_script_markers(script: str) -> list[dict[str, Any]]:
-    """Parse a script into a list of typed markers and narration blocks."""
-    markers: list[dict[str, Any]] = []
-    lines = script.split("\n")
-
-    for line in lines:
-        stripped = line.strip()
-        if not stripped:
-            continue
-
-        # Section marker: [HOOK], [CONTEXT], etc.
-        if re.match(r"^\[(HOOK|CONTEXT|RISING|CLIMAX|AFTERMATH|ANALYSIS)\]$", stripped):
-            markers.append({"type": "section", "value": stripped[1:-1]})
-        # Clip reference: [CLIP:MM:SS-MM:SS] (1-2 digit minutes)
-        elif re.match(r"^\[CLIP:\d{1,2}:\d{2}-\d{1,2}:\d{2}\]$", stripped):
-            times = stripped[6:-1]
-            start, end = times.split("-")
-            markers.append({"type": "clip", "start": start, "end": end})
-        # Overlay: [OVERLAY:type:content]
-        elif stripped.startswith("[OVERLAY:"):
-            inner = stripped[9:-1]
-            overlay_type, content = inner.split(":", 1)
-            markers.append({"type": "overlay", "overlay_type": overlay_type, "content": content})
-        # Pause: [PAUSE:Ns]
-        elif re.match(r"^\[PAUSE:\d+s\]$", stripped):
-            seconds = int(stripped[7:-2])
-            markers.append({"type": "pause", "seconds": seconds})
-        else:
-            # Narration text
-            markers.append({"type": "narration", "text": stripped})
-
-    return markers
+def _write_narration_for_locale(scenes: list[Scene], locale: str) -> dict[str, str]:
+    """One Claude call: narration for every scene in one locale. Returns id -> text."""
+    client = get_anthropic_client()
+    config = PipelineConfig()
+    prompt = build_scriptwrite_prompt(scenes, locale)
+    response = client.messages.create(
+        model=config.CLAUDE_MODEL,
+        max_tokens=16000,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = response.content[0].text
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+    return json.loads(raw)
 
 
 class ScriptwriteStage(PipelineStage):
@@ -113,34 +78,36 @@ class ScriptwriteStage(PipelineStage):
         return "scriptwrite"
 
     async def run(self, ctx: PipelineContext) -> PipelineContext:
-        if not ctx.story_structure or not ctx.knowledge_graph:
-            raise ValueError("No analysis available — run analyze stage first")
+        if not ctx.storyboard_path or not ctx.storyboard_path.exists():
+            raise ValueError("No storyboard — run direct stage first")
 
-        logger.info("scriptwrite.start", locale=ctx.locale)
+        logger.info("scriptwrite.start", locale=ctx.locale,
+                    secondary=ctx.secondary_locale)
 
-        client = get_anthropic_client()
-        config = PipelineConfig()
+        storyboard = Storyboard.load(ctx.storyboard_path)
+        locales: list[str] = [ctx.locale]
+        if ctx.secondary_locale and ctx.secondary_locale not in locales:
+            locales.append(ctx.secondary_locale)
 
-        prompt = build_scriptwrite_prompt(
-            ctx.story_structure,
-            ctx.knowledge_graph,
-            ctx.locale,
-        )
+        for locale in locales:
+            narration_by_id = _write_narration_for_locale(storyboard.scenes, locale)
+            for scene in storyboard.scenes:
+                text = narration_by_id.get(scene.id, "")
+                if locale == storyboard.primary_locale:
+                    scene.narration = text
+                else:
+                    scene.narration_alt[locale] = text
+            logger.info("scriptwrite.locale_done", locale=locale,
+                        scenes=len(storyboard.scenes))
 
-        response = client.messages.create(
-            model=config.CLAUDE_MODEL,
-            max_tokens=8192,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        storyboard.save(ctx.storyboard_path)
 
-        script_text = response.content[0].text
-
-        # Save script
+        # Derive the primary-locale script for downstream TTS.
         script_dir = ctx.work_dir / "script"
         script_dir.mkdir(parents=True, exist_ok=True)
         script_path = script_dir / f"script_{ctx.locale}.md"
-        script_path.write_text(script_text, encoding="utf-8")
+        script_path.write_text(storyboard.derive_script(), encoding="utf-8")
         ctx.script_path = script_path
 
-        logger.info("scriptwrite.complete", path=str(script_path), chars=len(script_text))
+        logger.info("scriptwrite.complete", locales=locales)
         return ctx
