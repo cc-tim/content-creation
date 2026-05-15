@@ -32,6 +32,7 @@ from pipeline.stages.analyze import AnalyzeStage
 from pipeline.stages.base import PipelineContext, PipelineStage
 from pipeline.stages.compose import ComposeStage
 from pipeline.stages.direct import DirectStage
+from pipeline.stages.scriptwrite import ScriptwriteStage
 from pipeline.stages.tts import TtsStage
 
 logger = structlog.get_logger()
@@ -200,11 +201,12 @@ def produce(
         acquire,
         AnalyzeStage(),
         DirectStage(),
+        ScriptwriteStage(),
         TtsStage(),
         ComposeStage(),
     ]
 
-    pre_review = {"acquire", "analyze", "direct"}
+    pre_review = {"acquire", "analyze", "direct", "scriptwrite"}
     post_review = {"tts", "compose"}
 
     if start_from and start_from in post_review:
