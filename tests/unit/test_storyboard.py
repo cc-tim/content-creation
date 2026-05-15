@@ -248,9 +248,6 @@ def test_scene_narration_for():
     assert scene.narration_for("ja", "zh-TW") == ""
 
 
-from pipeline.storyboard import Storyboard
-
-
 def _sb(**over):
     base = {
         "version": 1,
