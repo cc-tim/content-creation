@@ -438,6 +438,20 @@ def test_split_english_preserves_cjk_path():
 # --- MLA (Multi-Language Audio) secondary TTS pass ---
 
 
+def test_secondary_tts_reads_narration_alt():
+    from pipeline.storyboard import Scene
+
+    scenes = [
+        Scene(id="s1", section="hook", narration="主要", narration_est_sec=5.0,
+              narration_alt={"en": "english one"}),
+        Scene(id="s2", section="context", narration="主要二", narration_est_sec=5.0,
+              narration_alt={}),
+    ]
+    # Mirror the segment-collection logic from _run_secondary_tts.
+    en_segments = [s.narration_alt.get("en", "") for s in scenes]
+    assert en_segments == ["english one", ""]
+
+
 def _make_mla_storyboard(tmp_path, scenes_data):
     """Helper: build and save a storyboard, return (storyboard_path, script_path)."""
     scenes = [
@@ -445,7 +459,7 @@ def _make_mla_storyboard(tmp_path, scenes_data):
             id=d["id"],
             section=d.get("section", "hook"),
             narration=d["narration"],
-            narration_alt={"en": d["narration_en"]} if d.get("narration_en") is not None else {},
+            narration_alt=d.get("narration_alt", {}),
             narration_est_sec=d.get("narration_est_sec", 3.0),
             visual={"type": "text_card", "text": d.get("visual_text", "v")},
             pause_after_sec=d.get("pause_after_sec", 0.0),
@@ -471,8 +485,8 @@ async def test_tts_produces_secondary_audio_when_mla(tmp_path):
     storyboard_path, script_path = _make_mla_storyboard(
         tmp_path,
         [
-            {"id": "s1", "narration": "段落一", "narration_en": "Paragraph one."},
-            {"id": "s2", "narration": "段落二", "narration_en": "Paragraph two."},
+            {"id": "s1", "narration": "段落一", "narration_alt": {"en": "Paragraph one."}},
+            {"id": "s2", "narration": "段落二", "narration_alt": {"en": "Paragraph two."}},
         ],
     )
 
@@ -543,16 +557,16 @@ async def test_tts_produces_secondary_audio_when_mla(tmp_path):
     assert en_calls[1][1] == "Paragraph two."
 
 
-async def test_tts_secondary_warns_for_missing_narration_en(tmp_path):
-    """Scenes where narration_en is None should log a warning and be skipped."""
+async def test_tts_secondary_warns_for_missing_narration(tmp_path):
+    """Scenes where narration_alt has no entry for the secondary locale should log a warning and be skipped."""
     from pipeline.voices.base import VoiceProfile
 
     storyboard_path, script_path = _make_mla_storyboard(
         tmp_path,
         [
-            {"id": "s1", "narration": "段落一", "narration_en": "Paragraph one."},
-            # narration_en intentionally absent
-            {"id": "s2", "narration": "段落二", "narration_en": None},
+            {"id": "s1", "narration": "段落一", "narration_alt": {"en": "Paragraph one."}},
+            # narration_alt intentionally absent for secondary locale
+            {"id": "s2", "narration": "段落二", "narration_alt": {}},
         ],
     )
 
@@ -584,7 +598,7 @@ async def test_tts_secondary_warns_for_missing_narration_en(tmp_path):
         ),
         patch("pipeline.stages.tts._get_audio_duration_ms", return_value=1000),
     ):
-        # Should NOT raise even though s2 has no narration_en.
+        # Should NOT raise even though s2 has no narration_alt entry for secondary locale.
         ctx = await TtsStage().run(ctx)
 
     assert ctx.secondary_narration_path is not None
@@ -631,7 +645,7 @@ def test_check_secondary_durations_hard_fails_on_total_deviation():
 
 
 def test_check_secondary_durations_skips_empty_scenes():
-    """Skipped scenes (narration_en=None) are excluded from both warn and total checks."""
+    """Skipped scenes (no narration_alt entry) are excluded from both warn and total checks."""
     primary_timings = [
         {"index": 0, "duration_ms": 1000},
         {"index": 1, "duration_ms": 5000},

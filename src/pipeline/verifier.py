@@ -72,7 +72,8 @@ def _haystack_for_lines(storyboard: dict[str, Any]) -> str:
     parts: list[str] = []
     for scene in storyboard.get("scenes", []):
         parts.append(scene.get("narration", "") or "")
-        parts.append(scene.get("narration_en", "") or "")
+        alt = scene.get("narration_alt", {})
+        parts.append(" ".join(alt.values()) if isinstance(alt, dict) else "")
         overlay = scene.get("overlay") or {}
         if isinstance(overlay, dict):
             parts.append(overlay.get("text", "") or "")

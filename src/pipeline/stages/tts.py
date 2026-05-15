@@ -133,7 +133,7 @@ async def _synthesize_pass(
         if not text:
             # Warn about missing EN narration; insert 0ms placeholder to keep indices aligned.
             logger.warning(
-                "tts.secondary.missing_narration_en",
+                "tts.secondary.missing_narration",
                 scene_id=scene_id,
                 index=i,
             )
