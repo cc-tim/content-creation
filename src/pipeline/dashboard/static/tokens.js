@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var SCENE_ELEMENTS = ['visual', 'subtitle', 'overlay', 'narration', 'transition'];
+  var SCENE_ELEMENTS = ['visual', 'subtitle', 'overlay', 'narration', 'transition', 'beat'];
   var SCENE_RE = new RegExp(
     '^@s(\\d+)(?:\\/(' + SCENE_ELEMENTS.join('|') + ')(?:\\/([A-Za-z0-9_-]+))?)?$'
   );
@@ -50,6 +50,7 @@
       overlay: 'overlay text',
       narration: 'narration',
       transition: 'transition out',
+      beat: 'story beat',
     };
     if (!t.element) return 'Scene ' + sceneNum;
     var label = 'Scene ' + sceneNum + ' ' + (elemLabels[t.element] || t.element);
@@ -120,6 +121,7 @@
     eq(tokenLabel('@s5/overlay'), 'Scene 5 overlay text', 'label overlay');
     eq(tokenLabel('@s5/narration'), 'Scene 5 narration', 'label narration');
     eq(tokenLabel('@s5/transition'), 'Scene 5 transition out', 'label transition');
+    eq(tokenLabel('@s5/beat'), 'Scene 5 story beat', 'label beat');
     eq(tokenLabel('@s5/narration/zh-TW'), 'Scene 5 narration [zh-TW]', 'label narration with locale');
     eq(tokenLabel('@manifest:foo'), 'Manifest: foo', 'label manifest');
     eq(tokenLabel('garbage'), 'garbage', 'label passthrough');

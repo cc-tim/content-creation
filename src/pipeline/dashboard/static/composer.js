@@ -58,7 +58,8 @@
       var chip = document.createElement('div');
       chip.className = 'ec-wrapper-chip';
       chip.setAttribute('data-token', token);
-      chip.innerHTML = '<span class="ec-chip-token">' + escapeHtml(token) + '</span><span class="ec-chip-instruction">' + escapeHtml(instruction) + '</span>';
+      var label = window.EditTokens ? window.EditTokens.tokenLabel(token) : token;
+      chip.innerHTML = '<span class="ec-chip-token">' + escapeHtml(label) + '</span><span class="ec-chip-instruction">' + escapeHtml(instruction) + '</span>';
       chipsEl.appendChild(chip);
     });
     var collapsedCount = ecQS('.ec-collapsed-count');
@@ -98,7 +99,8 @@
     var instruction = state.wrapperChips[token] || '';
     var overlay = document.createElement('div');
     overlay.className = 'ec-edit-overlay';
-    overlay.innerHTML = '<div class="ec-edit-modal"><h3>' + escapeHtml(token) + '</h3>'
+    var popupLabel = window.EditTokens ? window.EditTokens.tokenLabel(token) : token;
+    overlay.innerHTML = '<div class="ec-edit-modal"><h3>' + escapeHtml(popupLabel) + '</h3>'
       + '<textarea class="ec-instruction-field" placeholder="Enter instruction (required)">' + escapeHtml(instruction) + '</textarea>'
       + '<div class="ec-edit-actions">'
       + '<button type="button" class="ec-edit-cancel">Cancel</button>'

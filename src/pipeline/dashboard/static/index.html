@@ -147,10 +147,13 @@
     .outline-band-hdr { padding:4px 10px; font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; background:#111827; }
     .outline-row { display:grid; grid-template-columns:48px 40px 90px 1fr; gap:8px; padding:3px 10px; font-size:12px; color:#cbd5e1; align-items:baseline; }
     .outline-row:hover { background:#1e293b; }
+    .outline-row.sc-active { background:#1e3a5f; color:#93c5fd; }
     .outline-id { font-family:monospace; color:#94a3b8; }
     .outline-dur { color:#64748b; }
     .outline-vtype { color:#475569; font-size:11px; }
     .outline-beat { color:#e2e8f0; }
+    body.edit-mode-on .outline-beat { cursor:pointer; border-bottom:1px dashed #3b82f6; }
+    body.edit-mode-on .outline-beat:hover { color:#93c5fd; }
   </style>
 </head>
 <body>
@@ -453,11 +456,11 @@ function buildOutlinePanel(project) {
     const rows = band.scenes.map(s => {
       const vtype = (s.camera_motion && 'image') || (s.visual && s.visual.type) || s.visual_type || '';
       const beat = escapeHtml(s.beat || '(no beat)');
-      return `<div class="outline-row" data-idx="${scenes.indexOf(s)}" data-edit-token="@${s.id}">
+      return `<div class="outline-row" data-idx="${scenes.indexOf(s)}">
         <span class="outline-id">${s.id}</span>
         <span class="outline-dur">${Math.round(s.duration_sec || 0)}s</span>
         <span class="outline-vtype">${vtype}</span>
-        <span class="outline-beat" data-edit-token="@${s.id}/beat">${beat}</span>
+        <span class="outline-beat" data-edit-token="@${s.id}/beat" title="Click in edit mode to set beat instruction">${beat}</span>
       </div>`;
     }).join('');
     return `<div class="outline-band">
@@ -747,7 +750,9 @@ function toggleDetail(p) {
         c.classList.toggle('sc-past', i < idx);
         c.classList.toggle('sc-active', i === idx);
       });
-      chips[idx]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      detailRow.querySelectorAll('.outline-row').forEach(r => {
+        r.classList.toggle('sc-active', +r.dataset.idx === idx);
+      });
       showSceneNar(idx);
     });
 
@@ -756,7 +761,17 @@ function toggleDetail(p) {
       if (!chip) return;
       const idx = +chip.dataset.idx;
       vid.currentTime = p.scenes[idx].start_sec;
+      detailRow.querySelectorAll('.outline-row').forEach(r => {
+        r.classList.toggle('sc-active', +r.dataset.idx === idx);
+      });
       showSceneNar(idx);
+    });
+
+    detailRow.querySelector('.outline-panel')?.addEventListener('click', e => {
+      const row = e.target.closest('.outline-row');
+      if (!row) return;
+      const idx = +row.dataset.idx;
+      vid.currentTime = p.scenes[idx].start_sec;
     });
   }
   detailRow.querySelector('.edit-mode-toggle')?.addEventListener('click', () => {
