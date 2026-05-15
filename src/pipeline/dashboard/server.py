@@ -50,7 +50,6 @@ from pipeline.verifier import (
 )
 
 _STATIC_DIR = Path(__file__).parent / "static"
-_DOCS_DIR = Path(__file__).parent.parent.parent.parent / "docs"
 _CHANNELS_TOML = Path("configs/youtube_channels.toml")
 _CHANNELS_DIR = Path("configs/channels")
 _SFX_DIR = Path("assets/sfx")
@@ -283,10 +282,6 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     @app.get("/channels")
     def channels_page() -> FileResponse:
         return FileResponse(_STATIC_DIR / "channels.html", headers=_NO_STORE_HEADERS)
-
-    @app.get("/workflows")
-    def workflows_page() -> FileResponse:
-        return FileResponse(_DOCS_DIR / "workflows.html", headers=_NO_STORE_HEADERS)
 
     @app.get("/api/channels")
     def get_channels() -> JSONResponse:
