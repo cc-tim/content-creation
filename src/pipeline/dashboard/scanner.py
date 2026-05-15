@@ -109,7 +109,9 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
             scenes = _estimate_scenes_from_storyboard_data(storyboard_data)
 
         if scenes and storyboard_data:
-            _attach_storyboard_scene_metadata(scenes, storyboard_data)
+            _attach_storyboard_scene_metadata(
+                scenes, storyboard_data, primary_locale=primary_locale
+            )
 
         if scenes:
             srt_path = project_dir / "audio" / f"subtitles_{locale}.srt"
@@ -268,6 +270,8 @@ def _estimate_scenes_from_storyboard_data(data: dict[str, object]) -> list[dict[
 def _attach_storyboard_scene_metadata(
     scenes: list[dict[str, object]],
     storyboard: dict[str, object],
+    *,
+    primary_locale: str,
 ) -> None:
     storyboard_scenes = storyboard.get("scenes", [])
     if not isinstance(storyboard_scenes, list):
@@ -277,7 +281,6 @@ def _attach_storyboard_scene_metadata(
         for scene in storyboard_scenes
         if isinstance(scene, dict) and scene.get("id")
     }
-    primary = str(storyboard.get("primary_locale", "zh-TW"))
     for scene in scenes:
         source = by_id.get(str(scene.get("id") or ""))
         if not isinstance(source, dict):
@@ -296,7 +299,7 @@ def _attach_storyboard_scene_metadata(
         narration_map: dict[str, str] = {}
         primary_text = source.get("narration", "")
         if primary_text:
-            narration_map[primary] = str(primary_text)
+            narration_map[primary_locale] = str(primary_text)
         alt = source.get("narration_alt", {})
         if isinstance(alt, dict):
             for loc, text in alt.items():

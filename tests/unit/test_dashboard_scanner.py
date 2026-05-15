@@ -327,11 +327,14 @@ def test_scanner_attaches_scene_camera_motion_from_storyboard(tmp_path: Path) ->
         "zoom_end": 2.35,
     }
     storyboard = {
+        "primary_locale": "zh-TW",
         "scenes": [
             {
                 "id": "s1",
                 "section": "hook",
-                "narration": "From storyboard",
+                "beat": "the inciting beat",
+                "narration": "從故事板",
+                "narration_alt": {"en": "from storyboard"},
                 "narration_est_sec": 99.0,
                 "pause_after_sec": 0,
                 "visual": {"type": "article_image", "camera_motion": camera_motion},
@@ -348,6 +351,12 @@ def test_scanner_attaches_scene_camera_motion_from_storyboard(tmp_path: Path) ->
 
     assert p.scenes[0]["narration"] == "From file"
     assert p.scenes[0]["camera_motion"] == camera_motion
+    assert p.scenes[0]["beat"] == "the inciting beat"
+    assert p.scenes[0]["visual_type"] == "article_image"
+    assert p.scenes[0]["narration_by_locale"] == {
+        "zh-TW": "從故事板",
+        "en": "from storyboard",
+    }
 
 
 def test_scanner_includes_transition_theme_and_intro_summary(tmp_path: Path) -> None:
@@ -422,7 +431,6 @@ def test_scanner_includes_transition_theme_and_intro_summary(tmp_path: Path) -> 
 
 
 def test_scanner_exposes_beat_and_locale_map(tmp_path: Path) -> None:
-    import json
     pdir = _make_project(tmp_path, "20260101-000000-test")
     (pdir / "storyboard.json").write_text(json.dumps({
         "version": 1,
