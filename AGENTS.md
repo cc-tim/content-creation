@@ -13,6 +13,10 @@ rather than duplicating the docs.
 
 **Every task in this project serves one purpose: produce the highest-quality video possible.** Quality is the north star — not speed, not automation coverage, not code elegance. Claude and Codex must keep this in mind on every task: script choices, pacing decisions, image prompts, narration edits, and render settings all exist to make the final video better for the viewer.
 
+## Multi-Agent Git Hygiene
+
+Many local agent sessions may work in this repository at the same time. Before touching any file that already has uncommitted changes, make the existing state traceable: inspect `git status`, identify the current diff owner/scope, and create a local checkpoint commit for coherent work before editing over it. If the diff is ambiguous, unstable, or on `master` where commit confirmation is required, ask before proceeding. Stage only the relevant files; leave unrelated scratch output alone.
+
 ## Session Startup
 
 Before anything else:
