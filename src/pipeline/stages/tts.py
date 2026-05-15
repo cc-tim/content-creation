@@ -688,7 +688,7 @@ def _check_secondary_durations(
 ) -> None:
     """Warn per scene if EN duration exceeds primary × 1.15; hard-fail if total deviation > ±2s.
 
-    Skipped segments (narration_en was None/empty) are excluded from both checks.
+    Skipped segments (narration_alt entry absent or empty) are excluded from both checks.
     """
     total_primary_ms = 0
     total_secondary_ms = 0
