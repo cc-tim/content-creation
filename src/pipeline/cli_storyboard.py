@@ -286,7 +286,6 @@ def migrate_storyboard_file(path: Path, primary_locale: str) -> bool:
 
 def _generate_beats(scenes: list[dict]) -> dict[str, str]:
     """Ask Claude for a one-line language-neutral beat per scene."""
-    from pipeline.config import PipelineConfig
     from pipeline.stages.analyze import get_anthropic_client
 
     client = get_anthropic_client()
@@ -308,7 +307,10 @@ def _generate_beats(scenes: list[dict]) -> dict[str, str]:
     raw = response.content[0].text
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise typer.BadParameter(f"Claude response could not be parsed as JSON: {e}") from e
 
 
 def backfill_beats_file(path: Path) -> bool:
@@ -318,6 +320,8 @@ def backfill_beats_file(path: Path) -> bool:
     if not scenes or all(s.get("beat") for s in scenes):
         return False
     beats = _generate_beats(scenes)
+    if not beats:
+        return False
     for scene in scenes:
         if not scene.get("beat"):
             scene["beat"] = beats.get(scene["id"], "")
@@ -358,6 +362,5 @@ def migrate(
         changed = migrate_storyboard_file(sb_path, primary_locale=primary_locale)
         status = "migrated" if changed else "already current"
         typer.echo(f"{project_dir.name}: {status}")
-        if backfill_beats:
-            if backfill_beats_file(sb_path):
-                typer.echo(f"{project_dir.name}: beats backfilled")
+        if backfill_beats and backfill_beats_file(sb_path):
+            typer.echo(f"{project_dir.name}: beats backfilled")
