@@ -571,3 +571,36 @@ def test_compose_mla_does_not_mux_secondary_audio(monkeypatch, tmp_path):
         assert secondary_str not in cmd, (
             f"secondary_narration_path was muxed into ffmpeg cmd: {cmd}"
         )
+
+
+def test_concat_scenes_uses_filter_concat_to_normalize_mixed_audio(
+    monkeypatch, tmp_path,
+):
+    from pipeline.stages.compose import ComposeStage
+
+    scene = tmp_path / "scene.mp4"
+    transition = tmp_path / "transition.mp4"
+    pause = tmp_path / "pause.mp4"
+    output = tmp_path / "raw_no_overlay.mp4"
+    seen: dict[str, list[str] | Path] = {}
+
+    def fake_atomic(cmd: list[str], output_path: Path, timeout: int = 600):
+        seen["cmd"] = cmd
+        seen["output"] = output_path
+
+    monkeypatch.setattr("pipeline.stages.compose.run_ffmpeg_atomic", fake_atomic)
+    monkeypatch.setattr("pipeline.stages.compose._assert_playable_video", lambda path: None)
+
+    ComposeStage()._concat_scenes([scene, transition, pause], output)
+
+    cmd = seen["cmd"]
+    assert isinstance(cmd, list)
+    assert seen["output"] == output
+    assert not ("-f" in cmd and "concat" in cmd)
+    assert cmd.count("-i") == 3
+    filter_arg = cmd[cmd.index("-filter_complex") + 1]
+    assert "concat=n=3:v=1:a=1" in filter_arg
+    assert "sample_rates=48000" in filter_arg
+    assert "channel_layouts=stereo" in filter_arg
+    assert "-c:v" in cmd
+    assert cmd[cmd.index("-c:v") + 1] == "libx264"

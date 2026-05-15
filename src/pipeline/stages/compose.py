@@ -1363,7 +1363,17 @@ class ComposeStage(PipelineStage):
         return output
 
     def _concat_scenes(self, scene_paths: list[Path], output: Path) -> None:
-        """Concatenate scene segments using ffmpeg concat demuxer (stream-copy video)."""
+        """Concatenate scene segments through filters that normalize audio.
+
+        Scene clips, transition clips, and pause clips are produced by different
+        code paths, so their AAC sample rates and channel layouts can differ.
+        The concat demuxer is brittle with that mix and can emit a final audio
+        stream that is shorter than the video. Decode each segment, reset PTS,
+        normalize audio to 48 kHz stereo, then concat.
+        """
+        if not scene_paths:
+            raise ValueError("cannot concatenate an empty scene list")
+
         # Derive a per-output filename so raw.mp4 → concat_list.txt and
         # raw_no_overlay.mp4 → concat_list_no_overlay.txt stay independent.
         suffix = output.stem[len("raw"):]  # "" or "_no_overlay"
@@ -1372,27 +1382,60 @@ class ComposeStage(PipelineStage):
             "\n".join(f"file '{p.resolve()}'" for p in scene_paths),
             encoding="utf-8",
         )
-        # Stream-copy video (already H.264); re-encode audio to normalize sample rates
+
+        inputs: list[str] = []
+        for path in scene_paths:
+            inputs.extend(["-i", str(path)])
+
+        filter_parts: list[str] = []
+        concat_inputs: list[str] = []
+        for i in range(len(scene_paths)):
+            v = f"v{i}"
+            a = f"a{i}"
+            filter_parts.append(
+                f"[{i}:v:0]setpts=PTS-STARTPTS,fps=30,format=yuv420p,setsar=1[{v}]"
+            )
+            filter_parts.append(
+                f"[{i}:a:0]asetpts=PTS-STARTPTS,"
+                "aformat=sample_rates=48000:channel_layouts=stereo,"
+                f"aresample=async=1:first_pts=0[{a}]"
+            )
+            concat_inputs.extend([f"[{v}]", f"[{a}]"])
+        filter_complex = (
+            ";".join(filter_parts)
+            + ";"
+            + "".join(concat_inputs)
+            + f"concat=n={len(scene_paths)}:v=1:a=1[v][a]"
+        )
+
         run_ffmpeg_atomic(
             [
                 "ffmpeg",
                 "-y",
-                "-f",
-                "concat",
-                "-safe",
-                "0",
-                "-i",
-                str(filelist),
+                *inputs,
+                "-filter_complex",
+                filter_complex,
+                "-map",
+                "[v]",
+                "-map",
+                "[a]",
                 "-c:v",
-                "copy",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "16",
                 "-c:a",
                 "aac",
                 "-ar",
                 "48000",
                 "-b:a",
-                "128k",
+                "192k",
+                "-movflags",
+                "+faststart",
                 str(output),
             ],
             output,
+            timeout=1800,
         )
         _assert_playable_video(output)
