@@ -29,6 +29,8 @@ class ProjectInfo:
     transitions: list[dict[str, object]] = field(default_factory=list)
     intro_transition: dict[str, object] | None = None
     theme: dict[str, object] = field(default_factory=dict)
+    primary_locale: str = "zh-TW"
+    locales: list[str] = field(default_factory=list)
     render_freshness: dict[str, object] = field(default_factory=dict)
 
 
@@ -85,6 +87,20 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
 
         scenes: list[dict[str, object]] = []
         storyboard_data = _load_json(project_dir / "storyboard.json")
+
+        primary_locale = (
+            str(storyboard_data.get("primary_locale", locale))
+            if storyboard_data
+            else locale
+        )
+        locale_set: set[str] = {primary_locale} if primary_locale else set()
+        for sc in (storyboard_data.get("scenes", []) if storyboard_data else []):
+            if isinstance(sc, dict):
+                alt = sc.get("narration_alt", {})
+                if isinstance(alt, dict):
+                    locale_set.update(alt.keys())
+        project_locales = sorted(locale_set)
+
         scenes_file = project_dir / "compose" / "scenes.json"
         if scenes_file.exists():
             with contextlib.suppress(json.JSONDecodeError, OSError):
@@ -130,6 +146,8 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
                 transitions=_transition_summaries(storyboard_data),
                 intro_transition=_intro_transition_summary(storyboard_data),
                 theme=storyboard_data.get("theme", {}) if storyboard_data else {},
+                primary_locale=primary_locale,
+                locales=project_locales,
                 render_freshness=_render_freshness(project_dir),
             )
         )
@@ -240,6 +258,7 @@ def _estimate_scenes_from_storyboard_data(data: dict[str, object]) -> list[dict[
                 "start_sec": start,
                 "duration_sec": dur,
                 "narration": scene.get("narration", ""),
+                "beat": scene.get("beat", ""),
             }
         )
         start += dur
@@ -258,16 +277,32 @@ def _attach_storyboard_scene_metadata(
         for scene in storyboard_scenes
         if isinstance(scene, dict) and scene.get("id")
     }
+    primary = str(storyboard.get("primary_locale", "zh-TW"))
     for scene in scenes:
         source = by_id.get(str(scene.get("id") or ""))
         if not isinstance(source, dict):
             continue
+        scene["beat"] = source.get("beat", "")
         visual = source.get("visual")
-        if not isinstance(visual, dict):
-            continue
-        camera_motion = visual.get("camera_motion")
-        if isinstance(camera_motion, dict):
-            scene["camera_motion"] = camera_motion
+        if isinstance(visual, dict):
+            scene["visual_type"] = visual.get("type", "")
+            camera_motion = visual.get("camera_motion")
+            if isinstance(camera_motion, dict):
+                scene["camera_motion"] = camera_motion
+        if "duration_sec" not in scene:
+            scene["duration_sec"] = float(source.get("narration_est_sec", 0)) + float(
+                source.get("pause_after_sec", 0)
+            )
+        narration_map: dict[str, str] = {}
+        primary_text = source.get("narration", "")
+        if primary_text:
+            narration_map[primary] = str(primary_text)
+        alt = source.get("narration_alt", {})
+        if isinstance(alt, dict):
+            for loc, text in alt.items():
+                if text:
+                    narration_map[loc] = str(text)
+        scene["narration_by_locale"] = narration_map
 
 
 def _transition_summaries(storyboard: dict[str, object]) -> list[dict[str, object]]:

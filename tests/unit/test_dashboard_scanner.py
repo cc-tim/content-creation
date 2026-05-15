@@ -266,6 +266,8 @@ def test_scenes_estimated_from_storyboard_fallback(tmp_path: Path) -> None:
         "start_sec": 0.0,
         "duration_sec": 10.5,
         "narration": "First",
+        "beat": "",
+        "narration_by_locale": {"zh-TW": "First"},
     }
     assert p.scenes[1] == {
         "id": "s2",
@@ -273,6 +275,8 @@ def test_scenes_estimated_from_storyboard_fallback(tmp_path: Path) -> None:
         "start_sec": 10.5,
         "duration_sec": 20.0,
         "narration": "Second",
+        "beat": "",
+        "narration_by_locale": {"zh-TW": "Second"},
     }
 
 
@@ -415,6 +419,26 @@ def test_scanner_includes_transition_theme_and_intro_summary(tmp_path: Path) -> 
             "asset_warning": "Preview or watermarked stock asset noted. Replace it before publish.",
         }
     ]
+
+
+def test_scanner_exposes_beat_and_locale_map(tmp_path: Path) -> None:
+    import json
+    pdir = _make_project(tmp_path, "20260101-000000-test")
+    (pdir / "storyboard.json").write_text(json.dumps({
+        "version": 1,
+        "primary_locale": "zh-TW",
+        "scenes": [
+            {"id": "s1", "section": "hook", "beat": "the stasis beat",
+             "narration": "主要", "narration_alt": {"en": "primary"},
+             "narration_est_sec": 8.0, "pause_after_sec": 0.0},
+        ],
+    }))
+    [p] = scan_projects(tmp_path / "output")
+    assert p.primary_locale == "zh-TW"
+    assert "zh-TW" in p.locales and "en" in p.locales
+    scene = p.scenes[0]
+    assert scene["beat"] == "the stasis beat"
+    assert scene["narration_by_locale"] == {"zh-TW": "主要", "en": "primary"}
 
 
 def test_scanner_warns_when_storyboard_newer_than_final_render(tmp_path: Path) -> None:
