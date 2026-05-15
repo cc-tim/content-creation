@@ -138,6 +138,16 @@
     .recent-mut-revert { cursor: pointer; color: #93c5fd; font-size: 10px; border: 0; background: transparent; padding: 0; }
     .recent-mut-revert:hover { color: #60a5fa; text-decoration: underline; }
     .recent-mut-empty { color: #475569; font-size: 11px; }
+    .outline-panel { margin:8px 0; border:1px solid #1e293b; border-radius:4px; background:#0f172a; }
+    .outline-summary { cursor:pointer; padding:6px 10px; font-size:11px; color:#93c5fd; text-transform:uppercase; letter-spacing:.06em; }
+    .outline-band { border-top:1px solid #1e293b; }
+    .outline-band-hdr { padding:4px 10px; font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; background:#111827; }
+    .outline-row { display:grid; grid-template-columns:48px 40px 90px 1fr; gap:8px; padding:3px 10px; font-size:12px; color:#cbd5e1; align-items:baseline; }
+    .outline-row:hover { background:#1e293b; }
+    .outline-id { font-family:monospace; color:#94a3b8; }
+    .outline-dur { color:#64748b; }
+    .outline-vtype { color:#475569; font-size:11px; }
+    .outline-beat { color:#e2e8f0; }
   </style>
 </head>
 <body>
@@ -422,6 +432,42 @@ function buildSceneStrip(project) {
     </div>`;
 }
 
+function buildOutlinePanel(project) {
+  const scenes = project.scenes || [];
+  if (!scenes.length) return '';
+  // Group consecutive scenes by section, preserving order.
+  const bands = [];
+  for (const s of scenes) {
+    const last = bands[bands.length - 1];
+    if (last && last.section === s.section) {
+      last.scenes.push(s);
+    } else {
+      bands.push({ section: s.section, scenes: [s] });
+    }
+  }
+  const bandHtml = bands.map(band => {
+    const dur = band.scenes.reduce((a, s) => a + (s.duration_sec || 0), 0);
+    const rows = band.scenes.map(s => {
+      const vtype = (s.camera_motion && 'image') || (s.visual && s.visual.type) || s.visual_type || '';
+      const beat = s.beat || '(no beat)';
+      return `<div class="outline-row" data-idx="${scenes.indexOf(s)}" data-edit-token="@${s.id}">
+        <span class="outline-id">${s.id}</span>
+        <span class="outline-dur">${Math.round(s.duration_sec || 0)}s</span>
+        <span class="outline-vtype">${vtype}</span>
+        <span class="outline-beat" data-edit-token="@${s.id}/beat">${beat}</span>
+      </div>`;
+    }).join('');
+    return `<div class="outline-band">
+      <div class="outline-band-hdr">${band.section} · ${band.scenes.length} scenes · ${Math.round(dur)}s</div>
+      ${rows}
+    </div>`;
+  }).join('');
+  return `<details class="outline-panel" open>
+    <summary class="outline-summary">Storyline outline</summary>
+    ${bandHtml}
+  </details>`;
+}
+
 function makeDetailRow(p) {
   const dr = document.createElement('tr');
   dr.className = 'detail-row';
@@ -446,6 +492,7 @@ function makeDetailRow(p) {
     </div>
     ${tabsHtml}
     <video controls src="${firstUrl}" data-edit-token="@s1/visual"></video>
+    ${p.scenes && p.scenes.length ? buildOutlinePanel(p) : ''}
     ${p.scenes && p.scenes.length ? buildSceneStrip(p) : ''}
     ${renderTransitionAssets(p)}
     <div class="meta-grid">
