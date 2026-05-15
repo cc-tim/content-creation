@@ -13,9 +13,27 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from pipeline.session_log import SessionEntry, append_session, new_session_id
-from pipeline.storyboard import NarrationSource, Storyboard, Transition
+from pipeline.storyboard import NarrationSource, Scene, Storyboard, Transition
 
 logger = logging.getLogger(__name__)
+
+
+def apply_narration_edit(
+    scene: Scene,
+    locale: str,
+    primary_locale: str,
+    text: str,
+) -> None:
+    """Write narration text for a locale onto a Scene.
+
+    Primary locale writes to scene.narration; secondary locales write to
+    scene.narration_alt[locale].
+    """
+    if locale == primary_locale:
+        scene.narration = text
+    else:
+        scene.narration_alt[locale] = text
+
 
 ProposalStatus = Literal["applied", "cancelled", "failed"]
 ProposalDecision = Literal["apply", "cancel", "edit"]
@@ -139,9 +157,11 @@ def compute_revert_payload(
         scene = storyboard.get_scene(args.get("scene"))
         if scene is None:
             return None
+        locale = args.get("locale") or storyboard.primary_locale
+        old_text = scene.narration_for(locale, storyboard.primary_locale)
         return {
             "verb": "narration regen",
-            "args": {"scene": scene.id, "text": scene.narration},
+            "args": {"scene": scene.id, "locale": locale, "text": old_text},
         }
 
     if verb == "transition set":
@@ -259,8 +279,9 @@ def _dispatch_in_process(
 
     if verb == "narration regen":
         scene = _require_scene(storyboard, args["scene"])
-        scene.narration = args["text"]
-        return f"narration regen {scene.id}: {args['text'][:40]}"
+        locale = args.get("locale") or storyboard.primary_locale
+        apply_narration_edit(scene, locale, storyboard.primary_locale, args["text"])
+        return f"narration regen {scene.id} [{locale}]: {args['text'][:40]}"
 
     if verb == "transition set":
         from_scene = args["from"]

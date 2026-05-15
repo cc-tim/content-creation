@@ -3,7 +3,9 @@
   'use strict';
 
   var SCENE_ELEMENTS = ['visual', 'subtitle', 'overlay', 'narration', 'transition'];
-  var SCENE_RE = new RegExp('^@s(\\d+)(?:\\/(' + SCENE_ELEMENTS.join('|') + '))?$');
+  var SCENE_RE = new RegExp(
+    '^@s(\\d+)(?:\\/(' + SCENE_ELEMENTS.join('|') + ')(?:\\/([A-Za-z0-9_-]+))?)?$'
+  );
   var MANIFEST_RE = /^@manifest:([A-Za-z0-9_-]+)$/;
 
   function parseToken(raw) {
@@ -12,7 +14,7 @@
     if (!s) return null;
     var m = s.match(SCENE_RE);
     if (m) {
-      return { kind: 'scene', scene: 's' + m[1], element: m[2] || null, raw: s };
+      return { kind: 'scene', scene: 's' + m[1], element: m[2] || null, locale: m[3] || null, raw: s };
     }
     m = s.match(MANIFEST_RE);
     if (m) return { kind: 'manifest', item: m[1], raw: s };
@@ -50,7 +52,9 @@
       transition: 'transition out',
     };
     if (!t.element) return 'Scene ' + sceneNum;
-    return 'Scene ' + sceneNum + ' ' + (elemLabels[t.element] || t.element);
+    var label = 'Scene ' + sceneNum + ' ' + (elemLabels[t.element] || t.element);
+    if (t.locale) label += ' [' + t.locale + ']';
+    return label;
   }
 
   function dedupeTokens(rawList) {
@@ -98,14 +102,16 @@
         console.error('FAIL ' + msg + ' expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual));
       }
     }
-    eq(parseToken('@s9'), { kind: 'scene', scene: 's9', element: null, raw: '@s9' }, 'parse scene');
-    eq(parseToken('@s12/visual'), { kind: 'scene', scene: 's12', element: 'visual', raw: '@s12/visual' }, 'parse visual');
-    eq(parseToken('@s9/transition'), { kind: 'scene', scene: 's9', element: 'transition', raw: '@s9/transition' }, 'parse transition');
+    eq(parseToken('@s9'), { kind: 'scene', scene: 's9', element: null, locale: null, raw: '@s9' }, 'parse scene');
+    eq(parseToken('@s12/visual'), { kind: 'scene', scene: 's12', element: 'visual', locale: null, raw: '@s12/visual' }, 'parse visual');
+    eq(parseToken('@s9/transition'), { kind: 'scene', scene: 's9', element: 'transition', locale: null, raw: '@s9/transition' }, 'parse transition');
     eq(parseToken('@manifest:verbatim_3'), { kind: 'manifest', item: 'verbatim_3', raw: '@manifest:verbatim_3' }, 'parse manifest');
     eq(parseToken('@s9/bogus'), null, 'reject unknown element');
     eq(parseToken('garbage'), null, 'reject garbage');
     eq(parseToken(''), null, 'reject empty');
     eq(parseToken(null), null, 'reject null');
+    eq(parseToken('@s5/narration/en'), { kind: 'scene', scene: 's5', element: 'narration', locale: 'en', raw: '@s5/narration/en' }, 'parse narration with locale');
+    eq(parseToken('@s5/narration'), { kind: 'scene', scene: 's5', element: 'narration', locale: null, raw: '@s5/narration' }, 'parse narration without locale');
     eq(parseTokenList('  @s9   @s11/subtitle  ').map(function (t) { return t.raw; }), ['@s9', '@s11/subtitle'], 'parse list');
     eq(parseTokenList('@s9 garbage @manifest:foo').length, 2, 'drop invalid list entries');
     eq(tokenLabel('@s9'), 'Scene 9', 'label scene');
@@ -114,6 +120,7 @@
     eq(tokenLabel('@s5/overlay'), 'Scene 5 overlay text', 'label overlay');
     eq(tokenLabel('@s5/narration'), 'Scene 5 narration', 'label narration');
     eq(tokenLabel('@s5/transition'), 'Scene 5 transition out', 'label transition');
+    eq(tokenLabel('@s5/narration/zh-TW'), 'Scene 5 narration [zh-TW]', 'label narration with locale');
     eq(tokenLabel('@manifest:foo'), 'Manifest: foo', 'label manifest');
     eq(tokenLabel('garbage'), 'garbage', 'label passthrough');
     eq(dedupeTokens(['@s9', '@s9', '@s11/subtitle']), ['@s9', '@s11/subtitle'], 'dedupe');

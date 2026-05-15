@@ -83,8 +83,92 @@ def test_compute_revert_narration_regen():
     )
     assert payload == {
         "verb": "narration regen",
-        "args": {"scene": "s1", "text": "old narration"},
+        "args": {"scene": "s1", "locale": "zh-TW", "text": "old narration"},
     }
+
+
+def test_compute_revert_narration_regen_secondary_locale():
+    sb = Storyboard(
+        primary_locale="zh-TW",
+        scenes=[
+            Scene(
+                id="s1",
+                section="content",
+                narration="old narration",
+                narration_est_sec=1.0,
+                narration_alt={"en": "old en"},
+            )
+        ],
+    )
+    payload = compute_revert_payload(
+        verb="narration regen",
+        args={"scene": "s1", "locale": "en", "text": "new en"},
+        storyboard=sb,
+    )
+    assert payload == {
+        "verb": "narration regen",
+        "args": {"scene": "s1", "locale": "en", "text": "old en"},
+    }
+
+
+def test_apply_narration_edit_primary_locale_writes_narration():
+    from pipeline.dashboard.mutation_runtime import apply_narration_edit
+
+    scene = Scene(
+        id="s1",
+        section="hook",
+        narration="primary",
+        narration_est_sec=5.0,
+        narration_alt={"en": "english"},
+    )
+    apply_narration_edit(scene, "zh-TW", "zh-TW", "new primary")
+    assert scene.narration == "new primary"
+    assert scene.narration_alt["en"] == "english"
+
+
+def test_apply_narration_edit_secondary_locale_writes_alt():
+    from pipeline.dashboard.mutation_runtime import apply_narration_edit
+
+    scene = Scene(
+        id="s1",
+        section="hook",
+        narration="primary",
+        narration_est_sec=5.0,
+        narration_alt={"en": "english"},
+    )
+    apply_narration_edit(scene, "en", "zh-TW", "new english")
+    assert scene.narration == "primary"
+    assert scene.narration_alt["en"] == "new english"
+
+
+def test_apply_narration_regen_secondary_locale_writes_alt(tmp_path: Path):
+    sb = Storyboard(
+        primary_locale="zh-TW",
+        scenes=[
+            Scene(
+                id="s1",
+                section="hook",
+                narration="old narration",
+                narration_est_sec=1.0,
+                narration_alt={"en": "english"},
+            ),
+            Scene(id="s2", section="content", narration="b", narration_est_sec=1.0),
+        ],
+    )
+    project_root = _project_with_sb(tmp_path, sb)
+
+    proposal = MutationProposal(
+        job_id="j1",
+        verb="narration regen",
+        args={"scene": "s1", "locale": "en", "text": "new english"},
+    )
+    result = apply_mutation(proposal, project_root=project_root)
+    assert result.status == "applied"
+
+    reloaded = Storyboard.load(project_root / "storyboard.json")
+    s1 = reloaded.get_scene("s1")
+    assert s1.narration == "old narration"  # primary unchanged
+    assert s1.narration_alt["en"] == "new english"
 
 
 def test_compute_revert_transition_set_inverse_is_clear_when_no_existing():
