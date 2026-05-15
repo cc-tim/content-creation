@@ -60,6 +60,9 @@
       background: #1a1a2e; color: #94a3b8; cursor: pointer; transition: background .1s, color .1s; }
     .btn-variant:hover { background: #1e293b; color: #e2e8f0; }
     .btn-variant.active { background: #1e293b; color: #e2e8f0; border-color: #3b82f6; }
+    .locale-tabs { display:flex; gap:4px; margin:4px 0; }
+    .btn-locale { font-size:11px; padding:3px 10px; border-radius:4px; border:1px solid #2d3748; background:#1e293b; color:#94a3b8; cursor:pointer; }
+    .btn-locale.active { background:#1e3a5f; border-color:#3b82f6; color:#e2e8f0; }
     .scene-strip { display:flex; flex-wrap:wrap; gap:5px; padding:10px 0 6px; min-width:0; }
     .scene-chip { padding:4px 10px; border-radius:4px; font-size:10px; font-family:monospace;
       cursor:pointer; background:#1e1e1e; color:#4a5568; border:1px solid #2d3748;
@@ -481,6 +484,12 @@ function makeDetailRow(p) {
         `<button class="btn-variant${i===0?' active':''}" data-url="${v.url}">${v.label}</button>`
       ).join('')}</div>`
     : '';
+  const locales = p.locales && p.locales.length ? p.locales : [p.locale];
+  const localeTabsHtml = locales.length > 1
+    ? `<div class="locale-tabs">${locales.map((loc, i) =>
+        `<button class="btn-locale${i===0?' active':''}" data-locale="${loc}">${escapeHtml(loc)}</button>`
+      ).join('')}</div>`
+    : '';
   dr.innerHTML = `<td colspan="7"><div class="detail-panel">
     <div class="detail-actions">
       <span class="inflight-host" data-project-host data-project-id="${p.project_id}"></span>
@@ -491,7 +500,9 @@ function makeDetailRow(p) {
       <button class="edit-mode-toggle" type="button" data-project-id="${p.project_id}">Edit mode</button>
     </div>
     ${tabsHtml}
+    ${localeTabsHtml}
     <video controls src="${firstUrl}" data-edit-token="@s1/visual"></video>
+    <audio class="locale-audio" hidden></audio>
     ${p.scenes && p.scenes.length ? buildOutlinePanel(p) : ''}
     ${p.scenes && p.scenes.length ? buildSceneStrip(p) : ''}
     ${renderTransitionAssets(p)}
@@ -644,6 +655,8 @@ function toggleDetail(p) {
   const subPanel = detailRow.querySelector('.scene-subtitle');
   const sourceBtn = detailRow.querySelector('.nse-open-btn');
   const videoEl = detailRow.querySelector('video');
+  let activeLocale = (p.locales && p.locales[0]) || p.locale;
+  const localeAudio = detailRow.querySelector('.locale-audio');
   loadProductionContract(p.project_id, detailRow);
   loadPreviewLoop(p.project_id, detailRow);
 
@@ -652,13 +665,15 @@ function toggleDetail(p) {
     const mm = Math.floor(scene.start_sec / 60);
     const ss = String(Math.floor(scene.start_sec % 60)).padStart(2, '0');
     const stamp = `${scene.id} · ${scene.section} · ${mm}:${ss}`;
-    narHdr.textContent = stamp;
-    narText.textContent = scene.narration;
+    const narMap = scene.narration_by_locale || {};
+    const text = narMap[activeLocale] || scene.narration || '—';
+    narHdr.textContent = `${stamp} · ${activeLocale}`;
+    narText.textContent = text;
     subHdr.textContent = stamp;
     subText.textContent = scene.subtitle || '—';
-    narPanel?.setAttribute('data-edit-token', `@${scene.id}/narration`);
+    narPanel?.setAttribute('data-edit-token', `@${scene.id}/narration/${activeLocale}`);
     subPanel?.setAttribute('data-edit-token', `@${scene.id}/subtitle`);
-    sourceBtn?.setAttribute('data-edit-token', `@${scene.id}/narration`);
+    sourceBtn?.setAttribute('data-edit-token', `@${scene.id}/narration/${activeLocale}`);
     videoEl?.setAttribute('data-edit-token', `@${scene.id}/visual`);
   }
 
@@ -674,6 +689,37 @@ function toggleDetail(p) {
       showSceneNar(0);
     });
   });
+
+  // Active locale state for narration display and audio swap
+  detailRow.querySelectorAll('.btn-locale').forEach(btn => {
+    btn.addEventListener('click', () => {
+      detailRow.querySelectorAll('.btn-locale').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeLocale = btn.dataset.locale;
+      const isPrimary = activeLocale === (p.primary_locale || p.locale);
+      if (isPrimary) {
+        videoEl.muted = false;
+        localeAudio.hidden = true;
+        localeAudio.pause();
+        localeAudio.removeAttribute('src');
+      } else {
+        // Audio-swap: shared video plays muted, locale audio plays in sync.
+        videoEl.muted = true;
+        localeAudio.src = `/output/projects/${encodeURIComponent(p.project_id)}/audio/narration_${encodeURIComponent(activeLocale)}.mp3`;
+        localeAudio.hidden = false;
+        localeAudio.currentTime = videoEl.currentTime;
+        if (!videoEl.paused) localeAudio.play();
+      }
+      // Refresh the currently-shown scene panel in the new locale.
+      const shownIdx = Number(detailRow.querySelector('.scene-chip.sc-active')?.dataset.idx || 0);
+      showSceneNar(shownIdx);
+    });
+  });
+
+  // Keep the swapped audio synced to the video.
+  videoEl.addEventListener('play', () => { if (!localeAudio.hidden) localeAudio.play(); });
+  videoEl.addEventListener('pause', () => { if (!localeAudio.hidden) localeAudio.pause(); });
+  videoEl.addEventListener('seeked', () => { if (!localeAudio.hidden) localeAudio.currentTime = videoEl.currentTime; });
 
   // Wire scene strip
   const vid = detailRow.querySelector('video');
