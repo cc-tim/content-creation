@@ -34,19 +34,22 @@ def classify_tier(verb: str, args: dict[str, Any], storyboard: Storyboard) -> Ti
     if not isinstance(new_text, str):
         return "propose"
 
-    old_text = _existing_text(verb, scene)
+    old_text = _existing_text(verb, scene, args, storyboard.primary_locale)
     if _char_churn_ratio(old_text, new_text) >= _AUTO_APPLY_CHURN_THRESHOLD:
         return "propose"
     return "auto_apply"
 
 
-def _existing_text(verb: str, scene: Scene) -> str:
+def _existing_text(verb: str, scene: Scene, args: dict[str, Any], primary_locale: str) -> str:
     if verb == "subtitle set":
         return scene.subtitle_override if scene.subtitle_override is not None else scene.narration
     if verb == "overlay set":
         return str(scene.overlay.get("text") or "") if isinstance(scene.overlay, dict) else ""
     if verb == "narration regen":
-        return scene.narration
+        locale = args.get("locale") or primary_locale
+        if not isinstance(locale, str):
+            locale = primary_locale
+        return scene.narration_for(locale, primary_locale)
     return ""
 
 

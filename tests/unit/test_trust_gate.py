@@ -76,6 +76,51 @@ def test_narration_regen_small_delta_is_auto_apply():
     assert tier == "auto_apply"
 
 
+def test_narration_regen_secondary_locale_uses_alt_baseline():
+    sb = Storyboard(
+        primary_locale="zh-TW",
+        scenes=[
+            Scene(
+                id="s1",
+                section="content",
+                narration="主要中文敘述內容文字",
+                narration_est_sec=1.0,
+                narration_alt={"en": "Sun beams scatter through the lattice windows."},
+            )
+        ],
+    )
+    tier = classify_tier(
+        "narration regen",
+        {
+            "scene": "s1",
+            "locale": "en",
+            "text": "Sun beams scatter through the lattice window.",
+        },
+        sb,
+    )
+    assert tier == "auto_apply"
+
+
+def test_narration_regen_missing_secondary_locale_treats_baseline_as_empty():
+    sb = Storyboard(
+        primary_locale="zh-TW",
+        scenes=[
+            Scene(
+                id="s1",
+                section="content",
+                narration="主要中文敘述內容",
+                narration_est_sec=1.0,
+            )
+        ],
+    )
+    tier = classify_tier(
+        "narration regen",
+        {"scene": "s1", "locale": "en", "text": "New english text"},
+        sb,
+    )
+    assert tier == "propose"
+
+
 def test_image_regen_is_always_propose():
     sb = _sb_with_scene("s1")
     tier = classify_tier(
