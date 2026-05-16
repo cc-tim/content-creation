@@ -98,7 +98,7 @@
 <div class="meta">
   Open from terminal: <code>xdg-open docs/workflows.html</code>
   &nbsp;·&nbsp;
-  Last updated: 2026-04-28
+  Last updated: 2026-05-16
   &nbsp;·&nbsp;
   Update this file as new components are added
 </div>
@@ -132,7 +132,9 @@ uv run pipeline produce \<br>
 &nbsp;&nbsp;<span class="flag">--voice</span> tim-zhtw \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># optional; auto-selects per locale from voices/registry.json</span><br>
 &nbsp;&nbsp;<span class="flag">--start-from</span> scriptwrite \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># resume from a specific stage (scriptwrite|tts|compose)</span><br>
 &nbsp;&nbsp;<span class="flag">--skip-review</span> \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># bypass human review gate (auto-apply proofread + storytell MINOR fixes)</span><br>
-&nbsp;&nbsp;<span class="flag">--subtitles</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># burn subtitles into final video</span>
+&nbsp;&nbsp;<span class="flag">--subtitles</span> \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># burn subtitles into final video</span><br>
+&nbsp;&nbsp;<span class="flag">--mla --secondary-locale</span> en \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># enable Multi-Language Audio (alt EN track)</span><br>
+&nbsp;&nbsp;<span class="flag">--allow-mla-drift</span> 15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># raise drift gate (seconds); "inf" to disable</span>
 </div>
 
 <h3>Stage Flow + Components</h3>
@@ -264,7 +266,7 @@ flowchart TD
     <tr>
       <td><span class="stage s-scriptwrite">SCRIPTWRITE</span></td>
       <td>Narration authoring</td><td>Claude Sonnet API</td><td>~$0.05/video</td>
-      <td><span class="badge b-new">new</span></td><td>One Claude call per locale; writes <code>scene.narration</code> (primary) and <code>narration_alt[locale]</code> (secondary) from beats</td>
+      <td><span class="badge b-new">new</span></td><td>One Claude call per locale; writes <code>scene.narration</code> (primary) and <code>narration_alt[locale]</code> (secondary) from beats. Secondary-locale prompt includes per-scene length budgets (zh-TW chars × 0.55 = target EN words) so the alt fits the MLA drift gate on first pass.</td>
     </tr>
     <tr>
       <td><span class="stage s-scriptwrite">SCRIPTWRITE</span></td>
@@ -339,6 +341,27 @@ flowchart TD
       <td><span class="stage s-tts">TTS</span></td>
       <td>Voice variant build</td><td><code>pipeline compose voice-variant</code></td><td>TTS cost only</td>
       <td><span class="badge b-new">new</span></td><td>Forks a project with a different voice → <code>{parent_id}_{voice}/</code>; runs TTS+compose; P/D/K prompt at end. <code>promote-voice</code> copies audio back to parent + reburns (no re-render).</td>
+    </tr>
+    <!-- MLA (Phases 1-3) -->
+    <tr>
+      <td><span class="stage s-tts">TTS · MLA</span></td>
+      <td>Secondary-locale pass</td><td><code>TtsStage._run_secondary_tts</code></td><td>—</td>
+      <td><span class="badge b-stable">stable</span></td><td>Enabled by <code>--mla --secondary-locale en</code>; synthesizes <code>narration_alt[locale]</code> to <code>audio/segment_en_NNN.mp3</code> and <code>narration_en.mp3</code></td>
+    </tr>
+    <tr>
+      <td><span class="stage s-tts">TTS · MLA</span></td>
+      <td>Adaptive drift gate</td><td><code>compute_mla_tolerance_ms()</code></td><td>—</td>
+      <td><span class="badge b-new">new</span></td><td>Tolerance = <code>max(2s, 1.5%% × primary_total)</code> (7-min → ±6.3s, 12-min → ±10.8s). Hard-fails if exceeded; override with <code>--allow-mla-drift &lt;seconds&gt;</code> (or <code>inf</code> to disable).</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-tts">TTS · MLA</span></td>
+      <td>Rebalance (gate-fail recovery)</td><td><code>pipeline mla rebalance --apply</code></td><td>~$0.005/run</td>
+      <td><span class="badge b-new">new</span></td><td>Claude Haiku rewrites only offending EN scenes to a word budget calibrated from each scene's observed TTS speech rate, re-synths ONLY the rewritten scenes (unchanged audio stays bit-identical on disk → no oscillation), iterates ≤3× tightening margin each pass. Use <code>--dry-run</code> to preview.</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-tts">TTS · MLA</span></td>
+      <td>Persisted per-scene durations</td><td><code>Scene.narration_durations_ms</code> + <code>narration_text_hashes</code></td><td>—</td>
+      <td><span class="badge b-new">new</span></td><td>After every successful TTS pass, the measured duration + SHA1 of the narration text is stored per locale on each scene. On reload, entries whose text no longer hashes to the stored value are dropped — text edits invalidate stale durations automatically.</td>
     </tr>
     <!-- COMPOSE -->
     <tr>
@@ -437,8 +460,66 @@ output/projects/<span class="dir">{project_id}/</span><br>
     <tr><td>rich_slide footer text hard to read (collides with subtitles)</td><td>Move content from <code>footer</code> field → 3rd bullet with <code>✦</code> prefix. Footer renders small (font 26, muted gray) at bottom of frame where subtitle text also appears.</td><td>--start-from compose</td></tr>
     <tr><td>Bad video composition / subtitles</td><td>compose config or --subtitles flag</td><td>--start-from compose</td></tr>
     <tr><td>Wrong YouTube title/tags</td><td>metadata.json</td><td>pipeline metadata set … then re-publish</td></tr>
+    <tr><td>MLA drift gate failing (EN ↔ zh-TW)</td><td>storyboard.json <code>narration_alt[en]</code></td><td>pipeline mla rebalance --apply</td></tr>
   </tbody>
 </table>
+
+<hr>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<h2>MLA Discipline (Multi-Language Audio)</h2>
+
+<p style="color: var(--muted); margin-bottom: 16px;">
+When a project runs with <code>--mla --secondary-locale en</code>, every scene has a
+<code>narration_alt[en]</code> entry that is synthesized as an alternate audio track on
+YouTube. The alt track must stay aligned (±10%) with the zh-TW primary audio — the
+adaptive MLA drift gate enforces this at the TTS stage.
+</p>
+
+<h3>Length-budget rule</h3>
+
+<div class="cmd">
+target_english_words ≈ zh-TW_char_count × 0.55
+</div>
+
+<p style="color: var(--muted); margin-bottom: 16px;">
+Empirical: Mandarin packs ~1.4× the info per character that English packs per word.
+The 0.55 factor keeps EN TTS audio inside the adaptive tolerance window.
+</p>
+
+<table>
+  <thead><tr><th>Source</th><th>How the rule is enforced</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><span class="stage s-scriptwrite">SCRIPTWRITE</span> initial gen</td>
+      <td>Secondary-locale prompt includes per-scene target word counts when writing <code>narration_alt[en]</code>; alt lands within tolerance on first pass.</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-review">scene-update</span> hand-edits</td>
+      <td>After an approved zh-TW change, the skill regenerates the EN alt to the new budget before re-rendering.</td>
+    </tr>
+    <tr>
+      <td><span class="stage s-tts">mla rebalance</span> fixup</td>
+      <td><code>--dry-run</code> shows offenders + projected drift; <code>--apply</code> rewrites only the offending EN scenes and re-synths just those scenes' audio.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Adaptive drift gate</h3>
+
+<p style="color: var(--muted); margin-bottom: 16px;">
+Gate tolerance is <code>max(2s, 1.5% × primary_total_ms)</code> — 7-min video → ±6.3s,
+12-min → ±10.8s. Override on <code>pipeline produce</code> with
+<code>--allow-mla-drift &lt;seconds&gt;</code> (or <code>inf</code> to effectively
+disable for a one-off render).
+</p>
+
+<p style="color: var(--muted); margin-bottom: 16px;">
+<strong>Prefer fixing the underlying length budget over disabling the gate.</strong>
+<code>pipeline mla rebalance --apply</code> resolves drift in seconds without a full
+TTS+compose re-render — it re-synthesizes only the scenes Haiku rewrote, leaving
+unchanged scene audio bit-identical on disk so iterations are deterministic.
+</p>
 
 <hr>
 
