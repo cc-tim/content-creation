@@ -691,12 +691,12 @@ async function loadTimelineThumbnails(projectId, detailRow) {
     (data.scenes || []).forEach(item => {
       const img = detailRow.querySelector(`.timeline-seg-thumb[data-scene-id="${item.id}"]`);
       if (img && item.url) {
-        img.src = `${item.url}?t=${Date.now()}`;
+        img.src = item.url;
         img.style.display = 'block';
         img.onerror = () => { img.style.display = 'none'; };
       }
     });
-  } catch (_) {}
+  } catch (err) { console.warn('[timeline thumbnails]', err); }
 }
 
 const _SECTION_ORDER_KEY = 'dashboard-section-order-v1';
@@ -711,10 +711,13 @@ function initSectionDrag(container) {
     let saved;
     try { saved = JSON.parse(localStorage.getItem(_SECTION_ORDER_KEY) || '[]'); } catch (_) { return; }
     if (!Array.isArray(saved) || !saved.length) return;
+    const all = [...container.querySelectorAll(':scope > .dash-section')];
+    const unsaved = all.filter(el => !saved.includes(el.dataset.sid));
     saved.forEach(sid => {
       const el = container.querySelector(`:scope > .dash-section[data-sid="${sid}"]`);
       if (el) container.appendChild(el);
     });
+    unsaved.forEach(el => container.appendChild(el));
   }
 
   let dragSrc = null;
