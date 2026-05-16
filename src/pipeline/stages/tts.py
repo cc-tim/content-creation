@@ -351,7 +351,13 @@ class TtsStage(PipelineStage):
 
         # Duration checks — compare against primary segment_timings.
         primary_timings = ctx.segment_timings or []
-        _check_secondary_durations(primary_timings, sec_timings, ctx.locale, ctx.secondary_locale)  # type: ignore[arg-type]
+        _check_secondary_durations(
+            primary_timings,
+            sec_timings,
+            ctx.locale,
+            ctx.secondary_locale,  # type: ignore[arg-type]
+            tolerance_ms_override=ctx.mla_drift_tolerance_ms,
+        )
 
         logger.info(
             "tts.secondary.complete",
@@ -680,13 +686,28 @@ def _concatenate_audio(paths: list[Path], output: Path) -> None:
             out.write(p.read_bytes())
 
 
+def compute_mla_tolerance_ms(
+    total_primary_ms: int, override_ms: int | None = None
+) -> int:
+    """Adaptive MLA drift tolerance.
+
+    Default: max(2000 ms, 1.5% of primary total). 7-min video → ~6.3s; 12-min → ~10.8s.
+    Override: explicit positive int short-circuits the default.
+    """
+    if override_ms is not None and override_ms > 0:
+        return int(override_ms)
+    return max(2000, int(total_primary_ms * 0.015))
+
+
 def _check_secondary_durations(
     primary_timings: list[dict[str, Any]],
     secondary_timings: list[dict[str, Any]],
     primary_locale: str,
     secondary_locale: str,
+    tolerance_ms_override: int | None = None,
 ) -> None:
-    """Warn per scene if EN duration exceeds primary × 1.15; hard-fail if total deviation > ±2s.
+    """Warn per scene if EN duration exceeds primary × 1.15; hard-fail if total deviation
+    exceeds adaptive tolerance (or the explicit override when provided).
 
     Skipped segments (narration_alt entry absent or empty) are excluded from both checks.
     """
@@ -716,11 +737,14 @@ def _check_secondary_durations(
                 ratio=round(sec_dur / pri_dur, 3),
             )
 
-    # Hard-fail if total deviation exceeds ±2s.
+    tolerance_ms = compute_mla_tolerance_ms(total_primary_ms, tolerance_ms_override)
     deviation_ms = abs(total_secondary_ms - total_primary_ms)
-    if deviation_ms > 2000:
+    if deviation_ms > tolerance_ms:
         raise ValueError(
             f"Secondary TTS ({secondary_locale}) total duration deviates from primary "
-            f"({primary_locale}) by {deviation_ms / 1000:.2f}s — exceeds ±2s limit. "
-            f"primary={total_primary_ms}ms secondary={total_secondary_ms}ms"
+            f"({primary_locale}) by {deviation_ms / 1000:.2f}s — exceeds "
+            f"±{tolerance_ms / 1000:.2f}s tolerance. "
+            f"primary={total_primary_ms}ms secondary={total_secondary_ms}ms. "
+            f"Try `pipeline mla rebalance --project-id <ID>` or set "
+            f"ctx.mla_drift_tolerance_ms / pass --allow-mla-drift to override."
         )

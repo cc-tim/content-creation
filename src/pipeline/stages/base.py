@@ -53,6 +53,9 @@ class PipelineContext:
     secondary_narration_path: Path | None = None
     secondary_subtitle_path: Path | None = None
     captions_uploaded: dict[str, str] = field(default_factory=dict)
+    # MLA drift gate override. None → adaptive max(2000ms, 1.5% × primary total).
+    # Set to a positive int to override (e.g. 30000 to effectively disable).
+    mla_drift_tolerance_ms: int | None = None
 
     # Stage 6: Publish
     youtube_video_id: str | None = None

@@ -117,6 +117,12 @@ def produce(
         "--max-duration",
         help="Maximum video duration in minutes (stored in constraints.json)",
     ),
+    allow_mla_drift: float | None = typer.Option(
+        None,
+        "--allow-mla-drift",
+        help="Override MLA drift gate. Pass seconds (e.g. 8) to raise tolerance, "
+        "or 'inf' to disable the gate. Default: adaptive max(2s, 1.5%% of primary).",
+    ),
 ) -> None:
     """Run the full production pipeline for a video or web article."""
     config = PipelineConfig()
@@ -170,6 +176,8 @@ def produce(
             ctx.mla = True
         if secondary_locale is not None:
             ctx.secondary_locale = secondary_locale
+        if allow_mla_drift is not None:
+            ctx.mla_drift_tolerance_ms = int(allow_mla_drift * 1000)
     else:
         ctx = PipelineContext(
             project_id=project_id,
@@ -184,6 +192,9 @@ def produce(
             source_locale=source_locale,
             reference_storyboard_path=(
                 Path(reference_storyboard) if reference_storyboard else None
+            ),
+            mla_drift_tolerance_ms=(
+                int(allow_mla_drift * 1000) if allow_mla_drift is not None else None
             ),
         )
 
