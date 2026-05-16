@@ -560,6 +560,52 @@ function makeDetailRow(p) {
         `<button class="btn-locale${i===0?' active':''}" data-locale="${loc}">${escapeHtml(loc)}</button>`
       ).join('')}</div>`
     : '';
+
+  function sec(id, content) {
+    if (!content) return '';
+    return `<div class="dash-section" data-sid="${id}" draggable="true">
+      <span class="dash-section-handle" title="Drag to reorder">⠿</span>${content}
+    </div>`;
+  }
+
+  const transitionAssetsHtml = renderTransitionAssets(p);
+
+  const sessionsHtml = p.session_logs && p.session_logs.length
+    ? `<div style="grid-column:1/-1;margin-top:4px"><span class="lbl">Sessions: </span>${
+        p.session_logs.map(s => {
+          const color = s.outcome === 'failed' ? '#ef4444' : '#6366f1';
+          const tip = [s.session_id, s.command, s.summary, s.timestamp].filter(Boolean).join(' | ');
+          const label = /^[0-9a-f]{8}-/.test(s.session_id) ? s.session_id.slice(0, 8) : s.session_id;
+          return `<span style="font-family:monospace;font-size:11px;color:${color};margin-right:12px;cursor:default" title="${tip}">${label}</span>`;
+        }).join('')
+      }</div>`
+    : '';
+
+  const metaHtml = `<div class="meta-grid">
+    <div><span class="lbl">Project ID: </span><span style="font-family:monospace;color:#94a3b8">${p.project_id}</span></div>
+    <div><span class="lbl">Locale: </span>${p.locale}${p.niche ? ' · '+p.niche : ''}</div>
+    <div><span class="lbl">Title: </span>${p.title || '—'}</div>
+    <div><span class="lbl">Published: </span>${fmtDate(p.published_at)}</div>
+    <div><span class="lbl">YouTube: </span>${p.youtube_video_id
+      ? `<a class="yt" href="https://www.youtube.com/watch?v=${p.youtube_video_id}" target="_blank">${p.youtube_video_id} ↗</a>`
+      : '—'}</div>
+    <div><span class="lbl">Source: </span>${srcId
+      ? `<a href="https://www.youtube.com/watch?v=${srcId}" target="_blank">${srcId} ↗</a>`
+      : '—'}</div>
+    <div style="grid-column:1/-1"><span class="lbl">Tags: </span><span style="color:#475569">${tags || '—'}</span></div>
+    ${sessionsHtml}
+    <div class="recent-mutations" style="grid-column:1/-1" data-project-id="${p.project_id}"></div>
+  </div>`;
+
+  const contractHtml = `<div class="contract-panel" data-contract-project-id="${p.project_id}" style="padding-top:8px">
+    <div class="contract-title">Production Contract</div>
+    <div class="contract-grid">
+      ${(p.render_freshness && p.render_freshness.warnings || []).map(w =>
+        `<div class="contract-item missing"><div class="ci-label">Render freshness</div><div class="ci-detail">${w}</div></div>`
+      ).join('') || '<div class="contract-item partial"><div class="ci-label">Production contract</div><div class="ci-detail">Loading checks...</div></div>'}
+    </div>
+  </div>`;
+
   dr.innerHTML = `<td colspan="7"><div class="detail-panel">
     <div class="detail-actions">
       <span class="inflight-host" data-project-host data-project-id="${p.project_id}"></span>
@@ -573,45 +619,13 @@ function makeDetailRow(p) {
     ${localeTabsHtml}
     <video controls src="${firstUrl}" data-edit-token="@s1/visual"></video>
     <audio class="locale-audio" hidden></audio>
-    ${p.scenes && p.scenes.length ? buildOutlinePanel(p) : ''}
-    ${p.scenes && p.scenes.length ? buildSceneStrip(p) : ''}
-    ${renderTransitionAssets(p)}
-    <div class="meta-grid">
-      <div class="contract-panel" data-contract-project-id="${p.project_id}">
-        <div class="contract-title">Production Contract</div>
-        <div class="contract-grid">
-          ${(p.render_freshness && p.render_freshness.warnings || []).map(w =>
-            `<div class="contract-item missing"><div class="ci-label">Render freshness</div><div class="ci-detail">${w}</div></div>`
-          ).join('') || '<div class="contract-item partial"><div class="ci-label">Production contract</div><div class="ci-detail">Loading checks...</div></div>'}
-        </div>
-      </div>
-      <div class="preview-loop" data-preview-project-id="${p.project_id}">
-        <div class="preview-title">Preview Loop</div>
-        <div class="preview-empty">Loading previews...</div>
-      </div>
-      <div><span class="lbl">Project ID: </span><span style="font-family:monospace;color:#94a3b8">${p.project_id}</span></div>
-      <div><span class="lbl">Locale: </span>${p.locale}${p.niche ? ' · '+p.niche : ''}</div>
-      <div><span class="lbl">Title: </span>${p.title || '—'}</div>
-      <div><span class="lbl">Published: </span>${fmtDate(p.published_at)}</div>
-      <div><span class="lbl">YouTube: </span>${p.youtube_video_id
-        ? `<a class="yt" href="https://www.youtube.com/watch?v=${p.youtube_video_id}" target="_blank">${p.youtube_video_id} ↗</a>`
-        : '—'}</div>
-      <div><span class="lbl">Source: </span>${srcId
-        ? `<a href="https://www.youtube.com/watch?v=${srcId}" target="_blank">${srcId} ↗</a>`
-        : '—'}</div>
-      <div style="grid-column:1/-1"><span class="lbl">Tags: </span><span style="color:#475569">${tags || '—'}</span></div>
-      ${p.session_logs && p.session_logs.length
-        ? `<div style="grid-column:1/-1;margin-top:4px"><span class="lbl">Sessions: </span>${
-            p.session_logs.map(s => {
-              const color = s.outcome === 'failed' ? '#ef4444' : '#6366f1';
-              const tip = [s.session_id, s.command, s.summary, s.timestamp].filter(Boolean).join(' | ');
-              // UUID (36 chars with dashes) → show first 8 chars; timestamp IDs show in full
-              const label = /^[0-9a-f]{8}-/.test(s.session_id) ? s.session_id.slice(0, 8) : s.session_id;
-              return `<span style="font-family:monospace;font-size:11px;color:${color};margin-right:12px;cursor:default" title="${tip}">${label}</span>`;
-            }).join('')
-          }</div>`
-        : ''}
-      <div class="recent-mutations" data-project-id="${p.project_id}"></div>
+    <div class="dash-sections">
+      ${p.scenes && p.scenes.length ? sec('outline', buildOutlinePanel(p)) : ''}
+      ${p.scenes && p.scenes.length ? sec('scene-strip', buildSceneStrip(p)) : ''}
+      ${p.scenes && p.scenes.length ? sec('timeline', buildTimelinePanel(p)) : ''}
+      ${transitionAssetsHtml ? sec('transition-assets', transitionAssetsHtml) : ''}
+      ${sec('contract', contractHtml)}
+      ${sec('meta', metaHtml)}
     </div>
   </div></td>`;
   return dr;
@@ -820,7 +834,9 @@ function toggleDetail(p) {
     localeAudio.hidden = true;
   });
   loadProductionContract(p.project_id, detailRow);
-  loadPreviewLoop(p.project_id, detailRow);
+  loadTimelineThumbnails(p.project_id, detailRow);
+  const sectionsContainer = detailRow.querySelector('.dash-sections');
+  if (sectionsContainer) initSectionDrag(sectionsContainer);
 
   function showSceneNar(idx) {
     const scene = p.scenes[idx];
