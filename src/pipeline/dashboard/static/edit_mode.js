@@ -74,7 +74,8 @@
     var token = match.getAttribute('data-edit-token');
     if (!token) return;
     if (window.EditComposer && activeProjectId) {
-      window.EditComposer.openEditPopup(token, true);
+      var currentValue = match.getAttribute('data-current-value') || '';
+      window.EditComposer.openEditPopup(token, true, currentValue);
       ev.preventDefault();
       ev.stopPropagation();
     }

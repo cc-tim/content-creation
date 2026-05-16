@@ -94,9 +94,9 @@
     state.editingToken = null;
   }
 
-  function openEditPopup(token, isNew) {
+  function openEditPopup(token, isNew, currentValue) {
     state.editingToken = token;
-    var instruction = state.wrapperChips[token] || '';
+    var instruction = state.wrapperChips[token] || currentValue || '';
     var overlay = document.createElement('div');
     overlay.className = 'ec-edit-overlay';
     var popupLabel = window.EditTokens ? window.EditTokens.tokenLabel(token) : token;

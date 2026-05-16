@@ -460,7 +460,7 @@ function buildOutlinePanel(project) {
         <span class="outline-id">${s.id}</span>
         <span class="outline-dur">${Math.round(s.duration_sec || 0)}s</span>
         <span class="outline-vtype">${vtype}</span>
-        <span class="outline-beat" data-edit-token="@${s.id}/beat" title="Click in edit mode to set beat instruction">${beat}</span>
+        <span class="outline-beat" data-edit-token="@${s.id}/beat" data-current-value="${escapeHtml(s.beat || '')}" title="Click in edit mode to set beat instruction">${beat}</span>
       </div>`;
     }).join('');
     return `<div class="outline-band">

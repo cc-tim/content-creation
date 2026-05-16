@@ -99,7 +99,8 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
                 alt = sc.get("narration_alt", {})
                 if isinstance(alt, dict):
                     locale_set.update(alt.keys())
-        project_locales = sorted(locale_set)
+        rest = sorted(locale_set - {primary_locale})
+        project_locales = ([primary_locale] + rest) if primary_locale else rest
 
         scenes_file = project_dir / "compose" / "scenes.json"
         if scenes_file.exists():
