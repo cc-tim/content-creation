@@ -248,11 +248,21 @@ def _draw_calligraphy_texture(canvas: Image.Image, spec: BookSceneSpec) -> None:
     for region_idx, (x0, y0, x1, y1) in enumerate(regions):
         col_gap = max(14, int(spec.width * 0.018))
         row_gap = max(16, int(spec.height * 0.028))
-        for col_idx, x in enumerate(range(x0, x1, col_gap)):
+        for col_idx, x_base in enumerate(range(x0, x1, col_gap)):
             if col_idx % 5 == 4:
                 continue
-            for row_idx, y in enumerate(range(y0, y1, row_gap)):
+            col_seed = (region_idx + 1) * 97 + col_idx * 17
+            # Column-level drift: each column sways from the ideal grid position
+            col_drift_x = int((col_seed % 7 - 3) * col_gap * 0.12)
+            col_drift_y = int((col_seed % 5 - 2) * row_gap * 0.20)
+            x_col = x_base + col_drift_x
+            for row_idx, y_base in enumerate(range(y0, y1, row_gap)):
                 seed = (region_idx + 1) * 97 + col_idx * 17 + row_idx * 11
+                # Per-character jitter breaks the rigid row grid
+                jitter_x = int((seed % 5 - 2) * col_gap * 0.08)
+                jitter_y = int((seed % 7 - 3) * row_gap * 0.12)
+                x = x_col + jitter_x
+                y = y_base + col_drift_y + jitter_y
                 length = max(9, int(col_gap * (0.50 + (seed % 5) * 0.08)))
                 height = max(7, int(row_gap * (0.38 + (seed % 4) * 0.07)))
                 alpha = 25 + seed % 32
