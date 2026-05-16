@@ -154,6 +154,35 @@
     .outline-beat { color:#e2e8f0; }
     body.edit-mode-on .outline-beat { cursor:pointer; border-bottom:1px dashed #3b82f6; }
     body.edit-mode-on .outline-beat:hover { color:#93c5fd; }
+
+    /* ── Draggable section wrappers ── */
+    .dash-sections { display: flex; flex-direction: column; gap: 0; }
+    .dash-section { border: 1px solid transparent; border-radius: 4px; transition: border-color .15s; }
+    .dash-section.drag-over { border-color: #3b82f6; background: #1e3a5f22; }
+    .dash-section.dragging { opacity: .4; }
+    .dash-section-handle { display: inline-block; cursor: grab; color: #2d3748; padding: 0 6px 0 0;
+      font-size: 14px; user-select: none; vertical-align: middle; transition: color .1s; }
+    .dash-section-handle:hover { color: #64748b; }
+    .dash-section-handle:active { cursor: grabbing; }
+
+    /* ── Scene Timeline ── */
+    .timeline-wrap { padding: 8px 0 4px; }
+    .timeline-hdr { font-size: 11px; color: #cbd5e1; font-weight: 600; margin-bottom: 6px; }
+    .timeline-rail { position: relative; display: flex; height: 76px; border: 1px solid #1e293b;
+      border-radius: 4px; overflow: hidden; background: #0a0f1a; cursor: pointer; }
+    .timeline-seg { position: relative; overflow: hidden; flex-shrink: 0; border-right: 1px solid #0a0f1a;
+      transition: filter .1s; }
+    .timeline-seg:hover { filter: brightness(1.2); }
+    .timeline-seg-thumb { position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; opacity: .72; display: none; }
+    .timeline-seg-id { position: absolute; top: 3px; left: 4px; font-family: monospace;
+      font-size: 9px; color: #e2e8f0; text-shadow: 0 1px 2px rgba(0,0,0,.9); z-index: 2;
+      pointer-events: none; }
+    .timeline-seg-type { position: absolute; bottom: 3px; left: 4px; font-size: 8px; color: #94a3b8;
+      text-shadow: 0 1px 2px rgba(0,0,0,.9); z-index: 2; text-transform: uppercase;
+      letter-spacing: .04em; pointer-events: none; }
+    .timeline-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,.85);
+      pointer-events: none; z-index: 10; transition: left .1s linear; }
   </style>
 </head>
 <body>
