@@ -11,6 +11,7 @@ from pipeline.cli_compose import compose_app
 from pipeline.cli_image import image_app
 from pipeline.cli_image_alignment import image_alignment_app
 from pipeline.cli_metadata import metadata_app
+from pipeline.cli_mla import mla_app
 from pipeline.cli_mutate import mutate_app
 from pipeline.cli_narration import narration_app
 from pipeline.cli_overlay import overlay_app
@@ -55,6 +56,7 @@ app.add_typer(transition_app, name="transition")
 app.add_typer(subtitle_app, name="subtitle")
 app.add_typer(overlay_app, name="overlay")
 app.add_typer(image_app, name="image")
+app.add_typer(mla_app, name="mla")
 app.add_typer(mutate_app, name="mutate")
 
 

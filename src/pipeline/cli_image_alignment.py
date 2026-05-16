@@ -19,7 +19,6 @@ Usage:
 from __future__ import annotations
 
 import base64
-import os
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -31,6 +30,7 @@ from rich.console import Console
 from rich.table import Table
 
 from pipeline.config import PipelineConfig
+from pipeline.utils.anthropic_key import get_anthropic_api_key
 
 image_alignment_app = typer.Typer(help="Pre-TTS narration↔image alignment check.")
 _console = Console()
@@ -84,18 +84,6 @@ If every scene's narration is consistent with its image, output only: OK
 """
 
 
-def _get_api_key() -> str:
-    key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("PIPELINE_ANTHROPIC_API_KEY")
-    if not key:
-        env_path = Path(".env")
-        if env_path.exists():
-            for line in env_path.read_text().splitlines():
-                if line.startswith("PIPELINE_ANTHROPIC_API_KEY="):
-                    key = line.split("=", 1)[1].strip()
-                    break
-    if not key:
-        raise RuntimeError("No ANTHROPIC_API_KEY. Set PIPELINE_ANTHROPIC_API_KEY in .env.")
-    return key
 
 
 def _is_valid_image(p: Path) -> bool:
@@ -224,7 +212,7 @@ def check_alignment(work_dir: Path) -> list[dict]:
     if not items:
         return []
 
-    client = anthropic.Anthropic(api_key=_get_api_key())
+    client = anthropic.Anthropic(api_key=get_anthropic_api_key())
     msg = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=2000,
