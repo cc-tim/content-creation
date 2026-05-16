@@ -906,12 +906,18 @@ function toggleDetail(p) {
     showSceneNar(0);
 
     let activeSc = -1;
+    const totalTimelineDur = p.scenes.reduce((sum, s) => sum + (s.duration_sec || 0), 0) || 1;
+
     vid.addEventListener('timeupdate', () => {
       const t = vid.currentTime;
       let idx = 0;
       for (let i = 0; i < p.scenes.length; i++) {
         if (t >= p.scenes[i].start_sec) idx = i;
       }
+      // Update timeline playhead (always, not gated on idx change)
+      const playhead = detailRow.querySelector('.timeline-playhead');
+      if (playhead) playhead.style.left = Math.min(100, t / totalTimelineDur * 100).toFixed(2) + '%';
+
       if (idx === activeSc) return;
       activeSc = idx;
       const chips = strip.querySelectorAll('.scene-chip');
@@ -935,6 +941,15 @@ function toggleDetail(p) {
       });
       showSceneNar(idx);
     });
+
+    const rail = detailRow.querySelector('.timeline-rail');
+    if (rail && p.scenes && p.scenes.length) {
+      rail.addEventListener('click', e => {
+        const seg = e.target.closest('.timeline-seg');
+        if (!seg) return;
+        vid.currentTime = parseFloat(seg.dataset.start);
+      });
+    }
 
     detailRow.querySelector('.outline-panel')?.addEventListener('click', e => {
       const row = e.target.closest('.outline-row');
