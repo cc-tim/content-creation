@@ -562,8 +562,8 @@ function makeDetailRow(p) {
 
   function sec(id, content) {
     if (!content) return '';
-    return `<div class="dash-section" data-sid="${id}" draggable="true">
-      <span class="dash-section-handle" title="Drag to reorder">⠿</span>${content}
+    return `<div class="dash-section" data-sid="${id}">
+      <span class="dash-section-handle" draggable="true" title="Drag to reorder">⠿</span>${content}
     </div>`;
   }
 
@@ -742,8 +742,10 @@ function initSectionDrag(container) {
     dragSrc = handle.closest('.dash-section');
     if (!dragSrc) return;
     dragSrc.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', dragSrc.dataset.sid);
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragSrc.dataset.sid);
+    }
   });
 
   container.addEventListener('dragover', e => {
