@@ -95,7 +95,6 @@
     .contract-item.satisfied { border-color:#14532d; background:#052e1622; }
     .contract-item.partial { border-color:#a16207; background:#451a0322; }
     .contract-item.missing { border-color:#991b1b; background:#450a0a22; }
-    .preview-loop { grid-column:1/-1; border-top:1px solid #1e293b; margin-top:8px; padding-top:10px; }
     .preview-title { font-size:11px; color:#cbd5e1; font-weight:600; margin-bottom:6px; }
     .preview-section { margin-top:8px; }
     .preview-section-label { font-size:10px; color:#64748b; margin-bottom:4px; text-transform:uppercase; letter-spacing:.06em; }
@@ -594,7 +593,7 @@ function makeDetailRow(p) {
       : '—'}</div>
     <div style="grid-column:1/-1"><span class="lbl">Tags: </span><span style="color:#475569">${tags || '—'}</span></div>
     ${sessionsHtml}
-    <div class="recent-mutations" style="grid-column:1/-1" data-project-id="${p.project_id}"></div>
+    <div class="recent-mutations" data-project-id="${p.project_id}"></div>
   </div>`;
 
   const contractHtml = `<div class="contract-panel" data-contract-project-id="${p.project_id}" style="padding-top:8px">
@@ -664,6 +663,7 @@ async function loadProductionContract(projectId, row) {
   }
 }
 
+// UNUSED: replaced by loadTimelineThumbnails + buildTimelinePanel
 async function loadPreviewLoop(projectId, row) {
   const panel = row.querySelector(`[data-preview-project-id="${projectId}"]`);
   if (!panel) return;
