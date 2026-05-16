@@ -294,6 +294,17 @@ class TtsStage(PipelineStage):
         ctx.subtitle_path = subtitle_path
         ctx.segment_timings = segment_timings
 
+        # Persist primary durations + text hashes so the next run can detect
+        # stale durations (after a text edit) and skip re-measuring otherwise.
+        if ctx.storyboard_path and ctx.storyboard_path.exists():
+            from pipeline.storyboard import Storyboard
+
+            sb_for_persist = Storyboard.load(ctx.storyboard_path)
+            _persist_measured_durations(
+                sb_for_persist, segment_timings, ctx.locale,
+            )
+            sb_for_persist.save(ctx.storyboard_path)
+
         logger.info("tts.complete", segments=len(segments), path=str(narration_path))
 
         # --- Secondary (MLA) pass ---
@@ -348,6 +359,12 @@ class TtsStage(PipelineStage):
 
         ctx.secondary_narration_path = sec_narration_path
         ctx.secondary_subtitle_path = sec_subtitle_path
+
+        # Persist secondary durations + text hashes. The storyboard was already
+        # loaded for synth; re-load to pick up any writeback from primary, then
+        # add the secondary measurements and save.
+        _persist_measured_durations(storyboard, sec_timings, sec_locale)
+        storyboard.save(ctx.storyboard_path)
 
         # Duration checks — compare against primary segment_timings.
         primary_timings = ctx.segment_timings or []
@@ -684,6 +701,29 @@ def _concatenate_audio(paths: list[Path], output: Path) -> None:
     with open(output, "wb") as out:
         for p in paths:
             out.write(p.read_bytes())
+
+
+def _persist_measured_durations(
+    storyboard: Storyboard,
+    timings: list[dict[str, Any]],
+    locale: str,
+) -> None:
+    """Write back measured durations for each scene that has audio this run.
+
+    Skipped scenes (empty narration or missing alt) are left alone so prior
+    runs' persisted durations aren't dropped just because this locale didn't
+    synthesize for them.
+    """
+    for i, scene in enumerate(storyboard.scenes):
+        if i >= len(timings):
+            break
+        t = timings[i]
+        if t.get("skipped"):
+            continue
+        duration_ms = int(t.get("duration_ms") or 0)
+        if duration_ms <= 0:
+            continue
+        scene.record_measured_duration(locale, duration_ms)
 
 
 def compute_mla_tolerance_ms(

@@ -286,3 +286,72 @@ def test_derive_script_secondary_locale():
     script = _sb().derive_script(locale="en")
     assert "primary one" in script and "primary two" in script
     assert "主要一" not in script
+
+
+# ── Persisted per-scene durations (Phase 3) ──────────────────────────────────
+
+
+def test_record_measured_duration_persists_to_dict():
+    scene = Scene(id="s1", section="hook", narration="主要文字",
+                  narration_est_sec=5.0, narration_alt={"en": "primary text"})
+    scene.record_measured_duration("zh-TW", 11_337)
+    scene.record_measured_duration("en", 13_080)
+    out = scene.to_dict()
+    assert out["narration_durations_ms"] == {"zh-TW": 11_337, "en": 13_080}
+    assert set(out["narration_text_hashes"].keys()) == {"zh-TW", "en"}
+    assert out["narration_text_hashes"]["zh-TW"] != out["narration_text_hashes"]["en"]
+
+
+def test_persisted_durations_survive_round_trip_when_text_unchanged():
+    scene = Scene(id="s1", section="hook", narration="主要文字",
+                  narration_est_sec=5.0, narration_alt={"en": "primary text"})
+    scene.record_measured_duration("zh-TW", 11_337)
+    scene.record_measured_duration("en", 13_080)
+    reloaded = Scene.from_dict(scene.to_dict())
+    assert reloaded.narration_durations_ms == {"zh-TW": 11_337, "en": 13_080}
+
+
+def test_persisted_durations_dropped_when_primary_text_edited():
+    """Editing scene.narration must invalidate the zh-TW duration entry only."""
+    scene = Scene(id="s1", section="hook", narration="原本的文字",
+                  narration_est_sec=5.0, narration_alt={"en": "english"})
+    scene.record_measured_duration("zh-TW", 11_337)
+    scene.record_measured_duration("en", 13_080)
+
+    data = scene.to_dict()
+    data["narration"] = "改寫之後的文字"
+    reloaded = Scene.from_dict(data)
+
+    # zh-TW entry is stale (text changed) — dropped.
+    # en entry's text was untouched, so it stays.
+    assert reloaded.narration_durations_ms == {"en": 13_080}
+    assert reloaded.narration_text_hashes.keys() == {"en"}
+
+
+def test_persisted_durations_dropped_when_alt_text_edited():
+    """Editing narration_alt[en] must invalidate the en entry only."""
+    scene = Scene(id="s1", section="hook", narration="主要",
+                  narration_est_sec=5.0, narration_alt={"en": "english one"})
+    scene.record_measured_duration("zh-TW", 5_000)
+    scene.record_measured_duration("en", 6_000)
+
+    data = scene.to_dict()
+    data["narration_alt"]["en"] = "totally different english"
+    reloaded = Scene.from_dict(data)
+
+    assert reloaded.narration_durations_ms == {"zh-TW": 5_000}
+    assert reloaded.narration_text_hashes.keys() == {"zh-TW"}
+
+
+def test_scene_without_persisted_fields_round_trips_cleanly():
+    """Existing storyboards (no durations/hashes) load and re-save without changes."""
+    data = {
+        "id": "s1", "section": "hook", "beat": "b", "narration": "text",
+        "narration_est_sec": 5.0,
+    }
+    scene = Scene.from_dict(data)
+    assert scene.narration_durations_ms == {}
+    assert scene.narration_text_hashes == {}
+    # And to_dict omits the empty fields (no JSON bloat for projects that don't use this).
+    assert "narration_durations_ms" not in scene.to_dict()
+    assert "narration_text_hashes" not in scene.to_dict()

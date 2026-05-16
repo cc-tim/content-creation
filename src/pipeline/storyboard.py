@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+
+def _hash_narration(text: str) -> str:
+    """Stable, short hash used to invalidate persisted durations on text edits."""
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()[:12]
 
 
 @dataclass
@@ -152,6 +158,10 @@ class Scene:
     compartment: dict[str, Any] | None = None
     narration_source: NarrationSource | None = None
     subtitle_override: str | None = None
+    # Measured audio durations per locale, written back after successful TTS.
+    # Stale entries (text-hash mismatch) are dropped on load — see from_dict.
+    narration_durations_ms: dict[str, int] = field(default_factory=dict)
+    narration_text_hashes: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Scene:
@@ -162,10 +172,24 @@ class Scene:
         old_en = data.get("narration_en")
         if old_en is not None and "en" not in narration_alt:
             narration_alt["en"] = old_en
+
+        # Persisted per-locale durations and the text hashes they were measured against.
+        # On load, drop any entry whose locale text no longer hashes to the stored value:
+        # the audio was measured against different text and is no longer canonical.
+        narration_durations_ms = dict(data.get("narration_durations_ms", {}))
+        narration_text_hashes = dict(data.get("narration_text_hashes", {}))
+        # Primary locale's text lives in `narration`; alt locales live in `narration_alt`.
+        primary_text = data["narration"]
+        for locale in list(narration_text_hashes.keys()):
+            current_text = narration_alt.get(locale, primary_text)
+            if _hash_narration(current_text) != narration_text_hashes[locale]:
+                narration_durations_ms.pop(locale, None)
+                narration_text_hashes.pop(locale, None)
+
         return cls(
             id=data["id"],
             section=data["section"],
-            narration=data["narration"],
+            narration=primary_text,
             narration_est_sec=data["narration_est_sec"],
             beat=data.get("beat", ""),
             narration_alt=narration_alt,
@@ -176,6 +200,8 @@ class Scene:
             compartment=data.get("compartment"),
             narration_source=narration_source,
             subtitle_override=data.get("subtitle_override"),
+            narration_durations_ms=narration_durations_ms,
+            narration_text_hashes=narration_text_hashes,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -198,7 +224,21 @@ class Scene:
             out["narration_source"] = self.narration_source.to_dict()
         if self.subtitle_override is not None:
             out["subtitle_override"] = self.subtitle_override
+        if self.narration_durations_ms:
+            out["narration_durations_ms"] = self.narration_durations_ms
+        if self.narration_text_hashes:
+            out["narration_text_hashes"] = self.narration_text_hashes
         return out
+
+    def record_measured_duration(self, locale: str, duration_ms: int) -> None:
+        """Persist a freshly measured audio duration for `locale`.
+
+        Stores both the duration and the SHA-1 of the narration text it was
+        measured against, so a later text edit invalidates this entry on reload.
+        """
+        text = self.narration_alt.get(locale, self.narration)
+        self.narration_durations_ms[locale] = int(duration_ms)
+        self.narration_text_hashes[locale] = _hash_narration(text)
 
     def narration_for(self, locale: str, primary_locale: str) -> str:
         """Return the narration text for a locale; '' if that locale is absent."""
