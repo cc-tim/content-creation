@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -93,6 +95,18 @@ def build_project_preview_manifest(project_root: Path) -> dict[str, list[dict[st
     scenes_dir = project_root / "compose" / "scenes"
     previews_dir = project_root / "compose" / "previews"
 
+    # Build timing lookup from rendered scenes.json if available
+    scene_timing: dict[str, dict] = {}
+    scenes_json = project_root / "compose" / "scenes.json"
+    with contextlib.suppress(Exception):
+        raw = json.loads(scenes_json.read_text(encoding="utf-8"))
+        for s in raw:
+            if isinstance(s, dict) and s.get("id"):
+                scene_timing[str(s["id"])] = {
+                    "start_sec": float(s.get("start_sec", 0)),
+                    "duration_sec": float(s.get("duration_sec", 0)),
+                }
+
     scene_items: list[dict[str, str]] = []
     for scene in storyboard.scenes:
         scene_video = scenes_dir / f"{scene.id}_final_no_overlay{frame_suffix}.mp4"
@@ -102,10 +116,17 @@ def build_project_preview_manifest(project_root: Path) -> dict[str, list[dict[st
             continue
         preview_path = previews_dir / "scenes" / f"{scene.id}.jpg"
         ensure_scene_preview(scene_video, preview_path)
+        visual_type = ""
+        if hasattr(scene, "visual") and scene.visual:
+            visual_type = getattr(scene.visual, "type", "") or ""
+        timing = scene_timing.get(str(scene.id), {})
         scene_items.append({
             "id": scene.id,
             "label": f"{scene.id} · {scene.section}",
             "path": preview_path.relative_to(project_root).as_posix(),
+            "visual_type": visual_type,
+            "start_sec": str(timing.get("start_sec", 0)),
+            "duration_sec": str(timing.get("duration_sec", 0)),
         })
 
     transition_items: list[dict[str, str]] = []
