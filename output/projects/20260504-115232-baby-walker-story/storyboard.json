@@ -1,7 +1,7 @@
 {
   "version": 1,
   "format": "standard",
-  "target_duration_sec": 341,
+  "target_duration_sec": 380,
   "aspect_ratio": "16:9",
   "theme": {
     "background": "#1a1a1a",
@@ -113,10 +113,33 @@
     {
       "id": "s4",
       "section": "context",
-      "beat": "Transitions from historical context to modern mass production",
-      "narration": "但這六百年裡，學步車一直是貴族的稀有玩物。要等到工業時代，它才終於變成大眾商品。",
-      "narration_est_sec": 8.0,
+      "beat": "Names the basic parental need the design solves, anchoring its 600-year persistence",
+      "narration": "這個設計能延續六百年，是因為它解決的需求很基本：讓還不會走的嬰兒保持直立、待在視線裡，也讓大人暫時把雙手空出來。",
+      "narration_est_sec": 10.0,
       "facts_ref": [
+        "f1",
+        "f2"
+      ],
+      "visual": {
+        "type": "slide",
+        "text": "六百年的同一個答案\n直立 · 在視線裡 · 空出雙手",
+        "layout": "stat"
+      },
+      "overlay": null,
+      "pause_after_sec": 0.5,
+      "narration_alt": {
+        "en": "So why did this design survive six centuries? It solves one basic parental need — keep the not-yet-walking baby upright, in sight, with the adult's hands momentarily free."
+      }
+    },
+    {
+      "id": "s5",
+      "section": "context",
+      "beat": "Establishes that for six centuries the device remained a rare aristocratic possession",
+      "narration": "但這個方便，整整六百年都只給少數人。從荷蘭手抄本到薩伏伊宮廷，學步車是木匠的手工作品——一台供一個孩子使用，再傳給下一胎，是貴族家裡才有的稀有財產。",
+      "narration_est_sec": 12.0,
+      "facts_ref": [
+        "f1",
+        "f2",
         "f5"
       ],
       "visual": {
@@ -126,17 +149,17 @@
         "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s4_crop_9525b3.png"
       },
       "overlay": null,
-      "pause_after_sec": 0.0,
+      "pause_after_sec": 0.3,
       "narration_alt": {
-        "en": "But for six hundred years, walkers stayed rare and aristocratic. Mass production was still centuries away."
+        "en": "But for six centuries, that convenience belonged only to a few. From Dutch manuscripts to the Savoy court, the walker was a carpenter's handmade work — one frame per child, passed down to the next, a rare aristocratic possession."
       }
     },
     {
-      "id": "s5",
+      "id": "s6",
       "section": "context",
-      "beat": "Shows early commercial attempts and market resistance",
-      "narration": "一九零一年，加拿大旅館老闆湯瑪斯·斯隆把學步車送進渥太華日報廣告。結果完全沒有市場。一位歷史學家後來這樣總結：",
-      "narration_est_sec": 9.5,
+      "beat": "Frames Sloan's 1901 ad as the first failed attempt at mass-market commercialization",
+      "narration": "一九零一年，第一次有人試著把它變成大眾商品。加拿大旅館老闆湯瑪斯·斯隆，在渥太華日報登了廣告。結果完全沒有市場。一位歷史學家後來這樣總結:",
+      "narration_est_sec": 12.0,
       "facts_ref": [
         "f3",
         "f4"
@@ -148,35 +171,35 @@
       "overlay": null,
       "pause_after_sec": 0.5,
       "narration_alt": {
-        "en": "In 1901, Canadian hotelier Thomas Sloan ran an Ottawa Journal ad — and went nowhere. As one historian put it: I don't think this idea of a baby-walker took off"
-      }
-    },
-    {
-      "id": "s6",
-      "section": "context",
-      "beat": "Identifies the breakthrough moment when walkers became mainstream",
-      "narration": "真正起飛是在一九六零、七零年代。塑膠量產壓低成本，學步車從手工工藝變成嬰兒用品店的標配。",
-      "narration_est_sec": 8.5,
-      "facts_ref": [
-        "f5"
-      ],
-      "visual": {
-        "type": "slide",
-        "text": "1970–1975: sales grew ~50%\n1980s: ubiquitous in US households",
-        "layout": "stat"
-      },
-      "overlay": null,
-      "pause_after_sec": 0.0,
-      "narration_alt": {
-        "en": "The real takeoff came in the 1960s and 70s. Mass plastic manufacturing turned the walker into a nursery staple."
+        "en": "1901 — the first time someone tried to make it a mass-market product. Canadian hotelier Thomas Sloan placed an ad in the Ottawa Journal. There was no market. A historian later put it this way:"
       }
     },
     {
       "id": "s7",
       "section": "context",
-      "beat": "Establishes peak market penetration in American households",
-      "narration": "到了一九八零年代，幾乎每一個美國家庭都看得到這個有座椅、有輪子的塑膠框架。",
-      "narration_est_sec": 6.5,
+      "beat": "Identifies three converging forces—plastic, suburban layouts, women in the workforce—that finally made the walker fit its moment",
+      "narration": "要再等六十年。一九六零、七零年代，三件事同時發生：塑膠射出成型壓低了成本；戰後郊區的開放格局，給了它跑動的空間；女性回到職場，需要一個能放小孩、空出雙手的工具。產品終於對上了時代。",
+      "narration_est_sec": 14.0,
+      "facts_ref": [
+        "f5"
+      ],
+      "visual": {
+        "type": "slide",
+        "text": "1960–1975 三力合流\n塑膠射出成型 → 成本下降\n郊區開放格局 → 空間\n女性回到職場 → 雙手解放",
+        "layout": "stat"
+      },
+      "overlay": null,
+      "pause_after_sec": 0.5,
+      "narration_alt": {
+        "en": "Another sixty years. In the 60s and 70s, three forces converged: cheap plastic injection molding; suburban open-plan homes; and women returning to work, needing somewhere to set the child down. The walker finally fit its moment."
+      }
+    },
+    {
+      "id": "s8",
+      "section": "context",
+      "beat": "Establishes the 1980s as the cultural peak when walkers became a baby-shower default driven by social trust",
+      "narration": "到了一九八零年代，它變成嬰兒送禮的標配。朋友的寶寶滿月就送一台。理由很簡單：既然每個媽媽都有一台，那就應該沒問題。",
+      "narration_est_sec": 11.0,
       "facts_ref": [
         "f5"
       ],
@@ -186,17 +209,36 @@
         "alt": "walker silhouette continuity"
       },
       "overlay": null,
-      "pause_after_sec": 0.5,
+      "pause_after_sec": 0.8,
       "narration_alt": {
-        "en": "The real takeoff came in the 1960s. Cheap plastic turned the walker into a nursery staple."
+        "en": "By the 1980s, it became the standard baby-shower gift. A friend's baby reaches one month — you give a walker. The logic was simple: every mother had one, so it must be safe."
       }
     },
     {
-      "id": "s8",
+      "id": "s9",
+      "section": "rising",
+      "beat": "Pivots from market success to medical concern—ER doctors begin seeing a repeating injury pattern",
+      "narration": "但就在每一個育嬰房都擺著一台塑膠框架的同時，醫院急診室的醫師，開始看到一個重複出現的模式。",
+      "narration_est_sec": 9.0,
+      "facts_ref": [
+        "f6"
+      ],
+      "visual": {
+        "type": "text_card",
+        "text": "一個重複\n出現的模式"
+      },
+      "overlay": null,
+      "pause_after_sec": 0.5,
+      "narration_alt": {
+        "en": "But just as every nursery had this plastic frame in it, doctors in hospital emergency rooms began to see a pattern repeating itself."
+      }
+    },
+    {
+      "id": "s10",
       "section": "rising",
       "beat": "Introduces the safety crisis with concrete injury statistics",
-      "narration": "然後，數字開始說話。一九九零年，全美急診室一年要處理大約兩萬個跟學步車有關的嬰幼兒受傷。",
-      "narration_est_sec": 8.5,
+      "narration": "一九九零年的數字第一次說清楚：全美急診室那一整年，處理了大約兩萬個跟學步車有關的嬰幼兒受傷。",
+      "narration_est_sec": 10.0,
       "facts_ref": [
         "f6",
         "f10"
@@ -209,11 +251,11 @@
       "overlay": null,
       "pause_after_sec": 0.0,
       "narration_alt": {
-        "en": "Then the numbers started speaking. In 1990, US emergency rooms treated about 20,000 walker-related injuries."
+        "en": "The 1990 numbers spelled it out for the first time: US emergency rooms treated about 20,000 walker-related infant injuries that year."
       }
     },
     {
-      "id": "s9",
+      "id": "s11",
       "section": "rising",
       "beat": "Explains the mechanical cause of injuries",
       "narration": "傷害模式非常明確。坐入式學步車最快可以衝到每秒九十公分，比大人來得及反應還快。",
@@ -222,8 +264,9 @@
         "f20"
       ],
       "visual": {
-        "type": "article_image",
-        "path": "raw/parenting/baby-walker/assets/6_месячный_ребенок_сидит_на_детской_ходунке.jpg",
+        "type": "generated_image",
+        "prompt": "Vintage 1970s editorial photograph: a one-year-old infant suspended in a classic sit-in baby walker — circular plastic tray, fabric sling seat, four small caster wheels — rolling quickly across a hardwood living-room floor toward an open doorway, faint motion blur on the wheels conveying speed, warm amber and sepia tones, soft window light, low three-quarter angle at floor level, photojournalistic composition, neutral home interior background",
+        "style_modifier": "warm sepia tones",
         "alt": "wheeled sit-in walker — the dangerous design"
       },
       "overlay": null,
@@ -233,7 +276,7 @@
       }
     },
     {
-      "id": "s10",
+      "id": "s12",
       "section": "rising",
       "beat": "Reveals the severity and specific nature of injuries",
       "narration": "結果，七成四的傷害是從樓梯摔下來，九成一傷在頭或頸部。這不是擦破皮，是顱骨。",
@@ -253,7 +296,7 @@
       }
     },
     {
-      "id": "s11",
+      "id": "s13",
       "section": "rising",
       "beat": "Emphasizes life-threatening consequences with skull fracture data",
       "narration": "住院的孩子裡，每三個就有一個顱骨骨折。再小的學步車，撞下樓梯都不是小事。",
@@ -272,7 +315,7 @@
       }
     },
     {
-      "id": "s12",
+      "id": "s14",
       "section": "rising",
       "beat": "Amplifies the scope of the problem with long-term statistics",
       "narration": "把時間拉長：從一九九零年到二零一四年，整整二十五年，美國有二十三萬零六百七十六個孩子，因為學步車進急診。",
@@ -291,7 +334,7 @@
       }
     },
     {
-      "id": "s13",
+      "id": "s15",
       "section": "rising",
       "beat": "Highlights systemic failure to address known dangers",
       "narration": "這個數字是慢慢累積出來的——產品還在賣，傷害還在發生，但很長時間，沒有人按下停止鍵。",
@@ -312,7 +355,7 @@
       }
     },
     {
-      "id": "s14",
+      "id": "s16",
       "section": "climax",
       "beat": "Reveals that warnings existed years before action was taken",
       "narration": "其實警報很早就響了。一九八二年，《兒科》期刊登出第一篇學步車傷害研究——比一九九零年的高峰還早八年。",
@@ -333,7 +376,7 @@
       }
     },
     {
-      "id": "s15",
+      "id": "s17",
       "section": "climax",
       "beat": "Shows first regulatory response and safety improvements",
       "narration": "一九九五年，業界訂了自願性安全標準。一九九七年，新規定上路：學步車寬度必須超過標準門框，或裝樓梯剎車。",
@@ -354,7 +397,7 @@
       }
     },
     {
-      "id": "s16",
+      "id": "s18",
       "section": "climax",
       "beat": "Demonstrates effectiveness of safety measures",
       "narration": "效果立刻看得見。一九九九年，急診數字掉到八千八，比高峰少了百分之五十七。",
@@ -374,7 +417,7 @@
       }
     },
     {
-      "id": "s17",
+      "id": "s19",
       "section": "climax",
       "beat": "Escalates to professional medical recommendation for total ban",
       "narration": "二零零一年，美國兒科學會直接喊話：禁止製造、禁止販售。但聯邦政府當時沒接話。",
@@ -394,7 +437,7 @@
       }
     },
     {
-      "id": "s18",
+      "id": "s20",
       "section": "climax",
       "beat": "Presents Canada as the first country to implement complete prohibition",
       "narration": "三年後，加拿大成為全世界第一個全面禁止有輪坐入式學步車的國家——連二手交易都不行。",
@@ -413,7 +456,7 @@
       }
     },
     {
-      "id": "s19",
+      "id": "s21",
       "section": "climax",
       "beat": "Shows US eventually strengthening regulations with dramatic results",
       "narration": "二零一零年，美國終於把標準改成強制法規。到了二零一四年，急診數字只剩兩千——比一九九零年下降了百分之九十。",
@@ -434,7 +477,7 @@
       }
     },
     {
-      "id": "s20",
+      "id": "s22",
       "section": "aftermath",
       "beat": "Reveals the paradox of continued market growth despite safety concerns",
       "narration": "你會以為，故事到這裡結束。但全球學步車市場現在估值十一億美元，每年還在以百分之四成長。",
@@ -454,7 +497,7 @@
       }
     },
     {
-      "id": "s21",
+      "id": "s23",
       "section": "aftermath",
       "beat": "Explains market persistence through product confusion and naming chaos",
       "narration": "為什麼？因為「學步車」這三個字，其實同時指三種完全不一樣的產品。研究者統計，它有四十多個不同的名字。",
@@ -473,7 +516,7 @@
       }
     },
     {
-      "id": "s22",
+      "id": "s24",
       "section": "aftermath",
       "beat": "Proposes solution through product categorization rather than blanket judgment",
       "narration": "所以，與其爭論該不該禁，不如先把這三種產品分清楚。它們的危險，差距非常大。",
@@ -491,7 +534,7 @@
       }
     },
     {
-      "id": "s23",
+      "id": "s25",
       "section": "analysis",
       "beat": "Defines the dangerous wheeled seat walker type",
       "narration": "第一種，有輪坐入式學步車——也就是醫師警告的那一種。寶寶用布墊吊在裡面，雙腳穿過去著地，下面四個輪子。",
@@ -500,9 +543,11 @@
         "f20"
       ],
       "visual": {
-        "type": "article_image",
-        "path": "raw/parenting/baby-walker/assets/6_месячный_ребенок_сидит_на_детской_ходунке.jpg",
-        "alt": "wheeled sit-in walker"
+        "type": "generated_image",
+        "prompt": "Studio product photograph: an empty classic 1970s wheeled baby walker standing on a clean wooden floor — NO baby visible — a round plastic activity tray with built-in toy attachments on top, a fabric seat suspended in the center, four small caster wheels visible at the base, soft natural window light from the side, warm sepia color grade, three-quarter angle at child eye level, photo-realistic, neutral home interior background",
+        "style_modifier": "warm sepia tones",
+        "alt": "wheeled sit-in walker — defining the product type",
+        "skip_niche_style": true
       },
       "overlay": null,
       "pause_after_sec": 0.0,
@@ -511,7 +556,7 @@
       }
     },
     {
-      "id": "s24",
+      "id": "s26",
       "section": "analysis",
       "beat": "Explains the core safety problem of premature mobility",
       "narration": "問題就在這裡：它讓還不會走的嬰兒，突然能用每秒九十公分的速度衝刺，一秒到樓梯邊。",
@@ -531,7 +576,7 @@
       }
     },
     {
-      "id": "s25",
+      "id": "s27",
       "section": "analysis",
       "beat": "Illustrates how walkers create access to previously safe spaces",
       "narration": "原本進不去的廚房、樓梯口、浴缸邊，現在全部突然變成可達範圍。這就是兒科學會和加拿大要禁的那一款。",
@@ -551,7 +596,7 @@
       }
     },
     {
-      "id": "s26",
+      "id": "s28",
       "section": "analysis",
       "beat": "Alerts readers that dangerous models remain legally available",
       "narration": "重點是：這款學步車在台灣、在美國，現在還是合法銷售。嬰兒用品店裡，依舊看得到。",
@@ -571,7 +616,7 @@
       }
     },
     {
-      "id": "s27",
+      "id": "s29",
       "section": "analysis",
       "beat": "Introduces the safer push walker alternative",
       "narration": "第二種，學步推車。寶寶站在後面，雙手扶著它，自己一步一步往前推。完全不一樣的東西。",
@@ -591,7 +636,7 @@
       }
     },
     {
-      "id": "s28",
+      "id": "s30",
       "section": "analysis",
       "beat": "Contrasts push walker mechanics with dangerous seated version",
       "narration": "結構上正好相反：孩子是站立的，承擔自己的體重，靠自己的步伐前進。沒有懸吊座椅，也沒有突然加速的問題。",
@@ -612,7 +657,7 @@
       }
     },
     {
-      "id": "s29",
+      "id": "s31",
       "section": "analysis",
       "beat": "Provides medical endorsement of push walker benefits",
       "narration": "兒科醫師對這款的態度是——可以。它在做的事，和孩子自然學走路是同一條路：練平衡、練步幅、練肌肉。",
@@ -633,7 +678,7 @@
       }
     },
     {
-      "id": "s30",
+      "id": "s32",
       "section": "analysis",
       "beat": "Offers practical selection criteria for push walkers",
       "narration": "選購重點：底盤要夠寬、不會翻；輪子最好有阻力，不要太滑；買的是站著推的，不是大孩子的滑步車。",
@@ -653,7 +698,7 @@
       }
     },
     {
-      "id": "s31",
+      "id": "s33",
       "section": "analysis",
       "beat": "Introduces stationary activity center as third product type",
       "narration": "第三種，定點活動架。看起來像學步車，但沒有輪子。寶寶坐在中間的彈跳座位，旁邊一圈玩具。",
@@ -673,7 +718,7 @@
       }
     },
     {
-      "id": "s32",
+      "id": "s34",
       "section": "analysis",
       "beat": "Presents activity centers as medically recommended safe alternative",
       "narration": "這就是兒科學會二零零一年公開推薦的替代品。它不會跑、不會撞下樓梯、不會把寶寶突然送到熱鍋邊。",
@@ -692,7 +737,7 @@
       }
     },
     {
-      "id": "s33",
+      "id": "s35",
       "section": "analysis",
       "beat": "Warns against overuse of stationary activity centers",
       "narration": "但要注意一個但書：太久把孩子綁在裡面，會延遲他自己練習動作的時間。短時間用是好工具，整天放就不是。",
@@ -712,7 +757,7 @@
       }
     },
     {
-      "id": "s34",
+      "id": "s36",
       "section": "analysis",
       "beat": "Provides selection and usage guidelines for activity centers",
       "narration": "選購重點：底座要穩、不會翻；座位高度可調，讓寶寶的雙腳能平踩到地板；用的時候，每次別超過一段時間。",
@@ -732,7 +777,7 @@
       }
     },
     {
-      "id": "s35",
+      "id": "s37",
       "section": "analysis",
       "beat": "Summarizes safety hierarchy of the three product types",
       "narration": "三種產品擺在一起：危險的是有輪坐入式；安全的是學步推車；活動架沒有輪子，是另一個類別。",
@@ -754,7 +799,7 @@
       }
     },
     {
-      "id": "s36",
+      "id": "s38",
       "section": "analysis",
       "beat": "Distills safety rule into simple terms",
       "narration": "規則其實非常簡單。把它寫成一句話：有輪子加上吊式座椅，就是要避開的那一種設計。",
@@ -769,11 +814,11 @@
       "overlay": null,
       "pause_after_sec": 0.5,
       "narration_alt": {
-        "en": "The rule is simple. One line: Wheels + suspended seat = the one to avoid"
+        "en": "The rule is simple. Wheels plus a suspended seat — the one to avoid."
       }
     },
     {
-      "id": "s37",
+      "id": "s39",
       "section": "analysis",
       "beat": "Provides clear identification criteria for dangerous products",
       "narration": "兩個關鍵字：「輪子」和「吊式座椅」。同時有，就是危險款；少一個，就是另一個產品類別。",
@@ -794,7 +839,7 @@
       }
     },
     {
-      "id": "s38",
+      "id": "s40",
       "section": "analysis",
       "beat": "Warns about naming confusion and emphasizes design-based evaluation",
       "narration": "中文裡這幾個產品的名字也很亂——學步車、助行器、健力架——同樣的字常常指不同東西。買之前，先看設計，不要只看名字。",
@@ -965,20 +1010,26 @@
     {
       "from": "s19",
       "to": "s20",
-      "style": "none",
-      "duration_sec": 0.0
+      "style": "book-page-turn-v2",
+      "duration_sec": 1.5,
+      "page_count": 5,
+      "page_surface": "calligraphy_texture"
     },
     {
       "from": "s20",
       "to": "s21",
-      "style": "none",
-      "duration_sec": 0.0
+      "style": "book-page-turn-v2",
+      "duration_sec": 1.5,
+      "page_count": 5,
+      "page_surface": "calligraphy_texture"
     },
     {
       "from": "s21",
       "to": "s22",
-      "style": "none",
-      "duration_sec": 0.0
+      "style": "book-page-turn-v2",
+      "duration_sec": 1.5,
+      "page_count": 5,
+      "page_surface": "calligraphy_texture"
     },
     {
       "from": "s22",
@@ -1073,6 +1124,18 @@
     {
       "from": "s37",
       "to": "s38",
+      "style": "none",
+      "duration_sec": 0.0
+    },
+    {
+      "from": "s38",
+      "to": "s39",
+      "style": "none",
+      "duration_sec": 0.0
+    },
+    {
+      "from": "s39",
+      "to": "s40",
       "style": "none",
       "duration_sec": 0.0
     }
