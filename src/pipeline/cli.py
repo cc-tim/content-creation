@@ -63,6 +63,19 @@ def _channel_config_path() -> Path:
     return Path("configs/youtube_channels.toml")
 
 
+# Effectively-disables-the-gate sentinel (~11.5 days). Used when --allow-mla-drift inf.
+_MLA_DRIFT_INF_MS = 10**9
+
+
+def _mla_drift_to_ms(seconds: float) -> int:
+    """Convert --allow-mla-drift value to ms; map +inf to a huge finite sentinel."""
+    import math
+
+    if math.isinf(seconds):
+        return _MLA_DRIFT_INF_MS
+    return int(seconds * 1000)
+
+
 @app.command()
 def produce(
     url: str = typer.Option(..., "--url", help="YouTube or web article URL"),
@@ -177,7 +190,7 @@ def produce(
         if secondary_locale is not None:
             ctx.secondary_locale = secondary_locale
         if allow_mla_drift is not None:
-            ctx.mla_drift_tolerance_ms = int(allow_mla_drift * 1000)
+            ctx.mla_drift_tolerance_ms = _mla_drift_to_ms(allow_mla_drift)
     else:
         ctx = PipelineContext(
             project_id=project_id,
@@ -194,7 +207,7 @@ def produce(
                 Path(reference_storyboard) if reference_storyboard else None
             ),
             mla_drift_tolerance_ms=(
-                int(allow_mla_drift * 1000) if allow_mla_drift is not None else None
+                _mla_drift_to_ms(allow_mla_drift) if allow_mla_drift is not None else None
             ),
         )
 
