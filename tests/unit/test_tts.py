@@ -11,6 +11,7 @@ from pipeline.stages.tts import (
     _visual_width,
     _wrap_english_two_lines,
     _wrap_subtitle_line,
+    compute_mla_tolerance_ms,
     extract_narration_segments,
 )
 from pipeline.storyboard import Scene, Storyboard
@@ -636,12 +637,75 @@ def test_check_secondary_durations_warns_per_scene(monkeypatch):
 
 
 def test_check_secondary_durations_hard_fails_on_total_deviation():
-    """Hard-fail raised when total EN-vs-primary deviation exceeds ±2s."""
+    """Hard-fail raised when total EN-vs-primary deviation exceeds the adaptive tolerance.
+
+    At 10s primary the adaptive tolerance is the 2000ms floor, so 3s drift still fails.
+    """
     primary_timings = [{"index": 0, "duration_ms": 10_000}]
     secondary_timings = [{"index": 0, "duration_ms": 13_000}]  # 3s over
 
-    with pytest.raises(ValueError, match="exceeds ±2s limit"):
+    with pytest.raises(ValueError, match=r"exceeds ±2\.00s tolerance"):
         _check_secondary_durations(primary_timings, secondary_timings, "zh-TW", "en")
+
+
+def test_check_secondary_durations_adaptive_tolerance_passes_for_long_video():
+    """At 7-min primary, adaptive tolerance is 6.3s — a 5s drift now passes."""
+    primary_timings = [{"index": 0, "duration_ms": 420_000}]
+    secondary_timings = [{"index": 0, "duration_ms": 425_000}]  # 5s over
+
+    # Should NOT raise — 5s < 6.3s adaptive tolerance.
+    _check_secondary_durations(primary_timings, secondary_timings, "zh-TW", "en")
+
+
+def test_check_secondary_durations_override_can_tighten_or_loosen():
+    """Explicit override short-circuits the adaptive default."""
+    primary_timings = [{"index": 0, "duration_ms": 420_000}]
+    secondary_timings = [{"index": 0, "duration_ms": 425_000}]  # 5s over
+
+    # Override to 1s → must raise even though adaptive would allow.
+    with pytest.raises(ValueError, match=r"exceeds ±1\.00s tolerance"):
+        _check_secondary_durations(
+            primary_timings, secondary_timings, "zh-TW", "en",
+            tolerance_ms_override=1000,
+        )
+
+    # Override to 30s → must pass even though deviation is large.
+    primary_huge = [{"index": 0, "duration_ms": 420_000}]
+    secondary_huge = [{"index": 0, "duration_ms": 440_000}]  # 20s over
+    _check_secondary_durations(
+        primary_huge, secondary_huge, "zh-TW", "en",
+        tolerance_ms_override=30_000,
+    )
+
+
+def test_compute_mla_tolerance_ms_floor():
+    """Below the floor threshold, tolerance is 2000ms."""
+    assert compute_mla_tolerance_ms(0) == 2000
+    assert compute_mla_tolerance_ms(60_000) == 2000  # 1 min → 900ms scaled, floor wins
+    assert compute_mla_tolerance_ms(120_000) == 2000  # 2 min → 1800ms scaled, floor wins
+    # Break-even: 2000 / 0.015 = 133_333ms ≈ 2.22 min
+    assert compute_mla_tolerance_ms(133_333) == 2000
+
+
+def test_compute_mla_tolerance_ms_scales_above_floor():
+    """Above ~2.2 min, tolerance scales at 1.5% of primary total."""
+    assert compute_mla_tolerance_ms(300_000) == 4500   # 5 min → 4.5s
+    assert compute_mla_tolerance_ms(420_000) == 6300   # 7 min → 6.3s
+    assert compute_mla_tolerance_ms(600_000) == 9000   # 10 min → 9.0s
+    assert compute_mla_tolerance_ms(720_000) == 10_800  # 12 min → 10.8s
+
+
+def test_compute_mla_tolerance_ms_override_positive_wins():
+    """Positive override short-circuits the adaptive default."""
+    assert compute_mla_tolerance_ms(420_000, override_ms=2000) == 2000
+    assert compute_mla_tolerance_ms(60_000, override_ms=30_000) == 30_000
+
+
+def test_compute_mla_tolerance_ms_override_zero_or_none_ignored():
+    """Zero, negative, or None overrides fall back to the adaptive default."""
+    assert compute_mla_tolerance_ms(420_000, override_ms=None) == 6300
+    assert compute_mla_tolerance_ms(420_000, override_ms=0) == 6300
+    assert compute_mla_tolerance_ms(420_000, override_ms=-1) == 6300
 
 
 def test_check_secondary_durations_skips_empty_scenes():

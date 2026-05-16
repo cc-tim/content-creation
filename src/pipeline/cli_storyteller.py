@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Annotated
 
@@ -11,6 +10,8 @@ import typer
 from rich import box
 from rich.console import Console
 from rich.table import Table
+
+from pipeline.utils.anthropic_key import get_anthropic_api_key
 
 storytell_app = typer.Typer(help="Review narrative flow and scene transitions.")
 _console = Console()
@@ -105,18 +106,6 @@ def print_storytell_table(issues: list[dict[str, str]], console: Console | None 
     c.print(table)
 
 
-def _get_api_key() -> str:
-    key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("PIPELINE_ANTHROPIC_API_KEY")
-    if not key:
-        env_path = Path(".env")
-        if env_path.exists():
-            for line in env_path.read_text().splitlines():
-                if line.startswith("PIPELINE_ANTHROPIC_API_KEY="):
-                    key = line.split("=", 1)[1].strip()
-                    break
-    if not key:
-        raise RuntimeError("No ANTHROPIC_API_KEY. Set PIPELINE_ANTHROPIC_API_KEY in .env.")
-    return key
 
 
 def storytell_storyboard(storyboard_path: Path) -> list[dict[str, str]]:
@@ -124,7 +113,7 @@ def storytell_storyboard(storyboard_path: Path) -> list[dict[str, str]]:
     import anthropic
 
     review_text = _format_for_storytell(storyboard_path)
-    client = anthropic.Anthropic(api_key=_get_api_key())
+    client = anthropic.Anthropic(api_key=get_anthropic_api_key())
     msg = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=2000,

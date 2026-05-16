@@ -225,3 +225,42 @@ uv run pipeline dashboard --no-browser --port 8765
 | Bad voice / audio timing | TTS config or `--voice` flag | `--start-from tts` |
 | Bad video composition / subtitles | compose config or `--subtitles` flag | `--start-from compose` |
 | Wrong YouTube title/tags | `metadata.json` | `pipeline metadata set …` then re-publish |
+| MLA drift gate failing | `storyboard.json` `narration_alt[en]` | `pipeline mla rebalance --apply` |
+
+---
+
+## MLA Discipline (Multi-Language Audio)
+
+When a project runs with `--mla --secondary-locale en`, every scene has a
+`narration_alt[en]` entry that is synthesized as an alternate audio track on
+YouTube and must stay aligned (±10%) with the zh-TW primary audio. The MLA
+drift gate enforces this at the TTS stage.
+
+### Length-budget rule
+
+`target_english_words ≈ zh-TW_char_count × 0.55`
+
+This is the empirical conversion that keeps English TTS audio within the
+adaptive tolerance window of the zh-TW track. Mandarin packs ~1.4× the info
+per character that English packs per word.
+
+| Source | How the rule is enforced |
+|---|---|
+| **DirectStage / ScriptwriteStage** (initial gen) | The scriptwrite prompt includes per-scene target word counts when writing `narration_alt[en]`, so the alt lands within tolerance on first pass. |
+| **`scene-update` skill** (hand-edits) | After an approved zh-TW change, the skill regenerates the EN alt to the new budget before re-rendering. |
+| **`pipeline mla rebalance`** (fixup) | If a hand-edit or model drift causes the gate to fail, `rebalance --dry-run` shows offenders and projected drift; `--apply` re-writes only the offending EN scenes and re-synths just those scenes' audio. |
+
+### Adaptive drift gate
+
+The gate tolerance is `max(2s, 1.5% × primary_total_ms)` — 7-min video → ±6.3s,
+12-min → ±10.8s. Override with `--allow-mla-drift <seconds>` on `pipeline produce`
+(use `inf` to effectively disable for a one-off render). Prefer fixing the
+underlying length budget over disabling the gate; the rebalance command exists
+for that.
+
+### Avoiding the cascade
+
+Any code path that writes a new `narration_alt[en]` must compute the length
+budget. If you hand-edit several scenes' alts, run `pipeline mla rebalance
+--dry-run` to preview drift before re-running TTS. This avoids the failure
+mode where TTS+compose runs three times before the gate accepts the result.

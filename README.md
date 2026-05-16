@@ -184,6 +184,16 @@ uv run pipeline produce <video-url> --locale zh-TW --niche none       # skip met
 uv run pipeline acquire <video-url>                                    # Download + extract only
 ```
 
+### Multi-Language Audio (MLA)
+```bash
+uv run pipeline produce <url> --locale zh-TW --mla --secondary-locale en
+uv run pipeline produce <url> --locale zh-TW --mla --allow-mla-drift 15  # raise drift gate to ±15s
+uv run pipeline produce <url> --locale zh-TW --mla --allow-mla-drift inf  # effectively disable gate
+uv run pipeline mla rebalance --project-id <ID> --apply                  # retarget EN to match zh-TW
+```
+
+The MLA drift gate is adaptive: tolerance is `max(2s, 1.5% × primary total)` (7-min video → ±6.3s, 12-min → ±10.8s). `--allow-mla-drift <seconds>` overrides the default for one-off renders; `--allow-mla-drift inf` disables the gate entirely. When the gate fails, prefer `pipeline mla rebalance --apply` over disabling — it rewrites only the offending EN narration to match observed speech rate, no full re-render needed.
+
 ### Storyboard Editing
 ```bash
 uv run pipeline storyboard show                              # list all scenes

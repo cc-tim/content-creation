@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
@@ -13,6 +12,7 @@ from rich.console import Console
 from rich.table import Table
 
 from pipeline.config import PipelineConfig
+from pipeline.utils.anthropic_key import get_anthropic_api_key
 
 proofread_app = typer.Typer(help="Proofread storyboard narration and overlay text.")
 _console = Console()
@@ -75,20 +75,6 @@ def _load_guide() -> str:
     return ""
 
 
-def _get_api_key() -> str:
-    key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("PIPELINE_ANTHROPIC_API_KEY")
-    if not key:
-        env_path = Path(".env")
-        if env_path.exists():
-            for line in env_path.read_text().splitlines():
-                if line.startswith("PIPELINE_ANTHROPIC_API_KEY="):
-                    key = line.split("=", 1)[1].strip()
-                    break
-    if not key:
-        raise RuntimeError("No ANTHROPIC_API_KEY. Set PIPELINE_ANTHROPIC_API_KEY in .env.")
-    return key
-
-
 def _format_for_review(storyboard_path: Path) -> str:
     from pipeline.storyboard import Storyboard
 
@@ -139,7 +125,7 @@ def proofread_storyboard(storyboard_path: Path) -> list[dict]:
     guide = _load_guide()
     system = _SYSTEM_PROMPT + (f"\n\n校稿參考資料：\n{guide}" if guide else "")
     review_text = _format_for_review(storyboard_path)
-    client = anthropic.Anthropic(api_key=_get_api_key())
+    client = anthropic.Anthropic(api_key=get_anthropic_api_key())
     msg = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=2000,

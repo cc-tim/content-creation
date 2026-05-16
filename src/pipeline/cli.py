@@ -11,6 +11,7 @@ from pipeline.cli_compose import compose_app
 from pipeline.cli_image import image_app
 from pipeline.cli_image_alignment import image_alignment_app
 from pipeline.cli_metadata import metadata_app
+from pipeline.cli_mla import mla_app
 from pipeline.cli_mutate import mutate_app
 from pipeline.cli_narration import narration_app
 from pipeline.cli_overlay import overlay_app
@@ -55,12 +56,26 @@ app.add_typer(transition_app, name="transition")
 app.add_typer(subtitle_app, name="subtitle")
 app.add_typer(overlay_app, name="overlay")
 app.add_typer(image_app, name="image")
+app.add_typer(mla_app, name="mla")
 app.add_typer(mutate_app, name="mutate")
 
 
 def _channel_config_path() -> Path:
     """Path to the channels TOML. Overridable in tests."""
     return Path("configs/youtube_channels.toml")
+
+
+# Effectively-disables-the-gate sentinel (~11.5 days). Used when --allow-mla-drift inf.
+_MLA_DRIFT_INF_MS = 10**9
+
+
+def _mla_drift_to_ms(seconds: float) -> int:
+    """Convert --allow-mla-drift value to ms; map +inf to a huge finite sentinel."""
+    import math
+
+    if math.isinf(seconds):
+        return _MLA_DRIFT_INF_MS
+    return int(seconds * 1000)
 
 
 @app.command()
@@ -117,6 +132,12 @@ def produce(
         "--max-duration",
         help="Maximum video duration in minutes (stored in constraints.json)",
     ),
+    allow_mla_drift: float | None = typer.Option(
+        None,
+        "--allow-mla-drift",
+        help="Override MLA drift gate. Pass seconds (e.g. 8) to raise tolerance, "
+        "or 'inf' to disable the gate. Default: adaptive max(2s, 1.5%% of primary).",
+    ),
 ) -> None:
     """Run the full production pipeline for a video or web article."""
     config = PipelineConfig()
@@ -170,6 +191,8 @@ def produce(
             ctx.mla = True
         if secondary_locale is not None:
             ctx.secondary_locale = secondary_locale
+        if allow_mla_drift is not None:
+            ctx.mla_drift_tolerance_ms = _mla_drift_to_ms(allow_mla_drift)
     else:
         ctx = PipelineContext(
             project_id=project_id,
@@ -184,6 +207,9 @@ def produce(
             source_locale=source_locale,
             reference_storyboard_path=(
                 Path(reference_storyboard) if reference_storyboard else None
+            ),
+            mla_drift_tolerance_ms=(
+                _mla_drift_to_ms(allow_mla_drift) if allow_mla_drift is not None else None
             ),
         )
 
