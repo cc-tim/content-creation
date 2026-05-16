@@ -503,6 +503,44 @@ function buildOutlinePanel(project) {
   </details>`;
 }
 
+const _VTYPE_COLOR = {
+  article_image:   '#1a3050',
+  generated_image: '#2d1060',
+  text_card:       '#103825',
+  slide:           '#1c1917',
+  footage:         '#5c1f08',
+};
+const _VTYPE_LABEL = {
+  article_image:   'source img',
+  generated_image: 'gen img',
+  text_card:       'text card',
+  slide:           'slide',
+  footage:         'footage',
+};
+
+function buildTimelinePanel(p) {
+  const scenes = p.scenes || [];
+  if (!scenes.length) return '<div class="timeline-wrap"><div class="timeline-hdr">Timeline</div><div style="font-size:11px;color:#475569">No scenes yet.</div></div>';
+  const totalDur = scenes.reduce((sum, s) => sum + (s.duration_sec || 0), 0) || 1;
+  const segs = scenes.map((s, i) => {
+    const pct = ((s.duration_sec || 0) / totalDur * 100).toFixed(2);
+    const color = _VTYPE_COLOR[s.visual_type] || '#1a1a2e';
+    const label = _VTYPE_LABEL[s.visual_type] || (s.visual_type || '');
+    return `<div class="timeline-seg" data-start="${s.start_sec}" data-idx="${i}" style="width:${pct}%;background:${color}">
+      <img class="timeline-seg-thumb" data-scene-id="${s.id}" alt="">
+      <span class="timeline-seg-id">${escapeHtml(s.id)}</span>
+      <span class="timeline-seg-type">${escapeHtml(label)}</span>
+    </div>`;
+  }).join('');
+  return `<div class="timeline-wrap">
+    <div class="timeline-hdr">Timeline <span style="font-size:9px;color:#475569;font-weight:400">${Math.round(totalDur)}s total</span></div>
+    <div class="timeline-rail">
+      ${segs}
+      <div class="timeline-playhead" style="left:0%"></div>
+    </div>
+  </div>`;
+}
+
 function makeDetailRow(p) {
   const dr = document.createElement('tr');
   dr.className = 'detail-row';
