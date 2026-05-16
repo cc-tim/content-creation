@@ -240,6 +240,23 @@ def apply_mutation(proposal: MutationProposal, *, project_root: Path) -> Mutatio
         logger.exception("Unexpected mutation apply failure for verb %s", proposal.verb)
         return MutationResult(status="failed", message=f"{type(exc).__name__}: {exc}")
 
+    validation_scene = _visual_validation_scene_id(proposal)
+    if validation_scene is not None:
+        from pipeline.director.storyboard_validator import (
+            validate_storyboard,
+            validation_errors,
+        )
+
+        errors = validation_errors(
+            validate_storyboard(storyboard, project_root, scene_ids={validation_scene})
+        )
+        if errors:
+            message = "; ".join(
+                f"{issue.scene_id} {issue.field}: {issue.issue}"
+                for issue in errors
+            )
+            return MutationResult(status="failed", message=message)
+
     storyboard.save(storyboard_path)
     mutation_id = uuid.uuid4().hex[:12]
     append_session(
@@ -328,6 +345,7 @@ def _dispatch_in_process(
     if verb == "image regen":
         scene = _require_scene(storyboard, args["scene"])
         visual = dict(scene.visual or {})
+        visual["type"] = visual.get("type") or "generated_image"
         visual["prompt"] = args.get("prompt", "")
         if "tier" in args:
             visual["tier"] = args["tier"]
@@ -345,6 +363,13 @@ def _dispatch_in_process(
         return f"narration set-source {scene.id}: engine={args['engine']}"
 
     raise ValueError(f"unknown verb {verb!r}")
+
+
+def _visual_validation_scene_id(proposal: MutationProposal) -> str | None:
+    if proposal.verb in {"image regen"}:
+        scene = proposal.args.get("scene")
+        return str(scene) if scene else None
+    return None
 
 
 def _require_scene(storyboard: Storyboard, scene_id: str):

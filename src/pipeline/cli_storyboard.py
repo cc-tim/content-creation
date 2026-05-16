@@ -251,6 +251,14 @@ def set_field(
     sb.save(sb_path)
     typer.echo(f"updated {label}")
 
+    from pipeline.director.storyboard_validator import raise_for_validation_errors
+
+    try:
+        raise_for_validation_errors(sb, work_dir, scene_ids={scene_id})
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+
     from pipeline.session_log import SessionEntry, append_session, new_session_id
     append_session(work_dir, SessionEntry(
         session_id=new_session_id(),

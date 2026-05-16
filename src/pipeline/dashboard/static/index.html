@@ -95,6 +95,20 @@
     .contract-item.satisfied { border-color:#14532d; background:#052e1622; }
     .contract-item.partial { border-color:#a16207; background:#451a0322; }
     .contract-item.missing { border-color:#991b1b; background:#450a0a22; }
+    .visual-decisions { grid-column:1/-1; border-top:1px solid #1e293b; margin-top:8px; padding-top:10px; }
+    .visual-decisions-grid { display:grid; grid-template-columns:54px 78px 120px 70px 1fr 96px; gap:6px; align-items:center; }
+    .visual-decision-head { color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:.05em; padding-bottom:4px; }
+    .visual-decision-row { display:contents; }
+    .visual-decision-row > span, .visual-decision-row > button { min-width:0; font-size:11px; padding:4px 0; border-top:1px solid #111827; }
+    .visual-scene-id { font-family:monospace; color:#94a3b8; }
+    .visual-conf { font-family:monospace; text-transform:uppercase; }
+    .visual-conf.high { color:#86efac; }
+    .visual-conf.medium { color:#fbbf24; }
+    .visual-conf.low { color:#fb923c; }
+    .visual-issue.error { color:#fca5a5; }
+    .visual-issue.warn { color:#fbbf24; }
+    .visual-override-btn { border:1px solid #2d3748; border-radius:4px; background:#111827; color:#93c5fd; cursor:pointer; padding:3px 8px !important; }
+    .visual-override-btn:hover { background:#1e3a5f; }
     .preview-title { font-size:11px; color:#cbd5e1; font-weight:600; margin-bottom:6px; }
     .preview-section { margin-top:8px; }
     .preview-section-label { font-size:10px; color:#64748b; margin-bottom:4px; text-transform:uppercase; letter-spacing:.06em; }
@@ -540,6 +554,44 @@ function buildTimelinePanel(p) {
   </div>`;
 }
 
+function visualIssueText(issues) {
+  const list = issues || [];
+  if (!list.length) return '<span style="color:#475569">ok</span>';
+  return list.map(issue => {
+    const sev = issue.severity || 'warn';
+    const label = sev === 'error' ? 'ERROR' : 'WARN';
+    return `<span class="visual-issue ${sev}" title="${escapeHtml(issue.suggested_fix || '')}">${label}: ${escapeHtml(issue.field || '')} ${escapeHtml(issue.issue || '')}</span>`;
+  }).join('<br>');
+}
+
+function renderVisualDecisions(project) {
+  const decisions = project.visual_decisions || [];
+  if (!decisions.length) return '';
+  const rows = decisions.map(item => {
+    const conf = item.confidence || 'medium';
+    return `<div class="visual-decision-row">
+      <span class="visual-scene-id">${escapeHtml(item.scene_id)}</span>
+      <span>${escapeHtml(item.section || '')}</span>
+      <span>${escapeHtml(item.visual_type || '')}</span>
+      <span class="visual-conf ${escapeHtml(conf)}">${escapeHtml(conf)}</span>
+      <span>${escapeHtml(item.rationale || '')}<br>${visualIssueText(item.issues)}</span>
+      <button class="visual-override-btn" type="button" data-edit-token="@${escapeHtml(item.scene_id)}/visual">Override</button>
+    </div>`;
+  }).join('');
+  return `<div class="visual-decisions">
+    <div class="contract-title">Visual Decisions</div>
+    <div class="visual-decisions-grid">
+      <div class="visual-decision-head">Scene</div>
+      <div class="visual-decision-head">Section</div>
+      <div class="visual-decision-head">Type</div>
+      <div class="visual-decision-head">Conf</div>
+      <div class="visual-decision-head">Rationale / Validation</div>
+      <div class="visual-decision-head">Action</div>
+      ${rows}
+    </div>
+  </div>`;
+}
+
 function makeDetailRow(p) {
   const dr = document.createElement('tr');
   dr.className = 'detail-row';
@@ -568,6 +620,7 @@ function makeDetailRow(p) {
   }
 
   const transitionAssetsHtml = renderTransitionAssets(p);
+  const visualDecisionsHtml = renderVisualDecisions(p);
 
   const sessionsHtml = p.session_logs && p.session_logs.length
     ? `<div style="grid-column:1/-1;margin-top:4px"><span class="lbl">Sessions: </span>${
@@ -622,6 +675,7 @@ function makeDetailRow(p) {
       ${p.scenes && p.scenes.length ? sec('outline', buildOutlinePanel(p)) : ''}
       ${p.scenes && p.scenes.length ? sec('scene-strip', buildSceneStrip(p)) : ''}
       ${p.scenes && p.scenes.length ? sec('timeline', buildTimelinePanel(p)) : ''}
+      ${visualDecisionsHtml ? sec('visual-decisions', visualDecisionsHtml) : ''}
       ${transitionAssetsHtml ? sec('transition-assets', transitionAssetsHtml) : ''}
       ${sec('contract', contractHtml)}
       ${sec('meta', metaHtml)}

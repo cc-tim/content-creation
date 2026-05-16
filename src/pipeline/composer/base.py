@@ -6,9 +6,26 @@ from typing import Any
 
 import structlog
 
+from pipeline.errors import SceneRenderError
 from pipeline.utils.ffmpeg import run_ffmpeg
 
 logger = structlog.get_logger()
+
+# Keep this in sync with the dispatch branches in render_scene. The storyboard
+# validator imports this set so unsupported visual types fail before compose.
+VISUAL_TYPES = {
+    "clip",
+    "text_card",
+    "image_sequence",
+    "generated_image",
+    "slide",
+    "rich_slide",
+    "article_image",
+    "image",
+    "still_frame",
+    "namecard",
+    "map",
+}
 
 # Resolution presets
 RESOLUTIONS = {
@@ -358,32 +375,18 @@ def render_scene(
 
         img_path = effective_image_path(visual)
         if not img_path.exists():
-            logger.warning(
-                "file_image.missing",
-                path=str(img_path),
+            raise SceneRenderError(
                 scene=scene_id,
-                visual_type=visual_type,
-            )
-            from pipeline.composer.text_card import render_text_card
-
-            fallback = {"type": "text_card", "text": visual.get("alt", scene_id)}
-            return render_text_card(
-                fallback, duration_sec, width, height, work_dir, scene_id, theme
+                reason=f"{visual_type} path not found: {img_path}",
+                suggested_fix="Replace path or change visual.type to generated_image.",
             )
         from pipeline.utils.ffmpeg import verify_is_image
 
         if not verify_is_image(img_path):
-            logger.warning(
-                "file_image.invalid",
-                path=str(img_path),
+            raise SceneRenderError(
                 scene=scene_id,
-                visual_type=visual_type,
-            )
-            from pipeline.composer.text_card import render_text_card
-
-            fallback = {"type": "text_card", "text": visual.get("alt", scene_id)}
-            return render_text_card(
-                fallback, duration_sec, width, height, work_dir, scene_id, theme
+                reason=f"{visual_type} is not a valid image: {img_path}",
+                suggested_fix="Delete the corrupt source and re-download or generate.",
             )
         output = work_dir / f"{scene_id}_visual.mp4"
         camera_motion = visual.get("camera_motion")

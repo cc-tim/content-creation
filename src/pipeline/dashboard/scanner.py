@@ -32,6 +32,8 @@ class ProjectInfo:
     primary_locale: str = "zh-TW"
     locales: list[str] = field(default_factory=list)
     render_freshness: dict[str, object] = field(default_factory=dict)
+    visual_decisions: list[dict[str, object]] = field(default_factory=list)
+    render_failures: dict[str, object] = field(default_factory=dict)
 
 
 def scan_projects(output_dir: Path) -> list[ProjectInfo]:
@@ -152,6 +154,8 @@ def scan_projects(output_dir: Path) -> list[ProjectInfo]:
                 primary_locale=primary_locale,
                 locales=project_locales,
                 render_freshness=_render_freshness(project_dir),
+                visual_decisions=_visual_decisions(project_dir, storyboard_data),
+                render_failures=ctx.get("render_failures", {}) if isinstance(ctx, dict) else {},
             )
         )
 
@@ -491,3 +495,19 @@ def _transition_asset_warning(
     if not any((asset_source, asset_license, asset_notes)):
         return "Stock transition is missing source or license notes."
     return None
+
+
+def _visual_decisions(
+    project_dir: Path,
+    storyboard_data: dict[str, object],
+) -> list[dict[str, object]]:
+    if not storyboard_data:
+        return []
+    try:
+        from pipeline.director.storyboard_validator import visual_decisions_for_storyboard
+        from pipeline.storyboard import Storyboard
+
+        storyboard = Storyboard.from_dict(storyboard_data)
+        return visual_decisions_for_storyboard(storyboard, project_dir)
+    except Exception:
+        return []

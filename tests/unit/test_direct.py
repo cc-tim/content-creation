@@ -29,6 +29,8 @@ def test_build_direct_prompt_standard(sample_knowledge):
     assert "hook" in prompt
     assert "climax" in prompt
     assert "facts" in prompt.lower()
+    assert '"confidence": "high|medium|low"' in prompt
+    assert '"rationale": "one sentence' in prompt
 
 
 def test_build_direct_prompt_short(sample_knowledge):
@@ -75,6 +77,28 @@ async def test_direct_outputs_storyboard(sample_context, direct_fixture):
 
     assert sb.title == "美國警匪追逐全記錄"
     assert sb.description.startswith("芝加哥街頭")
+
+
+async def test_direct_stage_blocks_invalid_storyboard_visual(sample_context, direct_fixture):
+    knowledge_path = sample_context.work_dir / "knowledge.json"
+    fixture_path = Path(__file__).parent.parent / "fixtures" / "sample_knowledge.json"
+    knowledge_path.write_text(fixture_path.read_text())
+    sample_context.knowledge_path = knowledge_path
+
+    response = dict(direct_fixture)
+    response["scenes"] = [dict(response["scenes"][0])]
+    response["scenes"][0]["visual"] = {"type": "article_image", "path": "missing.jpg"}
+
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text=json.dumps(response))]
+
+    with patch("pipeline.stages.direct.get_anthropic_client") as mock_client_fn:
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_response
+        mock_client_fn.return_value = mock_client
+
+        with pytest.raises(ValueError, match="Storyboard visual validation failed"):
+            await DirectStage().run(sample_context)
 
 
 async def test_generate_shorts_storyboards(sample_knowledge):

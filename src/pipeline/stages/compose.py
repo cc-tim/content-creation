@@ -26,6 +26,7 @@ from pipeline.composer.transitions import (
     render_transition,
 )
 from pipeline.config import PipelineConfig
+from pipeline.errors import SceneRenderError
 from pipeline.stages.base import PipelineContext, PipelineStage
 from pipeline.storyboard import Storyboard, Transition
 from pipeline.utils.ffmpeg import (
@@ -587,6 +588,8 @@ class ComposeStage(PipelineStage):
 
         # Validate output bitrate — low bitrate means encoder/preset bug
         _validate_bitrate(final_path)
+        ctx.render_failures = {}
+        ctx.save()
 
         logger.info("compose.complete", path=str(final_path))
         return ctx
@@ -601,6 +604,27 @@ class ComposeStage(PipelineStage):
             ctx.preferred_variant = "no_overlay"
 
         storyboard = Storyboard.load(ctx.storyboard_path)
+
+        from pipeline.director.storyboard_validator import (
+            raise_for_validation_errors,
+            validate_storyboard,
+            validation_errors,
+        )
+
+        issues = validate_storyboard(storyboard, ctx.work_dir)
+        errors = validation_errors(issues)
+        if errors:
+            ctx.render_failures = {
+                issue.scene_id: {
+                    "reason": f"{issue.field}: {issue.issue}",
+                    "suggested_fix": issue.suggested_fix,
+                }
+                for issue in errors
+            }
+            ctx.save()
+            raise_for_validation_errors(storyboard, ctx.work_dir)
+        ctx.render_failures = {}
+
         width, height = get_resolution(storyboard.aspect_ratio)
         theme_dict = storyboard.theme.to_dict()
         frame_style = theme_dict.get("frame_style") or None
@@ -687,11 +711,20 @@ class ComposeStage(PipelineStage):
         # Collect results with fallbacks for failed scenes
         results: list[ComposeSceneResult] = []
         failures: list[str] = []
+        render_failures: dict[str, dict[str, str]] = {}
         for i, maybe in enumerate(done):
             if isinstance(maybe, Exception):
                 sid = storyboard.scenes[i].id
                 logger.error("compose.scene.exception", scene_id=sid, error=str(maybe))
                 failures.append(f"{sid}: {maybe}")
+                if isinstance(maybe, SceneRenderError):
+                    render_failures[sid] = maybe.to_dict()
+                else:
+                    render_failures[sid] = {
+                        "scene": sid,
+                        "reason": str(maybe),
+                        "suggested_fix": "Inspect the scene render logs and fix the visual contract.",
+                    }
                 if i < len(audio_segments):
                     d = audio_segments[i]["duration_ms"] / 1000.0
                     ap = Path(audio_segments[i]["path"])
@@ -717,6 +750,12 @@ class ComposeStage(PipelineStage):
 
         if failures:
             logger.warning("compose.scene.errors", count=len(failures), details=failures[:5])
+            ctx.render_failures = render_failures
+            ctx.save()
+            raise RuntimeError(
+                "Compose scene render failed; final assembly refused. "
+                + "; ".join(failures[:5])
+            )
 
         # Sort by scene index
         results.sort(key=lambda r: r.index)
@@ -969,6 +1008,8 @@ class ComposeStage(PipelineStage):
                     source_video=source_video,
                     theme=theme_dict,
                 )
+            except SceneRenderError:
+                raise
             except Exception as e:
                 logger.warning("compose.scene.visual_failed", scene_id=scene.id, error=str(e))
                 vis = self._black_screen(scenes_dir, scene.id, duration, width, height)
@@ -1054,6 +1095,8 @@ class ComposeStage(PipelineStage):
                 executor, _render_sync,
             )
         except Exception as e:
+            if isinstance(e, SceneRenderError):
+                raise
             logger.error("compose.scene.catastrophic_failure", scene_id=scene.id, error=str(e))
             self._mux(
                 self._black_screen(scenes_dir, scene.id, duration, width, height),

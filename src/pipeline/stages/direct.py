@@ -225,6 +225,13 @@ VISUAL TYPES (assign one per scene):
 
 {visual_note}
 
+For each scene's visual, include:
+- "confidence": "high|medium|low"
+  - high: clear source image OR clear data → slide/stat card OR pure key-fact → text_card
+  - medium: type fits but other options would also work
+  - low: no obviously-correct choice; user should pick
+- "rationale": "one sentence why this visual type was chosen for this scene"
+
 OVERLAY (optional per scene, renders on top of visual):
 - title: {{"type": "title", "text": "..."}}
 - text: {{"type": "text", "text": "..."}}
@@ -264,7 +271,7 @@ Return ONLY valid JSON:
       "beat": "language-neutral one-line statement of what this scene accomplishes (intent, NOT narration text, NOT a wording summary)",
       "narration_est_sec": 13,
       "facts_ref": ["f1"],
-      "visual": {{"type": "...", ...}},
+      "visual": {{"type": "...", "confidence": "high|medium|low", "rationale": "one sentence why this type was chosen", ...}},
       "overlay": null or {{"type": "...", "text": "..."}},
       "pause_after_sec": 0.5
     }}
@@ -668,6 +675,20 @@ class DirectStage(PipelineStage):
         storyboard_path = ctx.work_dir / f"storyboard_{ctx.locale}.json"
         storyboard.save(storyboard_path)
         ctx.storyboard_path = storyboard_path
+
+        from pipeline.director.storyboard_validator import (
+            format_visual_decision_table,
+            raise_for_validation_errors,
+        )
+
+        print(
+            format_visual_decision_table(
+                storyboard,
+                ctx.work_dir,
+                project_id=ctx.project_id,
+            )
+        )
+        raise_for_validation_errors(storyboard, ctx.work_dir)
 
         # Backwards compat: populate old fields
         ctx.story_structure = {

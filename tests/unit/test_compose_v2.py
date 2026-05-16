@@ -194,6 +194,35 @@ async def test_compose_falls_back_to_mvp(sample_context):
     assert mock_ff.called
 
 
+async def test_compose_blocks_storyboard_with_invalid_visual(sample_context):
+    sb = Storyboard(
+        scenes=[
+            Scene(
+                id="s1",
+                section="hook",
+                narration="test",
+                narration_est_sec=5,
+                visual={"type": "article_image", "path": "missing.jpg"},
+            ),
+        ]
+    )
+    sb_path = sample_context.work_dir / "storyboard.json"
+    sb.save(sb_path)
+    sample_context.storyboard_path = sb_path
+    audio_dir = sample_context.work_dir / "audio"
+    audio_dir.mkdir(parents=True)
+    sample_context.narration_path = audio_dir / "narration.mp3"
+    sample_context.narration_path.write_bytes(b"fake")
+    sample_context.subtitle_path = audio_dir / "subs.srt"
+    sample_context.subtitle_path.write_text("1\n00:00:00,000 --> 00:00:05,000\ntest\n")
+
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        pytest.raises(ValueError, match="Storyboard visual validation failed"),
+    ):
+        await ComposeStage().run(sample_context)
+
+
 def test_compose_burn_subtitles_false_returns_plain_variant(monkeypatch, tmp_path):
     """With burn_subtitles=False, compose copies raw.mp4 to final
     without invoking the -vf subtitles ffmpeg pass."""

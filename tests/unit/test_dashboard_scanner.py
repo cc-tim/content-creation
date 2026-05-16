@@ -449,6 +449,35 @@ def test_scanner_exposes_beat_and_locale_map(tmp_path: Path) -> None:
     assert scene["narration_by_locale"] == {"zh-TW": "主要", "en": "primary"}
 
 
+def test_scanner_exposes_visual_decisions_and_validation_issues(tmp_path: Path) -> None:
+    pdir = _make_project(tmp_path, "20260101-000000-visual")
+    (pdir / "storyboard.json").write_text(json.dumps({
+        "version": 1,
+        "primary_locale": "zh-TW",
+        "scenes": [
+            {
+                "id": "s1",
+                "section": "hook",
+                "narration": "主要",
+                "narration_est_sec": 8.0,
+                "pause_after_sec": 0.0,
+                "visual": {
+                    "type": "text_card",
+                    "text": "",
+                    "confidence": "low",
+                    "rationale": "No usable source image.",
+                },
+            },
+        ],
+    }))
+
+    [p] = scan_projects(tmp_path / "output")
+
+    assert p.visual_decisions[0]["scene_id"] == "s1"
+    assert p.visual_decisions[0]["confidence"] == "low"
+    assert p.visual_decisions[0]["issues"][0]["severity"] == "error"
+
+
 def test_scanner_warns_when_storyboard_newer_than_final_render(tmp_path: Path) -> None:
     project_dir = _make_project(
         tmp_path,

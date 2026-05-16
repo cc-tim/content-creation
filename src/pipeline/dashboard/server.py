@@ -1161,6 +1161,8 @@ def _to_dict(p: ProjectInfo) -> dict[str, object]:
         "primary_locale": p.primary_locale,
         "locales": p.locales,
         "render_freshness": p.render_freshness,
+        "visual_decisions": p.visual_decisions,
+        "render_failures": p.render_failures,
     }
 
 async def _start_compose_action(

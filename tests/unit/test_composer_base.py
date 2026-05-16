@@ -41,6 +41,19 @@ def test_render_scene_unknown_type():
         )
 
 
+def test_render_scene_article_image_missing_raises_scene_render_error(tmp_path):
+    from pipeline.composer.base import render_scene
+    from pipeline.errors import SceneRenderError
+
+    with pytest.raises(SceneRenderError, match="article_image path not found"):
+        render_scene(
+            scene={"id": "s1", "visual": {"type": "article_image", "path": str(tmp_path / "missing.jpg")}},
+            duration_sec=5.0,
+            aspect_ratio="16:9",
+            work_dir=tmp_path,
+        )
+
+
 def test_camera_motion_canvas_targets_normalized_focus_point():
     source = Image.new("RGB", (557, 534), "white")
 

@@ -101,6 +101,22 @@ def test_existing_fields_still_work(tmp_path):
     assert sb["scenes"][0]["narration"] == "new text"
 
 
+def test_set_reports_validation_error_after_edit(tmp_path):
+    _write_sb(tmp_path)
+    sb_path = tmp_path / "storyboard.json"
+    sb = json.loads(sb_path.read_text())
+    sb["scenes"][0]["visual"] = {"type": "unknown_visual_type"}
+    sb_path.write_text(json.dumps(sb), encoding="utf-8")
+
+    result = runner.invoke(app, [
+        "storyboard", "set", "s5", "narration=new text",
+        "--work-dir", str(tmp_path),
+    ])
+
+    assert result.exit_code != 0
+    assert "Storyboard visual validation failed" in result.output
+
+
 def test_set_refit_path(tmp_path):
     _write_sb(tmp_path)
     result = runner.invoke(app, [

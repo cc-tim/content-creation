@@ -45,6 +45,7 @@ class PipelineContext:
     burn_subtitles: bool = True
     skip_overlays: bool = False
     preferred_variant: str | None = None  # e.g. "subtitles_no_overlay"
+    render_failures: dict[str, dict[str, str]] = field(default_factory=dict)
 
     # MLA (Multi-Language Audio)
     mla: bool = False
