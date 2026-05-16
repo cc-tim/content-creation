@@ -105,18 +105,53 @@ Use 2-4 scenes only. Target 45 seconds total."""
             )
         )
         duration_line = constraints_text if constraints_text else "Target 10 minutes total."
+        argument_block = """STEP 1 — ORGANIZE BY ARGUMENT, NOT TIMELINE:
+Before assigning scenes to sections, declare 3-6 talking_points. Each is one
+argument the video advances — NOT a time bucket. Example for a product-safety video:
+  • "The product solved a real parental need"      (rise)
+  • "Why the 70s was the breakthrough"             (rise)
+  • "Behind the success, a hidden injury cost"     (turn)
+  • "Why regulation took 40 years"                 (consequence)
+  • "Three products share one name"                (payoff)
+Every scene must either LAND a talking point or be a PIVOT scene whose only
+job is the turn between two points ("But while…", "And yet…"). Sections
+(hook/context/rising/...) describe arc POSITION; talking points describe what
+is actually being said.
+
+STEP 2 — PROPORTIONAL DWELL:
+If the video pivots from positive→critical (or vice versa), develop the rising
+side across ≥4 scenes BEFORE the pivot, including:
+  - motivation (why this thing exists / what need it solves)
+  - the breakthrough moment (why it succeeded / what changed)
+  - peak-moment dwell (the cultural high, with concrete texture)
+  - a NAMED PIVOT SCENE whose only purpose is the turn
+NEVER let a single scene carry both "peak success" and "first sign of failure"
+— that collapses the arc into a year list. The viewer needs to invest in the
+rise before they can feel the fall.
+
+STEP 3 — CONNECTIVE TISSUE:
+For each scene after s1, decide its relation_to_prev:
+  escalates | contrasts | causally_explains | qualifies | pivots | restates
+If three or more consecutive scenes are all "escalates" with no other relation,
+you are writing a chronicle — restructure into talking points instead.
+
+"""
+
         if niche == "parenting":
             structure = f"""VIDEO STRUCTURE (standard format, 8-12 minutes, parenting/education):
+
+{argument_block}SECTION BINS (allocation, not the organizing principle):
 - hook (0-45s, 2-3 scenes): {hook_guidance}
-- context (45s-3min, 3-5 scenes): Map, people, setting, background
-- rising (3-7min, 8-12 scenes): Escalation of events
+- context (45s-3min, 4-6 scenes): Background. Holds the entire "rise" arc.
+- rising (3-7min, 8-12 scenes): The injury/risk side after the pivot
 - climax (7-9min, 3-5 scenes): Peak tension
 - aftermath (9-10min, 2-3 scenes): Resolution, consequences
 - analysis (10-12min, 4-6 scenes): Commentary, broader implications
 
-Target 28-36 scenes total. Each scene narration_est_sec 10-15 (avg ~13s).
+Target 30-40 scenes total. Each scene narration_est_sec 10-15 (avg ~13s).
 pause_after_sec: 0.3-0.5s within a section, 0.5-0.8s between sections,
-0.8-1.2s hook→context. Never use 0.0 — even 0.3s makes breathing room. {duration_line}
+0.8-1.2s hook→context, 0.8s before a pivot scene. Never use 0.0 — even 0.3s
+makes breathing room. {duration_line}
 
 VISUAL CONTINUITY: Images must feel like they belong in the same visual world.
 - If the same person/setting appears in multiple scenes, describe them identically.
@@ -126,9 +161,11 @@ VISUAL CONTINUITY: Images must feel like they belong in the same visual world.
   Bad: "mother in dress" → "woman in sweater" → "parent with glasses" (three different people)"""
         else:
             structure = f"""VIDEO STRUCTURE (standard format, 10-15 minutes):
+
+{argument_block}SECTION BINS (allocation, not the organizing principle):
 - hook (0-30s): {hook_guidance}
-- context (30s-2min): Map, people, setting, background
-- rising (2-6min): Escalation of events
+- context (30s-2min): Background. Holds the entire "rise" arc.
+- rising (2-6min): The injury/risk side after the pivot
 - climax (6-8min): Peak tension
 - aftermath (8-10min): Resolution, consequences
 - analysis (10-12min): Commentary, broader implications
@@ -215,10 +252,15 @@ Return ONLY valid JSON:
 {{
   "title": "YouTube title in target locale, ~60 chars, applying loaded strategies",
   "description": "YouTube description in target locale, 2-3 paragraphs, crediting sources",
+  "talking_points": [
+    {{"id": "tp1", "claim": "one-line argument this point advances", "scene_ids": ["s4", "s5"]}}
+  ],
   "scenes": [
     {{
       "id": "s1",
       "section": "hook|context|rising|climax|aftermath|analysis|content|punchline",
+      "talking_point_id": "tp1 (or null for pivot scenes)",
+      "relation_to_prev": "escalates|contrasts|causally_explains|qualifies|pivots|restates (omit on s1)",
       "beat": "language-neutral one-line statement of what this scene accomplishes (intent, NOT narration text, NOT a wording summary)",
       "narration_est_sec": 13,
       "facts_ref": ["f1"],
