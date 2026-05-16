@@ -308,7 +308,13 @@ def render_scene(
         from pipeline.composer.image import render_generated_image
 
         # Style hierarchy: theme.visual_style > theme.style_prefix (niche template) > fallback
-        base_style = theme.get("visual_style") or theme.get("style_prefix", "")
+        # Per-scene opt-out via visual.skip_niche_style — useful when the scene's
+        # intent (e.g. photo-realistic product shot) clashes with a niche medium
+        # descriptor (e.g. parenting niche = "soft sketch lines, hand-drawn warmth").
+        if visual.get("skip_niche_style"):
+            base_style = ""
+        else:
+            base_style = theme.get("visual_style") or theme.get("style_prefix", "")
         modifier = visual.get("style_modifier", "")
         content = visual.get("prompt", "abstract background")
 
