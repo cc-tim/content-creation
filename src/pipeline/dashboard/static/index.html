@@ -683,6 +683,89 @@ async function loadPreviewLoop(projectId, row) {
   }
 }
 
+async function loadTimelineThumbnails(projectId, detailRow) {
+  try {
+    const resp = await fetch(`/api/projects/${encodeURIComponent(projectId)}/preview-loop`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    (data.scenes || []).forEach(item => {
+      const img = detailRow.querySelector(`.timeline-seg-thumb[data-scene-id="${item.id}"]`);
+      if (img && item.url) {
+        img.src = `${item.url}?t=${Date.now()}`;
+        img.style.display = 'block';
+        img.onerror = () => { img.style.display = 'none'; };
+      }
+    });
+  } catch (_) {}
+}
+
+const _SECTION_ORDER_KEY = 'dashboard-section-order-v1';
+
+function initSectionDrag(container) {
+  function saveOrder() {
+    const sids = [...container.querySelectorAll(':scope > .dash-section')].map(el => el.dataset.sid);
+    try { localStorage.setItem(_SECTION_ORDER_KEY, JSON.stringify(sids)); } catch (_) {}
+  }
+
+  function applyOrder() {
+    let saved;
+    try { saved = JSON.parse(localStorage.getItem(_SECTION_ORDER_KEY) || '[]'); } catch (_) { return; }
+    if (!Array.isArray(saved) || !saved.length) return;
+    saved.forEach(sid => {
+      const el = container.querySelector(`:scope > .dash-section[data-sid="${sid}"]`);
+      if (el) container.appendChild(el);
+    });
+  }
+
+  let dragSrc = null;
+
+  container.addEventListener('dragstart', e => {
+    const handle = e.target.closest('.dash-section-handle');
+    if (!handle) { e.preventDefault(); return; }
+    dragSrc = handle.closest('.dash-section');
+    if (!dragSrc) return;
+    dragSrc.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragSrc.dataset.sid);
+  });
+
+  container.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const target = e.target.closest('.dash-section');
+    if (!target || target === dragSrc) return;
+    container.querySelectorAll(':scope > .dash-section').forEach(s => s.classList.remove('drag-over'));
+    target.classList.add('drag-over');
+  });
+
+  container.addEventListener('dragleave', e => {
+    if (!container.contains(e.relatedTarget)) {
+      container.querySelectorAll(':scope > .dash-section').forEach(s => s.classList.remove('drag-over'));
+    }
+  });
+
+  container.addEventListener('drop', e => {
+    e.preventDefault();
+    const target = e.target.closest('.dash-section');
+    if (!target || !dragSrc || target === dragSrc) return;
+    const sections = [...container.querySelectorAll(':scope > .dash-section')];
+    const srcIdx = sections.indexOf(dragSrc);
+    const tgtIdx = sections.indexOf(target);
+    if (srcIdx < tgtIdx) target.after(dragSrc);
+    else target.before(dragSrc);
+    container.querySelectorAll(':scope > .dash-section').forEach(s => s.classList.remove('drag-over'));
+    saveOrder();
+  });
+
+  container.addEventListener('dragend', () => {
+    if (dragSrc) dragSrc.classList.remove('dragging');
+    dragSrc = null;
+    container.querySelectorAll(':scope > .dash-section').forEach(s => s.classList.remove('drag-over'));
+  });
+
+  applyOrder();
+}
+
 function toggleDetail(p) {
   const existing = document.querySelector(`tr[data-detail-for="${p.project_id}"]`);
   if (existing) {
