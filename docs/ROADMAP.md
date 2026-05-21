@@ -33,12 +33,13 @@ Every sprint states which axis it serves. We never promise runtime from an arsen
 ## Current arsenal (baseline, 2026-05-21)
 
 - **Visual types:** `generated_image`, `article_image`, `clip`, `slide`, `rich_slide`,
-  `text_card`, `still_frame`
+  `chart` (5 static chart_types — Sprint 1 🟢), `text_card`, `still_frame`
 - **Frames:** `open_book_page` (project-level wrap)
 - **Transitions:** `page-turn` (weak — aliased to xfade slideleft), `book-page-turn-v2`
-- **Known gaps (the demand):** no `chart` type · no programmatic animation (reveals,
-  Ken Burns) · no animated overlays · style globals are silent & untraceable · no
-  storyboard-write-time validator · coarse recompose loop (full re-render for small edits)
+- **Known gaps (the demand):** no programmatic animation (reveals, Ken Burns) · no
+  animated overlays · style globals are silent & untraceable · no storyboard-write-time
+  validator · coarse recompose loop (full re-render for small edits)
+  *(`chart` shipped in Sprint 1.)*
 
 See `.agent-memory/engineering-manager/arsenal-state.md` for the living inventory.
 
@@ -56,7 +57,7 @@ Three are the **arsenal-direction** epics (the demand-driven backlog: programmat
 programmatic animation, animated overlays). Three are **cross-cutting infrastructure** that
 the arsenal needs in order to be traceable, safe, and iterable.
 
-### E1 — Programmatic charts  `[arsenal]`  🔵
+### E1 — Programmatic charts  `[arsenal]`  🟢 *v1 shipped (Sprint 1)*
 Render data as **styled editorial graphics** (warm sepia / book-page feel), never a Plotly
 dashboard. New `chart` visual type, two-pass like `rich_slide` (Flux draft background +
 Pillow composite). chart_types: `stat_big_number`, `proportion_blocks`, `timeline`, `bar`,
@@ -121,7 +122,7 @@ Unblocks (and what it does NOT) · Acceptance · Cost · Size.
 
 ---
 
-### ▶ Sprint 1 — Chart Renderer v1 (static, full type set)  `[E1]`  🔵 *proposed*
+### Sprint 1 — Chart Renderer v1 (static, full type set)  `[E1]`  🟢 *shipped 2026-05-21*
 
 - **Goal:** ship the `chart` visual type rendering all five static chart_types
   (`stat_big_number`, `proportion_blocks`, `timeline`, `bar`, `comparison`) as
@@ -142,11 +143,13 @@ Unblocks (and what it does NOT) · Acceptance · Cost · Size.
   - **Minimal inline validation** (precursor to E5): reject chart scenes missing
     `chart_type`/`data`; reject `stat_big_number` value > 8 chars; reject `bar`/`comparison`
     whose `data` shape doesn't match schema.
-  - Golden-PNG tests per chart_type in `tests/composer/test_chart.py`.
-- **Scope OUT (deferred):** animated reveal (→ E2) · full Style Manifest integration
-  (→ E4; chart consumes `theme` directly for now) · full storyboard validator (→ E5) ·
-  "small multiples" grid (chart handoff v2 idea).
-- **Dependencies:** none blocking. (Parallel `slide` schema-mismatch fix is independent.)
+  - Golden-PNG tests per chart_type in `tests/unit/test_chart.py` (fixtures under
+    `tests/fixtures/chart/golden/`).
+- **Scope OUT (deferred):** animated reveal (→ E2) · Style Manifest element registration
+  (→ E4; chart consumes `theme` directly for now) + dashboard surface (→ E6) · full
+  storyboard validator (→ E5) · "small multiples" grid (chart handoff v2 idea).
+- **Dependencies:** none blocking. Parallel `slide` schema-mismatch fix is **landed**
+  (b8715c4, on this branch + master); Sprint-0 open item cleared.
 - **Unblocks:** baby-walker stat beats render as real charts instead of text slides — a
   **visual-quality** lift. **Does NOT** unblock the 6–8 min runtime (that needs more
   material), nor the merged animated decline-curve (that needs E2 / Sprint 2).
@@ -158,7 +161,7 @@ Unblocks (and what it does NOT) · Acceptance · Cost · Size.
 
 ---
 
-### Sprint 2 — Animated chart reveal + the decline-curve  `[E2]`  🔵
+### ▶ Sprint 2 — Animated chart reveal + the decline-curve  `[E2]`  🔵 *next*
 Add an animated variant: line-draw / timeline reveal and `stat_big_number` count-up
 (PIL multi-frame → ffmpeg). Delivers the baby-walker **merged animated decline-curve**
 (1990→2014 with regulation milestone markers) the producer greenlit in loop 3.

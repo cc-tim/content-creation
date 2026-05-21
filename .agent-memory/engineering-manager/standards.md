@@ -31,6 +31,21 @@ until it has ALL of:
 6. Eventually: a Style Manifest element (E4) and a dashboard surface (E6).
    Sprints 1–N may defer 6, but must name it as deferred, not forget it.
 
+**Lessons from Sprint 1 (chart):**
+- **Renderers do NOT self-wrap the project frame.** `open_book_page` is applied at
+  compose level (`compose.py` → `composer/frame.py`) post-render, so a new visual type
+  inherits it automatically. Don't re-implement frame logic in the renderer (the chart
+  handoff's "wrap with book_scene" wording was wrong).
+- **Golden-PNG test mechanics:** fixtures live in `tests/unit/` (+ `tests/fixtures/.../golden/`),
+  rendered with a deterministic flat background (`ai_background: false`) so NO provider
+  call fires in CI; mock `image_to_video`; add a determinism smoke test (render twice,
+  `ImageChops.difference(...).getbbox() is None`) BEFORE committing fixtures; gate
+  regeneration behind `UPDATE_GOLDENS=1`. Always eyeball each golden — a deterministic
+  test passes a baked-in layout bug silently.
+- **A new type owns a warm/editorial palette** rather than consuming the cool slate
+  `Theme` color defaults (`secondary_bg` = slate-700); consume `theme.image_style` for the
+  AI-bg prompt (art-direction continuity) and defer full Theme-color integration to E4.
+
 ## Budget discipline ($50/mo cap)
 
 - Flux **draft** tier first ($0.003); promote only approved content.
