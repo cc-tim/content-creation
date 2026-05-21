@@ -94,3 +94,145 @@ def _count_up_value(final_value: str, progress: float) -> tuple[str, bool]:
         cursor = m.end()
     out.append(final_value[cursor:])
     return "".join(out), True
+
+
+# ── Frame generators ───────────────────────────────────────────────────────────
+def _animate_line_frame(
+    progress: float,
+    visual: dict[str, Any],
+    base_bg: Any,
+    width: int,
+    height: int,
+    palette: dict[str, tuple[int, int, int]],
+    top: int,
+) -> Any:
+    """Draw the `line` chart up to ``progress`` of its total path length.
+
+    At progress=0 nothing data-related is drawn (only axes + axis labels).
+    At progress=1 the full curve + all markers are visible. Markers appear as
+    the draw passes their x-position — a marker at x=1995 becomes visible the
+    moment the curve reaches x=1995. The base bg is taken as-is; the data
+    layer is re-drawn from scratch on a copy so the generator stays pure.
+    """
+    from PIL import ImageDraw
+
+    from pipeline.composer.chart import _BODY_BOTTOM_FRAC, _HEADER_GAP
+    from pipeline.composer.rich_slide import (
+        _SANS_BOLD,
+        _SANS_REGULAR,
+        _load_font,
+    )
+
+    img = base_bg.copy()
+    pad_l = int(width * 0.10)
+    pad_r = int(width * 0.07)
+    body_top = max(top + _HEADER_GAP, int(height * 0.30))
+    body_bottom = int(height * _BODY_BOTTOM_FRAC)
+    plot_w = width - pad_l - pad_r
+
+    wipe = ImageDraw.Draw(img)
+    # Wipe everything below the header gap (data layer + axis labels) so the
+    # frame generator can re-draw at the requested progress without leftover
+    # artifacts from the base.
+    wipe.rectangle(
+        [pad_l - 16, body_top - 34, pad_l + plot_w + pad_r + 8, body_bottom + 6],
+        fill=palette["paper"],
+    )
+
+    data = visual["data"]
+    points = data["points"]
+    markers = data.get("markers") or []
+
+    xs = [float(p["x"]) for p in points]
+    ys = [float(p["y"]) for p in points]
+    marker_xs = [float(m["x"]) for m in markers if isinstance(m, dict) and "x" in m]
+    x_min = min(xs + marker_xs)
+    x_max = max(xs + marker_xs)
+    y_max = max(ys) or 1.0
+    x_span = max(1.0, x_max - x_min)
+    plot_h = body_bottom - body_top
+
+    def _to_px(x: float, y: float) -> tuple[int, int]:
+        px = pad_l + int(plot_w * (x - x_min) / x_span)
+        py = body_top + int(plot_h * (1.0 - y / y_max))
+        return px, py
+
+    draw = ImageDraw.Draw(img)
+    # Axes are always at full strength.
+    draw.line([pad_l, body_bottom, pad_l + plot_w, body_bottom],
+              fill=palette["muted"], width=2)
+    draw.line([pad_l, body_top, pad_l, body_bottom],
+              fill=palette["muted"], width=2)
+
+    yf = _load_font(_SANS_REGULAR, 22)
+    label_bb = draw.textbbox((0, 0), "9999", font=yf)
+    label_h = label_bb[3] - label_bb[1]
+    for x_label in (min(xs), max(xs)):
+        s = f"{int(x_label)}"
+        sb = draw.textbbox((0, 0), s, font=yf)
+        px = pad_l + int(plot_w * (x_label - x_min) / x_span)
+        draw.text((px - (sb[2] - sb[0]) // 2, body_bottom - label_h - 6),
+                  s, font=yf, fill=palette["muted"])
+
+    progress = max(0.0, min(1.0, progress))
+    if progress > 0.0:
+        px_points = [_to_px(p["x"], p["y"]) for p in points]
+        seg_lengths = [
+            ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5
+            for a, b in zip(px_points, px_points[1:], strict=False)
+        ]
+        total = sum(seg_lengths) or 1.0
+        target = total * progress
+        consumed = 0.0
+        cur_x_data = xs[0]
+        finished = False
+        for (a, b), seg_len, a_x_data, b_x_data in zip(
+            list(zip(px_points, px_points[1:], strict=False)),
+            seg_lengths,
+            xs,
+            xs[1:],
+            strict=False,
+        ):
+            if consumed + seg_len <= target:
+                draw.line([a, b], fill=palette["accent"], width=4)
+                consumed += seg_len
+                cur_x_data = b_x_data
+            else:
+                frac = (target - consumed) / seg_len if seg_len > 0 else 1.0
+                end = (
+                    a[0] + int((b[0] - a[0]) * frac),
+                    a[1] + int((b[1] - a[1]) * frac),
+                )
+                draw.line([a, end], fill=palette["accent"], width=4)
+                cur_x_data = a_x_data + (b_x_data - a_x_data) * frac
+                finished = True
+                break
+        if not finished:
+            cur_x_data = xs[-1]
+        for (px, py), px_x in zip(px_points, xs, strict=False):
+            if px_x <= cur_x_data + 1e-9:
+                draw.ellipse([px - 5, py - 5, px + 5, py + 5],
+                             fill=palette["accent"])
+    else:
+        cur_x_data = xs[0] - 1.0
+
+    mf = _load_font(_SANS_BOLD, 18)
+    for i, m in enumerate(markers):
+        mx = float(m["x"])
+        if progress <= 1e-9:
+            continue
+        if mx > cur_x_data + 1e-9:
+            continue
+        mpx = pad_l + int(plot_w * (mx - x_min) / x_span)
+        draw.line([mpx, body_top + 8, mpx, body_bottom],
+                  fill=palette["muted"], width=1)
+        draw.ellipse([mpx - 7, body_top + 1, mpx + 7, body_top + 15],
+                     fill=palette["ink"])
+        label = str(m.get("label", ""))
+        lb = draw.textbbox((0, 0), label, font=mf)
+        lab_x = max(pad_l, min(pad_l + plot_w - (lb[2] - lb[0]),
+                                mpx - (lb[2] - lb[0]) // 2))
+        lab_y = body_top - 26 if i % 2 == 0 else body_top - 6
+        draw.text((lab_x, lab_y), label, font=mf, fill=palette["ink"])
+
+    return img
