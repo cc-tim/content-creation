@@ -221,13 +221,23 @@ VISUAL TYPES (assign one per scene):
   Good: "exhausted parent kneeling at toddler eye level in hallway, worried expression"
   Bad:  "warm watercolor illustration of parent kneeling"
 - slide: {{"type": "slide", "title": "...", "bullets": ["..."]}}
+- chart: {{"type": "chart", "chart_type": "stat_big_number|proportion_blocks|timeline|bar|comparison", "title": "...", "data": {{...}}, "source_credit": "optional"}}
+  Use when the scene's CORE message IS a number, a proportion, a sequence of years, a ranking, or a two-way contrast.
+  If the scene names a REAL datapoint, PREFER chart over slide+text — a stat deserves a real visualization, not a bullet.
+  Copy the per-type data shape EXACTLY (the schema differs per chart_type):
+  - stat_big_number: {{"chart_type": "stat_big_number", "title": "Cumulative injuries", "data": {{"value": "230,676", "unit": "children", "context": "1990–2014"}}}}
+  - proportion_blocks: {{"chart_type": "proportion_blocks", "title": "Where falls happen", "data": {{"label": "74% stair falls", "ratio": 0.74, "secondary_label": "26% other", "secondary_ratio": 0.26}}}}
+  - timeline: {{"chart_type": "timeline", "title": "Two decades", "data": [{{"year": 1990, "label": "20,650 ER visits"}}, {{"year": 2014, "label": "230k cumulative"}}]}}
+  - bar: {{"chart_type": "bar", "title": "Injury mechanisms", "data": {{"x": ["stair falls", "tip-overs", "burns"], "y": [74, 13, 6], "y_unit": "%"}}}}
+  - comparison: {{"chart_type": "comparison", "title": "Speed vs reaction", "data": {{"left": {{"label": "Sit-in walker", "value": "3 ft/s"}}, "right": {{"label": "Adult reaction", "value": "0.7 s"}}}}}}
+  RULE: stat_big_number value must be <= 8 chars. Charts carry their own title — do NOT also add a text overlay.
 - still_frame: {{"type": "still_frame", "source": "primary", "timestamp_sec": N}}
 
 {visual_note}
 
 For each scene's visual, include:
 - "confidence": "high|medium|low"
-  - high: clear source image OR clear data → slide/stat card OR pure key-fact → text_card
+  - high: clear source image OR clear data → chart (numbers/proportions/years) OR pure key-fact → text_card
   - medium: type fits but other options would also work
   - low: no obviously-correct choice; user should pick
 - "rationale": "one sentence why this visual type was chosen for this scene"

@@ -1,0 +1,351 @@
+"""Chart renderer: styled-editorial data graphics (not a Plotly dashboard).
+
+Two-pass like ``rich_slide.py``: an optional AI background (Flux draft, cached by
+``md5(prompt)`` under ``work_dir/image_cache/``) + a Pillow composite of the data.
+Five static chart_types: stat_big_number, proportion_blocks, timeline, bar, comparison.
+
+Charts carry their own title text; the ``open_book_page`` frame is applied later at
+compose time (``composer/frame.py``), so this renderer does NOT wrap the frame itself.
+The bottom 25% of the canvas is reserved for burned narration subtitles (mirrors
+``rich_slide.py``), so all chart body content stays above ``_BODY_BOTTOM_FRAC``.
+"""
+from __future__ import annotations
+
+import hashlib
+from pathlib import Path
+from typing import Any
+
+import structlog
+
+from pipeline.composer.base import image_to_video
+from pipeline.composer.rich_slide import (
+    _SANS_BOLD,
+    _SANS_REGULAR,
+    _SERIF_BOLD,
+    _load_font,
+    _wrap_text,
+)
+from pipeline.providers.base import ProviderError, try_chain
+from pipeline.providers.gen_image import GenImageProvider
+
+logger = structlog.get_logger()
+
+CHART_TYPES = {"stat_big_number", "proportion_blocks", "timeline", "bar", "comparison"}
+
+# Warm editorial palette (book-page feel). Chart OWNS its foreground colors for v1 so
+# the look is guaranteed editorial regardless of the project's (cool, slate) Theme
+# defaults; full Theme-color integration is deferred to E4 (Style Manifest). The AI
+# background prompt still consumes theme.image_style, which is where art-direction
+# continuity lives. (Theme.secondary_bg defaults to slate-700 #334155 — cool — so
+# consuming it for chart paper would defeat the editorial goal; we do not.)
+_INK = (38, 30, 22)        # near-black warm ink for headlines
+_PAPER = (244, 236, 222)   # aged-paper substrate
+_MUTED = (120, 104, 86)    # sepia muted for captions/axes
+_ACCENT = (181, 83, 42)    # warm terracotta highlight
+
+# Bottom 25% (>= 0.75*H) is reserved for burned narration subtitles. ALL chart body
+# content + the source credit stay above it.
+_BODY_BOTTOM_FRAC = 0.70   # chart body must not extend past this
+_CREDIT_Y_FRAC = 0.71      # source credit sits in the 0.70-0.75 gap, above subtitles
+_HEADER_GAP = 24           # min vertical gap between header bottom (`top`) and body
+
+
+def _validate_chart(visual: dict[str, Any], scene_id: str) -> None:
+    """Minimal inline validation (E5 precursor). Fail loudly with a fix hint."""
+    chart_type = visual.get("chart_type")
+    if not chart_type:
+        raise ValueError(
+            f"chart {scene_id}: missing 'chart_type' (one of {sorted(CHART_TYPES)})"
+        )
+    if chart_type not in CHART_TYPES:
+        raise ValueError(
+            f"chart {scene_id}: unknown chart_type={chart_type!r}; "
+            f"use one of {sorted(CHART_TYPES)}"
+        )
+    data = visual.get("data")
+    if not data:
+        raise ValueError(
+            f"chart {scene_id}: missing 'data' for chart_type={chart_type!r}"
+        )
+
+    if chart_type == "stat_big_number":
+        value = str(data.get("value", ""))
+        if not value:
+            raise ValueError(f"chart {scene_id}: stat_big_number needs data.value")
+        if len(value) > 8:
+            raise ValueError(
+                f"chart {scene_id}: stat_big_number value {value!r} > 8 chars "
+                f"(won't fit big serif); shorten or use a bar/timeline."
+            )
+    elif chart_type == "bar":
+        x, y = data.get("x"), data.get("y")
+        if not isinstance(x, list) or not isinstance(y, list) or len(x) != len(y) or not x:
+            raise ValueError(
+                f"chart {scene_id}: bar data needs equal-length non-empty 'x' and 'y' "
+                f"lists; got x={x!r} y={y!r}"
+            )
+    elif chart_type == "comparison":
+        for side_name in ("left", "right"):
+            side = data.get(side_name)
+            if not isinstance(side, dict) or "label" not in side or "value" not in side:
+                raise ValueError(
+                    f"chart {scene_id}: comparison needs {side_name} with "
+                    f"'label' and 'value'"
+                )
+    elif chart_type == "proportion_blocks":
+        if "ratio" not in data:
+            raise ValueError(
+                f"chart {scene_id}: proportion_blocks needs data.ratio (0..1)"
+            )
+    elif chart_type == "timeline":
+        if not isinstance(data, list) or not data:
+            raise ValueError(
+                f"chart {scene_id}: timeline data must be a non-empty list of "
+                f"{{year, label}} entries"
+            )
+
+
+def _palette(theme: dict) -> dict[str, tuple[int, int, int]]:
+    # v1: fixed warm editorial palette (see module note). theme reserved for E4.
+    return {"ink": _INK, "paper": _PAPER, "accent": _ACCENT, "muted": _MUTED}
+
+
+def _build_background(visual, theme, width, height, work_dir, scene_id):
+    """Flat themed paper (deterministic) unless an AI background is requested."""
+    from PIL import Image
+
+    pal = _palette(theme)
+    if not visual.get("ai_background", True):
+        return Image.new("RGB", (width, height), pal["paper"])
+
+    bg_prompt = visual.get("background_prompt") or (
+        "aged paper texture, soft sepia stains, faint grid"
+    )
+    image_style = theme.get("image_style", "")
+    prompt = (
+        f"{bg_prompt}. Style: {image_style}"
+        if image_style and image_style not in bg_prompt
+        else bg_prompt
+    )
+
+    cache_dir = work_dir / "image_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cached_png = cache_dir / f"{hashlib.md5(prompt.encode()).hexdigest()[:12]}.png"
+    if not cached_png.exists():
+        size = "1792x1024" if width > height else "1024x1792"
+        try:
+            try_chain(
+                [GenImageProvider(tier="draft")],
+                prompt=prompt,
+                out_path=cached_png,
+                size=size,
+            )
+            logger.info("chart.image_generated", scene=scene_id)
+        except ProviderError as exc:
+            logger.warning("chart.image_failed", scene=scene_id, error=str(exc))
+            Image.new("RGB", (width, height), pal["paper"]).save(cached_png)
+    else:
+        logger.info("chart.image_cache_hit", scene=scene_id)
+
+    bg = Image.open(cached_png).convert("RGB").resize((width, height), Image.LANCZOS)
+    # Wash the AI background toward paper so the foreground data reads clearly.
+    wash = Image.new("RGB", (width, height), pal["paper"])
+    return Image.blend(bg, wash, 0.55)
+
+
+def render_chart(
+    visual: dict[str, Any],
+    duration_sec: float,
+    width: int,
+    height: int,
+    work_dir: Path,
+    scene_id: str,
+    theme: dict | None = None,
+) -> Path:
+    """Render a styled-editorial chart and return the path to the .mp4 segment."""
+    from PIL import ImageDraw
+
+    theme = theme or {}
+    _validate_chart(visual, scene_id)
+    chart_type = visual["chart_type"]
+    pal = _palette(theme)
+
+    bg = _build_background(visual, theme, width, height, work_dir, scene_id)
+    draw = ImageDraw.Draw(bg)
+
+    top = _draw_header(draw, visual, width, height, pal)
+    renderer = {
+        "stat_big_number": _render_stat,
+        "proportion_blocks": _render_proportion,
+        "timeline": _render_timeline,
+        "bar": _render_bar,
+        "comparison": _render_comparison,
+    }[chart_type]
+    renderer(draw, visual, width, height, pal, top)
+    _draw_credit(draw, visual, width, height, pal)
+
+    composite_png = work_dir / f"{scene_id}_chart.png"
+    bg.save(composite_png)
+    output = work_dir / f"{scene_id}_visual.mp4"
+    image_to_video(composite_png, output, duration_sec, width, height)
+    return output
+
+
+def _draw_header(draw, visual, width, height, pal) -> int:
+    """Title + subtitle at the top; return the y where the chart body may start."""
+    pad = int(width * 0.07)
+    y = int(height * 0.09)
+    title = visual.get("title", "")
+    if title:
+        f = _load_font(_SERIF_BOLD, 40)
+        for line in _wrap_text(title, f, width - pad * 2, draw):
+            draw.text((pad, y), line, font=f, fill=pal["ink"])
+            y += draw.textbbox((0, 0), line, font=f)[3] + 6
+    subtitle = visual.get("subtitle", "")
+    if subtitle:
+        f = _load_font(_SANS_REGULAR, 24)
+        draw.text((pad, y), subtitle, font=f, fill=pal["muted"])
+        y += 34
+    draw.rectangle([pad, y + 6, pad + 70, y + 10], fill=pal["accent"])
+    return y + 28
+
+
+def _draw_credit(draw, visual, width, height, pal) -> None:
+    credit = visual.get("source_credit")
+    if not credit:
+        return
+    f = _load_font(_SANS_REGULAR, 20)
+    txt = f"Source: {credit}"
+    pad = int(width * 0.07)
+    tb = draw.textbbox((0, 0), txt, font=f)
+    x = width - pad - (tb[2] - tb[0])
+    draw.text((x, int(height * _CREDIT_Y_FRAC)), txt, font=f, fill=pal["muted"])
+
+
+def _render_stat(draw, visual, width, height, pal, top) -> None:
+    data = visual["data"]
+    cx = width // 2
+    body_top = max(top + _HEADER_GAP, int(height * 0.30))
+
+    num_f = _load_font(_SERIF_BOLD, 150)
+    value = str(data["value"])
+    nb = draw.textbbox((0, 0), value, font=num_f)
+    draw.text((cx - (nb[2] - nb[0]) // 2, body_top), value, font=num_f, fill=pal["accent"])
+    # Advance to just below the number's actual ink bottom (nb[3]), not its height,
+    # so the unit label can't ride up into the digits.
+    y = body_top + nb[3] + 24
+
+    unit = str(data.get("unit", ""))
+    if unit:
+        uf = _load_font(_SANS_BOLD, 36)
+        ub = draw.textbbox((0, 0), unit.upper(), font=uf)
+        draw.text((cx - (ub[2] - ub[0]) // 2, y), unit.upper(), font=uf, fill=pal["ink"])
+        y += 52
+
+    context = str(data.get("context", ""))
+    if context:
+        cf = _load_font(_SANS_REGULAR, 28)
+        cb = draw.textbbox((0, 0), context, font=cf)
+        draw.text((cx - (cb[2] - cb[0]) // 2, y), context, font=cf, fill=pal["muted"])
+
+
+def _render_proportion(draw, visual, width, height, pal, top) -> None:
+    data = visual["data"]
+    pad = int(width * 0.07)
+    bar_w = width - pad * 2
+    ratio = max(0.0, min(1.0, float(data["ratio"])))
+    y0 = max(top + _HEADER_GAP, int(height * 0.38))
+    bar_h = int(height * 0.15)
+    split = pad + int(bar_w * ratio)
+
+    draw.rectangle([pad, y0, split, y0 + bar_h], fill=pal["accent"])
+    draw.rectangle([split, y0, pad + bar_w, y0 + bar_h], fill=pal["muted"])
+
+    pf = _load_font(_SERIF_BOLD, 52)
+    draw.text((pad + 24, y0 + bar_h // 2 - 30), f"{round(ratio * 100)}%",
+              font=pf, fill=pal["paper"])
+
+    lf = _load_font(_SANS_REGULAR, 28)
+    draw.text((pad, y0 + bar_h + 22), str(data.get("label", "")), font=lf, fill=pal["ink"])
+    sec = data.get("secondary_label")
+    if sec:
+        sb = draw.textbbox((0, 0), str(sec), font=lf)
+        draw.text((pad + bar_w - (sb[2] - sb[0]), y0 + bar_h + 22),
+                  str(sec), font=lf, fill=pal["muted"])
+
+
+def _render_timeline(draw, visual, width, height, pal, top) -> None:
+    data = visual["data"]
+    pad = int(width * 0.09)
+    axis_y = max(top + 90, int(height * 0.52))
+    span = width - pad * 2
+    n = len(data)
+    draw.line([pad, axis_y, pad + span, axis_y], fill=pal["muted"], width=3)
+
+    yf = _load_font(_SERIF_BOLD, 30)
+    lf = _load_font(_SANS_REGULAR, 22)
+    for i, entry in enumerate(data):
+        x = pad + (span * i // max(1, n - 1))
+        draw.ellipse([x - 9, axis_y - 9, x + 9, axis_y + 9], fill=pal["accent"])
+
+        year = str(entry.get("year", ""))
+        yb = draw.textbbox((0, 0), year, font=yf)
+        draw.text((x - (yb[2] - yb[0]) // 2, axis_y + 22), year, font=yf, fill=pal["ink"])
+
+        label = str(entry.get("label", ""))
+        lines = _wrap_text(label, lf, int(span / n) + 40, draw)
+        ly = axis_y - 30 - (40 if i % 2 else 0) - len(lines) * 26
+        for line in lines:
+            lb = draw.textbbox((0, 0), line, font=lf)
+            draw.text((x - (lb[2] - lb[0]) // 2, ly), line, font=lf, fill=pal["muted"])
+            ly += 26
+
+
+def _render_bar(draw, visual, width, height, pal, top) -> None:
+    data = visual["data"]
+    xs = data["x"]
+    ys = [float(v) for v in data["y"]]
+    unit = data.get("y_unit", "")
+    pad = int(width * 0.07)
+
+    label_f = _load_font(_SANS_BOLD, 26)
+    val_f = _load_font(_SERIF_BOLD, 28)
+    max_v = max(ys) or 1.0
+    track_w = int(width * 0.62)
+    y0 = max(top + _HEADER_GAP, int(height * 0.28))
+    body_bottom = int(height * _BODY_BOTTOM_FRAC)
+    row_h = int((body_bottom - y0) / len(xs))
+    bar_h = min(int(row_h * 0.42), 46)
+
+    for label, v in zip(xs, ys, strict=False):
+        draw.text((pad, y0), str(label), font=label_f, fill=pal["ink"])
+        by = y0 + 34
+        bw = int(track_w * (v / max_v))
+        draw.rectangle([pad, by, pad + max(2, bw), by + bar_h], fill=pal["accent"])
+        vtxt = f"{v:g}{unit}"
+        draw.text((pad + max(2, bw) + 16, by + bar_h // 2 - 16),
+                  vtxt, font=val_f, fill=pal["ink"])
+        y0 += row_h
+
+
+def _render_comparison(draw, visual, width, height, pal, top) -> None:
+    data = visual["data"]
+    mid = width // 2
+    y_val = max(top + _HEADER_GAP, int(height * 0.36))
+    body_bottom = int(height * _BODY_BOTTOM_FRAC)
+    draw.line([mid, int(height * 0.30), mid, body_bottom], fill=pal["muted"], width=2)
+
+    vf = _load_font(_SERIF_BOLD, 92)
+    lf = _load_font(_SANS_REGULAR, 30)
+    for side, cx, color in (
+        ("left", mid // 2, pal["accent"]),
+        ("right", mid + mid // 2, pal["ink"]),
+    ):
+        s = data[side]
+        val = str(s["value"])
+        vb = draw.textbbox((0, 0), val, font=vf)
+        draw.text((cx - (vb[2] - vb[0]) // 2, y_val), val, font=vf, fill=color)
+        lab = str(s["label"])
+        lb = draw.textbbox((0, 0), lab, font=lf)
+        draw.text((cx - (lb[2] - lb[0]) // 2, y_val + (vb[3] - vb[1]) + 28),
+                  lab, font=lf, fill=pal["muted"])

@@ -20,6 +20,7 @@ VISUAL_TYPES = {
     "generated_image",
     "slide",
     "rich_slide",
+    "chart",
     "article_image",
     "image",
     "still_frame",
@@ -369,6 +370,11 @@ def render_scene(
         from pipeline.composer.rich_slide import render_rich_slide
 
         return render_rich_slide(visual, duration_sec, width, height, work_dir, scene_id, theme)
+
+    elif visual_type == "chart":
+        from pipeline.composer.chart import render_chart
+
+        return render_chart(visual, duration_sec, width, height, work_dir, scene_id, theme)
 
     elif visual_type in ("article_image", "image"):
         from pipeline.composer.refit import effective_image_path, target_box

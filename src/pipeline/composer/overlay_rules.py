@@ -5,7 +5,7 @@ class OverlayCollisionError(ValueError):
     """Raised when a scene overlay would collide with subtitles or text visuals."""
 
 
-_TEXT_VISUALS = {"text_card", "slide"}
+_TEXT_VISUALS = {"text_card", "slide", "chart"}
 _FORBIDDEN_OVERLAY_TYPES = {"text"}  # legacy name, bottom-anchored
 
 
@@ -21,8 +21,8 @@ def check_overlay_allowed(
     Rules:
     - The legacy ``text`` overlay type is banned (it anchors to the bottom
       third and collides with burned subtitles).
-    - ``text_*`` overlays cannot be applied to ``text_card`` or ``slide``
-      visuals (text-on-text is unreadable).
+    - ``text_*`` overlays cannot be applied to ``text_card``, ``slide``, or
+      ``chart`` visuals (text-on-text is unreadable; charts carry their own title).
     - ``title`` and ``namecard`` overlays are allowed anywhere.
     """
     if overlay is None:

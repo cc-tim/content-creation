@@ -43,6 +43,21 @@ def test_legacy_text_overlay_is_rejected(tmp_path):
         )
 
 
+def test_text_overlay_forbidden_on_chart():
+    from pipeline.composer.overlay_rules import (
+        OverlayCollisionError,
+        check_overlay_allowed,
+    )
+
+    with pytest.raises(OverlayCollisionError, match="text-on-text"):
+        check_overlay_allowed(
+            scene={"id": "s1"},
+            overlay={"type": "text_top", "text": "x"},
+            visual={"type": "chart"},
+            burn_subtitles=True,
+        )
+
+
 def test_namecard_overlay(tmp_path):
     visual = tmp_path / "visual.mp4"
     visual.write_bytes(b"fake")
