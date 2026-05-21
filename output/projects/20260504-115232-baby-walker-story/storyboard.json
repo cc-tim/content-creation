@@ -707,9 +707,11 @@
         "f23"
       ],
       "visual": {
-        "type": "article_image",
-        "path": "raw/parenting/baby-walker/assets/Baby_Walker.jpg",
-        "alt": "stationary activity center substitute (no wheels)"
+        "type": "generated_image",
+        "prompt": "Studio product photograph: an empty baby stationary activity center (Exersaucer-style) standing on a clean wooden floor — NO baby visible — a round plastic activity tray ringed with built-in hanging toys, a padded rotating seat suspended in the center, sturdy splayed plastic legs resting flat on the floor with NO wheels at the base, soft natural window light from the side, warm sepia color grade, three-quarter angle at child eye level, photo-realistic, neutral home interior background",
+        "style_modifier": "warm sepia tones",
+        "alt": "stationary activity center — no wheels, defining the product type",
+        "skip_niche_style": true
       },
       "overlay": null,
       "pause_after_sec": 0.0,
