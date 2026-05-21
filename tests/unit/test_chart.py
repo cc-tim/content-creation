@@ -161,6 +161,57 @@ def test_render_scene_dispatches_chart(tmp_path):
     assert out.name == "s1_visual.mp4"
 
 
+# ── line (Sprint 2 static substrate for animation) ────────────────────────────
+_LINE = {
+    "type": "chart", "chart_type": "line", "ai_background": False,
+    "title": "US ER visits per year", "source_credit": "AAP, 1990–2014",
+    "data": {
+        "points": [
+            {"x": 1990, "y": 20650},
+            {"x": 1999, "y": 8800},
+            {"x": 2007, "y": 3200},
+            {"x": 2014, "y": 2001},
+        ],
+        "markers": [
+            {"x": 1982, "label": "First medical study"},
+            {"x": 1995, "label": "Voluntary standard"},
+            {"x": 1997, "label": "ASTM F977"},
+            {"x": 2001, "label": "AAP ban call"},
+            {"x": 2004, "label": "Canada bans"},
+            {"x": 2010, "label": "CPSC mandatory"},
+        ],
+        "x_axis": "year", "y_axis": "ER visits",
+    },
+}
+
+
+def test_validate_rejects_line_missing_points():
+    with pytest.raises(ValueError, match="line"):
+        _validate_chart(_v(chart_type="line", data={"markers": []}), "s1")
+
+
+def test_validate_rejects_line_marker_missing_x():
+    with pytest.raises(ValueError, match="marker"):
+        _validate_chart(
+            _v(
+                chart_type="line",
+                data={
+                    "points": [{"x": 1990, "y": 1}, {"x": 2014, "y": 1}],
+                    "markers": [{"label": "no x given"}],
+                },
+            ),
+            "s1",
+        )
+
+
+def test_validate_accepts_valid_line():
+    _validate_chart(_LINE, "s1")
+
+
+def test_golden_line(tmp_path):
+    _assert_golden(_render_png(_LINE, tmp_path, "s_line"), "line")
+
+
 def test_ai_background_path_calls_provider(tmp_path):
     def fake_chain(providers, prompt, out_path, size):
         Image.new("RGB", (64, 64), (200, 180, 150)).save(out_path)

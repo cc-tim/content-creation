@@ -30,7 +30,7 @@ from pipeline.providers.gen_image import GenImageProvider
 
 logger = structlog.get_logger()
 
-CHART_TYPES = {"stat_big_number", "proportion_blocks", "timeline", "bar", "comparison"}
+CHART_TYPES = {"stat_big_number", "proportion_blocks", "timeline", "bar", "comparison", "line"}
 
 # Warm editorial palette (book-page feel). Chart OWNS its foreground colors for v1 so
 # the look is guaranteed editorial regardless of the project's (cool, slate) Theme
@@ -103,6 +103,29 @@ def _validate_chart(visual: dict[str, Any], scene_id: str) -> None:
                 f"chart {scene_id}: timeline data must be a non-empty list of "
                 f"{{year, label}} entries"
             )
+    elif chart_type == "line":
+        points = data.get("points")
+        if not isinstance(points, list) or not points:
+            raise ValueError(
+                f"chart {scene_id}: line data needs non-empty 'points' list of "
+                f"{{x, y}} entries; got {points!r}"
+            )
+        for i, p in enumerate(points):
+            if not isinstance(p, dict) or "x" not in p or "y" not in p:
+                raise ValueError(
+                    f"chart {scene_id}: line points[{i}] must be {{x, y}}; got {p!r}"
+                )
+        markers = data.get("markers") or []
+        if not isinstance(markers, list):
+            raise ValueError(
+                f"chart {scene_id}: line 'markers' must be a list; got {markers!r}"
+            )
+        for i, m in enumerate(markers):
+            if not isinstance(m, dict) or "x" not in m:
+                raise ValueError(
+                    f"chart {scene_id}: line marker[{i}] must be {{x, label}}; "
+                    f"got {m!r}"
+                )
 
 
 def _palette(theme: dict) -> dict[str, tuple[int, int, int]]:
@@ -180,6 +203,7 @@ def render_chart(
         "timeline": _render_timeline,
         "bar": _render_bar,
         "comparison": _render_comparison,
+        "line": _render_line,
     }[chart_type]
     renderer(draw, visual, width, height, pal, top)
     _draw_credit(draw, visual, width, height, pal)
@@ -349,3 +373,73 @@ def _render_comparison(draw, visual, width, height, pal, top) -> None:
         lb = draw.textbbox((0, 0), lab, font=lf)
         draw.text((cx - (lb[2] - lb[0]) // 2, y_val + (vb[3] - vb[1]) + 28),
                   lab, font=lf, fill=pal["muted"])
+
+
+def _render_line(draw, visual, width, height, pal, top) -> None:
+    """Draw axes + falling curve through data.points + labeled markers.
+
+    Used both as a static chart_type AND as the base for the animated variant.
+    The animated frame generator re-uses this layout but masks the curve / markers
+    by a progress factor.
+    """
+    data = visual["data"]
+    points = data["points"]
+    markers = data.get("markers") or []
+
+    pad_l = int(width * 0.10)
+    pad_r = int(width * 0.07)
+    body_top = max(top + _HEADER_GAP, int(height * 0.30))
+    body_bottom = int(height * _BODY_BOTTOM_FRAC)
+    plot_w = width - pad_l - pad_r
+    plot_h = body_bottom - body_top
+
+    xs = [float(p["x"]) for p in points]
+    ys = [float(p["y"]) for p in points]
+    marker_xs = [float(m["x"]) for m in markers if isinstance(m, dict) and "x" in m]
+    # Extend the visible x-axis to encompass markers that fall outside the data
+    # range (the wiki mandate: events like 1982 First study predate the data).
+    x_min = min(xs + marker_xs)
+    x_max = max(xs + marker_xs)
+    y_max = max(ys) or 1.0
+    x_span = max(1.0, x_max - x_min)
+
+    def _to_px(x: float, y: float) -> tuple[int, int]:
+        px = pad_l + int(plot_w * (x - x_min) / x_span)
+        py = body_top + int(plot_h * (1.0 - y / y_max))
+        return px, py
+
+    draw.line([pad_l, body_bottom, pad_l + plot_w, body_bottom],
+              fill=pal["muted"], width=2)
+    draw.line([pad_l, body_top, pad_l, body_bottom], fill=pal["muted"], width=2)
+
+    yf = _load_font(_SANS_REGULAR, 22)
+    # Label the FIRST and LAST data points (not the extended axis ends), so the
+    # axis labels stay anchored to real data. Placed INSIDE the plot just above
+    # the axis line to keep the 0.70-0.75 strip free for the source credit.
+    label_bb = draw.textbbox((0, 0), "9999", font=yf)
+    label_h = label_bb[3] - label_bb[1]
+    for x_label in (min(xs), max(xs)):
+        s = f"{int(x_label)}"
+        sb = draw.textbbox((0, 0), s, font=yf)
+        px = pad_l + int(plot_w * (x_label - x_min) / x_span)
+        draw.text((px - (sb[2] - sb[0]) // 2, body_bottom - label_h - 6),
+                  s, font=yf, fill=pal["muted"])
+
+    px_points = [_to_px(p["x"], p["y"]) for p in points]
+    for a, b in zip(px_points, px_points[1:], strict=False):
+        draw.line([a, b], fill=pal["accent"], width=4)
+    for px, py in px_points:
+        draw.ellipse([px - 5, py - 5, px + 5, py + 5], fill=pal["accent"])
+
+    mf = _load_font(_SANS_BOLD, 18)
+    for i, m in enumerate(markers):
+        mx = float(m["x"])
+        mpx = pad_l + int(plot_w * (mx - x_min) / x_span)
+        draw.line([mpx, body_top + 8, mpx, body_bottom], fill=pal["muted"], width=1)
+        draw.ellipse([mpx - 7, body_top + 1, mpx + 7, body_top + 15], fill=pal["ink"])
+        label = str(m.get("label", ""))
+        lb = draw.textbbox((0, 0), label, font=mf)
+        lab_x = max(pad_l, min(pad_l + plot_w - (lb[2] - lb[0]),
+                                mpx - (lb[2] - lb[0]) // 2))
+        lab_y = body_top - 26 if i % 2 == 0 else body_top - 6
+        draw.text((lab_x, lab_y), label, font=mf, fill=pal["ink"])
