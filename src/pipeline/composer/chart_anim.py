@@ -305,3 +305,83 @@ def _animate_bar_frame(
         y0 += row_h
 
     return img
+
+
+def _animate_stat_frame(
+    progress: float,
+    visual: dict[str, Any],
+    base_bg: Any,
+    width: int,
+    height: int,
+    palette: dict[str, tuple[int, int, int]],
+    top: int,
+) -> Any:
+    """Count the value digit-by-digit from 0 → final.
+
+    For parseable values (e.g. ``"230,676"``, ``"$1.1B"``) digits are scaled by
+    progress; surrounding characters (commas, currency markers, suffixes) are
+    preserved verbatim. For values with no digit runs (e.g. ``"N/A"``) the
+    final value is drawn at every frame with the accent color faded in from
+    paper → accent by progress — so the chart never reads "broken".
+    """
+    from PIL import ImageDraw
+
+    from pipeline.composer.chart import _HEADER_GAP
+    from pipeline.composer.rich_slide import (
+        _SANS_BOLD,
+        _SANS_REGULAR,
+        _SERIF_BOLD,
+        _load_font,
+    )
+
+    img = base_bg.copy()
+    draw = ImageDraw.Draw(img)
+
+    data = visual["data"]
+    final_value = str(data["value"])
+    display_value, parsed_ok = _count_up_value(final_value, progress)
+
+    if not parsed_ok:
+        logger.warning(
+            "chart_anim.stat_count_up_parse_failed",
+            scene=visual.get("_scene_id", "?"),
+            value=final_value,
+        )
+
+    cx = width // 2
+    body_top = max(top + _HEADER_GAP, int(height * 0.30))
+
+    num_f = _load_font(_SERIF_BOLD, 150)
+    nb = draw.textbbox((0, 0), display_value, font=num_f)
+    if parsed_ok:
+        color = palette["accent"]
+    else:
+        # Fade-in fallback: blend paper → accent on the FINAL value by progress.
+        a = palette["accent"]
+        paper = palette["paper"]
+        k = max(0.0, min(1.0, progress))
+        color = (
+            int(a[0] * k + paper[0] * (1 - k)),
+            int(a[1] * k + paper[1] * (1 - k)),
+            int(a[2] * k + paper[2] * (1 - k)),
+        )
+    draw.text((cx - (nb[2] - nb[0]) // 2, body_top), display_value,
+              font=num_f, fill=color)
+    y = body_top + nb[3] + 24
+
+    unit = str(data.get("unit", ""))
+    if unit:
+        uf = _load_font(_SANS_BOLD, 36)
+        ub = draw.textbbox((0, 0), unit.upper(), font=uf)
+        draw.text((cx - (ub[2] - ub[0]) // 2, y), unit.upper(),
+                  font=uf, fill=palette["ink"])
+        y += 52
+
+    context = str(data.get("context", ""))
+    if context:
+        cf = _load_font(_SANS_REGULAR, 28)
+        cb = draw.textbbox((0, 0), context, font=cf)
+        draw.text((cx - (cb[2] - cb[0]) // 2, y), context,
+                  font=cf, fill=palette["muted"])
+
+    return img

@@ -12,6 +12,7 @@ from pipeline.composer.chart_anim import (
     HOLD_TAIL_MIN_SEC,
     _animate_bar_frame,
     _animate_line_frame,
+    _animate_stat_frame,
     _count_up_value,
     _progress_ease_out_cubic,
     _progress_linear,
@@ -233,3 +234,46 @@ def test_golden_bar_progress_10():
     base, pal, top = _bar_base_bg()
     img = _animate_bar_frame(1.0, _BAR_VISUAL, base, W, H, pal, top)
     _assert_anim_golden(img, "bar_p10")
+
+
+# ── stat_big_number animated variant ───────────────────────────────────────────
+_STAT_VISUAL = {
+    "type": "chart", "chart_type": "stat_big_number", "ai_background": False,
+    "title": "Cumulative injuries", "source_credit": "AAP, 2014",
+    "animate": {"enabled": True, "reveal_duration_sec": 3.0, "easing": "ease_out_cubic"},
+    "data": {"value": "230,676", "unit": "children", "context": "1990-2014"},
+}
+
+
+def _stat_base_bg(width=W, height=H):
+    pal = _palette({})
+    bg = Image.new("RGB", (width, height), pal["paper"])
+    draw = ImageDraw.Draw(bg)
+    top = _draw_header(draw, _STAT_VISUAL, width, height, pal)
+    return bg, pal, top
+
+
+def test_animate_stat_frame_is_pure():
+    base, pal, top = _stat_base_bg()
+    a = _animate_stat_frame(0.5, _STAT_VISUAL, base, W, H, pal, top)
+    b = _animate_stat_frame(0.5, _STAT_VISUAL, base, W, H, pal, top)
+    diff = ImageChops.difference(a, b)
+    assert diff.getbbox() is None
+
+
+def test_golden_stat_progress_00():
+    base, pal, top = _stat_base_bg()
+    img = _animate_stat_frame(0.0, _STAT_VISUAL, base, W, H, pal, top)
+    _assert_anim_golden(img, "stat_p00")
+
+
+def test_golden_stat_progress_05():
+    base, pal, top = _stat_base_bg()
+    img = _animate_stat_frame(0.5, _STAT_VISUAL, base, W, H, pal, top)
+    _assert_anim_golden(img, "stat_p05")
+
+
+def test_golden_stat_progress_10():
+    base, pal, top = _stat_base_bg()
+    img = _animate_stat_frame(1.0, _STAT_VISUAL, base, W, H, pal, top)
+    _assert_anim_golden(img, "stat_p10")
