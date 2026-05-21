@@ -4,11 +4,16 @@ Improvements and features to revisit after the v2 compose engine is stable.
 
 ## Visual & Rendering
 
-- [ ] **Center-screen animated subtitles for Shorts** — Word-by-word highlight, CapCut style. Significantly improves Shorts engagement. Requires custom subtitle renderer instead of FFmpeg burn-in.
-- [ ] **Ken Burns effect for still images** — Slow pan/zoom on generated images and still frames to add motion. FFmpeg zoompan filter.
-- [ ] **Transition effects between scenes** — Crossfade, fade-to-black, swipe. Currently hard cuts only.
-- [ ] **B-roll stock footage integration** — Pull from Pexels/Pixabay API when source clips are insufficient. Free, no attribution required.
-- [ ] **Video templates per channel brand** — Intro animation, outro card, consistent color palette, watermark.
+> **Rendering capabilities are now tracked in `docs/ROADMAP.md`** (the arsenal backlog,
+> owned by the `engineering-manager` subagent). The three items below are absorbed into
+> roadmap epics — kept here only as cross-references. Add new rendering-capability ideas to
+> the roadmap, not here. Material-acquisition and channel-brand items remain below.
+
+- [→ ROADMAP E3] **Center-screen animated subtitles for Shorts** — Word-by-word highlight, CapCut style. → animated overlays epic.
+- [→ ROADMAP E2] **Ken Burns effect for still images** — Slow pan/zoom to add motion. → programmatic animation epic.
+- [→ ROADMAP E2/E6] **Transition effects between scenes** — Crossfade, fade, swipe. Partly shipped (`book-page-turn-v2`); rest → animation / dashboard-transition epics.
+- [ ] **B-roll stock footage integration** — Pull from Pexels/Pixabay API when source clips are insufficient. Free, no attribution required. *(material acquisition — stays here)*
+- [ ] **Video templates per channel brand** — Intro animation, outro card, consistent color palette, watermark. *(channel branding — stays here)*
 
 ## Content & Knowledge
 

@@ -21,5 +21,12 @@ temp/
 # Symlink to know-fountains source assets — local convenience, not committed
 /raw
 
-# Machine-local shared agent memory (symlinked from ~/.claude/projects/.../memory)
-.agent-memory/
+# Machine-local shared agent memory (symlinked from ~/.claude/projects/.../memory).
+# Default: ignore everything. Exception: track the engineering-manager's durable SEED
+# memory (charter + standards) so a fresh clone gets a working EM. Living state
+# (arsenal-state, sprint-log), Tim's personal auto-memory, and Codex learnings stay local.
+.agent-memory/*
+!.agent-memory/engineering-manager/
+.agent-memory/engineering-manager/*
+!.agent-memory/engineering-manager/charter.md
+!.agent-memory/engineering-manager/standards.md

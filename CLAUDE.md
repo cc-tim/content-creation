@@ -42,7 +42,8 @@ Treat `docs/` as the structured project knowledge base, not as incidental notes:
 - `docs/superpowers/specs/` — design specs and architectural intent. Check the relevant spec before changing behavior that was designed there.
 - `docs/superpowers/plans/` — implementation plans and historical execution context. Use these to understand how a feature was built or staged.
 - `docs/workflows.md` and `docs/workflows.html` — workflow model and visual diagram. Ask before updating `docs/workflows.html`.
-- `docs/future-tasks.md` — deferred work and follow-up ideas.
+- `docs/ROADMAP.md` — visual-arsenal & infrastructure capability backlog (epics + sprint plan). System of record for what the pipeline can render/validate/surface; owned by the `engineering-manager` subagent (`.claude/agents/engineering-manager.md`, dispatched via the `engineering-manager` skill). Distinct from content/video production work.
+- `docs/future-tasks.md` — deferred work and follow-up ideas. Arsenal/rendering capabilities live in `docs/ROADMAP.md`, not here.
 
 `CLAUDE.md` is the agent-facing table of contents: keep it concise and point to the right canonical document instead of duplicating the knowledge base. When new durable project knowledge is created, put it under `docs/` and add or adjust a pointer here only if agents need to find it quickly.
 
