@@ -236,3 +236,72 @@ def _animate_line_frame(
         draw.text((lab_x, lab_y), label, font=mf, fill=palette["ink"])
 
     return img
+
+
+def _animate_bar_frame(
+    progress: float,
+    visual: dict[str, Any],
+    base_bg: Any,
+    width: int,
+    height: int,
+    palette: dict[str, tuple[int, int, int]],
+    top: int,
+) -> Any:
+    """Draw the `bar` chart with each bar grown to ``progress`` of its final width.
+
+    Bars stagger-start: bar ``i`` (0-indexed) starts at ``i * BAR_STAGGER_FRAC``
+    of the overall reveal and finishes at ``i * BAR_STAGGER_FRAC + grow_span``
+    where ``grow_span = 1 - (n-1) * BAR_STAGGER_FRAC``. Labels render at full
+    opacity from progress=0 so the chart never reads "broken". Value text
+    appears once the bar has reached >= 90% of its final width.
+    """
+    from PIL import ImageDraw
+
+    from pipeline.composer.chart import _BODY_BOTTOM_FRAC, _HEADER_GAP
+    from pipeline.composer.rich_slide import (
+        _SANS_BOLD,
+        _SERIF_BOLD,
+        _load_font,
+    )
+
+    img = base_bg.copy()
+    draw = ImageDraw.Draw(img)
+
+    data = visual["data"]
+    xs = data["x"]
+    ys = [float(v) for v in data["y"]]
+    unit = data.get("y_unit", "")
+    pad = int(width * 0.07)
+
+    label_f = _load_font(_SANS_BOLD, 26)
+    val_f = _load_font(_SERIF_BOLD, 28)
+    max_v = max(ys) or 1.0
+    track_w = int(width * 0.62)
+    y0 = max(top + _HEADER_GAP, int(height * 0.28))
+    body_bottom = int(height * _BODY_BOTTOM_FRAC)
+    row_h = int((body_bottom - y0) / len(xs))
+    bar_h = min(int(row_h * 0.42), 46)
+
+    n = len(xs)
+    grow_span = max(0.0001, 1.0 - (n - 1) * BAR_STAGGER_FRAC)
+    progress = max(0.0, min(1.0, progress))
+
+    for i, (label, v) in enumerate(zip(xs, ys, strict=False)):
+        start_frac = i * BAR_STAGGER_FRAC
+        local = (progress - start_frac) / grow_span
+        local = max(0.0, min(1.0, local))
+
+        draw.text((pad, y0), str(label), font=label_f, fill=palette["ink"])
+        by = y0 + 34
+        full_bw = int(track_w * (v / max_v))
+        bw = max(0, int(full_bw * local))
+        if bw > 0:
+            draw.rectangle([pad, by, pad + max(2, bw), by + bar_h],
+                           fill=palette["accent"])
+        if local >= 0.9:
+            vtxt = f"{v:g}{unit}"
+            draw.text((pad + max(2, full_bw) + 16, by + bar_h // 2 - 16),
+                      vtxt, font=val_f, fill=palette["ink"])
+        y0 += row_h
+
+    return img

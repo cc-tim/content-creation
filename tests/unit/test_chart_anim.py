@@ -10,6 +10,7 @@ from pipeline.composer.chart_anim import (
     DEFAULT_REVEAL_MAX_SEC,
     EASING,
     HOLD_TAIL_MIN_SEC,
+    _animate_bar_frame,
     _animate_line_frame,
     _count_up_value,
     _progress_ease_out_cubic,
@@ -185,3 +186,50 @@ def test_golden_line_progress_10():
     base, pal, top = _line_base_bg()
     img = _animate_line_frame(1.0, _LINE_VISUAL, base, W, H, pal, top)
     _assert_anim_golden(img, "line_p10")
+
+
+# ── bar animated variant ───────────────────────────────────────────────────────
+_BAR_VISUAL = {
+    "type": "chart", "chart_type": "bar", "ai_background": False,
+    "title": "Walker injury mechanisms", "source_credit": "AAP",
+    "animate": {"enabled": True, "reveal_duration_sec": 4.0, "easing": "ease_out_cubic"},
+    "data": {
+        "x": ["stair falls", "tip-overs", "burns", "drowning"],
+        "y": [74, 13, 6, 4],
+        "y_unit": "%",
+    },
+}
+
+
+def _bar_base_bg(width=W, height=H):
+    pal = _palette({})
+    bg = Image.new("RGB", (width, height), pal["paper"])
+    draw = ImageDraw.Draw(bg)
+    top = _draw_header(draw, _BAR_VISUAL, width, height, pal)
+    return bg, pal, top
+
+
+def test_animate_bar_frame_is_pure():
+    base, pal, top = _bar_base_bg()
+    a = _animate_bar_frame(0.5, _BAR_VISUAL, base, W, H, pal, top)
+    b = _animate_bar_frame(0.5, _BAR_VISUAL, base, W, H, pal, top)
+    diff = ImageChops.difference(a, b)
+    assert diff.getbbox() is None
+
+
+def test_golden_bar_progress_00():
+    base, pal, top = _bar_base_bg()
+    img = _animate_bar_frame(0.0, _BAR_VISUAL, base, W, H, pal, top)
+    _assert_anim_golden(img, "bar_p00")
+
+
+def test_golden_bar_progress_05():
+    base, pal, top = _bar_base_bg()
+    img = _animate_bar_frame(0.5, _BAR_VISUAL, base, W, H, pal, top)
+    _assert_anim_golden(img, "bar_p05")
+
+
+def test_golden_bar_progress_10():
+    base, pal, top = _bar_base_bg()
+    img = _animate_bar_frame(1.0, _BAR_VISUAL, base, W, H, pal, top)
+    _assert_anim_golden(img, "bar_p10")
