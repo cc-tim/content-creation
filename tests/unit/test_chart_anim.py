@@ -1,5 +1,7 @@
 import os
 from pathlib import Path
+from typing import Any
+from unittest.mock import patch
 
 import pytest
 from PIL import Image, ImageChops, ImageDraw
@@ -9,6 +11,7 @@ from pipeline.composer.chart_anim import (
     DEFAULT_REVEAL_FRACTION,
     DEFAULT_REVEAL_MAX_SEC,
     EASING,
+    FPS,
     HOLD_TAIL_MIN_SEC,
     _animate_bar_frame,
     _animate_line_frame,
@@ -18,6 +21,7 @@ from pipeline.composer.chart_anim import (
     _progress_linear,
     _resolve_easing,
     _resolve_reveal_duration,
+    render_animated_chart,
 )
 
 _GOLDEN_ANIM = Path(__file__).parent.parent / "fixtures" / "chart_anim" / "golden"
@@ -277,3 +281,98 @@ def test_golden_stat_progress_10():
     base, pal, top = _stat_base_bg()
     img = _animate_stat_frame(1.0, _STAT_VISUAL, base, W, H, pal, top)
     _assert_anim_golden(img, "stat_p10")
+
+
+# ── Orchestrator (ffmpeg mocked; no encode in CI) ──────────────────────────────
+def test_render_animated_chart_writes_frame_sequence_and_calls_ffmpeg(tmp_path):
+    captured: dict[str, Any] = {}
+
+    def fake_ffmpeg(cmd, timeout=600):
+        idx = cmd.index("-i")
+        pattern = cmd[idx + 1]
+        frame_dir = Path(pattern).parent
+        captured["frame_count"] = len(list(frame_dir.glob("frame_*.jpg")))
+        captured["pattern"] = pattern
+        captured["fps_arg"] = cmd[cmd.index("-framerate") + 1]
+        Path(cmd[-1]).write_bytes(b"")
+        return None
+
+    duration = 4.0
+    with patch("pipeline.composer.chart_anim.run_ffmpeg", side_effect=fake_ffmpeg) as ff:
+        out = render_animated_chart(
+            _LINE_VISUAL, duration_sec=duration, width=W, height=H,
+            work_dir=tmp_path, scene_id="s_line", theme={},
+        )
+
+    assert ff.call_count == 1, "ffmpeg must be invoked exactly once per scene"
+    assert captured["frame_count"] == int(duration * FPS)
+    assert captured["pattern"].endswith("frame_%05d.jpg")
+    assert captured["fps_arg"] == str(FPS)
+    assert out == tmp_path / "s_line_visual.mp4"
+
+
+def test_render_animated_chart_dispatches_to_correct_generator(tmp_path):
+    called: list[str] = []
+
+    def fake_ffmpeg(cmd, timeout=600):
+        Path(cmd[-1]).write_bytes(b"")
+
+    def wrap(real):
+        def wrapped(*a, **k):
+            called.append(real.__name__)
+            return real(*a, **k)
+        return wrapped
+
+    from pipeline.composer import chart_anim as ca
+    with patch("pipeline.composer.chart_anim.run_ffmpeg", side_effect=fake_ffmpeg), \
+         patch("pipeline.composer.chart_anim._animate_line_frame",
+               side_effect=wrap(ca._animate_line_frame)), \
+         patch("pipeline.composer.chart_anim._animate_bar_frame",
+               side_effect=wrap(ca._animate_bar_frame)), \
+         patch("pipeline.composer.chart_anim._animate_stat_frame",
+               side_effect=wrap(ca._animate_stat_frame)):
+        render_animated_chart(_BAR_VISUAL, duration_sec=3.0, width=W, height=H,
+                               work_dir=tmp_path / "a", scene_id="s_bar", theme={})
+
+    assert "_animate_bar_frame" in called
+    assert "_animate_line_frame" not in called
+    assert "_animate_stat_frame" not in called
+
+
+def test_render_animated_chart_holds_final_frame_after_reveal(tmp_path):
+    saved_progresses: list[float] = []
+
+    from pipeline.composer import chart_anim as ca
+    real_line = ca._animate_line_frame
+
+    def capturing_line(progress, *a, **k):
+        saved_progresses.append(progress)
+        return real_line(progress, *a, **k)
+
+    def fake_ffmpeg(cmd, timeout=600):
+        Path(cmd[-1]).write_bytes(b"")
+
+    visual = {
+        **_LINE_VISUAL,
+        "animate": {"enabled": True, "reveal_duration_sec": 4.0, "easing": "linear"},
+    }
+    with patch("pipeline.composer.chart_anim.run_ffmpeg", side_effect=fake_ffmpeg), \
+         patch("pipeline.composer.chart_anim._animate_line_frame",
+               side_effect=capturing_line):
+        render_animated_chart(visual, duration_sec=6.0, width=W, height=H,
+                               work_dir=tmp_path, scene_id="s_h", theme={})
+
+    # 6s @ 30fps = 180 total frames. 4s reveal @ 30fps = 120 reveal frames.
+    # Orchestrator calls the generator once pre-loop (cache p=1.0) + (reveal_frames - 1)
+    # in-loop calls; the remaining 60 hold-tail frames reuse the cached final frame.
+    # Total generator calls must be <= reveal_frames (= 120) and strictly less
+    # than total_frames (= 180) — that's the "hold-tail reuse" contract.
+    assert 1.0 in saved_progresses, "pre-loop cache call (p=1.0) must occur"
+    assert len(saved_progresses) <= 120, (
+        f"generator called {len(saved_progresses)}x; expected <= 120 "
+        f"(reveal_frames); hold-tail caching is not working"
+    )
+    assert len(saved_progresses) < 180, (
+        "generator should NOT be called for every total frame — hold tail "
+        "must reuse the cached final frame"
+    )

@@ -18,10 +18,14 @@ is a visual-QUALITY lift, NOT a runtime extender.
 from __future__ import annotations
 
 import re
+import tempfile
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import structlog
+
+from pipeline.utils.ffmpeg import run_ffmpeg
 
 logger = structlog.get_logger()
 
@@ -385,3 +389,119 @@ def _animate_stat_frame(
                   font=cf, fill=palette["muted"])
 
     return img
+
+
+# ── Orchestrator ───────────────────────────────────────────────────────────────
+def _animated_dispatcher(chart_type: str):
+    if chart_type == "line":
+        return _animate_line_frame
+    if chart_type == "bar":
+        return _animate_bar_frame
+    if chart_type == "stat_big_number":
+        return _animate_stat_frame
+    raise ValueError(
+        f"chart_type {chart_type!r} has no animated variant in Sprint 2 "
+        f"(supported: line, bar, stat_big_number)"
+    )
+
+
+def render_animated_chart(
+    visual: dict[str, Any],
+    duration_sec: float,
+    width: int,
+    height: int,
+    work_dir: Path,
+    scene_id: str,
+    theme: dict[str, Any] | None = None,
+) -> Path:
+    """Render an animated chart to ``{scene_id}_visual.mp4``.
+
+    Mirrors ``composer/base.py:_camera_motion_to_video``: write a JPEG frame
+    sequence to a tempdir, then run a single ffmpeg encode. The base background
+    is built once via ``chart._build_background`` so the AI cache key is shared
+    with the static path (no extra Flux call when the same scene was previously
+    rendered static).
+
+    Hold-tail optimization: the p=1.0 frame is rendered ONCE and re-used for
+    every frame after the reveal so the orchestrator does not re-pay the
+    drawing cost during the settle phase.
+    """
+    from pipeline.composer.chart import (
+        _build_background,
+        _draw_header,
+        _palette,
+    )
+    from PIL import ImageDraw
+
+    theme = theme or {}
+    chart_type = visual["chart_type"]
+    pal = _palette(theme)
+    frame_fn = _animated_dispatcher(chart_type)
+    easing = _resolve_easing(visual)
+    reveal_sec = _resolve_reveal_duration(visual, duration_sec)
+
+    total_frames = max(1, int(duration_sec * FPS))
+    reveal_frames = max(1, int(reveal_sec * FPS))
+
+    work_dir.mkdir(parents=True, exist_ok=True)
+    bg = _build_background(visual, theme, width, height, work_dir, scene_id)
+    draw = ImageDraw.Draw(bg)
+    top = _draw_header(draw, visual, width, height, pal)
+
+    composite_png = work_dir / f"{scene_id}_chart.png"
+    bg.save(composite_png)
+
+    final_frame = frame_fn(1.0, visual, bg, width, height, pal, top)
+
+    output = work_dir / f"{scene_id}_visual.mp4"
+    pix_fmt = "yuv420p" if (width % 2 == 0 and height % 2 == 0) else "yuv444p"
+
+    with tempfile.TemporaryDirectory(prefix=f"chart-anim-{scene_id}-") as tmp:
+        frame_dir = Path(tmp)
+        for idx in range(total_frames):
+            if idx >= reveal_frames - 1:
+                frame = final_frame
+            else:
+                t = idx / max(1, reveal_frames - 1)
+                progress = easing(t)
+                frame = frame_fn(progress, visual, bg, width, height, pal, top)
+            frame.save(
+                frame_dir / f"frame_{idx:05d}.jpg",
+                quality=95,
+                subsampling=0,
+                optimize=False,
+            )
+
+        run_ffmpeg(
+            [
+                "ffmpeg",
+                "-y",
+                "-framerate",
+                str(FPS),
+                "-i",
+                str(frame_dir / "frame_%05d.jpg"),
+                "-c:v",
+                "libx264",
+                "-preset",
+                "medium",
+                "-crf",
+                "23",
+                "-pix_fmt",
+                pix_fmt,
+                "-r",
+                str(FPS),
+                str(output),
+            ]
+        )
+
+    if not output.exists():
+        raise RuntimeError(
+            f"chart_anim {scene_id}: ffmpeg returned but {output} is missing"
+        )
+    logger.info(
+        "chart_anim.rendered",
+        scene=scene_id, chart_type=chart_type,
+        duration_sec=duration_sec, reveal_sec=reveal_sec,
+        frames=total_frames,
+    )
+    return output
