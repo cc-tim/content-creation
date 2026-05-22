@@ -13,6 +13,7 @@ StyleKind = Literal[
     "theme_color",
     "seed",
     "anchor_image",
+    "overlay",
 ]
 
 _MEDIUM_KEYWORDS = (
@@ -146,6 +147,31 @@ def build_manifest(storyboard_path: Path) -> StyleManifest:
             overrides.append(
                 PerSceneOverride(scene_id=sid, kind="style_modifier", value=modifier)
             )
+
+    # 6. callout overlay (aggregate-by-type): line charts with markers carry
+    #    collision-placed callouts. Derived from chart data, not a theme global.
+    callout_scenes = [
+        (scene.get("id") or scene.get("scene_id", ""))
+        for scene in scenes
+        if (vis := scene.get("visual", {})).get("type") == "chart"
+        and vis.get("chart_type") == "line"
+        and (vis.get("data") or {}).get("markers")
+    ]
+    if callout_scenes:
+        elements.append(
+            StyleElement(
+                id="callout",
+                kind="overlay",
+                value=f"marker callouts on {', '.join(callout_scenes)}",
+                source="chart_data",
+                scope="chart_line_scenes",
+                theme_key="",
+                warnings=[
+                    "Derived from line-chart markers, not a removable theme global. "
+                    "To change, edit visual.data.markers on the listed scenes."
+                ],
+            )
+        )
 
     return StyleManifest(
         project_id=project_id,

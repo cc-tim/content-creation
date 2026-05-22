@@ -381,3 +381,38 @@ def test_render_generated_image_no_anchor_param():
         "anchor_image is still in render_generated_image signature. "
         "Remove it from image.py and the call site in base.py."
     )
+
+
+def test_build_manifest_registers_callout_for_line_chart_markers(tmp_path):
+    sb = {
+        "project_id": "p1",
+        "theme": {},
+        "scenes": [
+            {"id": "s1", "visual": {"type": "generated_image"}},
+            {"id": "s21", "visual": {
+                "type": "chart", "chart_type": "line",
+                "data": {"points": [{"x": 1990, "y": 5}],
+                         "markers": [{"x": 1995, "label": "ban"}]},
+            }},
+        ],
+    }
+    p = tmp_path / "storyboard.json"
+    p.write_text(json.dumps(sb), encoding="utf-8")
+
+    manifest = build_manifest(p)
+    callout = next((e for e in manifest.elements if e.kind == "overlay"), None)
+    assert callout is not None
+    assert callout.id == "callout"
+    assert "s21" in callout.value
+    assert callout.active is True
+
+
+def test_build_manifest_no_callout_when_no_markers(tmp_path):
+    sb = {
+        "project_id": "p1", "theme": {},
+        "scenes": [{"id": "s1", "visual": {"type": "chart", "chart_type": "bar",
+                                           "data": {"x": ["a"], "y": [1]}}}],
+    }
+    p = tmp_path / "storyboard.json"
+    p.write_text(json.dumps(sb), encoding="utf-8")
+    assert not any(e.kind == "overlay" for e in build_manifest(p).elements)
