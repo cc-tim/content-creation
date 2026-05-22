@@ -97,3 +97,59 @@ def place_callouts(
             )
 
     return placed
+
+
+def _draw_placed_callouts(
+    draw: Any,
+    placed: list[PlacedCallout],
+    *,
+    ink: tuple[int, int, int],
+    muted: tuple[int, int, int],
+    font: Any,
+    leader_from_y: int,
+) -> None:
+    """Draw labels + leader lines onto a caller-supplied ImageDraw (pure)."""
+    for p in placed:
+        if p.needs_leader:
+            label_cx = p.x + p.width // 2
+            label_bottom = p.y + ROW_HEIGHT
+            draw.line([(p.anchor_x, leader_from_y), (label_cx, label_bottom)],
+                      fill=muted, width=1)
+        draw.text((p.x, p.y), p.label, font=font, fill=ink)
+
+
+def render_callouts(
+    callouts: list[Callout],
+    base_image: Any,
+    *,
+    left: int,
+    right: int,
+    body_top: int,
+    top_limit: int,
+    leader_from_y: int,
+    ink: tuple[int, int, int],
+    muted: tuple[int, int, int],
+    font_size: int = 18,
+    max_rows: int = DEFAULT_MAX_ROWS,
+) -> Any:
+    """Composite callouts onto a copy of ``base_image`` and return it.
+
+    Primarily the golden-test surface (chart call sites use ``place_callouts`` +
+    ``_draw_placed_callouts`` directly because they own a shared ``ImageDraw``).
+    """
+    from PIL import ImageDraw
+
+    from pipeline.composer.rich_slide import _SANS_BOLD, _load_font
+
+    font = _load_font(_SANS_BOLD, font_size)
+    img = base_image.copy()
+    draw = ImageDraw.Draw(img)
+    placed = place_callouts(
+        callouts,
+        measure=lambda s: int(draw.textlength(s, font=font)),
+        left=left, right=right, body_top=body_top, top_limit=top_limit,
+        max_rows=max_rows,
+    )
+    _draw_placed_callouts(draw, placed, ink=ink, muted=muted, font=font,
+                          leader_from_y=leader_from_y)
+    return img

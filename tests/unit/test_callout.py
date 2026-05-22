@@ -12,6 +12,7 @@ from pipeline.composer.callout import (
     CalloutPlacementError,
     PlacedCallout,
     place_callouts,
+    render_callouts,
 )
 
 
@@ -94,3 +95,75 @@ def test_results_sorted_and_stable():
     b = place_callouts([Callout(x=305, label="B"), Callout(x=300, label="A")],
                        measure=_measure, **_GEO)
     assert [(p.label, p.row, p.x, p.y) for p in a] == [(p.label, p.row, p.x, p.y) for p in b]
+
+
+# ── render_callouts image wrapper (determinism + goldens) ────────────────────────
+_GOLDEN = Path(__file__).parent.parent / "fixtures" / "callout" / "golden"
+W, H = 1280, 720
+_INK = (38, 30, 22)
+_MUTED = (120, 104, 86)
+_PAPER = (244, 236, 222)
+
+
+def _base():
+    return Image.new("RGB", (W, H), _PAPER)
+
+
+def _render(callouts):
+    return render_callouts(
+        callouts,
+        _base(),
+        left=128, right=1190, body_top=216, top_limit=90,
+        leader_from_y=216, ink=_INK, muted=_MUTED, font_size=18,
+    )
+
+
+def _assert_golden(image, name: str) -> None:
+    golden = _GOLDEN / f"{name}.png"
+    if os.environ.get("UPDATE_GOLDENS"):
+        golden.parent.mkdir(parents=True, exist_ok=True)
+        image.save(golden)
+        return
+    assert golden.exists(), f"missing golden {golden}; run with UPDATE_GOLDENS=1"
+    diff = ImageChops.difference(image, Image.open(golden).convert("RGB"))
+    assert diff.getbbox() is None, f"{name} render drifted from golden"
+
+
+def test_render_callouts_is_deterministic():
+    cs = [Callout(x=600, label="1995"), Callout(x=620, label="1997")]
+    a = _render(cs)
+    b = _render(cs)
+    assert ImageChops.difference(a, b).getbbox() is None
+
+
+def test_golden_one_marker():
+    _assert_golden(_render([Callout(x=600, label="1990 data starts")]), "one_marker")
+
+
+def test_golden_two_close():
+    _assert_golden(
+        _render([Callout(x=600, label="1995 ban"), Callout(x=640, label="1997 std")]),
+        "two_close",
+    )
+
+
+def test_golden_three_close():
+    _assert_golden(
+        _render([
+            Callout(x=600, label="1995"), Callout(x=636, label="1997"),
+            Callout(x=672, label="2001"),
+        ]),
+        "three_close",
+    )
+
+
+def test_golden_tight_cluster():
+    # The s21 case: 6 regulation markers, several <5yr apart on a long span.
+    _assert_golden(
+        _render([
+            Callout(x=300, label="1982 study"), Callout(x=560, label="1995 ban"),
+            Callout(x=600, label="1997 std"), Callout(x=700, label="2001 voluntary"),
+            Callout(x=760, label="2004 ASTM"), Callout(x=900, label="2010 mandatory"),
+        ]),
+        "tight_cluster",
+    )
