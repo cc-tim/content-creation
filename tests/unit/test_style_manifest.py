@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from pipeline.style.log import StyleLogEntry, append_log
 from pipeline.style.manifest import (
     PerSceneOverride,
     StyleElement,
@@ -172,3 +173,36 @@ def test_build_manifest_non_ascii_project_id(tmp_path):
     )
     manifest = build_manifest(sb)
     assert manifest.project_id == "嬰兒學步車"
+
+
+# ── Style log tests ───────────────────────────────────────────────────────────
+
+
+def test_append_log_creates_file(tmp_path):
+    append_log(tmp_path, "add", "frame_open_book_page", "Tim requested book feel")
+    log_path = tmp_path / "style_log.json"
+    assert log_path.exists()
+    entries = json.loads(log_path.read_text(encoding="utf-8"))
+    assert len(entries) == 1
+    e = entries[0]
+    assert e["action"] == "add"
+    assert e["element_id"] == "frame_open_book_page"
+    assert e["rationale"] == "Tim requested book feel"
+    assert "timestamp" in e
+    # timestamp must be ISO-8601 with timezone offset
+    assert "T" in e["timestamp"] and ("Z" in e["timestamp"] or "+" in e["timestamp"])
+
+
+def test_append_log_appends_multiple(tmp_path):
+    append_log(tmp_path, "add", "el1", "first")
+    append_log(tmp_path, "remove", "el1", "changed mind")
+    entries = json.loads((tmp_path / "style_log.json").read_text(encoding="utf-8"))
+    assert len(entries) == 2
+    assert entries[0]["action"] == "add"
+    assert entries[1]["action"] == "remove"
+
+
+def test_append_log_empty_rationale(tmp_path):
+    append_log(tmp_path, "remove", "anchor_image")
+    entries = json.loads((tmp_path / "style_log.json").read_text(encoding="utf-8"))
+    assert entries[0]["rationale"] == ""
