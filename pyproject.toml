@@ -51,8 +51,8 @@ dev-dependencies = [
 [tool.pytest.ini_options]
 markers = [
     "slow: marks tests that load large models",
-    "integration: marks tests requiring FFmpeg binary",
-    "network: marks tests requiring network + API keys",
+    "integration: marks tests requiring FFmpeg, dashboard, or live local services — skip by default, opt in with --integration",
+    "network: marks tests requiring live API keys or remote endpoints — skip by default, opt in with --network",
 ]
 testpaths = ["tests"]
 asyncio_mode = "auto"
