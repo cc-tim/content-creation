@@ -316,3 +316,25 @@ def test_validate_chart_visual_reports_wrong_data_shape_without_raising():
     assert len(issues) == 1
     assert "data" in issues[0]
     assert "object" in issues[0]
+
+
+def test_render_chart_overdense_markers_raise_scene_render_error(tmp_path):
+    """Marker density beyond the callout row budget is the precise render-time
+    fence: render_chart converts CalloutPlacementError into a loud
+    SceneRenderError (not a silent black-screen via compose's generic fallback)."""
+    from pipeline.errors import SceneRenderError
+
+    visual = {
+        "type": "chart", "chart_type": "line", "ai_background": False,
+        "title": "Too many markers", "source_credit": "test",
+        "data": {
+            "points": [{"x": 1990, "y": 10}, {"x": 2010, "y": 2}],
+            # 6 markers all at the same x cannot fit in the 3-row dodge budget.
+            "markers": [{"x": 2000, "label": f"event {i}"} for i in range(6)],
+        },
+    }
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    with patch("pipeline.composer.chart.image_to_video") as itv:
+        itv.side_effect = lambda png, out, *a, **k: out
+        with pytest.raises(SceneRenderError, match="callout placement failed"):
+            render_chart(visual, 8.0, W, H, tmp_path, "s_dense", theme={})

@@ -19,7 +19,12 @@ from typing import Any
 import structlog
 
 from pipeline.composer.base import image_to_video
-from pipeline.composer.callout import Callout, _draw_placed_callouts, place_callouts
+from pipeline.composer.callout import (
+    Callout,
+    CalloutPlacementError,
+    _draw_placed_callouts,
+    place_callouts,
+)
 from pipeline.composer.rich_slide import (
     _SANS_BOLD,
     _SANS_REGULAR,
@@ -27,6 +32,7 @@ from pipeline.composer.rich_slide import (
     _load_font,
     _wrap_text,
 )
+from pipeline.errors import SceneRenderError
 from pipeline.providers.base import ProviderError, try_chain
 from pipeline.providers.gen_image import GenImageProvider
 
@@ -282,31 +288,42 @@ def render_chart(
     chart_type = visual["chart_type"]
     pal = _palette(theme)
 
-    if (visual.get("animate") or {}).get("enabled"):
-        from pipeline.composer.chart_anim import render_animated_chart
-        return render_animated_chart(
-            visual, duration_sec, width, height, work_dir, scene_id, theme
-        )
+    try:
+        if (visual.get("animate") or {}).get("enabled"):
+            from pipeline.composer.chart_anim import render_animated_chart
+            return render_animated_chart(
+                visual, duration_sec, width, height, work_dir, scene_id, theme
+            )
 
-    bg = _build_background(visual, theme, width, height, work_dir, scene_id)
-    draw = ImageDraw.Draw(bg)
+        bg = _build_background(visual, theme, width, height, work_dir, scene_id)
+        draw = ImageDraw.Draw(bg)
 
-    top = _draw_header(draw, visual, width, height, pal)
-    renderer = {
-        "stat_big_number": _render_stat,
-        "proportion_blocks": _render_proportion,
-        "timeline": _render_timeline,
-        "bar": _render_bar,
-        "comparison": _render_comparison,
-        "line": _render_line,
-    }[chart_type]
-    renderer(draw, visual, width, height, pal, top)
-    _draw_credit(draw, visual, width, height, pal)
+        top = _draw_header(draw, visual, width, height, pal)
+        renderer = {
+            "stat_big_number": _render_stat,
+            "proportion_blocks": _render_proportion,
+            "timeline": _render_timeline,
+            "bar": _render_bar,
+            "comparison": _render_comparison,
+            "line": _render_line,
+        }[chart_type]
+        renderer(draw, visual, width, height, pal, top)
+        _draw_credit(draw, visual, width, height, pal)
 
-    composite_png = work_dir / f"{scene_id}_chart.png"
-    bg.save(composite_png)
-    output = work_dir / f"{scene_id}_visual.mp4"
-    image_to_video(composite_png, output, duration_sec, width, height)
+        composite_png = work_dir / f"{scene_id}_chart.png"
+        bg.save(composite_png)
+        output = work_dir / f"{scene_id}_visual.mp4"
+        image_to_video(composite_png, output, duration_sec, width, height)
+    except CalloutPlacementError as e:
+        # The precise render-time fence for marker density (pin-down #2): convert
+        # the geometry exception into a loud SceneRenderError so an over-dense
+        # chart fails visibly with a fix hint, rather than degrading to a silent
+        # black-screen scene via compose's generic exception fallback.
+        raise SceneRenderError(
+            scene=scene_id,
+            reason=f"chart callout placement failed: {e}",
+            suggested_fix="Reduce marker count or split into multiple charts.",
+        ) from e
     return output
 
 
