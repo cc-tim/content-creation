@@ -8,7 +8,7 @@
 > work. When this file and a `tmp/*-handoff.md` design doc disagree, the handoff is the
 > detailed spec and this file is the prioritized plan of record.
 
-**Last updated:** 2026-05-22 (Sprint 3 shipped; Sprint 4 proposed) · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-05-22 (Sprint 4 shipped; Sprint 5 = E3 callout overlay v1 proposed after Tim's pivot; E4 Slice 3 rolled to Sprint 6) · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -48,17 +48,28 @@ Every sprint states which axis it serves. We never promise runtime from an arsen
   `intro_transition_style`, `_anchor_image` (INACTIVE) + per-scene
   `skip_niche_style`/`style_modifier` overrides. `anchor_image` dead-code removed from
   `render_generated_image` + call site (upstream `style_anchor.py` chain preserved).
-- **Storyboard validator (partially built 🟡):** `director/storyboard_validator.py`
+- **Storyboard validator (Sprint 4 🟢):** `director/storyboard_validator.py`
   validates `article_image`/`image`, `slide`, `rich_slide`, `generated_image`,
-  `text_card`, `clip`, `still_frame`, `namecard`, `map`; produces `confidence`/
-  `rationale` decision table; wired into `direct.py` after storyboard save. **Missing:**
-  `chart` branch (schema only validated at render time, not at write time), standalone
-  `pipeline validate` CLI, and test coverage for chart/rich_slide/text_card/still_frame/
-  namecard/map (existing 9 tests cover only article_image/slide/generated_image/clip).
-- **Known gaps (the demand):** chart not validated at storyboard-write time · no
-  standalone `pipeline validate` command · Ken Burns on stills · true book-page-turn
-  animation · animated overlays (lower-thirds, callouts, CapCut subtitles) · niche
-  `visual_style` medium-clash root refactor (E4 Slice 3) · coarse recompose loop.
+  `text_card`, `clip`, `still_frame`, `namecard`, `map`, **and `chart`** (the chart
+  branch delegates to `composer/chart.py:validate_chart_visual`, a pure list-returning
+  function, so chart errors block the review gate at storyboard-write time, not only at
+  render time); produces `confidence`/`rationale` decision table; wired into `direct.py`
+  after storyboard save. Standalone `pipeline validate <project-id>` CLI
+  (`src/pipeline/cli_validate.py`) re-checks an edited storyboard without rerunning
+  `direct` (exit 0 clean / 1 load-failure / 2 validation-errors; auto-discovers a lone
+  `storyboard_<locale>.json`, requires `--locale` when multiple exist). 26 validator
+  tests (up from 9) cover chart + smoke tests for rich_slide/text_card/still_frame/
+  namecard/map.
+- **Compose-time loud failures (🟢):** `composer/base.py` raises `SceneRenderError`
+  (reason + suggested_fix) for a missing-or-corrupt `article_image`/`image` path (the old
+  silent `text_card` fallback was removed in 5a33f0a). **Remaining silent degradation:**
+  `namecard`/`map` still fall back to `text_card` (`base.py:413-422`) — a narrow E5
+  follow-on, not sprint-sized; fix while next in `base.py`.
+- **Known gaps (the demand):** Ken Burns on stills · true book-page-turn animation ·
+  animated overlays (lower-thirds, callouts, CapCut subtitles) · niche `visual_style`
+  medium-clash root refactor (E4 Slice 3 — actively producing surreal output on
+  baby-walker, currently masked by the `skip_niche_style` per-scene workaround) · coarse
+  recompose loop · `namecard`/`map` silent `text_card` fallback.
 
 See `.agent-memory/engineering-manager/arsenal-state.md` for the living inventory.
 
@@ -102,29 +113,55 @@ s21 as the acceptance vehicle.
   beats via `line`. **Does NOT** add runtime — `reveal_duration_sec` validated
   ≤ `scene_duration − 0.5s` (the two-axes rule, in code).
 
-### E3 — Animated overlays  `[arsenal]`  ⚪
+### E3 — Animated overlays  `[arsenal]`  🟡 *v1 proposed (Sprint 5, after Tim's 2026-05-22 pivot)*
 Text/graphic layers composited *on top of* images / charts / slides: lower-thirds,
-callouts, chart annotations, CapCut-style word-by-word subtitles.
-- **Demand:** know-fountains arsenal posture; future-tasks "center-screen animated
-  subtitles for Shorts". Overlays will be **Style Manifest elements** (see E4).
-- **Depends on:** E4 (so overlays are traceable, not new silent globals).
+callouts, chart annotations, CapCut-style word-by-word subtitles. **Not greenfield** — a
+*static* overlay layer already exists (`composer/overlay.py`: `title` / `namecard` /
+`text_top` / `text_left` / `text_emphasis` / `corner_label`, all ffmpeg `drawtext`/`drawbox`;
+collision-checker in `overlay_rules.py`). E3 adds **placement intelligence and motion**.
+- **Demand:** the Sprint-2 chart marker-label horizontal overlap (`chart.py:529-539`, a
+  crude 2-row `draw.text` stagger that overlaps when markers sit <5yr apart on a long span —
+  observed on baby-walker s21) is the **named blocked beat**; plus know-fountains arsenal
+  posture and future-tasks "center-screen animated subtitles for Shorts". Overlays register
+  as **Style Manifest elements** (see E4).
+- **Depends on:** E4 **Slices 1–2 (shipped Sprint 3)** so overlays register as traceable
+  elements rather than new silent globals — the hard blocker is **cleared**. Overlays do
+  *not* consume niche `visual_style`, so E4 Slice 3 (Sprint 6) is **not** a blocker.
+- **Sprint 5 (v1):** a manifest-registered, pure-renderer `callout` primitive with
+  collision-avoidance placement, consumed by `chart.py` for marker labels. **v2+:** animated
+  entrance for the callout, lower-thirds, CapCut word-by-word subtitles (static→animated
+  split mirrors E1→E2).
 
-### E4 — Style Manifest & traceability  `[infra · cross-cutting]`  🔵
+### E4 — Style Manifest & traceability  `[infra · cross-cutting]`  🟡 *Slices 1–2 + 4 shipped (Sprint 3); Slice 3 sketched as Sprint 6 (rolled from Sprint 5 per Tim's pivot)*
 A first-class inventory of every style element active on a project — where it came from,
 which scenes it applies to, how to remove it. Surfaces today's *silent globals*
 (`frame_style`, niche `visual_style`, the unused anchor PNG, seed, rich_slide bg default).
 - **Source:** `tmp/style-traceability-handoff.md` (5 slices). **Foundational:** animation
   (E2) and overlays (E3) register here as elements instead of new silent globals.
-- **Concrete bugs in scope:** `anchor_image` plumbed-but-never-used no-op; niche
-  `visual_style` contradicts photo-realistic prompts.
+- **Shipped (Sprint 3):** `src/pipeline/style/` package; `pipeline style list/add/remove`;
+  append-only `style_log.json`; `anchor_image` dead-code removed (Slice 4 — the no-op was
+  deleted; img2img re-implementation explicitly deferred).
+- **Remaining:** **Slice 3** — niche `visual_style` medium-clash root refactor (split into
+  `medium_hint`/`palette`/`subject_bias`/`universal_rules`; the prompt assembler in
+  `composer/base.py:328-340` consumes them at element granularity instead of the
+  all-or-nothing `skip_niche_style` symptom-fix) — **sketched as Sprint 6** (was the prior
+  Sprint-5 proposal; rolled per Tim's 2026-05-22 E3 pivot). **Slice 5** — dashboard Style
+  panel (rolls to E6 surfaces).
+- **Concrete bug still open:** niche `visual_style` contradicts photo-realistic prompts
+  (surreal output on baby-walker; the Slice 3 target).
 
-### E5 — Scene validation & visual-decision checkpoint  `[infra · quality gate]`  🔵
+### E5 — Scene validation & visual-decision checkpoint  `[infra · quality gate]`  🟢 *v1 shipped (Sprints 1, 4) — handoff doc no longer on disk*
 Defense-in-depth: a storyboard-write-time validator (per-type checks, taxonomy drift
-detection) + compose-time hard failures replacing today's silent `text_card` fallbacks +
+detection) + compose-time hard failures replacing the old silent `text_card` fallbacks +
 a `confidence`/`rationale` decision table the user reviews before TTS.
-- **Source:** `tmp/scene-validation-handoff.md` (Phase B + Phase C).
+- **Shipped:** all-type `storyboard_validator.py` incl. the `chart` branch (Sprint 4),
+  wired into `direct.py`; standalone `pipeline validate` CLI (Sprint 4); compose-time
+  `SceneRenderError` for missing/corrupt `article_image` (5a33f0a); the decision table.
+- **Remaining (narrow, not sprint-sized):** `namecard`/`map` still silently fall back to
+  `text_card` in `composer/base.py:413-422` — make loud or scope-validate when next in
+  that file.
 - **Interface with E1:** chart validation hooks (`chart_type` in set, `data` matches
-  schema) live here; chart v1 ships with *minimal inline* validation, full validator later.
+  schema) live here; the chart branch delegates to `composer/chart.py:validate_chart_visual`.
 
 ### E6 — Compose efficiency & dashboard surfaces  `[infra · feedback loop]`  🔵
 Tighten the iteration loop so new visuals can be tuned without full re-renders:
@@ -210,7 +247,8 @@ Shipped on `feat/chart-animation-v1`. Plan:
   pure CPU PIL + ffmpeg. Per-project = same $0.015 as Sprint 1.
 - **Static `line` golden:** `tests/fixtures/chart/golden/line.png`. The marker-label
   horizontal overlap (Voluntary standard / ASTM F977, 2 years apart on a 32-year span)
-  is a known polish issue scoped to **E3** (animated overlays / callout placement).
+  is the named demand for **Sprint 5** (E3 callout overlay primitive v1 / collision-aware
+  placement).
 
 ### Sprint 3 — Style Manifest Slices 1–2  `[E4]`  🟢 *shipped 2026-05-22*
 
@@ -232,24 +270,65 @@ Shipped on `feat/chart-animation-v1`. Plan:
 - **Unblocks:** charts/animation/future overlays register as traceable elements rather
   than silent globals — **foundational for E3 (animated overlays)**.
 
-### ▶ Sprint 4 — Storyboard validator: chart branch + `pipeline validate` CLI  `[E5]`  🔵 *next*
-Promote `composer/chart.py:_validate_chart` schema checks into the
-`storyboard_validator.py` `_validate_scene` dispatch so chart errors block the review
-gate at storyboard-write time (not only at render time). Add a standalone `pipeline
-validate <project-id>` Typer command that prints the existing `format_visual_decision_table`
-output and exits non-zero on errors, so an edited storyboard can be re-checked without
-rerunning `direct`. Fill the chart-branch test gap in
-`tests/director/test_storyboard_validator.py`. CLI-first; dashboard view later (E6).
+### Sprint 4 — Storyboard validator: chart branch + `pipeline validate` CLI  `[E5]`  🟢 *shipped 2026-05-22*
+
+- **Landed on master** (commits `9687169` → `c36b4b1`). `composer/chart.py` now exposes
+  `validate_chart_visual(visual, scene_id, *, duration_sec)` as a pure, list-returning
+  function (extracted from the inline render-time `_validate_chart`). The
+  `storyboard_validator.py` `_validate_scene` dispatch gained a `chart` branch
+  (`_validate_chart_visual`, lines 206/401) that delegates to it, so chart-schema errors
+  block the review gate at storyboard-write time, not only at render time.
+- **CLI:** `src/pipeline/cli_validate.py` adds `pipeline validate <project-id>` (registered
+  in `cli.py` via `app.add_typer(validate_app, name="validate")`). Prints
+  `format_visual_decision_table` and exits 0 clean / 1 load-failure (missing project /
+  storyboard / bad usage) / 2 validation-errors. Locale resolution auto-discovers a lone
+  `storyboard_<locale>.json`, prefers canonical `storyboard.json`, and requires `--locale`
+  when multiple locale files exist. Error output carries `suggested_fix`.
+- **Tests:** `tests/director/test_storyboard_validator.py` grew from 9 → 26 tests — chart
+  branch (missing/unknown chart_type, missing data, stat value length, bar xy mismatch,
+  comparison missing side, line malformed points/markers, animate variant/easing/reveal
+  duration) + smoke tests for the previously-untested
+  rich_slide/text_card/still_frame/namecard/map branches.
+- **Scope OUT (confirmed still deferred):** the compose-side silent-fallback replacement
+  for `article_image` was *already* shipped separately (5a33f0a → loud `SceneRenderError`).
+  The only remaining silent degradation is `namecard`/`map` → `text_card`
+  (`base.py:413-422`), now reclassified as a narrow non-sprint E5 follow-on.
+- **Cost:** $0 (pure validation logic; no provider calls).
+
+### ▶ Sprint 5 — Callout overlay primitive v1 (chart marker-label placement)  `[E3]`  🔵 *next — PROPOSED, awaiting greenlight*
+Open E3 with a **manifest-registered `callout` overlay primitive** — a pure renderer
+`(callout, base_image, width, height, palette) → PIL.Image` (chart_anim purity precedent)
+plus collision-avoidance placement (vertical dodge to the next free row up to N rows, with
+leader lines). `composer/chart.py` consumes it for line-chart marker labels, **replacing
+the inline 2-row-stagger `draw.text` at `chart.py:529-539`** that overlaps when markers sit
+<5yr apart on a long span (the observed baby-walker s21 decline-curve bug). In-area:
+convert the silent `apply_overlay` `try/except`→`logger.warning` at `compose.py:1060` into a
+loud failure. Animated entrance deferred to **v2** — the static→animated split mirrors E1
+(Sprint 1) → E2 (Sprint 2), the sequencing Tim greenlit for charts. **Visual-quality axis
+(removes degradation + new primitive); zero runtime; no code-level fence in v1 (no
+animation yet — the fence lands with v2).** Tim pivoted to E3 on 2026-05-22; the E4 Slice 3
+refactor rolls to Sprint 6 (sketched below). Full 11-part proposal in `sprint-log.md`.
+
+### Sprint 6 (sketched) — Niche `visual_style` medium-clash refactor (E4 Slice 3)  `[E4]`  🔵 *sketched — rolled from the prior Sprint-5 proposal per Tim's 2026-05-22 pivot*
+Split the niche template's monolithic `visual_style` into `medium_hint` / `palette` /
+`subject_bias` / `universal_rules` so the assembler at `composer/base.py:328-340` stops
+fusing a medium descriptor onto photo-realistic prompts (surreal baby-walker s25 output,
+today masked by the blunt `skip_niche_style` toggle). Backwards-compat `visual_style`
+composite preserved. Visual-quality axis (fixes existing degradation); zero runtime. The
+full 11-part proposal is preserved in `sprint-log.md` (annotated "superseded as Sprint 5;
+rolled to Sprint 6").
 
 ### Later / unscoped backlog
-- Animated overlays (E3): lower-thirds, chart annotations, CapCut subtitles `⚪`
+- Animated overlays v2+ (E3): **animated entrance** for the callout primitive + lower-thirds
+  + CapCut-style word-by-word subtitles `🔵` — follow-ons to Sprint 5's static v1.
 - Dashboard surfaces (E6): Production Contract panel, recompose buttons, Style panel,
-  Decision table, transition preview sheets `🔵`
-- Niche-template refactor: split `visual_style` → `medium_hint`/`palette`/`subject_bias`/
-  `universal_rules` (E4 Slice 3) `🔵`
+  Decision table, transition preview sheets `🔵` — **partly in flight** by another agent
+  (`docs/superpowers/plans/2026-05-16-dashboard-timeline-draggable-sections.md` + uncommitted
+  job_queue/server edits); do not double-schedule.
 - Ken Burns on stills; true stock-quality book-page-turn (E2 remaining) `🔵`
 - Animated reveal for `proportion_blocks` / `timeline` / `comparison` (E2 remaining) `🔵`
 - Stock-footage transition asset path (E6 Phase 5) `🔵`
+- `namecard`/`map` silent `text_card` fallback → loud or scope-validated (E5 follow-on) `🔵`
 
 ---
 
