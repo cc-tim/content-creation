@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -53,7 +54,7 @@ class StyleManifest:
 
 def build_manifest(storyboard_path: Path) -> StyleManifest:
     """Read storyboard.json and produce a StyleManifest of all active style elements."""
-    data = json.loads(storyboard_path.read_text())
+    data = json.loads(storyboard_path.read_text(encoding="utf-8"))
     project_id = data.get("project_id", storyboard_path.parent.name)
     theme = data.get("theme", {})
     scenes = data.get("scenes", [])
@@ -81,7 +82,7 @@ def build_manifest(storyboard_path: Path) -> StyleManifest:
     # 2. visual_style (niche image-prompt prefix)
     if vs := theme.get("visual_style"):
         warnings: list[str] = []
-        clashing = [kw for kw in _MEDIUM_KEYWORDS if kw in vs.lower()]
+        clashing = [kw for kw in _MEDIUM_KEYWORDS if re.search(rf"\b{re.escape(kw)}\b", vs, re.IGNORECASE)]
         if clashing:
             warnings.append(
                 f"Contains medium descriptor(s) {clashing!r} that may conflict with "

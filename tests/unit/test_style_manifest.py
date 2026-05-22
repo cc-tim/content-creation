@@ -153,3 +153,22 @@ def test_build_manifest_project_id_fallback(tmp_path):
     sb.write_text(json.dumps({"theme": {}, "scenes": []}))
     manifest = build_manifest(sb)
     assert manifest.project_id == tmp_path.name
+
+
+def test_build_manifest_visual_style_no_false_positive_outlines(tmp_path):
+    """'outlines' should NOT trigger the medium-descriptor warning for 'lines'."""
+    sb = _write_storyboard(tmp_path, {"visual_style": "clean outlines, minimal design"})
+    manifest = build_manifest(sb)
+    el = next(e for e in manifest.elements if e.id == "visual_style")
+    assert el.warnings == []
+
+
+def test_build_manifest_non_ascii_project_id(tmp_path):
+    """Storyboard files with Traditional Chinese content must be read correctly."""
+    sb = tmp_path / "storyboard.json"
+    sb.write_text(
+        json.dumps({"project_id": "嬰兒學步車", "theme": {}, "scenes": []}),
+        encoding="utf-8",
+    )
+    manifest = build_manifest(sb)
+    assert manifest.project_id == "嬰兒學步車"
