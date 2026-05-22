@@ -4,7 +4,9 @@ import json
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
+from pipeline.style.cli import style_app
 from pipeline.style.log import StyleLogEntry, append_log
 from pipeline.style.manifest import (
     PerSceneOverride,
@@ -206,3 +208,49 @@ def test_append_log_empty_rationale(tmp_path):
     append_log(tmp_path, "remove", "anchor_image")
     entries = json.loads((tmp_path / "style_log.json").read_text(encoding="utf-8"))
     assert entries[0]["rationale"] == ""
+
+
+# ── CLI tests ─────────────────────────────────────────────────────────────────
+
+
+def _make_project(tmp_path: Path, project_id: str, theme: dict, scenes: list | None = None) -> Path:
+    """Create output/projects/{project_id}/storyboard.json under tmp_path."""
+    project_dir = tmp_path / "output" / "projects" / project_id
+    project_dir.mkdir(parents=True)
+    sb = project_dir / "storyboard.json"
+    sb.write_text(
+        json.dumps({
+            "project_id": project_id,
+            "theme": theme,
+            "scenes": scenes or [],
+        }),
+        encoding="utf-8",
+    )
+    return project_dir
+
+
+def test_style_list_shows_frame(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _make_project(tmp_path, "test-proj", {"frame_style": "open_book_page"})
+    runner = CliRunner()
+    result = runner.invoke(style_app, ["list", "--project-id", "test-proj"])
+    assert result.exit_code == 0, result.output
+    assert "frame_open_book_page" in result.output
+    assert "frame" in result.output
+
+
+def test_style_list_shows_anchor_inactive(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _make_project(tmp_path, "test-anchor", {"_anchor_image": "/some/path.png"})
+    runner = CliRunner()
+    result = runner.invoke(style_app, ["list", "--project-id", "test-anchor"])
+    assert result.exit_code == 0, result.output
+    assert "anchor_image" in result.output
+    assert "INACTIVE" in result.output
+
+
+def test_style_list_unknown_project(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(style_app, ["list", "--project-id", "no-such-project"])
+    assert result.exit_code != 0
