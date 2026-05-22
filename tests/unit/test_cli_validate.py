@@ -159,3 +159,15 @@ def test_validate_prefers_unsuffixed_storyboard_when_both_exist(project_dir: Pat
     result = runner.invoke(validate_app, ["--project-id", project_dir.name])
     # storyboard.json is clean → exit 0 (proves we picked it, not the broken locale)
     assert result.exit_code == 0, result.output
+
+
+def test_validate_locale_not_found_exits_one_with_precise_message(
+    project_dir: Path,
+) -> None:
+    # No storyboard files at all, but --locale specified
+    runner = CliRunner()
+    result = runner.invoke(
+        validate_app, ["--project-id", project_dir.name, "--locale", "ja"]
+    )
+    assert result.exit_code == 1, result.output
+    assert "storyboard_ja.json" in result.output

@@ -74,6 +74,10 @@ def run(
 
     sb_path = _discover_storyboard(pdir, locale)
     if sb_path is None:
+        if locale is not None:
+            candidate = pdir / f"storyboard_{locale}.json"
+            typer.echo(f"Storyboard not found: {candidate}", err=True)
+            raise typer.Exit(1)
         # Distinguish "multiple, need --locale" from "no storyboard at all"
         locale_files = sorted(pdir.glob("storyboard_*.json"))
         if len(locale_files) > 1:
@@ -101,5 +105,5 @@ def run(
     ]
     if errors:
         for err in errors:
-            typer.echo(f"  {err.scene_id} {err.field}: {err.issue}")
+            typer.echo(f"  {err.scene_id} {err.field}: {err.issue} Fix: {err.suggested_fix}")
         raise typer.Exit(2)
