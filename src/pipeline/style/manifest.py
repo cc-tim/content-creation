@@ -136,7 +136,7 @@ def build_manifest(storyboard_path: Path) -> StyleManifest:
 
     # 5. Per-scene overrides
     for scene in scenes:
-        sid = scene.get("scene_id", "")
+        sid = scene.get("id") or scene.get("scene_id", "")
         vis = scene.get("visual", {})
         if vis.get("skip_niche_style"):
             overrides.append(

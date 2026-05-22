@@ -36,6 +36,7 @@ from pipeline.stages.compose import ComposeStage
 from pipeline.stages.direct import DirectStage
 from pipeline.stages.scriptwrite import ScriptwriteStage
 from pipeline.stages.tts import TtsStage
+from pipeline.style.cli import style_app
 
 logger = structlog.get_logger()
 app = typer.Typer(name="pipeline", help="YouTube content porting pipeline")
@@ -58,6 +59,7 @@ app.add_typer(overlay_app, name="overlay")
 app.add_typer(image_app, name="image")
 app.add_typer(mla_app, name="mla")
 app.add_typer(mutate_app, name="mutate")
+app.add_typer(style_app, name="style")
 
 
 def _channel_config_path() -> Path:
