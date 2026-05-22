@@ -25,6 +25,7 @@ from typing import Any
 
 import structlog
 
+from pipeline.composer.callout import Callout, _draw_placed_callouts, place_callouts
 from pipeline.utils.ffmpeg import run_ffmpeg
 
 logger = structlog.get_logger()
@@ -135,11 +136,13 @@ def _animate_line_frame(
     plot_w = width - pad_l - pad_r
 
     wipe = ImageDraw.Draw(img)
-    # Wipe everything below the header gap (data layer + axis labels) so the
-    # frame generator can re-draw at the requested progress without leftover
-    # artifacts from the base.
+    # Wipe the full data + label-stack region (down from just below the header)
+    # so the frame generator can re-draw at the requested progress without
+    # leftover artifacts. Starts at ``top + 2`` (rather than ``body_top - 34``)
+    # so a multi-row dodged callout stack from the base is fully cleared; header
+    # content sits above ``top`` and is untouched.
     wipe.rectangle(
-        [pad_l - 16, body_top - 34, pad_l + plot_w + pad_r + 8, body_bottom + 6],
+        [pad_l - 16, top + 2, pad_l + plot_w + pad_r + 8, body_bottom + 6],
         fill=palette["paper"],
     )
 
@@ -221,23 +224,27 @@ def _animate_line_frame(
         cur_x_data = xs[0] - 1.0
 
     mf = _load_font(_SANS_BOLD, 18)
-    for i, m in enumerate(markers):
+    revealed = []
+    for m in markers:
         mx = float(m["x"])
         if progress <= 1e-9:
             continue
         if mx > cur_x_data + 1e-9:
-            continue
+            continue  # the draw head has not reached this marker yet
         mpx = pad_l + int(plot_w * (mx - x_min) / x_span)
         draw.line([mpx, body_top + 8, mpx, body_bottom],
                   fill=palette["muted"], width=1)
         draw.ellipse([mpx - 7, body_top + 1, mpx + 7, body_top + 15],
                      fill=palette["ink"])
-        label = str(m.get("label", ""))
-        lb = draw.textbbox((0, 0), label, font=mf)
-        lab_x = max(pad_l, min(pad_l + plot_w - (lb[2] - lb[0]),
-                                mpx - (lb[2] - lb[0]) // 2))
-        lab_y = body_top - 26 if i % 2 == 0 else body_top - 6
-        draw.text((lab_x, lab_y), label, font=mf, fill=palette["ink"])
+        revealed.append(Callout(x=mpx, label=str(m.get("label", ""))))
+
+    placed = place_callouts(
+        revealed,
+        measure=lambda s: int(draw.textlength(s, font=mf)),
+        left=pad_l, right=pad_l + plot_w, body_top=body_top, top_limit=top + 2,
+    )
+    _draw_placed_callouts(draw, placed, ink=palette["ink"], muted=palette["muted"],
+                          font=mf, leader_from_y=body_top)
 
     return img
 
