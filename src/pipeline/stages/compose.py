@@ -1057,10 +1057,17 @@ class ComposeStage(PipelineStage):
                         scene_id=scene.id,
                         theme=theme_dict,
                     )
+                except SceneRenderError:
+                    raise
                 except Exception as e:
-                    logger.warning(
-                        "compose.scene.overlay_failed", scene_id=scene.id, error=str(e),
-                    )
+                    raise SceneRenderError(
+                        scene=scene.id,
+                        reason=f"overlay failed: {e}",
+                        suggested_fix=(
+                            "Fix or remove scene.overlay (check overlay.type and text), "
+                            "or re-run with --skip-overlays to bypass overlays."
+                        ),
+                    ) from e
 
             # Step 3: Mux both variants
             if frame_style:

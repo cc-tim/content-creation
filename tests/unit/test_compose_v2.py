@@ -633,3 +633,73 @@ def test_concat_scenes_uses_filter_concat_to_normalize_mixed_audio(
     assert "channel_layouts=stereo" in filter_arg
     assert "-c:v" in cmd
     assert cmd[cmd.index("-c:v") + 1] == "libx264"
+
+
+async def test_overlay_failure_refuses_assembly_and_records_loudly(sample_context):
+    """A failing apply_overlay must surface loudly (reliability posture: loud
+    over silent). The swap raises SceneRenderError per-scene; ComposeStage's
+    existing machinery records reason + suggested_fix in ctx.render_failures and
+    refuses final assembly with a RuntimeError — instead of the old behavior,
+    which logged a warning and completed silently."""
+    sb = Storyboard(
+        scenes=[
+            Scene(
+                id="s1",
+                section="hook",
+                narration="test",
+                narration_est_sec=5,
+                visual={"type": "text_card", "text": "Hook", "background": "#1a1a2e"},
+                overlay={"type": "title", "text": "hi"},
+            ),
+        ]
+    )
+    sb_path = sample_context.work_dir / "storyboard.json"
+    sb.save(sb_path)
+    sample_context.storyboard_path = sb_path
+
+    audio_dir = sample_context.work_dir / "audio"
+    audio_dir.mkdir(parents=True)
+    narration = audio_dir / "narration.mp3"
+    narration.write_bytes(b"fake")
+    sample_context.narration_path = narration
+    subtitle = audio_dir / "subs.srt"
+    subtitle.write_text("1\n00:00:00,000 --> 00:00:05,000\ntest\n")
+    sample_context.subtitle_path = subtitle
+    sample_context.segment_timings = [
+        {"index": 0, "text": "test", "path": str(audio_dir / "seg_000.mp3"),
+         "start_ms": 0, "duration_ms": 5000},
+    ]
+    (audio_dir / "seg_000.mp3").write_bytes(b"fake audio")
+
+    stage = ComposeStage()
+
+    def _boom(*a, **k):
+        raise RuntimeError("ffmpeg drawtext blew up")
+
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose.render_scene") as mock_render,
+        patch("pipeline.stages.compose.apply_overlay", side_effect=_boom),
+        patch("pipeline.stages.compose.run_ffmpeg") as mock_ff,
+    ):
+        visual_out = sample_context.work_dir / "compose" / "scenes" / "s1_visual.mp4"
+        visual_out.parent.mkdir(parents=True, exist_ok=True)
+        visual_out.write_bytes(b"fake visual")
+        mock_render.return_value = visual_out
+
+        def _fake_ffmpeg(cmd):
+            out = cmd[-1]
+            if isinstance(out, str) and out.endswith(".mp4"):
+                Path(out).write_bytes(b"fake")
+
+        mock_ff.side_effect = _fake_ffmpeg
+
+        # Assembly is refused (loud) rather than completing with a warning.
+        with pytest.raises(RuntimeError, match="overlay"):
+            await stage.run(sample_context)
+
+    # The overlay failure is recorded with its reason + actionable suggested_fix.
+    assert "s1" in sample_context.render_failures
+    failure = sample_context.render_failures["s1"]
+    assert "overlay failed" in failure["reason"]
+    assert "--skip-overlays" in failure["suggested_fix"]
