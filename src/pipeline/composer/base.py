@@ -341,8 +341,6 @@ def render_scene(
 
         seed_raw = theme.get("_seed")
         seed: int | None = int(seed_raw) if seed_raw is not None else None
-        anchor_raw = theme.get("_anchor_image")
-        anchor_image: Path | None = Path(anchor_raw) if anchor_raw else None
 
         gallery_path = Path("output/gallery/gallery_index.json")
         return render_generated_image(
@@ -358,7 +356,6 @@ def render_scene(
             theme=theme,
             style_prefix=base_style,
             seed=seed,
-            anchor_image=anchor_image,
         )
 
     elif visual_type == "slide":

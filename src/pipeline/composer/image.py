@@ -96,7 +96,6 @@ def render_generated_image(
     theme: dict | None = None,
     style_prefix: str = "",
     seed: int | None = None,
-    anchor_image: Path | None = None,
 ) -> Path:
     """Generate an image, convert to video segment.
 
