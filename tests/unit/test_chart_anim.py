@@ -376,3 +376,32 @@ def test_render_animated_chart_holds_final_frame_after_reveal(tmp_path):
         "generator should NOT be called for every total frame — hold tail "
         "must reuse the cached final frame"
     )
+
+
+# ── End-to-end dispatch from chart.render_chart ────────────────────────────────
+def test_render_chart_dispatches_to_animated_when_enabled(tmp_path):
+    from pipeline.composer.chart import render_chart
+
+    def fake_ffmpeg(cmd, timeout=600):
+        Path(cmd[-1]).write_bytes(b"")
+
+    with patch("pipeline.composer.chart_anim.run_ffmpeg",
+               side_effect=fake_ffmpeg) as ff:
+        out = render_chart(_LINE_VISUAL, 8.0, W, H, tmp_path, "s_dispatch", theme={})
+
+    assert ff.call_count == 1
+    assert out == tmp_path / "s_dispatch_visual.mp4"
+
+
+def test_render_chart_static_path_unchanged_when_animate_disabled(tmp_path):
+    from pipeline.composer.chart import render_chart
+
+    static_visual = {**_LINE_VISUAL}
+    static_visual.pop("animate", None)
+    with patch("pipeline.composer.chart_anim.run_ffmpeg") as ff_anim, \
+         patch("pipeline.composer.chart.image_to_video") as itv:
+        itv.side_effect = lambda png, out, *a, **k: out
+        render_chart(static_visual, 8.0, W, H, tmp_path, "s_static", theme={})
+
+    assert ff_anim.call_count == 0, "animated orchestrator must not run for static"
+    assert itv.call_count == 1, "static path must call image_to_video"

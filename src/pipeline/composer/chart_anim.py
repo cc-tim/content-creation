@@ -426,12 +426,13 @@ def render_animated_chart(
     every frame after the reveal so the orchestrator does not re-pay the
     drawing cost during the settle phase.
     """
+    from PIL import ImageDraw
+
     from pipeline.composer.chart import (
         _build_background,
         _draw_header,
         _palette,
     )
-    from PIL import ImageDraw
 
     theme = theme or {}
     chart_type = visual["chart_type"]

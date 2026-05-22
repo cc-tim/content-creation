@@ -50,8 +50,18 @@ _CREDIT_Y_FRAC = 0.71      # source credit sits in the 0.70-0.75 gap, above subt
 _HEADER_GAP = 24           # min vertical gap between header bottom (`top`) and body
 
 
-def _validate_chart(visual: dict[str, Any], scene_id: str) -> None:
-    """Minimal inline validation (E5 precursor). Fail loudly with a fix hint."""
+def _validate_chart(
+    visual: dict[str, Any],
+    scene_id: str,
+    duration_sec: float | None = None,
+) -> None:
+    """Minimal inline validation (E5 precursor). Fail loudly with a fix hint.
+
+    When ``duration_sec`` is provided AND ``visual.animate.enabled`` is true,
+    additionally validates the animate block (variant support, easing name,
+    duration ceiling). The duration ceiling is the in-code expression of the
+    two-axes rule: animation is a visual-quality lift, never a runtime extender.
+    """
     chart_type = visual.get("chart_type")
     if not chart_type:
         raise ValueError(
@@ -127,6 +137,31 @@ def _validate_chart(visual: dict[str, Any], scene_id: str) -> None:
                     f"got {m!r}"
                 )
 
+    animate = visual.get("animate") or {}
+    if animate.get("enabled"):
+        if chart_type not in {"line", "bar", "stat_big_number"}:
+            raise ValueError(
+                f"chart {scene_id}: chart_type={chart_type!r} has no animated "
+                f"variant (supported: line, bar, stat_big_number); set "
+                f"animate.enabled=false or pick a supported chart_type"
+            )
+        from pipeline.composer.chart_anim import EASING, HOLD_TAIL_MIN_SEC
+        easing_name = animate.get("easing", "ease_out_cubic")
+        if easing_name not in EASING:
+            raise ValueError(
+                f"chart {scene_id}: unknown easing {easing_name!r}; "
+                f"use one of {sorted(EASING)}"
+            )
+        if duration_sec is not None:
+            reveal = animate.get("reveal_duration_sec")
+            if reveal is not None and float(reveal) > duration_sec - HOLD_TAIL_MIN_SEC:
+                raise ValueError(
+                    f"chart {scene_id}: reveal_duration_sec={reveal} > "
+                    f"duration_sec({duration_sec}) - hold_tail({HOLD_TAIL_MIN_SEC}); "
+                    f"shorten the reveal — animation cannot extend the scene "
+                    f"(two-axes rule: arsenal items do not add runtime)"
+                )
+
 
 def _palette(theme: dict) -> dict[str, tuple[int, int, int]]:
     # v1: fixed warm editorial palette (see module note). theme reserved for E4.
@@ -189,9 +224,15 @@ def render_chart(
     from PIL import ImageDraw
 
     theme = theme or {}
-    _validate_chart(visual, scene_id)
+    _validate_chart(visual, scene_id, duration_sec=duration_sec)
     chart_type = visual["chart_type"]
     pal = _palette(theme)
+
+    if (visual.get("animate") or {}).get("enabled"):
+        from pipeline.composer.chart_anim import render_animated_chart
+        return render_animated_chart(
+            visual, duration_sec, width, height, work_dir, scene_id, theme
+        )
 
     bg = _build_background(visual, theme, width, height, work_dir, scene_id)
     draw = ImageDraw.Draw(bg)

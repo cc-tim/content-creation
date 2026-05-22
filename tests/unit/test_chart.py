@@ -208,6 +208,43 @@ def test_validate_accepts_valid_line():
     _validate_chart(_LINE, "s1")
 
 
+def test_validate_rejects_reveal_duration_over_limit():
+    with pytest.raises(ValueError, match="reveal_duration_sec"):
+        _validate_chart(
+            _v(chart_type="line", animate={"enabled": True, "reveal_duration_sec": 6.0},
+                data={"points": [{"x": 1, "y": 1}, {"x": 2, "y": 2}]}),
+            "s1", duration_sec=5.0,
+        )
+
+
+def test_validate_rejects_unknown_easing():
+    with pytest.raises(ValueError, match="unknown easing"):
+        _validate_chart(
+            _v(chart_type="line",
+                animate={"enabled": True, "easing": "bounce"},
+                data={"points": [{"x": 1, "y": 1}, {"x": 2, "y": 2}]}),
+            "s1", duration_sec=10.0,
+        )
+
+
+def test_validate_rejects_animated_variant_not_implemented():
+    with pytest.raises(ValueError, match="animated variant"):
+        _validate_chart(
+            _v(chart_type="proportion_blocks",
+                animate={"enabled": True},
+                data={"ratio": 0.5}),
+            "s1", duration_sec=5.0,
+        )
+
+
+def test_validate_passes_static_without_animate_block():
+    _validate_chart(
+        _v(chart_type="line",
+            data={"points": [{"x": 1, "y": 1}, {"x": 2, "y": 2}]}),
+        "s1",
+    )
+
+
 def test_golden_line(tmp_path):
     _assert_golden(_render_png(_LINE, tmp_path, "s_line"), "line")
 
