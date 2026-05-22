@@ -12,6 +12,7 @@ The bottom 25% of the canvas is reserved for burned narration subtitles (mirrors
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -86,6 +87,13 @@ def validate_chart_visual(
             f"chart {scene_id}: missing 'data' for chart_type={chart_type!r}"
         )
         # Schema checks below would all blow up on None — return here.
+        return issues + _validate_animate(visual, scene_id, chart_type, duration_sec)
+
+    if chart_type != "timeline" and not isinstance(data, Mapping):
+        issues.append(
+            f"chart {scene_id}: data for chart_type={chart_type!r} must be an "
+            f"object; got {data!r}"
+        )
         return issues + _validate_animate(visual, scene_id, chart_type, duration_sec)
 
     if chart_type == "stat_big_number":

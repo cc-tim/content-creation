@@ -302,3 +302,17 @@ def test_validate_chart_visual_returns_issue_strings_not_raises():
     issues = validate_chart_visual(visual, "s1")
     assert len(issues) == 1
     assert "chart_type" in issues[0]
+
+
+def test_validate_chart_visual_reports_wrong_data_shape_without_raising():
+    from pipeline.composer.chart import validate_chart_visual
+
+    visual = {
+        "type": "chart",
+        "chart_type": "bar",
+        "data": ["not", "an", "object"],
+    }
+    issues = validate_chart_visual(visual, "s1")
+    assert len(issues) == 1
+    assert "data" in issues[0]
+    assert "object" in issues[0]

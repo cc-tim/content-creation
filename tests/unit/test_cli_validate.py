@@ -44,6 +44,21 @@ def test_validate_clean_storyboard_exits_zero(project_dir: Path) -> None:
     assert result.exit_code == 0, result.output
 
 
+def test_validate_accepts_project_id_as_positional_argument(project_dir: Path) -> None:
+    _write_storyboard(project_dir, [
+        {
+            "id": "s1",
+            "section": "hook",
+            "narration": "ok",
+            "narration_est_sec": 5,
+            "visual": {"type": "text_card", "text": "hi"},
+        },
+    ])
+    runner = CliRunner()
+    result = runner.invoke(validate_app, [project_dir.name])
+    assert result.exit_code == 0, result.output
+
+
 def test_validate_broken_chart_exits_two(project_dir: Path) -> None:
     _write_storyboard(project_dir, [
         {

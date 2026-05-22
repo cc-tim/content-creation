@@ -57,8 +57,13 @@ def _discover_storyboard(pdir: Path, locale: str | None) -> Path | None:
 
 @validate_app.callback(invoke_without_command=True)
 def run(
-    project_id: str = typer.Option(
-        ..., "--project-id", help="Project ID (folder name under output/projects/)"
+    project_id_arg: str | None = typer.Argument(
+        None, help="Project ID (folder name under output/projects/)."
+    ),
+    project_id_option: str | None = typer.Option(
+        None,
+        "--project-id",
+        help="Project ID (folder name under output/projects/).",
     ),
     locale: str | None = typer.Option(
         None,
@@ -67,6 +72,18 @@ def run(
     ),
 ) -> None:
     """Validate the saved storyboard for a project and print the decision table."""
+    if project_id_arg and project_id_option and project_id_arg != project_id_option:
+        typer.echo(
+            "Project ID was provided twice with different values; use either "
+            "PROJECT_ID or --project-id.",
+            err=True,
+        )
+        raise typer.Exit(1)
+    project_id = project_id_option or project_id_arg
+    if project_id is None:
+        typer.echo("Missing project ID. Pass PROJECT_ID or --project-id.", err=True)
+        raise typer.Exit(1)
+
     pdir = _project_dir(project_id)
     if not pdir.exists():
         typer.echo(f"Project not found: {pdir}", err=True)
