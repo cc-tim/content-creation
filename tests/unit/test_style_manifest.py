@@ -254,3 +254,130 @@ def test_style_list_unknown_project(tmp_path, monkeypatch):
     runner = CliRunner()
     result = runner.invoke(style_app, ["list", "--project-id", "no-such-project"])
     assert result.exit_code != 0
+
+
+# ── style remove tests ────────────────────────────────────────────────────────
+
+
+def test_style_remove_frame(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    project_dir = _make_project(
+        tmp_path, "proj-remove",
+        {"frame_style": "open_book_page"},
+        scenes=[{"scene_id": "s01", "visual": {}}, {"scene_id": "s02", "visual": {}}],
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        style_app,
+        ["remove", "--project-id", "proj-remove", "frame_open_book_page"],
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads((project_dir / "storyboard.json").read_text(encoding="utf-8"))
+    assert "frame_style" not in data["theme"]
+    log = json.loads((project_dir / "style_log.json").read_text(encoding="utf-8"))
+    assert len(log) == 1
+    assert log[0]["action"] == "remove"
+    assert log[0]["element_id"] == "frame_open_book_page"
+    assert "2 scene" in result.output
+
+
+def test_style_remove_anchor_image(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    project_dir = _make_project(
+        tmp_path, "proj-anchor",
+        {"_anchor_image": "/configs/niche_anchors/parenting/style_anchor.png"},
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        style_app,
+        ["remove", "--project-id", "proj-anchor", "anchor_image"],
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads((project_dir / "storyboard.json").read_text(encoding="utf-8"))
+    assert "_anchor_image" not in data["theme"]
+
+
+def test_style_remove_not_found(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _make_project(tmp_path, "proj-notfound", {})
+    runner = CliRunner()
+    result = runner.invoke(
+        style_app,
+        ["remove", "--project-id", "proj-notfound", "frame_open_book_page"],
+    )
+    assert result.exit_code != 0
+
+
+def test_style_remove_with_rationale(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    project_dir = _make_project(tmp_path, "proj-rationale", {"frame_style": "open_book_page"})
+    runner = CliRunner()
+    runner.invoke(
+        style_app,
+        [
+            "remove", "--project-id", "proj-rationale",
+            "frame_open_book_page", "--rationale", "switching to clean look",
+        ],
+    )
+    log = json.loads((project_dir / "style_log.json").read_text(encoding="utf-8"))
+    assert log[0]["rationale"] == "switching to clean look"
+
+
+# ── style add tests ───────────────────────────────────────────────────────────
+
+
+def test_style_add_frame(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    project_dir = _make_project(tmp_path, "proj-add", {})
+    runner = CliRunner()
+    result = runner.invoke(
+        style_app,
+        ["add", "--project-id", "proj-add", "frame_open_book_page", "frame", "open_book_page"],
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads((project_dir / "storyboard.json").read_text(encoding="utf-8"))
+    assert data["theme"]["frame_style"] == "open_book_page"
+    log = json.loads((project_dir / "style_log.json").read_text(encoding="utf-8"))
+    assert log[0]["action"] == "add"
+    assert log[0]["element_id"] == "frame_open_book_page"
+
+
+def test_style_add_image_prompt_prefix(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    project_dir = _make_project(tmp_path, "proj-add-vs", {})
+    runner = CliRunner()
+    result = runner.invoke(
+        style_app,
+        [
+            "add", "--project-id", "proj-add-vs",
+            "visual_style", "image_prompt_prefix", "warm amber documentary tones",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads((project_dir / "storyboard.json").read_text(encoding="utf-8"))
+    assert data["theme"]["visual_style"] == "warm amber documentary tones"
+
+
+def test_style_add_unknown_kind(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _make_project(tmp_path, "proj-bad-kind", {})
+    runner = CliRunner()
+    result = runner.invoke(
+        style_app,
+        ["add", "--project-id", "proj-bad-kind", "some_id", "unknown_kind", "value"],
+    )
+    assert result.exit_code != 0
+
+
+# ── dead-code removal verification ────────────────────────────────────────────
+
+
+def test_render_generated_image_no_anchor_param():
+    """anchor_image must NOT be a parameter of render_generated_image (dead code removed)."""
+    import inspect
+    from pipeline.composer.image import render_generated_image
+    sig = inspect.signature(render_generated_image)
+    assert "anchor_image" not in sig.parameters, (
+        "anchor_image is still in render_generated_image signature. "
+        "Remove it from image.py and the call site in base.py."
+    )
