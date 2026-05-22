@@ -8,7 +8,7 @@
 > work. When this file and a `tmp/*-handoff.md` design doc disagree, the handoff is the
 > detailed spec and this file is the prioritized plan of record.
 
-**Last updated:** 2026-05-22 · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-05-22 (Sprint 3 shipped; Sprint 4 proposed) · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -30,7 +30,7 @@ Every sprint states which axis it serves. We never promise runtime from an arsen
 
 ---
 
-## Current arsenal (baseline, 2026-05-21)
+## Current arsenal (baseline, 2026-05-22)
 
 - **Visual types:** `generated_image`, `article_image`, `clip`, `slide`, `rich_slide`,
   `chart` (6 static chart_types — Sprint 1 + line in Sprint 2 🟢), `text_card`,
@@ -42,11 +42,23 @@ Every sprint states which axis it serves. We never promise runtime from an arsen
   digit count-up with preserved formatting. PIL multi-frame → ffmpeg, mirrors
   `composer/base.py:_camera_motion_to_video`. Two-axes guardrail in code:
   `reveal_duration_sec ≤ scene_duration − 0.5s` enforced by validator.
-- **Known gaps (the demand):** Ken Burns on stills · true book-page-turn animation ·
-  animated overlays (lower-thirds, callouts, CapCut subtitles) · style globals are
-  silent & untraceable · no storyboard-write-time validator · coarse recompose loop
-  (full re-render for small edits)
-  *(`chart` shipped in Sprint 1; animated reveals — line/bar/stat — in Sprint 2.)*
+- **Style manifest (Sprint 3 🟢):** `src/pipeline/style/` package — `pipeline style
+  list/add/remove` CLI; per-project append-only `style_log.json` at
+  `output/projects/{id}/style_log.json`; surfaces `frame_style`, `visual_style`,
+  `intro_transition_style`, `_anchor_image` (INACTIVE) + per-scene
+  `skip_niche_style`/`style_modifier` overrides. `anchor_image` dead-code removed from
+  `render_generated_image` + call site (upstream `style_anchor.py` chain preserved).
+- **Storyboard validator (partially built 🟡):** `director/storyboard_validator.py`
+  validates `article_image`/`image`, `slide`, `rich_slide`, `generated_image`,
+  `text_card`, `clip`, `still_frame`, `namecard`, `map`; produces `confidence`/
+  `rationale` decision table; wired into `direct.py` after storyboard save. **Missing:**
+  `chart` branch (schema only validated at render time, not at write time), standalone
+  `pipeline validate` CLI, and test coverage for chart/rich_slide/text_card/still_frame/
+  namecard/map (existing 9 tests cover only article_image/slide/generated_image/clip).
+- **Known gaps (the demand):** chart not validated at storyboard-write time · no
+  standalone `pipeline validate` command · Ken Burns on stills · true book-page-turn
+  animation · animated overlays (lower-thirds, callouts, CapCut subtitles) · niche
+  `visual_style` medium-clash root refactor (E4 Slice 3) · coarse recompose loop.
 
 See `.agent-memory/engineering-manager/arsenal-state.md` for the living inventory.
 
@@ -200,14 +212,34 @@ Shipped on `feat/chart-animation-v1`. Plan:
   horizontal overlap (Voluntary standard / ASTM F977, 2 years apart on a 32-year span)
   is a known polish issue scoped to **E3** (animated overlays / callout placement).
 
-### ▶ Sprint 3 — Style Manifest Slices 1–2  `[E4]`  🔵 *next*
-Inventory (`pipeline style list`) + `style add`/`remove` (+ per-scene) with append-only
-`style_log.json`; fix the `anchor_image` no-op. Makes charts/animation/overlays traceable
-elements rather than silent globals — foundational before E3.
+### Sprint 3 — Style Manifest Slices 1–2  `[E4]`  🟢 *shipped 2026-05-22*
 
-### Sprint 4 — Storyboard validator + visual-decision checkpoint  `[E5]`  🔵
-Layer-1 write-time validator (incl. chart schema checks promoted from Sprint 1's inline
-stub) + `confidence`/`rationale` decision table before TTS. CLI-first; dashboard view later.
+- **Landed on `feat/style-manifest-v1`.** New `src/pipeline/style/` package:
+  `manifest.py` (StyleElement / PerSceneOverride / StyleManifest dataclasses;
+  `build_manifest(storyboard_path)` reads theme + per-scene overrides), `log.py`
+  (append-only `style_log.json`), `cli.py` (Typer `style_app` with `list` / `add` /
+  `remove`). Registered in `cli.py` via `app.add_typer(style_app, name="style")`.
+- **Bug fix:** `anchor_image: Path | None = None` removed from
+  `composer/image.py:render_generated_image` signature; corresponding read + pass-through
+  stripped from `composer/base.py`. The upstream `style_anchor.py` → `compose.py` chain
+  that *generates* the PNG is preserved; manifest surfaces it as `active=False` with an
+  INACTIVE warning so users see it exists but does nothing (img2img deferred to a later
+  E4 sprint).
+- **Tests:** `tests/unit/test_style_manifest.py` — 28 tests (data-structure smoke,
+  build_manifest branches incl. medium-descriptor warning + word-boundary false-positive
+  guard + non-ASCII, log append, CLI list/remove/add, dead-code absence). 1016 unit
+  tests pass; ruff + mypy clean on sprint files. Smoke test on baby-walker confirmed.
+- **Unblocks:** charts/animation/future overlays register as traceable elements rather
+  than silent globals — **foundational for E3 (animated overlays)**.
+
+### ▶ Sprint 4 — Storyboard validator: chart branch + `pipeline validate` CLI  `[E5]`  🔵 *next*
+Promote `composer/chart.py:_validate_chart` schema checks into the
+`storyboard_validator.py` `_validate_scene` dispatch so chart errors block the review
+gate at storyboard-write time (not only at render time). Add a standalone `pipeline
+validate <project-id>` Typer command that prints the existing `format_visual_decision_table`
+output and exits non-zero on errors, so an edited storyboard can be re-checked without
+rerunning `direct`. Fill the chart-branch test gap in
+`tests/director/test_storyboard_validator.py`. CLI-first; dashboard view later (E6).
 
 ### Later / unscoped backlog
 - Animated overlays (E3): lower-thirds, chart annotations, CapCut subtitles `⚪`
