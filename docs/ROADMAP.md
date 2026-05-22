@@ -8,7 +8,7 @@
 > work. When this file and a `tmp/*-handoff.md` design doc disagree, the handoff is the
 > detailed spec and this file is the prioritized plan of record.
 
-**Last updated:** 2026-05-21 · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-05-22 · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -33,13 +33,20 @@ Every sprint states which axis it serves. We never promise runtime from an arsen
 ## Current arsenal (baseline, 2026-05-21)
 
 - **Visual types:** `generated_image`, `article_image`, `clip`, `slide`, `rich_slide`,
-  `chart` (5 static chart_types — Sprint 1 🟢), `text_card`, `still_frame`
+  `chart` (6 static chart_types — Sprint 1 + line in Sprint 2 🟢), `text_card`,
+  `still_frame`
 - **Frames:** `open_book_page` (project-level wrap)
 - **Transitions:** `page-turn` (weak — aliased to xfade slideleft), `book-page-turn-v2`
-- **Known gaps (the demand):** no programmatic animation (reveals, Ken Burns) · no
-  animated overlays · style globals are silent & untraceable · no storyboard-write-time
-  validator · coarse recompose loop (full re-render for small edits)
-  *(`chart` shipped in Sprint 1.)*
+- **Reveals (Sprint 2 🟢):** animated `line` left-to-right draw (with markers synced
+  to draw progress) · animated `bar` sequential grow with stagger · `stat_big_number`
+  digit count-up with preserved formatting. PIL multi-frame → ffmpeg, mirrors
+  `composer/base.py:_camera_motion_to_video`. Two-axes guardrail in code:
+  `reveal_duration_sec ≤ scene_duration − 0.5s` enforced by validator.
+- **Known gaps (the demand):** Ken Burns on stills · true book-page-turn animation ·
+  animated overlays (lower-thirds, callouts, CapCut subtitles) · style globals are
+  silent & untraceable · no storyboard-write-time validator · coarse recompose loop
+  (full re-render for small edits)
+  *(`chart` shipped in Sprint 1; animated reveals — line/bar/stat — in Sprint 2.)*
 
 See `.agent-memory/engineering-manager/arsenal-state.md` for the living inventory.
 
@@ -67,16 +74,21 @@ Pillow composite). chart_types: `stat_big_number`, `proportion_blocks`, `timelin
 - **Source:** `tmp/chart-renderer-handoff.md`. **Precedent:** `composer/rich_slide.py`.
 - **Unblocks:** stat beats render as real visualizations. **Does NOT** add runtime.
 
-### E2 — Programmatic animation  `[arsenal]`  🔵
-Motion generated in-pipeline: animated chart reveals (bar grow, number count-up, line
-draw), Ken Burns push/zoom on stills, and a *true* book-page-turn (current one is an
-approximation). PIL multi-frame → ffmpeg, or zoompan filter.
-- **Demand:** the baby-walker greenlit storyboard (producer loop 3) calls for a **merged
-  animated decline-curve** that replaces two tables — no renderer exists for it. Plus
-  Ken Burns / transition quality from `docs/future-tasks.md`.
+### E2 — Programmatic animation  `[arsenal]`  🟢 *v1 shipped (Sprint 2)*
+Motion generated in-pipeline. v1 covers animated chart reveals for `line` / `bar` /
+`stat_big_number` via PIL multi-frame → ffmpeg, mirroring
+`composer/base.py:_camera_motion_to_video`. New `chart_type: "line"` (sixth static type)
++ animated `animate: {enabled, reveal_duration_sec, easing}` modifier. The baby-walker
+**merged animated decline-curve** (1990→2014 with six regulation markers) is wired into
+s21 as the acceptance vehicle.
+- **Remaining in epic:** animated reveals for `proportion_blocks` / `timeline` /
+  `comparison`; Ken Burns push/zoom on stills; a *true* book-page-turn (current is an
+  approximation).
 - **Source:** chart handoff open-Q1; narrative-history handoff; future-tasks.
-- **Depends on:** E1 (an animated chart reveal needs the chart first).
-- **Unblocks:** the decline-curve; livelier stills. **Does NOT** add runtime.
+- **Depends on:** E1 (animated reveal needs the static chart substrate). ✅
+- **Unblocks:** the decline-curve; count-up + bar-grow on stat-heavy beats; trend-over-time
+  beats via `line`. **Does NOT** add runtime — `reveal_duration_sec` validated
+  ≤ `scene_duration − 0.5s` (the two-axes rule, in code).
 
 ### E3 — Animated overlays  `[arsenal]`  ⚪
 Text/graphic layers composited *on top of* images / charts / slides: lower-thirds,
@@ -161,13 +173,34 @@ Unblocks (and what it does NOT) · Acceptance · Cost · Size.
 
 ---
 
-### ▶ Sprint 2 — Animated chart reveal + the decline-curve  `[E2]`  🔵 *next*
-Add an animated variant: line-draw / timeline reveal and `stat_big_number` count-up
-(PIL multi-frame → ffmpeg). Delivers the baby-walker **merged animated decline-curve**
-(1990→2014 with regulation milestone markers) the producer greenlit in loop 3.
-Visual-quality axis only — no runtime.
+### Sprint 2 — Animated chart reveal + the decline-curve  `[E2]`  🟢 *shipped 2026-05-22*
+Shipped on `feat/chart-animation-v1`. Plan:
+`docs/superpowers/plans/2026-05-21-animated-chart-reveal.md`.
 
-### Sprint 3 — Style Manifest Slices 1–2  `[E4]`  🔵
+- **Landed:** new `src/pipeline/composer/chart_anim.py` (pure frame generators
+  `_animate_line_frame` / `_animate_bar_frame` / `_animate_stat_frame` + easing helpers
+  `_progress_linear` / `_progress_ease_out_cubic` + `_count_up_value` parser +
+  `render_animated_chart` orchestrator with hold-tail caching). New
+  `chart_type: "line"` in `composer/chart.py` (sixth static type + animated variant).
+  `animate: {enabled, reveal_duration_sec, easing}` block on the visual. Director
+  taxonomy in `stages/direct.py` updated with `line` worked example + ANIMATION
+  subsection. Baby-walker s21 wired to the animated decline-curve (1990 → 1999 → 2007
+  → 2014, six regulation markers). End-to-end verified by sampling rendered mp4 frames.
+- **Tests (`tests/unit/test_chart_anim.py`, 32 tests):** purity contract per variant
+  (byte-identical repeat), 9 sampled-frame goldens (3 variants × progress 0.0/0.5/1.0)
+  under `tests/fixtures/chart_anim/golden/`, ffmpeg-mock test (run_ffmpeg called once,
+  frame count = `duration_sec * FPS`), hold-tail caching test (generator called
+  ≤ `reveal_frames` times, not `total_frames`), dispatch test through `render_chart`.
+- **Two-axes rule, enforced in code:** `_validate_chart` raises `ValueError` if
+  `reveal_duration_sec > duration_sec − HOLD_TAIL_MIN_SEC (= 0.5s)`. Animation cannot
+  extend a scene — runtime stays a story-axis concern.
+- **Cost:** $0 incremental — animation re-uses the static chart's cached Flux background;
+  pure CPU PIL + ffmpeg. Per-project = same $0.015 as Sprint 1.
+- **Static `line` golden:** `tests/fixtures/chart/golden/line.png`. The marker-label
+  horizontal overlap (Voluntary standard / ASTM F977, 2 years apart on a 32-year span)
+  is a known polish issue scoped to **E3** (animated overlays / callout placement).
+
+### ▶ Sprint 3 — Style Manifest Slices 1–2  `[E4]`  🔵 *next*
 Inventory (`pipeline style list`) + `style add`/`remove` (+ per-scene) with append-only
 `style_log.json`; fix the `anchor_image` no-op. Makes charts/animation/overlays traceable
 elements rather than silent globals — foundational before E3.
@@ -182,7 +215,8 @@ stub) + `confidence`/`rationale` decision table before TTS. CLI-first; dashboard
   Decision table, transition preview sheets `🔵`
 - Niche-template refactor: split `visual_style` → `medium_hint`/`palette`/`subject_bias`/
   `universal_rules` (E4 Slice 3) `🔵`
-- Ken Burns on stills; true stock-quality book-page-turn (E2) `🔵`
+- Ken Burns on stills; true stock-quality book-page-turn (E2 remaining) `🔵`
+- Animated reveal for `proportion_blocks` / `timeline` / `comparison` (E2 remaining) `🔵`
 - Stock-footage transition asset path (E6 Phase 5) `🔵`
 
 ---

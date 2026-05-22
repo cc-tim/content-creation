@@ -31,6 +31,26 @@ until it has ALL of:
 6. Eventually: a Style Manifest element (E4) and a dashboard surface (E6).
    Sprints 1–N may defer 6, but must name it as deferred, not forget it.
 
+**Lessons from Sprint 2 (animation):**
+- **Frame generators are PURE.** Contract: `(progress, visual, base_bg, w, h, palette,
+  top) → PIL.Image` — no disk, no network, no random. The orchestrator owns all I/O.
+  This is what makes sampled-frame goldens viable; without purity you fall back to mp4
+  binary comparison, which is flaky across ffmpeg builds. Enforced by a determinism
+  test that calls each generator twice and asserts byte-identical PIL output BEFORE any
+  golden-comparison test runs.
+- **Two-axes guardrails belong in code.** A reveal-duration policy stated only in docs
+  erodes; one enforced by the validator (`reveal_duration_sec ≤ scene_duration − 0.5s`
+  raises with a fix hint) survives pressure. New animation-adjacent sprints must check
+  whether their own quality-vs-runtime tradeoff has a code-level fence.
+- **ffmpeg invocation is duplicated, not abstracted, until a 3rd caller appears.**
+  `_camera_motion_to_video` and `render_animated_chart` both call `run_ffmpeg` with the
+  same JPEG-sequence arg list; a shared helper waits for the 3rd caller (premature
+  abstraction is the bigger risk here).
+- **Hold-tail caching is mandatory for animated chart reveals.** The orchestrator
+  renders the p=1.0 final frame ONCE and reuses it for every frame after the reveal.
+  Saves ~30% wall-time on a typical 6s scene with 4s reveal; verified by a test that
+  asserts the generator is called ≤ `reveal_frames` times, not `total_frames`.
+
 **Lessons from Sprint 1 (chart):**
 - **Renderers do NOT self-wrap the project frame.** `open_book_page` is applied at
   compose level (`compose.py` → `composer/frame.py`) post-render, so a new visual type
