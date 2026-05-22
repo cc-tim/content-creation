@@ -20,6 +20,7 @@ from pipeline.cli_storyboard import storyboard_app
 from pipeline.cli_storyteller import storytell_app
 from pipeline.cli_subtitle import subtitle_app
 from pipeline.cli_transition import transition_app
+from pipeline.cli_validate import validate_app
 from pipeline.cli_visual_review import visual_review_app
 from pipeline.cli_voice import voice_app
 from pipeline.config import PipelineConfig
@@ -54,6 +55,7 @@ app.add_typer(visual_review_app, name="visual-review")
 app.add_typer(compose_app, name="compose")
 app.add_typer(outro_app, name="outro")
 app.add_typer(transition_app, name="transition")
+app.add_typer(validate_app, name="validate")
 app.add_typer(subtitle_app, name="subtitle")
 app.add_typer(overlay_app, name="overlay")
 app.add_typer(image_app, name="image")
