@@ -364,3 +364,53 @@ def test_chart_valid_returns_no_issues(tmp_path: Path) -> None:
     ])
     issues = validate_storyboard(sb, tmp_path)
     assert _errors(issues) == []
+
+
+# ── existing-branch smoke tests (lock current behavior) ────────────────────
+
+
+def test_rich_slide_empty_text_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[_scene("s1", {"type": "rich_slide"})])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any(i.field == "visual.text" for i in errs)
+
+
+def test_text_card_empty_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[_scene("s1", {"type": "text_card", "text": ""})])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any(i.field == "visual.text" for i in errs)
+
+
+def test_still_frame_missing_source_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[
+        _scene("s1", {"type": "still_frame", "timestamp_sec": 1.0}),
+    ])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any(i.field == "visual.source" for i in errs)
+
+
+def test_namecard_missing_name_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[_scene("s1", {"type": "namecard"})])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any(i.field == "visual.name" for i in errs)
+
+
+def test_map_missing_query_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[_scene("s1", {"type": "map"})])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any(i.field == "visual.query" for i in errs)
