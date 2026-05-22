@@ -183,3 +183,184 @@ def test_validation_exception_formats_errors(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="s1 visual.type"):
         raise_for_validation_errors(sb, tmp_path)
+
+
+# ── chart visual: schema validation ────────────────────────────────────────
+
+
+def test_chart_missing_chart_type_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[_scene("s1", {"type": "chart"})])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any("chart_type" in i.issue for i in errs)
+    assert all(i.scene_id == "s1" for i in errs)
+
+
+def test_chart_unknown_chart_type_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[_scene("s1", {"type": "chart", "chart_type": "lne"})])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any("unknown chart_type" in i.issue and "lne" in i.issue for i in errs)
+
+
+def test_chart_missing_data_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[
+        _scene("s1", {"type": "chart", "chart_type": "bar"}),
+    ])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any("missing 'data'" in i.issue for i in errs)
+
+
+def test_chart_stat_big_number_value_too_long_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[
+        _scene("s1", {
+            "type": "chart",
+            "chart_type": "stat_big_number",
+            "data": {"value": "12,345,678,901"},
+        }),
+    ])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any("> 8 chars" in i.issue for i in errs)
+
+
+def test_chart_bar_uneven_xy_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[
+        _scene("s1", {
+            "type": "chart",
+            "chart_type": "bar",
+            "data": {"x": ["a", "b"], "y": [1]},
+        }),
+    ])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any("equal-length" in i.issue for i in errs)
+
+
+def test_chart_comparison_missing_side_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[
+        _scene("s1", {
+            "type": "chart",
+            "chart_type": "comparison",
+            "data": {"left": {"label": "L", "value": "1"}},  # right missing
+        }),
+    ])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any("right" in i.issue and "label" in i.issue for i in errs)
+
+
+def test_chart_line_malformed_points_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[
+        _scene("s1", {
+            "type": "chart",
+            "chart_type": "line",
+            "data": {"points": [{"x": 1990}]},  # missing y
+        }),
+    ])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any("points[0] must be {x, y}" in i.issue for i in errs)
+
+
+def test_chart_line_malformed_markers_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[
+        _scene("s1", {
+            "type": "chart",
+            "chart_type": "line",
+            "data": {
+                "points": [{"x": 1990, "y": 100}, {"x": 2000, "y": 50}],
+                "markers": [{"label": "no x"}],  # missing x
+            },
+        }),
+    ])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any("marker[0]" in i.issue for i in errs)
+
+
+def test_chart_animate_unsupported_variant_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[
+        _scene("s1", {
+            "type": "chart",
+            "chart_type": "timeline",
+            "data": [{"year": 1990, "label": "a"}],
+            "animate": {"enabled": True},
+        }),
+    ])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any("no animated" in i.issue for i in errs)
+
+
+def test_chart_animate_unknown_easing_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[
+        _scene("s1", {
+            "type": "chart",
+            "chart_type": "bar",
+            "data": {"x": ["a"], "y": [1]},
+            "animate": {"enabled": True, "easing": "bouncy"},
+        }),
+    ])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any("unknown easing" in i.issue and "bouncy" in i.issue for i in errs)
+
+
+def test_chart_animate_reveal_exceeds_duration_is_error(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    # Scene est duration = 5s; reveal_duration_sec = 6.0s > 5 - 0.5 = 4.5
+    sb = Storyboard(scenes=[
+        _scene("s1", {
+            "type": "chart",
+            "chart_type": "bar",
+            "data": {"x": ["a"], "y": [1]},
+            "animate": {"enabled": True, "reveal_duration_sec": 6.0},
+        }),
+    ])
+    issues = validate_storyboard(sb, tmp_path)
+    errs = _errors(issues)
+    assert any(
+        "reveal_duration_sec=6.0" in i.issue and "hold_tail" in i.issue
+        for i in errs
+    )
+
+
+def test_chart_valid_returns_no_issues(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    sb = Storyboard(scenes=[
+        _scene("s1", {
+            "type": "chart",
+            "chart_type": "line",
+            "data": {
+                "points": [{"x": 1990, "y": 100}, {"x": 2000, "y": 50}],
+                "markers": [{"x": 1995, "label": "regulation"}],
+            },
+            "animate": {"enabled": True, "reveal_duration_sec": 3.0},
+        }),
+    ])
+    issues = validate_storyboard(sb, tmp_path)
+    assert _errors(issues) == []

@@ -203,6 +203,8 @@ def _validate_scene(
         issues.extend(_validate_clip(scene, visual, project_root))
     elif visual_type == "still_frame":
         issues.extend(_validate_still_frame(scene, visual, project_root))
+    elif visual_type == "chart":
+        issues.extend(_validate_chart_visual(scene, visual))
     elif visual_type == "namecard" and not str(visual.get("name") or "").strip():
         issues.append(_issue(
             scene,
@@ -394,6 +396,27 @@ def _validate_generated_image(
             "Keep style_modifier to a short mood modifier.",
         ))
     return issues
+
+
+def _validate_chart_visual(scene: Scene, visual: dict[str, Any]) -> list[SceneValidationError]:
+    """Promote composer/chart.py:validate_chart_visual into validator errors."""
+    from pipeline.composer.chart import validate_chart_visual
+
+    duration: float | None = None
+    if scene.narration_est_sec:
+        duration = float(scene.narration_est_sec)
+
+    issues_text = validate_chart_visual(visual, scene.id, duration_sec=duration)
+    out: list[SceneValidationError] = []
+    for msg in issues_text:
+        out.append(_issue(
+            scene,
+            "error",
+            "visual",
+            msg,
+            "Fix the chart schema; see composer/chart.py:CHART_TYPES for valid types.",
+        ))
+    return out
 
 
 def _validate_text_card(scene: Scene, visual: dict[str, Any]) -> list[SceneValidationError]:
