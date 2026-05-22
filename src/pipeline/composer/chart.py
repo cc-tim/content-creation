@@ -19,6 +19,7 @@ from typing import Any
 import structlog
 
 from pipeline.composer.base import image_to_video
+from pipeline.composer.callout import Callout, _draw_placed_callouts, place_callouts
 from pipeline.composer.rich_slide import (
     _SANS_BOLD,
     _SANS_REGULAR,
@@ -526,14 +527,18 @@ def _render_line(draw, visual, width, height, pal, top) -> None:
         draw.ellipse([px - 5, py - 5, px + 5, py + 5], fill=pal["accent"])
 
     mf = _load_font(_SANS_BOLD, 18)
-    for i, m in enumerate(markers):
+    callouts = []
+    for m in markers:
         mx = float(m["x"])
         mpx = pad_l + int(plot_w * (mx - x_min) / x_span)
         draw.line([mpx, body_top + 8, mpx, body_bottom], fill=pal["muted"], width=1)
         draw.ellipse([mpx - 7, body_top + 1, mpx + 7, body_top + 15], fill=pal["ink"])
-        label = str(m.get("label", ""))
-        lb = draw.textbbox((0, 0), label, font=mf)
-        lab_x = max(pad_l, min(pad_l + plot_w - (lb[2] - lb[0]),
-                                mpx - (lb[2] - lb[0]) // 2))
-        lab_y = body_top - 26 if i % 2 == 0 else body_top - 6
-        draw.text((lab_x, lab_y), label, font=mf, fill=pal["ink"])
+        callouts.append(Callout(x=mpx, label=str(m.get("label", ""))))
+
+    placed = place_callouts(
+        callouts,
+        measure=lambda s: int(draw.textlength(s, font=mf)),
+        left=pad_l, right=pad_l + plot_w, body_top=body_top, top_limit=top + 2,
+    )
+    _draw_placed_callouts(draw, placed, ink=pal["ink"], muted=pal["muted"],
+                          font=mf, leader_from_y=body_top)
