@@ -8,7 +8,7 @@
 > work. When this file and a `tmp/*-handoff.md` design doc disagree, the handoff is the
 > detailed spec and this file is the prioritized plan of record.
 
-**Last updated:** 2026-05-22 (Sprint 4 shipped; Sprint 5 = E3 callout overlay v1 proposed after Tim's pivot; E4 Slice 3 rolled to Sprint 6) · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-05-23 (Sprint 5 SHIPPED — E3 callout overlay primitive v1; E4 Slice 3 = Sprint 6 next) · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -60,13 +60,22 @@ Every sprint states which axis it serves. We never promise runtime from an arsen
   `storyboard_<locale>.json`, requires `--locale` when multiple exist). 26 validator
   tests (up from 9) cover chart + smoke tests for rich_slide/text_card/still_frame/
   namecard/map.
+- **Callout overlay primitive (Sprint 5 🟢):** `composer/callout.py` — pure
+  `place_callouts` (vertical dodge to the next free row + leader lines; row budget capped by
+  header space; raises on exhaustion) + `_draw_placed_callouts` + `render_callouts` image
+  wrapper. Consumed by BOTH the static `chart._render_line` and the animated
+  `chart_anim._animate_line_frame` for collision-free line-chart marker labels (fixes the
+  s21 decline-curve overlap). Registered as a `kind="overlay"` aggregate Style Manifest
+  element. The PIL-composite callout layer is distinct from the ffmpeg `overlay.py`
+  drawtext layer; v1 adds placement intelligence (animated entrance is E3 v2).
 - **Compose-time loud failures (🟢):** `composer/base.py` raises `SceneRenderError`
   (reason + suggested_fix) for a missing-or-corrupt `article_image`/`image` path (the old
-  silent `text_card` fallback was removed in 5a33f0a). **Remaining silent degradation:**
-  `namecard`/`map` still fall back to `text_card` (`base.py:413-422`) — a narrow E5
-  follow-on, not sprint-sized; fix while next in `base.py`.
+  silent `text_card` fallback was removed in 5a33f0a). **`apply_overlay` failures in
+  `compose.py` now also raise `SceneRenderError`** (Sprint 5) instead of a silent warning.
+  **Remaining silent degradation:** `namecard`/`map` still fall back to `text_card`
+  (`base.py:413-422`) — a narrow E5 follow-on, not sprint-sized; fix while next in `base.py`.
 - **Known gaps (the demand):** Ken Burns on stills · true book-page-turn animation ·
-  animated overlays (lower-thirds, callouts, CapCut subtitles) · niche `visual_style`
+  animated overlay *entrance* (E3 v2), lower-thirds, CapCut subtitles · niche `visual_style`
   medium-clash root refactor (E4 Slice 3 — actively producing surreal output on
   baby-walker, currently masked by the `skip_niche_style` per-scene workaround) · coarse
   recompose loop · `namecard`/`map` silent `text_card` fallback.
@@ -113,7 +122,7 @@ s21 as the acceptance vehicle.
   beats via `line`. **Does NOT** add runtime — `reveal_duration_sec` validated
   ≤ `scene_duration − 0.5s` (the two-axes rule, in code).
 
-### E3 — Animated overlays  `[arsenal]`  🟡 *v1 proposed (Sprint 5, after Tim's 2026-05-22 pivot)*
+### E3 — Animated overlays  `[arsenal]`  🟡 *v1 shipped (Sprint 5, 2026-05-23); v2+ remaining*
 Text/graphic layers composited *on top of* images / charts / slides: lower-thirds,
 callouts, chart annotations, CapCut-style word-by-word subtitles. **Not greenfield** — a
 *static* overlay layer already exists (`composer/overlay.py`: `title` / `namecard` /
@@ -127,10 +136,14 @@ collision-checker in `overlay_rules.py`). E3 adds **placement intelligence and m
 - **Depends on:** E4 **Slices 1–2 (shipped Sprint 3)** so overlays register as traceable
   elements rather than new silent globals — the hard blocker is **cleared**. Overlays do
   *not* consume niche `visual_style`, so E4 Slice 3 (Sprint 6) is **not** a blocker.
-- **Sprint 5 (v1):** a manifest-registered, pure-renderer `callout` primitive with
-  collision-avoidance placement, consumed by `chart.py` for marker labels. **v2+:** animated
-  entrance for the callout, lower-thirds, CapCut word-by-word subtitles (static→animated
-  split mirrors E1→E2).
+- **Sprint 5 (v1) 🟢 shipped:** `composer/callout.py` — pure `place_callouts` geometry
+  (vertical dodge + leader lines, row budget capped by header space, raises on exhaustion)
+  + `_draw_placed_callouts` + `render_callouts` image wrapper. BOTH line paths route through
+  it: static `chart._render_line` AND animated `chart_anim._animate_line_frame` (the path
+  that actually renders s21 — same overlap bug, fixed via one shared primitive). Registered
+  as a `kind="overlay"` Style Manifest element (aggregate-by-type). `apply_overlay` failures
+  now raise `SceneRenderError` (loud). **v2+:** animated entrance for the callout,
+  lower-thirds, CapCut word-by-word subtitles (static→animated split mirrors E1→E2).
 
 ### E4 — Style Manifest & traceability  `[infra · cross-cutting]`  🟡 *Slices 1–2 + 4 shipped (Sprint 3); Slice 3 sketched as Sprint 6 (rolled from Sprint 5 per Tim's pivot)*
 A first-class inventory of every style element active on a project — where it came from,
@@ -295,21 +308,30 @@ Shipped on `feat/chart-animation-v1`. Plan:
   (`base.py:413-422`), now reclassified as a narrow non-sprint E5 follow-on.
 - **Cost:** $0 (pure validation logic; no provider calls).
 
-### ▶ Sprint 5 — Callout overlay primitive v1 (chart marker-label placement)  `[E3]`  🔵 *next — PROPOSED, awaiting greenlight*
-Open E3 with a **manifest-registered `callout` overlay primitive** — a pure renderer
-`(callout, base_image, width, height, palette) → PIL.Image` (chart_anim purity precedent)
-plus collision-avoidance placement (vertical dodge to the next free row up to N rows, with
-leader lines). `composer/chart.py` consumes it for line-chart marker labels, **replacing
-the inline 2-row-stagger `draw.text` at `chart.py:529-539`** that overlaps when markers sit
-<5yr apart on a long span (the observed baby-walker s21 decline-curve bug). In-area:
-convert the silent `apply_overlay` `try/except`→`logger.warning` at `compose.py:1060` into a
-loud failure. Animated entrance deferred to **v2** — the static→animated split mirrors E1
-(Sprint 1) → E2 (Sprint 2), the sequencing Tim greenlit for charts. **Visual-quality axis
-(removes degradation + new primitive); zero runtime; no code-level fence in v1 (no
-animation yet — the fence lands with v2).** Tim pivoted to E3 on 2026-05-22; the E4 Slice 3
-refactor rolls to Sprint 6 (sketched below). Full 11-part proposal in `sprint-log.md`.
+### Sprint 5 — Callout overlay primitive v1 (chart marker-label placement)  `[E3]`  🟢 *shipped 2026-05-23*
+Shipped on `feat/callout-overlay-v1`. Plan:
+`docs/superpowers/plans/2026-05-23-callout-overlay-v1.md`.
+- **Landed:** `composer/callout.py` — pure `place_callouts` (vertical dodge to the next free
+  row, row budget capped by available header space, raises `CalloutPlacementError` on
+  exhaustion) + `_draw_placed_callouts` (leader lines on dodged rows) + `render_callouts`
+  image wrapper (golden-test surface). Routed through BOTH line paths: static
+  `chart._render_line` and animated `chart_anim._animate_line_frame` — the latter is the
+  path that actually renders s21, and it carried the *same* 2-row-stagger overlap bug, so
+  the proposal's static-only scope was corrected to fix both via one shared primitive (the
+  animated wipe was widened to `top + 2` to clear the taller label stack). `callout`
+  registered as a `kind="overlay"` aggregate Style Manifest element. Silent `apply_overlay`
+  fallback at `compose.py` converted to a loud `SceneRenderError` (reason + suggested_fix,
+  feeds the existing refuse-assembly machinery).
+- **Tests:** `tests/unit/test_callout.py` (7 geometry + determinism + 4 placement goldens);
+  regenerated `chart/golden/line.png` + 3 `chart_anim/golden/line_p{00,05,10}.png`; 2
+  manifest tests; 1 compose loud-failure test. 1108 unit tests pass (2 pre-existing
+  `test_memory_sync.py` failures unrelated, left per multi-agent hygiene); ruff + mypy clean
+  on sprint files. baby-walker s21 verified end-to-end (real markers place collision-free).
+- **Two-axes:** visual-quality lift (removes overlap degradation + first reusable E3
+  primitive); **zero runtime**; no code-level fence in v1 (no animation yet — that fence
+  lands with the E3 v2 animated entrance).
 
-### Sprint 6 (sketched) — Niche `visual_style` medium-clash refactor (E4 Slice 3)  `[E4]`  🔵 *sketched — rolled from the prior Sprint-5 proposal per Tim's 2026-05-22 pivot*
+### ▶ Sprint 6 — Niche `visual_style` medium-clash refactor (E4 Slice 3)  `[E4]`  🔵 *next — sketched (rolled from the prior Sprint-5 proposal per Tim's 2026-05-22 pivot)*
 Split the niche template's monolithic `visual_style` into `medium_hint` / `palette` /
 `subject_bias` / `universal_rules` so the assembler at `composer/base.py:328-340` stops
 fusing a medium descriptor onto photo-realistic prompts (surreal baby-walker s25 output,
