@@ -221,8 +221,8 @@ VISUAL TYPES (assign one per scene):
   Good: "exhausted parent kneeling at toddler eye level in hallway, worried expression"
   Bad:  "warm watercolor illustration of parent kneeling"
 - slide: {{"type": "slide", "title": "...", "bullets": ["..."]}}
-- chart: {{"type": "chart", "chart_type": "stat_big_number|proportion_blocks|timeline|bar|comparison", "title": "...", "data": {{...}}, "source_credit": "optional"}}
-  Use when the scene's CORE message IS a number, a proportion, a sequence of years, a ranking, or a two-way contrast.
+- chart: {{"type": "chart", "chart_type": "stat_big_number|proportion_blocks|timeline|bar|comparison|line", "title": "...", "data": {{...}}, "source_credit": "optional"}}
+  Use when the scene's CORE message IS a number, a proportion, a sequence of years, a ranking, a two-way contrast, or a TREND OVER TIME.
   If the scene names a REAL datapoint, PREFER chart over slide+text — a stat deserves a real visualization, not a bullet.
   Copy the per-type data shape EXACTLY (the schema differs per chart_type):
   - stat_big_number: {{"chart_type": "stat_big_number", "title": "Cumulative injuries", "data": {{"value": "230,676", "unit": "children", "context": "1990–2014"}}}}
@@ -230,7 +230,16 @@ VISUAL TYPES (assign one per scene):
   - timeline: {{"chart_type": "timeline", "title": "Two decades", "data": [{{"year": 1990, "label": "20,650 ER visits"}}, {{"year": 2014, "label": "230k cumulative"}}]}}
   - bar: {{"chart_type": "bar", "title": "Injury mechanisms", "data": {{"x": ["stair falls", "tip-overs", "burns"], "y": [74, 13, 6], "y_unit": "%"}}}}
   - comparison: {{"chart_type": "comparison", "title": "Speed vs reaction", "data": {{"left": {{"label": "Sit-in walker", "value": "3 ft/s"}}, "right": {{"label": "Adult reaction", "value": "0.7 s"}}}}}}
+  - line: {{"chart_type": "line", "title": "US ER visits per year", "data": {{"points": [{{"x": 1990, "y": 20650}}, {{"x": 1999, "y": 8800}}, {{"x": 2014, "y": 2001}}], "markers": [{{"x": 1997, "label": "ASTM F977"}}, {{"x": 2010, "label": "CPSC mandatory"}}]}}}}
+    USE `line` (not `timeline`) when the scene's CORE is the TREND ITSELF — a series of numeric Y values per X (typically year), with optional event markers on the same axis. USE `timeline` for unconnected dated events without a quantitative axis. A falling injury rate, a price curve, a search-interest line: those are `line`. A sequence of "1990 → 2001 → 2014" event labels with no numbers: that's `timeline`.
   RULE: stat_big_number value must be <= 8 chars. Charts carry their own title — do NOT also add a text overlay.
+
+  ANIMATION (optional, for line / bar / stat_big_number only): add an `animate` block on the visual:
+    "animate": {{"enabled": true, "reveal_duration_sec": 4.0, "easing": "ease_out_cubic"}}
+  - `reveal_duration_sec` MUST be <= scene narration duration - 0.5s (the renderer holds the final frame for the last 0.5s so the chart settles; longer reveals are rejected at compose time). If omitted, defaults to min(narration_sec * 0.6, 5.0).
+  - `easing` is "ease_out_cubic" (default — fast arrival, settle) or "linear".
+  - Use animation when the SCENE'S NARRATION ITSELF builds momentum to the data ("By 2014, ER visits dropped to about 2,000 — ninety percent below the 1990 peak" → animated line draws the fall as the narration delivers the verdict). Static is fine when the scene presents the number without dramatic arrival.
+  - Animation is a VISUAL-QUALITY lift only; it does NOT extend the scene. Pick narration_est_sec based on the line, not on how long the chart "should" play.
 - still_frame: {{"type": "still_frame", "source": "primary", "timestamp_sec": N}}
 
 {visual_note}
