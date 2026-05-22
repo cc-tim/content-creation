@@ -16,8 +16,29 @@ separate session that happens only after Tim greenlights the proposed sprint.
 
 ## Dispatch
 
-This harness does **not** register project `.claude/agents/` as Agent `subagent_type`s, so
-inline the persona into a `general-purpose` (opus) subagent:
+Project `.claude/agents/` files are not registered automatically in every harness. Choose
+the dispatch path by the tool available in the current runtime:
+
+- **Codex path:** if `spawn_agent` is available, read
+  `/home/tim-huang/content-creation/.claude/agents/engineering-manager.md` from disk,
+  strip its YAML frontmatter, and pass the body as `system_prompt`. Preserve the agent's
+  tool contract in the call:
+
+  ```python
+  agent_path = "/home/tim-huang/content-creation/.claude/agents/engineering-manager.md"
+  persona_body = strip_yaml_frontmatter(read_file(agent_path))  # Read tool or Bash cat
+  spawn_agent(
+      system_prompt=persona_body,
+      tools=["Read", "Edit", "Write", "Bash", "Glob", "Grep"],
+      message=task_prompt,
+  )
+  ```
+
+  `task_prompt` is the concatenated memory, roadmap, and task described below. Do not rely
+  on Codex discovering `subagent_type="engineering-manager"`; it normally only exposes its
+  built-in roles.
+- **Claude path:** if only the Claude `Agent` tool is available, inline the same persona
+  into a `general-purpose` (opus) subagent as before.
 
 1. **Read the EM's memory first** (it's a cold spawn — feed it in):
    - `.agent-memory/engineering-manager/charter.md` — mission + context map
@@ -26,14 +47,21 @@ inline the persona into a `general-purpose` (opus) subagent:
    - `.agent-memory/engineering-manager/sprint-log.md` — sprint history
 2. Read `.claude/agents/engineering-manager.md`, strip its YAML frontmatter, use the body
    as the persona.
-3. Call the Agent tool with `subagent_type: "general-purpose"`, `model: "opus"`, a
-   `description` like `"EM: propose sprint N"` (or `"EM: update ROADMAP for <demand>"`), and
-   a prompt that concatenates, in order: (a) the persona body; (b) a `MEMORY` section = the
-   four memory files' contents, labelled; (c) `CURRENT ROADMAP` = `docs/ROADMAP.md`
-   contents; (d) the task — `"Read the live demand (tmp/*-handoff.md, docs/future-tasks.md,
-   any producer acquire-demand named below, Tim's note below), reconcile ROADMAP status with
-   reality, and propose exactly ONE next sprint in your defined format. Do not build. Tim's
-   note: <…>. New demand since last dispatch: <… or none>."`
+3. Build `task_prompt`. For Codex, this is the `message` argument to `spawn_agent`; for
+   Claude, it is the `prompt` argument to the Agent tool. Concatenate, in order: (a) for
+   Claude only, the persona body (Codex already received it as `system_prompt`); (b) a
+   `MEMORY` section = the four memory files' contents, labelled; (c) `CURRENT ROADMAP` =
+   `docs/ROADMAP.md` contents; (d) the task — `"Read the live demand (tmp/*-handoff.md,
+   docs/future-tasks.md, any producer acquire-demand named below, Tim's note below),
+   reconcile ROADMAP status with reality, and propose exactly ONE next sprint in your
+   defined format. Do not build. Tim's note: <…>. New demand since last dispatch: <… or
+   none>."`
+4. Dispatch:
+   - **Codex:** call `spawn_agent(system_prompt=persona_body, tools=[...], message=task_prompt)`
+     with the exact tool list shown above.
+   - **Claude:** call the Agent tool with `subagent_type: "general-purpose"`,
+     `model: "opus"`, a `description` like `"EM: propose sprint N"` (or `"EM: update
+     ROADMAP for <demand>"`), and `prompt: task_prompt`.
    - Give the subagent the tools to do its job: it may Read the repo and Edit
      `docs/ROADMAP.md` + its own memory directly when the task is "update", or return the
      proposal for this skill to apply when the task is "propose only". State which in the task.
