@@ -50,47 +50,57 @@ _CREDIT_Y_FRAC = 0.71      # source credit sits in the 0.70-0.75 gap, above subt
 _HEADER_GAP = 24           # min vertical gap between header bottom (`top`) and body
 
 
-def _validate_chart(
+def validate_chart_visual(
     visual: dict[str, Any],
     scene_id: str,
     duration_sec: float | None = None,
-) -> None:
-    """Minimal inline validation (E5 precursor). Fail loudly with a fix hint.
+) -> list[str]:
+    """Return all chart schema issues as strings; does not raise.
+
+    The storyboard-write-time validator uses this to surface multiple problems
+    in one pass. ``_validate_chart`` below wraps this and raises on the first
+    issue for render-time defense-in-depth.
 
     When ``duration_sec`` is provided AND ``visual.animate.enabled`` is true,
-    additionally validates the animate block (variant support, easing name,
-    duration ceiling). The duration ceiling is the in-code expression of the
-    two-axes rule: animation is a visual-quality lift, never a runtime extender.
+    also validates the animate block (variant support, easing name, duration
+    ceiling). The duration ceiling is the in-code expression of the two-axes
+    rule: animation is a visual-quality lift, never a runtime extender.
     """
+    issues: list[str] = []
     chart_type = visual.get("chart_type")
     if not chart_type:
-        raise ValueError(
+        issues.append(
             f"chart {scene_id}: missing 'chart_type' (one of {sorted(CHART_TYPES)})"
         )
+        return issues  # downstream schema checks need chart_type
     if chart_type not in CHART_TYPES:
-        raise ValueError(
+        issues.append(
             f"chart {scene_id}: unknown chart_type={chart_type!r}; "
             f"use one of {sorted(CHART_TYPES)}"
         )
+        return issues  # don't try schema-checks against an unknown type
+
     data = visual.get("data")
     if not data:
-        raise ValueError(
+        issues.append(
             f"chart {scene_id}: missing 'data' for chart_type={chart_type!r}"
         )
+        # Schema checks below would all blow up on None — return here.
+        return issues + _validate_animate(visual, scene_id, chart_type, duration_sec)
 
     if chart_type == "stat_big_number":
         value = str(data.get("value", ""))
         if not value:
-            raise ValueError(f"chart {scene_id}: stat_big_number needs data.value")
-        if len(value) > 8:
-            raise ValueError(
+            issues.append(f"chart {scene_id}: stat_big_number needs data.value")
+        elif len(value) > 8:
+            issues.append(
                 f"chart {scene_id}: stat_big_number value {value!r} > 8 chars "
                 f"(won't fit big serif); shorten or use a bar/timeline."
             )
     elif chart_type == "bar":
         x, y = data.get("x"), data.get("y")
         if not isinstance(x, list) or not isinstance(y, list) or len(x) != len(y) or not x:
-            raise ValueError(
+            issues.append(
                 f"chart {scene_id}: bar data needs equal-length non-empty 'x' and 'y' "
                 f"lists; got x={x!r} y={y!r}"
             )
@@ -98,69 +108,104 @@ def _validate_chart(
         for side_name in ("left", "right"):
             side = data.get(side_name)
             if not isinstance(side, dict) or "label" not in side or "value" not in side:
-                raise ValueError(
+                issues.append(
                     f"chart {scene_id}: comparison needs {side_name} with "
                     f"'label' and 'value'"
                 )
     elif chart_type == "proportion_blocks":
         if "ratio" not in data:
-            raise ValueError(
+            issues.append(
                 f"chart {scene_id}: proportion_blocks needs data.ratio (0..1)"
             )
     elif chart_type == "timeline":
         if not isinstance(data, list) or not data:
-            raise ValueError(
+            issues.append(
                 f"chart {scene_id}: timeline data must be a non-empty list of "
                 f"{{year, label}} entries"
             )
     elif chart_type == "line":
         points = data.get("points")
         if not isinstance(points, list) or not points:
-            raise ValueError(
+            issues.append(
                 f"chart {scene_id}: line data needs non-empty 'points' list of "
                 f"{{x, y}} entries; got {points!r}"
             )
-        for i, p in enumerate(points):
-            if not isinstance(p, dict) or "x" not in p or "y" not in p:
-                raise ValueError(
-                    f"chart {scene_id}: line points[{i}] must be {{x, y}}; got {p!r}"
-                )
+        else:
+            for i, p in enumerate(points):
+                if not isinstance(p, dict) or "x" not in p or "y" not in p:
+                    issues.append(
+                        f"chart {scene_id}: line points[{i}] must be {{x, y}}; got {p!r}"
+                    )
         markers = data.get("markers") or []
         if not isinstance(markers, list):
-            raise ValueError(
+            issues.append(
                 f"chart {scene_id}: line 'markers' must be a list; got {markers!r}"
             )
-        for i, m in enumerate(markers):
-            if not isinstance(m, dict) or "x" not in m:
-                raise ValueError(
-                    f"chart {scene_id}: line marker[{i}] must be {{x, label}}; "
-                    f"got {m!r}"
-                )
+        else:
+            for i, m in enumerate(markers):
+                if not isinstance(m, dict) or "x" not in m:
+                    issues.append(
+                        f"chart {scene_id}: line marker[{i}] must be {{x, label}}; "
+                        f"got {m!r}"
+                    )
 
+    issues.extend(_validate_animate(visual, scene_id, chart_type, duration_sec))
+    return issues
+
+
+def _validate_animate(
+    visual: dict[str, Any],
+    scene_id: str,
+    chart_type: str,
+    duration_sec: float | None,
+) -> list[str]:
+    """Animate-block validation; returns issues without raising."""
+    out: list[str] = []
     animate = visual.get("animate") or {}
-    if animate.get("enabled"):
-        if chart_type not in {"line", "bar", "stat_big_number"}:
-            raise ValueError(
-                f"chart {scene_id}: chart_type={chart_type!r} has no animated "
-                f"variant (supported: line, bar, stat_big_number); set "
-                f"animate.enabled=false or pick a supported chart_type"
+    if not animate.get("enabled"):
+        return out
+
+    if chart_type not in {"line", "bar", "stat_big_number"}:
+        out.append(
+            f"chart {scene_id}: chart_type={chart_type!r} has no animated "
+            f"variant (supported: line, bar, stat_big_number); set "
+            f"animate.enabled=false or pick a supported chart_type"
+        )
+    from pipeline.composer.chart_anim import EASING, HOLD_TAIL_MIN_SEC
+    easing_name = animate.get("easing", "ease_out_cubic")
+    if easing_name not in EASING:
+        out.append(
+            f"chart {scene_id}: unknown easing {easing_name!r}; "
+            f"use one of {sorted(EASING)}"
+        )
+    if duration_sec is not None:
+        reveal = animate.get("reveal_duration_sec")
+        if reveal is not None and float(reveal) > duration_sec - HOLD_TAIL_MIN_SEC:
+            out.append(
+                f"chart {scene_id}: reveal_duration_sec={reveal} > "
+                f"duration_sec({duration_sec}) - hold_tail({HOLD_TAIL_MIN_SEC}); "
+                f"shorten the reveal — animation cannot extend the scene "
+                f"(two-axes rule: arsenal items do not add runtime)"
             )
-        from pipeline.composer.chart_anim import EASING, HOLD_TAIL_MIN_SEC
-        easing_name = animate.get("easing", "ease_out_cubic")
-        if easing_name not in EASING:
-            raise ValueError(
-                f"chart {scene_id}: unknown easing {easing_name!r}; "
-                f"use one of {sorted(EASING)}"
-            )
-        if duration_sec is not None:
-            reveal = animate.get("reveal_duration_sec")
-            if reveal is not None and float(reveal) > duration_sec - HOLD_TAIL_MIN_SEC:
-                raise ValueError(
-                    f"chart {scene_id}: reveal_duration_sec={reveal} > "
-                    f"duration_sec({duration_sec}) - hold_tail({HOLD_TAIL_MIN_SEC}); "
-                    f"shorten the reveal — animation cannot extend the scene "
-                    f"(two-axes rule: arsenal items do not add runtime)"
-                )
+    return out
+
+
+def _validate_chart(
+    visual: dict[str, Any],
+    scene_id: str,
+    duration_sec: float | None = None,
+) -> None:
+    """Render-time wrapper: raise on first issue. Defense-in-depth.
+
+    The storyboard-write-time validator (``director/storyboard_validator.py``)
+    should catch chart schema problems earlier via ``validate_chart_visual``;
+    this wrapper ensures ``render_chart`` still fails loud if a bad chart
+    slips through (e.g. a programmatic caller that bypasses the storyboard
+    validator).
+    """
+    issues = validate_chart_visual(visual, scene_id, duration_sec=duration_sec)
+    if issues:
+        raise ValueError(issues[0])
 
 
 def _palette(theme: dict) -> dict[str, tuple[int, int, int]]:

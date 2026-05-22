@@ -263,3 +263,42 @@ def test_ai_background_path_calls_provider(tmp_path):
         )
     fc.assert_called_once()
     assert (tmp_path / "s2_chart.png").exists()
+
+
+# ── validate_chart_visual (list-returning, Sprint 4 Task 1) ──────────────────────
+def test_validate_chart_visual_returns_empty_list_for_valid_input():
+    from pipeline.composer.chart import validate_chart_visual
+
+    visual = {
+        "type": "chart",
+        "chart_type": "stat_big_number",
+        "data": {"value": "230,676"},
+    }
+    issues = validate_chart_visual(visual, "s1")
+    assert issues == []
+
+
+def test_validate_chart_visual_returns_all_issues_not_just_first():
+    from pipeline.composer.chart import validate_chart_visual
+
+    # Two independent issues: too-long stat value AND animate on unsupported variant
+    visual = {
+        "type": "chart",
+        "chart_type": "stat_big_number",
+        "data": {"value": "12345678901234"},  # > 8 chars
+        "animate": {"enabled": True, "easing": "bogus_easing"},
+    }
+    issues = validate_chart_visual(visual, "s1", duration_sec=10.0)
+    assert len(issues) >= 2
+    assert any("> 8 chars" in i for i in issues)
+    assert any("easing" in i for i in issues)
+
+
+def test_validate_chart_visual_returns_issue_strings_not_raises():
+    from pipeline.composer.chart import validate_chart_visual
+
+    visual = {"type": "chart"}  # missing chart_type
+    # Must NOT raise
+    issues = validate_chart_visual(visual, "s1")
+    assert len(issues) == 1
+    assert "chart_type" in issues[0]
