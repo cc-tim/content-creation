@@ -30,3 +30,4 @@ temp/
 .agent-memory/engineering-manager/*
 !.agent-memory/engineering-manager/charter.md
 !.agent-memory/engineering-manager/standards.md
+!.agent-memory/engineering-manager/test-plan.md
