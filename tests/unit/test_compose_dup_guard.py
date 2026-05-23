@@ -66,6 +66,31 @@ def test_duplicate_guard_replaces_scene_visual(tmp_path):
     assert result_a is scene_clip_a  # original not mutated
 
 
+def test_duplicate_guard_uses_file_backed_clip_path(tmp_path):
+    from pipeline.stages.compose import _apply_duplicate_guard
+
+    asset = tmp_path / "asset.mp4"
+    asset.write_bytes(b"fake")
+    primary = tmp_path / "primary.mp4"
+    primary.write_bytes(b"primary")
+    scene = {
+        "id": "s1",
+        "visual": {"type": "clip", "path": str(asset), "start_sec": 3},
+        "narration": "first",
+    }
+
+    def fake_thumbnail(source, timestamp, out_path):
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(b"fake")
+
+    with patch("pipeline.stages.compose._extract_clip_thumbnail", side_effect=fake_thumbnail) as thumb, \
+         patch("pipeline.stages.compose._phash_image", return_value=object()):
+        result, _seen = _apply_duplicate_guard(scene, primary, set(), style_descriptor="")
+
+    assert result is scene
+    assert thumb.call_args[0][0] == asset
+
+
 def test_non_clip_scene_passes_through(tmp_path):
     from pipeline.stages.compose import _apply_duplicate_guard
     scene = {"id": "s2", "visual": {"type": "generated_image", "prompt": "test"}}

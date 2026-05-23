@@ -440,14 +440,15 @@ def _apply_duplicate_guard(
     visual = scene.get("visual", {})
     if visual.get("type") not in ("clip", "still_frame"):
         return scene, seen_hashes
-    if source_video is None or not source_video.exists():
+    clip_source = _source_for_clip_visual(visual, source_video)
+    if clip_source is None or not clip_source.exists():
         return scene, seen_hashes
 
     timestamp = float(visual.get("start_sec", visual.get("timestamp_sec", 0)))
-    thumb = source_video.parent / f"_thumb_{scene.get('id', 'x')}.jpg"
+    thumb = clip_source.parent / f"_thumb_{scene.get('id', 'x')}.jpg"
 
     try:
-        _extract_clip_thumbnail(source_video, timestamp, thumb)
+        _extract_clip_thumbnail(clip_source, timestamp, thumb)
         new_hash = _phash_image(thumb)
     except Exception as exc:
         logger.warning("compose.dup_guard.thumbnail_failed", scene=scene.get("id"), error=str(exc))
@@ -472,6 +473,16 @@ def _apply_duplicate_guard(
     else:
         seen_hashes = seen_hashes | {new_hash}
         return scene, seen_hashes
+
+
+def _source_for_clip_visual(visual: dict[str, Any], source_video: Path | None) -> Path | None:
+    raw_path = visual.get("path")
+    if raw_path:
+        path = Path(str(raw_path)).expanduser()
+        if path.is_absolute() or path.exists():
+            return path
+        return Path.cwd() / path
+    return source_video
 
 
 def splice_transitions(

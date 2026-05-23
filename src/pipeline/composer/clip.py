@@ -6,6 +6,16 @@ from pathlib import Path
 from pipeline.utils.ffmpeg import run_ffmpeg
 
 
+def _resolve_source_video(visual: dict, source_video: Path | None) -> Path | None:
+    raw_path = visual.get("path")
+    if raw_path:
+        path = Path(str(raw_path)).expanduser()
+        if path.is_absolute() or path.exists():
+            return path
+        return Path.cwd() / path
+    return source_video
+
+
 def _get_source_duration(path: Path) -> float:
     """Get video duration in seconds via ffprobe."""
     result = subprocess.run(
@@ -36,11 +46,12 @@ def render_clip(
     source_video: Path | None = None,
 ) -> Path:
     """Extract a clip from source video. Clamps timestamps to source duration."""
-    if source_video is None or not source_video.exists():
+    clip_source = _resolve_source_video(visual, source_video)
+    if clip_source is None or not clip_source.exists():
         raise FileNotFoundError(f"Source video not found for clip in scene {scene_id}")
 
     start = float(visual.get("start_sec", 0))
-    source_dur = _get_source_duration(source_video)
+    source_dur = _get_source_duration(clip_source)
 
     # Clip duration always follows audio duration, not storyboard's end_sec estimate.
     # end_sec in the storyboard was generated from narration_est_sec which is often wrong.
@@ -95,7 +106,7 @@ def render_clip(
             "-ss",
             str(start),
             "-i",
-            str(source_video),
+            str(clip_source),
             "-vf",
             vf,
             "-t",

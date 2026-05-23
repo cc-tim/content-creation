@@ -446,7 +446,17 @@ def _validate_clip(
     project_root: Path,
 ) -> list[SceneValidationError]:
     issues: list[SceneValidationError] = []
-    _validate_source(scene, visual, issues)
+    clip_path = _clip_visual_path(visual, project_root)
+    if clip_path is None:
+        _validate_source(scene, visual, issues)
+    elif not clip_path.exists():
+        issues.append(_issue(
+            scene,
+            "error",
+            "visual.path",
+            f"clip path not found: {clip_path}",
+            "Replace the path or use source='primary'.",
+        ))
     start = _number_or_issue(scene, visual.get("start_sec"), "visual.start_sec", issues)
     end = _number_or_issue(scene, visual.get("end_sec"), "visual.end_sec", issues)
     if start is not None and end is not None:
@@ -458,8 +468,22 @@ def _validate_clip(
                 "clip end_sec must be greater than start_sec",
                 "Set a positive clip range.",
             ))
-        _validate_against_duration(scene, start, "visual.start_sec", project_root, issues)
-        _validate_against_duration(scene, end, "visual.end_sec", project_root, issues)
+        _validate_against_duration(
+            scene,
+            start,
+            "visual.start_sec",
+            project_root,
+            issues,
+            media_path=clip_path,
+        )
+        _validate_against_duration(
+            scene,
+            end,
+            "visual.end_sec",
+            project_root,
+            issues,
+            media_path=clip_path,
+        )
     return issues
 
 
@@ -529,8 +553,14 @@ def _validate_against_duration(
     field: str,
     project_root: Path,
     issues: list[SceneValidationError],
+    *,
+    media_path: Path | None = None,
 ) -> None:
-    duration = _source_duration(project_root)
+    duration = (
+        _media_duration(media_path)
+        if media_path is not None
+        else _source_duration(project_root)
+    )
     if duration is None:
         return
     if timestamp > duration:
@@ -547,6 +577,10 @@ def _source_duration(project_root: Path) -> float | None:
     source = project_root / "source" / "video.mp4"
     if not source.exists():
         return None
+    return _media_duration(source)
+
+
+def _media_duration(source: Path) -> float | None:
     try:
         result = subprocess.run(
             [
@@ -567,6 +601,13 @@ def _source_duration(project_root: Path) -> float | None:
         return float(result.stdout.strip())
     except Exception:
         return None
+
+
+def _clip_visual_path(visual: dict[str, Any], project_root: Path) -> Path | None:
+    raw_path = visual.get("path")
+    if not raw_path:
+        return None
+    return _resolve_path(str(raw_path), project_root)
 
 
 def _effective_visual_path(visual: dict[str, Any], project_root: Path) -> Path:

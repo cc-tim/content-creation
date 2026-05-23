@@ -139,6 +139,21 @@ def test_clip_timestamps_must_be_numeric_and_ordered(tmp_path: Path) -> None:
     assert any(issue.scene_id == "s2" and issue.field == "visual.timestamp_sec" for issue in issues)
 
 
+def test_clip_accepts_existing_file_path_without_primary_source(tmp_path: Path) -> None:
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    clip = tmp_path / "assets" / "clip.mp4"
+    clip.parent.mkdir(parents=True)
+    clip.write_bytes(b"fake video")
+    sb = Storyboard(scenes=[
+        _scene("s1", {"type": "clip", "path": "assets/clip.mp4", "start_sec": 0, "end_sec": 1}),
+    ])
+
+    issues = validate_storyboard(sb, tmp_path)
+
+    assert _errors(issues) == []
+
+
 def test_scene_filter_validates_only_requested_scene(tmp_path: Path) -> None:
     from pipeline.director.storyboard_validator import validate_storyboard
 
