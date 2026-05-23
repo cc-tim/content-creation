@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, Protocol
@@ -107,6 +106,7 @@ class JobQueue:
         self._coord: Any | None = None
         self._lock = asyncio.Lock()
         self._started = False
+        self._shutting_down = False
 
     def set_coordinator(self, coord: Any) -> None:
         """Wire the mutation coordinator for proposal callback routing."""
@@ -118,17 +118,19 @@ class JobQueue:
 
     async def shutdown(self) -> None:
         """Cancel all consumer tasks and clear state."""
-        for task in self._consumers.values():
+        self._shutting_down = True
+        tasks = list(self._consumers.values())
+        for task in tasks:
             task.cancel()
-        for task in self._consumers.values():
-            with contextlib.suppress(asyncio.CancelledError, Exception):
-                await task
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
         self._queues.clear()
         self._consumers.clear()
         self._idle_events.clear()
         self._running_jobs.clear()
         self._cancel_targets.clear()
         self._started = False
+        self._shutting_down = False
 
     def reload_on_startup(self) -> None:
         """Mark sidecars left in running state as interrupted."""
@@ -349,6 +351,8 @@ class JobQueue:
         except asyncio.CancelledError:
             job.status = "cancelled"
             logger.info("jobqueue.run.cancelled", job_id=job.job_id)
+            if self._shutting_down:
+                raise
         except Exception as exc:
             logger.warning("jobqueue.run.failed", job_id=job.job_id, error=str(exc))
             job.status = "failed"

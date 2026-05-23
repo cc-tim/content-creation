@@ -7,7 +7,7 @@ import re
 import subprocess
 import tomllib
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, MutableMapping
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -63,7 +63,7 @@ _NO_STORE_HEADERS = {
 
 
 class NoStoreStaticFiles(StaticFiles):
-    async def get_response(self, path: str, scope: dict[str, Any]) -> FileResponse:
+    async def get_response(self, path: str, scope: MutableMapping[str, Any]) -> FileResponse:
         response = await super().get_response(path, scope)
         response.headers.update(_NO_STORE_HEADERS)
         return response
@@ -161,6 +161,28 @@ class _JobSubmitBody(RootModel[dict[str, str] | dict[str, Any]]):
 
 
 _VALID_NARRATION_ENGINES = {"edge", "fish_audio", "prerecorded"}
+
+
+def _parse_job_submit_payload(data: dict[str, Any]) -> tuple[list[str], str]:
+    if "tokens" in data or "instruction" in data:
+        raw_tokens = data.get("tokens", [])
+        if not isinstance(raw_tokens, list) or not all(
+            isinstance(token, str) for token in raw_tokens
+        ):
+            raise HTTPException(status_code=400, detail="tokens must be a list of strings")
+        raw_instruction = data.get("instruction", "")
+        if not isinstance(raw_instruction, str):
+            raise HTTPException(status_code=400, detail="instruction must be a string")
+        return list(raw_tokens), raw_instruction
+
+    tokens = list(data.keys())
+    parts: list[str] = []
+    for token, instruction in data.items():
+        if not isinstance(instruction, str):
+            raise HTTPException(status_code=400, detail="wrapper instructions must be strings")
+        if instruction.strip():
+            parts.append(f"{token}: {instruction}")
+    return tokens, " | ".join(parts)
 
 
 def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
@@ -799,6 +821,7 @@ def create_app(output_dir: Path, dev_mode: bool = False) -> FastAPI:
     @app.post("/api/jobs/{project_id}/draft")
     def post_draft(project_id: str, body: _DraftBody) -> JSONResponse:
         proj = _project_root(project_id)
+        payload: dict[str, Any]
         if body.wrapper_chips is not None:
             payload = {"wrapperChips": body.wrapper_chips}
         else:
@@ -850,9 +873,7 @@ def register_job_endpoints(app: FastAPI, *, output_dir: Path) -> None:
         queue: JobQueue = app.state.job_queue
 
         data = body.root
-        tokens = list(data.keys())
-        # Combine all instructions for the mutation job
-        instruction = " | ".join(f"{t}: {data[t]}" for t in tokens)
+        tokens, instruction = _parse_job_submit_payload(data)
 
         if not instruction.strip():
             raise HTTPException(status_code=400, detail="instruction must not be empty")

@@ -81,6 +81,9 @@ def test_submit_endpoint_returns_job_id_and_persists_sidecar(
             tmp_path / "output" / "projects" / "42" / "edit_jobs" / f"{body['job_id']}.json"
         )
         assert sidecar.exists()
+        job = json.loads(sidecar.read_text(encoding="utf-8"))
+        assert job["tokens"] == ["@s9/visual"]
+        assert job["instruction"] == "darken"
         runner.release()
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from datetime import datetime
 from pathlib import Path
 
@@ -227,6 +228,42 @@ class CancellableRunner:
             self.cancelled = True
             raise
         return []
+
+
+class BlockingRunner:
+    def __init__(self) -> None:
+        self.cancelled = False
+        self.entered = asyncio.Event()
+
+    async def run(self, job: EditJob, project_root: Path) -> list[SubActionResult]:
+        self.entered.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            self.cancelled = True
+            raise
+        return []
+
+
+@pytest.mark.asyncio
+async def test_shutdown_cancels_running_job_without_hanging(project_tree: Path) -> None:
+    runner = BlockingRunner()
+    queue = JobQueue(projects_root=project_tree, runner=runner)
+    await queue.start()
+    await queue.submit(EditJob(job_id="long", project_id="42", tokens=[], instruction="x"))
+    await asyncio.wait_for(runner.entered.wait(), timeout=1.0)
+
+    shutdown_task = asyncio.create_task(queue.shutdown())
+    await asyncio.sleep(0.05)
+    if not shutdown_task.done():
+        shutdown_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await shutdown_task
+        pytest.fail("queue.shutdown() did not finish after cancelling a running job")
+
+    await shutdown_task
+    assert runner.cancelled is True
+    assert load_job(project_tree / "42", "long").status == "cancelled"
 
 
 @pytest.mark.asyncio
