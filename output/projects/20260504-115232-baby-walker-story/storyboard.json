@@ -1,7 +1,7 @@
 {
   "version": 1,
   "format": "standard",
-  "target_duration_sec": 380,
+  "target_duration_sec": 480,
   "aspect_ratio": "16:9",
   "theme": {
     "background": "#1a1a1a",
@@ -59,6 +59,12 @@
       "pause_after_sec": 0.0,
       "narration_alt": {
         "en": "Year 1440. A Dutch illuminated manuscript shows the infant Jesus, sitting in a four-wheeled wooden baby walker."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 9900
+      },
+      "narration_text_hashes": {
+        "zh-TW": "36fee3c8de42"
       }
     },
     {
@@ -83,6 +89,12 @@
       "pause_after_sec": 0.0,
       "narration_alt": {
         "en": "A century and a half later, 1584. A court portrait of a Savoy princess shows the exact same design."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 9639
+      },
+      "narration_text_hashes": {
+        "zh-TW": "b06bd2aadfac"
       }
     },
     {
@@ -108,6 +120,12 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "Three centuries later, a 1905 photograph: same seat, same frame, same wheels. Six hundred years unchanged."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 11911
+      },
+      "narration_text_hashes": {
+        "zh-TW": "93f1aeba63e4"
       }
     },
     {
@@ -129,6 +147,12 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "So why did this design survive six centuries? It solves one basic parental need — keep the not-yet-walking baby upright, in sight, with the adult's hands momentarily free."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 11206
+      },
+      "narration_text_hashes": {
+        "zh-TW": "a5bea4f32a34"
       }
     },
     {
@@ -152,14 +176,20 @@
       "pause_after_sec": 0.3,
       "narration_alt": {
         "en": "But for six centuries, that convenience belonged only to a few. From Dutch manuscripts to the Savoy court, the walker was a carpenter's handmade work — one frame per child, passed down to the next, a rare aristocratic possession."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 13897
+      },
+      "narration_text_hashes": {
+        "zh-TW": "40f827390a5b"
       }
     },
     {
       "id": "s6",
       "section": "context",
       "beat": "Frames Sloan's 1901 ad as the first failed attempt at mass-market commercialization",
-      "narration": "一九零一年，第一次有人試著把它變成大眾商品。加拿大旅館老闆湯瑪斯·斯隆，在渥太華日報登了廣告。結果完全沒有市場。一位歷史學家後來這樣總結:",
-      "narration_est_sec": 12.0,
+      "narration": "一九零一年，第一次有人試著把它變成大眾商品。加拿大旅館老闆湯瑪斯·斯隆，在渥太華日報登了廣告。結果完全沒有市場。一位歷史學家後來這樣總結:「I don't think this idea of a baby-walker took off.」",
+      "narration_est_sec": 14.5,
       "facts_ref": [
         "f3",
         "f4"
@@ -172,6 +202,12 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "1901 — the first time someone tried to make it a mass-market product. Canadian hotelier Thomas Sloan placed an ad in the Ottawa Journal. There was no market. A historian later put it this way:"
+      },
+      "narration_durations_ms": {
+        "zh-TW": 16692
+      },
+      "narration_text_hashes": {
+        "zh-TW": "2f5a6477a254"
       }
     },
     {
@@ -192,10 +228,41 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "Another sixty years. In the 60s and 70s, three forces converged: cheap plastic injection molding; suburban open-plan homes; and women returning to work, needing somewhere to set the child down. The walker finally fit its moment."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 19565
+      },
+      "narration_text_hashes": {
+        "zh-TW": "efc78daa2ce7"
       }
     },
     {
       "id": "s8",
+      "section": "context",
+      "beat": "Period texture for the 1960s–70s boom — boom_era clip narrated as atmosphere only (greenlight term 4)",
+      "narration": "一台塑膠框架、四個輪子，學步車第一次走進尋常人家的客廳。",
+      "narration_est_sec": 7.0,
+      "facts_ref": [
+        "f5"
+      ],
+      "visual": {
+        "type": "clip",
+        "path": "raw/parenting/baby-walker/assets/baby_walker_boom_era.mp4",
+        "start_sec": 0.0,
+        "end_sec": 5.0,
+        "alt": "Generated boom-era period b-roll — atmosphere only, not documentary evidence"
+      },
+      "overlay": null,
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 5720
+      },
+      "narration_text_hashes": {
+        "zh-TW": "942099881894"
+      }
+    },
+    {
+      "id": "s9",
       "section": "context",
       "beat": "Establishes the 1980s as the cultural peak when walkers became a baby-shower default driven by social trust",
       "narration": "到了一九八零年代，它變成嬰兒送禮的標配。朋友的寶寶滿月就送一台。理由很簡單：既然每個媽媽都有一台，那就應該沒問題。",
@@ -205,17 +272,24 @@
       ],
       "visual": {
         "type": "article_image",
-        "path": "raw/parenting/baby-walker/assets/Learning_to_walk.png",
-        "alt": "walker silhouette continuity"
+        "path": "raw/parenting/baby-walker/assets/Baby_in_a_walker_in_San_Salvador_1972.jpg",
+        "alt": "Baby in a sit-in walker, San Salvador, August 1972 — the boom era",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s9_outpaint_postcrop_654a8d.png"
       },
       "overlay": null,
       "pause_after_sec": 0.8,
       "narration_alt": {
         "en": "By the 1980s, it became the standard baby-shower gift. A friend's baby reaches one month — you give a walker. The logic was simple: every mother had one, so it must be safe."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 10736
+      },
+      "narration_text_hashes": {
+        "zh-TW": "561a2455f047"
       }
     },
     {
-      "id": "s9",
+      "id": "s10",
       "section": "rising",
       "beat": "Pivots from market success to medical concern—ER doctors begin seeing a repeating injury pattern",
       "narration": "但就在每一個育嬰房都擺著一台塑膠框架的同時，醫院急診室的醫師，開始看到一個重複出現的模式。",
@@ -231,12 +305,18 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "But just as every nursery had this plastic frame in it, doctors in hospital emergency rooms began to see a pattern repeating itself."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 8750
+      },
+      "narration_text_hashes": {
+        "zh-TW": "c443e0460164"
       }
     },
     {
-      "id": "s10",
+      "id": "s11",
       "section": "rising",
-      "beat": "Introduces the safety crisis with concrete injury statistics",
+      "beat": "1990 ER-visits peak as animated big number — replaces the static slide",
       "narration": "一九九零年的數字第一次說清楚：全美急診室那一整年，處理了大約兩萬個跟學步車有關的嬰幼兒受傷。",
       "narration_est_sec": 10.0,
       "facts_ref": [
@@ -244,55 +324,71 @@
         "f10"
       ],
       "visual": {
-        "type": "slide",
-        "text": "1990 — US ER visits per year\n~20,650 children under 15 months",
-        "layout": "stat"
+        "type": "chart",
+        "chart_type": "stat_big_number",
+        "title": "1990 高峰",
+        "data": {
+          "value": "20,650",
+          "unit": "1990 美國急診"
+        },
+        "ai_background": true,
+        "background_prompt": "aged paper texture, soft sepia stains, faint grid",
+        "source_credit": "Pediatrics, 2018",
+        "animate": {
+          "enabled": true,
+          "reveal_duration_sec": 4.5,
+          "easing": "ease_out_cubic"
+        }
       },
       "overlay": null,
-      "pause_after_sec": 0.0,
-      "narration_alt": {
-        "en": "The 1990 numbers spelled it out for the first time: US emergency rooms treated about 20,000 walker-related infant injuries that year."
-      }
-    },
-    {
-      "id": "s11",
-      "section": "rising",
-      "beat": "Explains the mechanical cause of injuries",
-      "narration": "傷害模式非常明確。坐入式學步車最快可以衝到每秒九十公分，比大人來得及反應還快。",
-      "narration_est_sec": 8.5,
-      "facts_ref": [
-        "f20"
-      ],
-      "visual": {
-        "type": "generated_image",
-        "prompt": "Vintage 1970s editorial photograph: a one-year-old infant suspended in a classic sit-in baby walker — circular plastic tray, fabric sling seat, four small caster wheels — rolling quickly across a hardwood living-room floor toward an open doorway, faint motion blur on the wheels conveying speed, warm amber and sepia tones, soft window light, low three-quarter angle at floor level, photojournalistic composition, neutral home interior background",
-        "style_modifier": "warm sepia tones",
-        "alt": "wheeled sit-in walker — the dangerous design"
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 9064
       },
-      "overlay": null,
-      "pause_after_sec": 0.0,
-      "narration_alt": {
-        "en": "The pattern was specific. A baby in a wheeled sit-in walker can move 3 feet per second — faster than most adults can react."
+      "narration_text_hashes": {
+        "zh-TW": "fe8a26a7f156"
       }
     },
     {
       "id": "s12",
       "section": "rising",
-      "beat": "Reveals the severity and specific nature of injuries",
+      "beat": "Injury pattern as animated bar chart — sequential grow",
       "narration": "結果，七成四的傷害是從樓梯摔下來，九成一傷在頭或頸部。這不是擦破皮，是顱骨。",
-      "narration_est_sec": 8.0,
+      "narration_est_sec": 8.5,
       "facts_ref": [
         "f7"
       ],
       "visual": {
-        "type": "slide",
-        "text": "Injury pattern\n74% stair falls\n91% head or neck",
-        "layout": "stat"
+        "type": "chart",
+        "chart_type": "bar",
+        "title": "受傷的樣態",
+        "data": {
+          "x": [
+            "從樓梯摔落",
+            "傷在頭或頸部"
+          ],
+          "y": [
+            74,
+            91
+          ],
+          "y_unit": "%"
+        },
+        "ai_background": true,
+        "background_prompt": "aged paper texture, soft sepia stains, faint grid",
+        "source_credit": "Pediatrics, 2018",
+        "animate": {
+          "enabled": true,
+          "reveal_duration_sec": 4.5,
+          "easing": "ease_out_cubic"
+        }
       },
       "overlay": null,
-      "pause_after_sec": 0.0,
-      "narration_alt": {
-        "en": "Seventy-four percent were stair falls. Ninety-one percent were head or neck injuries. Not scrapes — skulls."
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 8620
+      },
+      "narration_text_hashes": {
+        "zh-TW": "6dc5d2d09e54"
       }
     },
     {
@@ -312,156 +408,283 @@
       "pause_after_sec": 0.0,
       "narration_alt": {
         "en": "Of children admitted to hospital, more than one in three had skull fractures. A baby on stairs is never a small fall."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 7392
+      },
+      "narration_text_hashes": {
+        "zh-TW": "db3a0568dd64"
       }
     },
     {
       "id": "s14",
       "section": "rising",
-      "beat": "Amplifies the scope of the problem with long-term statistics",
+      "beat": "Cumulative 25-year toll as animated big number — replaces the text_card",
       "narration": "把時間拉長：從一九九零年到二零一四年，整整二十五年，美國有二十三萬零六百七十六個孩子，因為學步車進急診。",
       "narration_est_sec": 10.0,
       "facts_ref": [
         "f8"
       ],
       "visual": {
-        "type": "text_card",
-        "text": "230,676 children\n1990–2014"
+        "type": "chart",
+        "chart_type": "stat_big_number",
+        "title": "二十五年累積",
+        "data": {
+          "value": "230,676",
+          "unit": "1990–2014 受傷兒童"
+        },
+        "ai_background": true,
+        "background_prompt": "aged paper texture, soft sepia stains, faint grid",
+        "source_credit": "Pediatrics, 2018",
+        "animate": {
+          "enabled": true,
+          "reveal_duration_sec": 4.5,
+          "easing": "ease_out_cubic"
+        }
       },
       "overlay": null,
-      "pause_after_sec": 0.5,
-      "narration_alt": {
-        "en": "Stretched across 25 years — 1990 to 2014 — 230,676 US children landed in ERs from baby walker injuries."
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 9639
+      },
+      "narration_text_hashes": {
+        "zh-TW": "4a9fbf9ede1b"
       }
     },
     {
       "id": "s15",
       "section": "rising",
-      "beat": "Highlights systemic failure to address known dangers",
-      "narration": "這個數字是慢慢累積出來的——產品還在賣，傷害還在發生，但很長時間，沒有人按下停止鍵。",
-      "narration_est_sec": 7.5,
+      "beat": "ACT A — speed mechanism + hazard-field framing over the danger_rolling clip",
+      "narration": "一個數字一旦大了，就會麻木。所以想像它怎麼發生：坐入式學步車能讓嬰兒每秒衝出一公尺以上——比同一個房間裡的大人反應還快。",
+      "narration_est_sec": 10.5,
       "facts_ref": [
-        "f8",
-        "f18"
+        "f29"
       ],
       "visual": {
-        "type": "slide",
-        "text": "Cumulative ER visits\n230,676 children over 25 years",
-        "layout": "stat"
+        "type": "clip",
+        "path": "raw/parenting/baby-walker/assets/baby_walker_danger_rolling.mp4",
+        "start_sec": 0.0,
+        "end_sec": 5.0,
+        "alt": "Generated rolling-walker danger clip — motion accent for the speed mechanism"
       },
       "overlay": null,
-      "pause_after_sec": 0.5,
-      "narration_alt": {
-        "en": "Across 25 years — 1990 to 2014 — 230,676 US children landed in ERs."
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 11128
+      },
+      "narration_text_hashes": {
+        "zh-TW": "d7671b08ee6f"
       }
     },
     {
       "id": "s16",
-      "section": "climax",
-      "beat": "Reveals that warnings existed years before action was taken",
-      "narration": "其實警報很早就響了。一九八二年，《兒科》期刊登出第一篇學步車傷害研究——比一九九零年的高峰還早八年。",
-      "narration_est_sec": 9.0,
+      "section": "rising",
+      "beat": "ACT A — burns hazard endpoint (kettle on stovetop, multi-thousand-px, longer dwell ok)",
+      "narration": "樓梯只是頭條。多出來的那幾公分高度、那幾公尺移動範圍，把整個家變成風險場。爐上一壺滾水——學步車能直接推到爐邊，伸手就搆得到。",
+      "narration_est_sec": 11.0,
       "facts_ref": [
-        "f9",
-        "f10"
+        "f30"
       ],
       "visual": {
-        "type": "slide",
-        "text": "1982 — first study\n1990 — injury peak\n8 year gap",
-        "layout": "timeline"
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/kettle_boiling_gas_stove.jpg",
+        "alt": "Kettle boiling on a gas stove — burn hazard a walker can reach",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s16_crop_36105a.png"
       },
       "overlay": null,
-      "pause_after_sec": 0.0,
-      "narration_alt": {
-        "en": "The alarm rang early. 1982 — the journal Pediatrics published the first walker injury study. Eight years before the peak."
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 13766
+      },
+      "narration_text_hashes": {
+        "zh-TW": "8e276191b5bd"
       }
     },
     {
       "id": "s17",
-      "section": "climax",
-      "beat": "Shows first regulatory response and safety improvements",
-      "narration": "一九九五年，業界訂了自願性安全標準。一九九七年，新規定上路：學步車寬度必須超過標準門框，或裝樓梯剎車。",
-      "narration_est_sec": 9.5,
+      "section": "rising",
+      "beat": "ACT A — drowning hazard endpoint",
+      "narration": "還有放滿水的浴缸。對會跑的學步車，那只是一秒鐘的距離。",
+      "narration_est_sec": 7.5,
       "facts_ref": [
-        "f11",
-        "f12"
+        "f30"
       ],
       "visual": {
-        "type": "slide",
-        "text": "1995 voluntary standard\n1997 ASTM F977-96\nwidth > 36\" OR stair-brake",
-        "layout": "timeline"
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/bathtub_bathroom.jpg",
+        "alt": "Claw-foot bathtub, low-angle — drowning hazard a walker can reach",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s17_crop_5ca81a.png"
       },
       "overlay": null,
-      "pause_after_sec": 0.0,
-      "narration_alt": {
-        "en": "1995, voluntary industry standard. 1997, the rule arrived: walkers must be wider than a doorway, or fitted with a stair-brake."
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 5642
+      },
+      "narration_text_hashes": {
+        "zh-TW": "8a27a75d7302"
       }
     },
     {
       "id": "s18",
-      "section": "climax",
-      "beat": "Demonstrates effectiveness of safety measures",
-      "narration": "效果立刻看得見。一九九九年，急診數字掉到八千八，比高峰少了百分之五十七。",
-      "narration_est_sec": 8.0,
+      "section": "rising",
+      "beat": "ACT A — deaths summary as animated stat (1973–1998 + 2004–2008)",
+      "narration": "這些不是假設。有記錄的死亡，一九七三到一九九八年三十四起，二零零四到二零零八年再添八起。",
+      "narration_est_sec": 10.5,
       "facts_ref": [
-        "f13"
+        "f31"
       ],
       "visual": {
-        "type": "slide",
-        "text": "1990 peak: ~20,650\n1999: ~8,800\n−57%",
-        "layout": "comparison"
+        "type": "chart",
+        "chart_type": "stat_big_number",
+        "title": "有記錄的死亡",
+        "data": {
+          "value": "42",
+          "unit": "名兒童死亡"
+        },
+        "ai_background": true,
+        "background_prompt": "aged paper texture, soft sepia stains, faint grid",
+        "subtitle": "1973–1998: 34 起 · 2004–2008: 8 起",
+        "source_credit": "AAP 2001 + Consumer Reports 2024",
+        "animate": {
+          "enabled": true,
+          "reveal_duration_sec": 4.5,
+          "easing": "ease_out_cubic"
+        }
       },
       "overlay": null,
-      "pause_after_sec": 0.0,
-      "narration_alt": {
-        "en": "1995: voluntary standard. 1997: walkers had to be wider than a doorway, or include a stair-brake."
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 10422
+      },
+      "narration_text_hashes": {
+        "zh-TW": "33cba67ded28"
       }
     },
     {
       "id": "s19",
-      "section": "climax",
-      "beat": "Escalates to professional medical recommendation for total ban",
-      "narration": "二零零一年，美國兒科學會直接喊話：禁止製造、禁止販售。但聯邦政府當時沒接話。",
-      "narration_est_sec": 7.0,
+      "section": "rising",
+      "beat": "ACT A — poisoning hazard endpoint (drain cleaner; BRIEF beat per greenlight term 2)",
+      "narration": "而且射程還在延伸——原本鎖在高處的強鹼清潔劑，現在也搆得到。燙傷、溺水、中毒——每一種都是有真實病例的機制。",
+      "narration_est_sec": 6.5,
       "facts_ref": [
-        "f14",
-        "f18"
+        "f30"
       ],
       "visual": {
-        "type": "text_card",
-        "text": "AAP, 2001:\nban manufacture and sale"
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/drain_cleaner_naoh.jpg",
+        "alt": "Caustic soda bottles on a floor — poisoning hazard a walker can reach",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s19_outpaint_postcrop_bd3894.png"
       },
       "overlay": null,
-      "pause_after_sec": 0.0,
-      "narration_alt": {
-        "en": "The effect was immediate. By 1999, ER visits were down fifty-seven percent."
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 10919
+      },
+      "narration_text_hashes": {
+        "zh-TW": "0eff4e2c6408"
       }
     },
     {
       "id": "s20",
-      "section": "climax",
-      "beat": "Presents Canada as the first country to implement complete prohibition",
-      "narration": "三年後，加拿大成為全世界第一個全面禁止有輪坐入式學步車的國家——連二手交易都不行。",
-      "narration_est_sec": 8.5,
+      "section": "rising",
+      "beat": "ACT B — undercount comparison chart, iceberg reveal (recorded vs estimated-true)",
+      "narration": "而這個二十三萬，幾乎可以確定是低估的。",
+      "narration_est_sec": 8.0,
       "facts_ref": [
-        "f15"
+        "f32",
+        "f33"
       ],
       "visual": {
-        "type": "text_card",
-        "text": "2004\nCanada bans the device\n— including resale"
+        "type": "chart",
+        "chart_type": "comparison",
+        "title": "230,676 只是地板",
+        "data": {
+          "left": {
+            "label": "記錄值 (NEISS)",
+            "value": "230,676"
+          },
+          "right": {
+            "label": "真實數字",
+            "value": "? 更高"
+          }
+        },
+        "ai_background": true,
+        "background_prompt": "aged paper texture, soft sepia stains, faint grid",
+        "subtitle": "NEISS 漏報 + 40+ 種名稱",
+        "source_credit": "Weiss, Pediatrics, 1996",
+        "animate": {
+          "enabled": false
+        }
       },
       "overlay": null,
-      "pause_after_sec": 0.0,
-      "narration_alt": {
-        "en": "Three years later, Canada became the first country to ban the wheeled sit-in walker outright — including second-hand sales."
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 3630
+      },
+      "narration_text_hashes": {
+        "zh-TW": "737be481f857"
       }
     },
     {
       "id": "s21",
+      "section": "rising",
+      "beat": "ACT B — explain NEISS low sensitivity + 40+ names",
+      "narration": "原因有兩個：一是 CPSC 的 NEISS 傷害資料庫，一九九六年的審計發現它對學步車漏報約百分之四；二是這個產品在學術、新聞、零售貨架上，有超過四十種叫法——名字一亂，就沒人能乾淨地數清楚。真正的數字，只會更高。",
+      "narration_est_sec": 14.0,
+      "facts_ref": [
+        "f32",
+        "f33"
+      ],
+      "visual": {
+        "type": "text_card",
+        "text": "真實數字 > 230,676\nNEISS 漏報 + 40+ 種名稱"
+      },
+      "overlay": null,
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 20270
+      },
+      "narration_text_hashes": {
+        "zh-TW": "fa4b491d0b16"
+      }
+    },
+    {
+      "id": "s22",
+      "section": "climax",
+      "beat": "Lead-in collapsing the 1982 study + voluntary/ASTM standards into one bridge",
+      "narration": "警報其實很早就響了。一九八二年第一篇研究，比一九九零年的高峰還早八年。接下來二十年，標準一條條加上去——問題只有一個：有用嗎？",
+      "narration_est_sec": 10.5,
+      "facts_ref": [
+        "f9",
+        "f11",
+        "f12"
+      ],
+      "visual": {
+        "type": "text_card",
+        "text": "1982 第一篇研究\n二十年 · 標準一條條加上\n有用嗎？"
+      },
+      "overlay": null,
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 12512
+      },
+      "narration_text_hashes": {
+        "zh-TW": "a99c135d3f11"
+      }
+    },
+    {
+      "id": "s23",
       "section": "climax",
       "beat": "Shows US eventually strengthening regulations with dramatic results",
-      "narration": "二零一零年，美國終於把標準改成強制法規。到了二零一四年，急診數字只剩兩千——比一九九零年下降了百分之九十。",
-      "narration_est_sec": 10.0,
+      "narration": "有用，而且非常明顯。從一九八二年的研究、一九九五年的自願標準、一九九七年的 ASTM、二零零一年兒科學會、二零零四年加拿大、到二零一零年強制法規——到二零一四年，急診數字只剩兩千出頭，比一九九零年下降了百分之九十。",
+      "narration_est_sec": 16.0,
       "facts_ref": [
+        "f9",
+        "f11",
+        "f12",
+        "f13",
+        "f14",
+        "f15",
         "f16",
         "f17"
       ],
@@ -479,18 +702,48 @@
         },
         "data": {
           "points": [
-            {"x": 1990, "y": 20650},
-            {"x": 1999, "y": 8800},
-            {"x": 2007, "y": 3200},
-            {"x": 2014, "y": 2001}
+            {
+              "x": 1990,
+              "y": 20650
+            },
+            {
+              "x": 1999,
+              "y": 8800
+            },
+            {
+              "x": 2007,
+              "y": 3200
+            },
+            {
+              "x": 2014,
+              "y": 2001
+            }
           ],
           "markers": [
-            {"x": 1982, "label": "First medical study"},
-            {"x": 1995, "label": "Voluntary standard"},
-            {"x": 1997, "label": "ASTM F977"},
-            {"x": 2001, "label": "AAP ban call"},
-            {"x": 2004, "label": "Canada bans"},
-            {"x": 2010, "label": "CPSC mandatory"}
+            {
+              "x": 1982,
+              "label": "First medical study"
+            },
+            {
+              "x": 1995,
+              "label": "Voluntary standard"
+            },
+            {
+              "x": 1997,
+              "label": "ASTM F977"
+            },
+            {
+              "x": 2001,
+              "label": "AAP ban call"
+            },
+            {
+              "x": 2004,
+              "label": "Canada bans"
+            },
+            {
+              "x": 2010,
+              "label": "CPSC mandatory"
+            }
           ],
           "x_axis": "year",
           "y_axis": "ER visits"
@@ -502,30 +755,240 @@
       "pause_after_sec": 0.8,
       "narration_alt": {
         "en": "2010, the US finally made standards mandatory. By 2014, ER visits dropped to about 2,000 — ninety percent below the 1990 peak."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 22909
+      },
+      "narration_text_hashes": {
+        "zh-TW": "e4c7d0497988"
       }
     },
     {
-      "id": "s22",
+      "id": "s24",
+      "section": "climax",
+      "beat": "ACT C — Canada total ban: map with BANNED 2004 / STILL SOLD overlay (breaks chart run)",
+      "narration": "二零零四年，有一個國家真的照做了。加拿大成為全世界第一個全面禁止有輪坐入式學步車的國家——而且是徹底地禁：進口、廣告、二手轉手、甚至拆掉輪子，全部都違法。",
+      "narration_est_sec": 14.0,
+      "facts_ref": [
+        "f15",
+        "f34"
+      ],
+      "visual": {
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/north_america_blank_map.png",
+        "alt": "Political map of North America — base for the BANNED 2004 (Canada) / STILL SOLD (USA) contrast",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s24_outpaint_postcrop_00dbf5.png"
+      },
+      "overlay": {
+        "type": "text_emphasis",
+        "text": "BANNED 2004 · CANADA     STILL SOLD · USA"
+      },
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 15908
+      },
+      "narration_text_hashes": {
+        "zh-TW": "bf934f953a82"
+      }
+    },
+    {
+      "id": "s25",
+      "section": "climax",
+      "beat": "ACT C — why the US never banned: Shin verbatim quote on CPSC legal bar",
+      "narration": "二十年過去，美國還是沒跟上。不是因為證據比較弱——是同一台機器——而是兩國的法律寫法不同。一位消費者報告的政策顧問這樣說：virtually impossible for the CPSC to ban a consumer product. 在美國，要讓 CPSC 禁掉一項消費品並在法庭上站得住腳，幾乎不可能——除非國會直接下令。",
+      "narration_est_sec": 17.5,
+      "facts_ref": [
+        "f35"
+      ],
+      "visual": {
+        "type": "text_card",
+        "text": "\"virtually impossible for the CPSC to ban a consumer product\"\n— Oriene Shin, Consumer Reports policy counsel, 2024"
+      },
+      "overlay": null,
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 24685
+      },
+      "narration_text_hashes": {
+        "zh-TW": "61273ff8bb8a"
+      }
+    },
+    {
+      "id": "s26",
+      "section": "climax",
+      "beat": "ACT C — lobbying half + still legal and sold in 2024",
+      "narration": "另一半原因是遊說。加拿大的監管者，沒有美國這邊製造商給的政治壓力。於是美國選擇了設計標準，而不是禁令——所以這款有輪坐入式學步車，到二零二四年，在美國還是合法、還在賣。",
+      "narration_est_sec": 12.0,
+      "facts_ref": [
+        "f36"
+      ],
+      "visual": {
+        "type": "text_card",
+        "text": "Still legal · Still sold · 2024\nAAP + Consumer Reports renew the ban call"
+      },
+      "overlay": null,
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 17998
+      },
+      "narration_text_hashes": {
+        "zh-TW": "36fb8416c309"
+      }
+    },
+    {
+      "id": "s27",
+      "section": "climax",
+      "beat": "ACT D — BMJ 2002 milestones bar chart (weeks of delay vs non-users)",
+      "narration": "醫學界還有第二個反對理由，常被安全爭論蓋過：就算它一個孩子都沒弄傷——它根本做不到盒子上暗示的那件事。一項一百九十名嬰兒的 BMJ 對照研究發現，用學步車的孩子，反而更晚達到每一個動作里程碑：爬、站、走，全部都晚了三到四週。",
+      "narration_est_sec": 15.0,
+      "facts_ref": [
+        "f37"
+      ],
+      "visual": {
+        "type": "chart",
+        "chart_type": "bar",
+        "title": "用學步車的孩子，每個里程碑都更晚",
+        "data": {
+          "x": [
+            "爬",
+            "站立",
+            "行走"
+          ],
+          "y": [
+            4,
+            3,
+            3
+          ],
+          "y_unit": "週"
+        },
+        "ai_background": true,
+        "background_prompt": "aged paper texture, soft sepia stains, faint grid",
+        "subtitle": "對照非使用者",
+        "source_credit": "Garrett, BMJ 2002, n=190",
+        "animate": {
+          "enabled": true,
+          "reveal_duration_sec": 4.5,
+          "easing": "ease_out_cubic"
+        }
+      },
+      "overlay": null,
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 21159
+      },
+      "narration_text_hashes": {
+        "zh-TW": "2abff986b688"
+      }
+    },
+    {
+      "id": "s28",
+      "section": "climax",
+      "beat": "ACT D — dose-response line chart (delay days vs use hours)",
+      "narration": "而且劑量越大、延遲越久——每在座椅裡待二十四小時，走路就大約再晚三天。它替嬰兒做的那些動作，正是嬰兒需要靠自己練起來的肌肉與平衡。",
+      "narration_est_sec": 12.0,
+      "facts_ref": [
+        "f38"
+      ],
+      "visual": {
+        "type": "chart",
+        "chart_type": "line",
+        "title": "延遲隨使用時間增加",
+        "data": {
+          "points": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 24,
+              "y": 3
+            }
+          ],
+          "markers": [
+            {
+              "x": 24,
+              "label": "每 24h ≈ 多 3 天"
+            }
+          ]
+        },
+        "ai_background": true,
+        "background_prompt": "aged paper texture, soft sepia stains, faint grid",
+        "subtitle": "x: 使用時數 · y: 延遲天數",
+        "source_credit": "Garrett, BMJ 2002",
+        "animate": {
+          "enabled": true,
+          "reveal_duration_sec": 4.5,
+          "easing": "ease_out_cubic"
+        }
+      },
+      "overlay": null,
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 13949
+      },
+      "narration_text_hashes": {
+        "zh-TW": "f371aba535e2"
+      }
+    },
+    {
+      "id": "s29",
+      "section": "climax",
+      "beat": "ACT D — AAP verbatim line: walkers don't help and may delay motor development",
+      "narration": "兒科學會的結論很直白——do not help a child learn to walk and may delay motor development. 學步車不會幫孩子學會走路，反而可能延遲他的動作發展。",
+      "narration_est_sec": 11.5,
+      "facts_ref": [
+        "f39"
+      ],
+      "visual": {
+        "type": "text_card",
+        "text": "\"do not help a child learn to walk\nand may delay motor development\"\n— AAP, 2001"
+      },
+      "overlay": null,
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 13766
+      },
+      "narration_text_hashes": {
+        "zh-TW": "41e7f20ce1e6"
+      }
+    },
+    {
+      "id": "s30",
       "section": "aftermath",
-      "beat": "Reveals the paradox of continued market growth despite safety concerns",
+      "beat": "$1.1B market paradox as animated big number — replaces the static slide",
       "narration": "你會以為，故事到這裡結束。但全球學步車市場現在估值十一億美元，每年還在以百分之四成長。",
-      "narration_est_sec": 8.5,
+      "narration_est_sec": 9.0,
       "facts_ref": [
         "f19"
       ],
       "visual": {
-        "type": "slide",
-        "text": "Global market\n$1.1B\n+~4%/year",
-        "layout": "stat"
+        "type": "chart",
+        "chart_type": "stat_big_number",
+        "title": "市場仍在成長",
+        "data": {
+          "value": "$1.1B",
+          "unit": "全球市場 · 年增 ~4%"
+        },
+        "ai_background": true,
+        "background_prompt": "aged paper texture, soft sepia stains, faint grid",
+        "source_credit": "2024 market estimates",
+        "animate": {
+          "enabled": true,
+          "reveal_duration_sec": 4.5,
+          "easing": "ease_out_cubic"
+        }
       },
       "overlay": null,
-      "pause_after_sec": 0.0,
-      "narration_alt": {
-        "en": "2010, the US made standards mandatory. By 2014, ER visits were ninety percent below the 1990 peak."
+      "pause_after_sec": 0.3,
+      "narration_durations_ms": {
+        "zh-TW": 9247
+      },
+      "narration_text_hashes": {
+        "zh-TW": "9c2bdb4b1ac9"
       }
     },
     {
-      "id": "s23",
+      "id": "s31",
       "section": "aftermath",
       "beat": "Explains market persistence through product confusion and naming chaos",
       "narration": "為什麼？因為「學步車」這三個字，其實同時指三種完全不一樣的產品。研究者統計，它有四十多個不同的名字。",
@@ -541,10 +1004,16 @@
       "pause_after_sec": 0.0,
       "narration_alt": {
         "en": "Why? Because the words baby walker actually cover three mechanically different products. Researchers have counted over 40 names for them."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 10553
+      },
+      "narration_text_hashes": {
+        "zh-TW": "e75a7c76da0c"
       }
     },
     {
-      "id": "s24",
+      "id": "s32",
       "section": "aftermath",
       "beat": "Proposes solution through product categorization rather than blanket judgment",
       "narration": "所以，與其爭論該不該禁，不如先把這三種產品分清楚。它們的危險，差距非常大。",
@@ -559,10 +1028,16 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "So instead of debating the ban, let's separate the three products. Their risk profiles are not even close."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 7157
+      },
+      "narration_text_hashes": {
+        "zh-TW": "b14584ea3173"
       }
     },
     {
-      "id": "s25",
+      "id": "s33",
       "section": "analysis",
       "beat": "Defines the dangerous wheeled seat walker type",
       "narration": "第一種，有輪坐入式學步車——也就是醫師警告的那一種。寶寶用布墊吊在裡面，雙腳穿過去著地，下面四個輪子。",
@@ -571,20 +1046,25 @@
         "f20"
       ],
       "visual": {
-        "type": "generated_image",
-        "prompt": "Studio product photograph: an empty classic 1970s wheeled baby walker standing on a clean wooden floor — NO baby visible — a round plastic activity tray with built-in toy attachments on top, a fabric seat suspended in the center, four small caster wheels visible at the base, soft natural window light from the side, warm sepia color grade, three-quarter angle at child eye level, photo-realistic, neutral home interior background",
-        "style_modifier": "warm sepia tones",
-        "alt": "wheeled sit-in walker — defining the product type",
-        "skip_niche_style": true
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/Baby_by_Vignesh.jpg",
+        "alt": "A child in a wheeled sit-in walker, 2022 — the dangerous design, still sold today",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s33_crop_a650b0.png"
       },
       "overlay": null,
       "pause_after_sec": 0.0,
       "narration_alt": {
         "en": "Product one: the wheeled sit-in walker. The dangerous one. The baby is suspended in a fabric seat, legs through, four wheels below."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 10083
+      },
+      "narration_text_hashes": {
+        "zh-TW": "1866229f4d3b"
       }
     },
     {
-      "id": "s26",
+      "id": "s34",
       "section": "analysis",
       "beat": "Explains the core safety problem of premature mobility",
       "narration": "問題就在這裡：它讓還不會走的嬰兒，突然能用每秒九十公分的速度衝刺，一秒到樓梯邊。",
@@ -601,30 +1081,16 @@
       "pause_after_sec": 0.0,
       "narration_alt": {
         "en": "Here's the problem: a baby who can't walk yet can suddenly sprint at 3 feet per second — and reach a stairwell in one beat."
-      }
-    },
-    {
-      "id": "s27",
-      "section": "analysis",
-      "beat": "Illustrates how walkers create access to previously safe spaces",
-      "narration": "原本進不去的廚房、樓梯口、浴缸邊，現在全部突然變成可達範圍。這就是兒科學會和加拿大要禁的那一款。",
-      "narration_est_sec": 10.0,
-      "facts_ref": [
-        "f20"
-      ],
-      "visual": {
-        "type": "article_image",
-        "path": "raw/parenting/baby-walker/assets/Learning_to_walk.png",
-        "alt": "infant walker hazard zones - stair, kitchen, pool"
       },
-      "overlay": null,
-      "pause_after_sec": 0.0,
-      "narration_alt": {
-        "en": "Kitchens, stair edges, bathtubs — places that used to be safely out of reach become one push away. This is what the AAP and Canada targeted."
+      "narration_durations_ms": {
+        "zh-TW": 8986
+      },
+      "narration_text_hashes": {
+        "zh-TW": "65e9b5d77518"
       }
     },
     {
-      "id": "s28",
+      "id": "s35",
       "section": "analysis",
       "beat": "Alerts readers that dangerous models remain legally available",
       "narration": "重點是：這款學步車在台灣、在美國，現在還是合法銷售。嬰兒用品店裡，依舊看得到。",
@@ -641,10 +1107,16 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "And here's the key: this product is still legal and still sold — in the US, in Taiwan, on the shelves you walk past."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 7497
+      },
+      "narration_text_hashes": {
+        "zh-TW": "b6efa07c7694"
       }
     },
     {
-      "id": "s29",
+      "id": "s36",
       "section": "analysis",
       "beat": "Introduces the safer push walker alternative",
       "narration": "第二種，學步推車。寶寶站在後面，雙手扶著它，自己一步一步往前推。完全不一樣的東西。",
@@ -661,10 +1133,16 @@
       "pause_after_sec": 0.0,
       "narration_alt": {
         "en": "Here's the key: still legal in the US, still sold — on the shelves you walk past."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 8933
+      },
+      "narration_text_hashes": {
+        "zh-TW": "d42c8bd0b9a3"
       }
     },
     {
-      "id": "s30",
+      "id": "s37",
       "section": "analysis",
       "beat": "Contrasts push walker mechanics with dangerous seated version",
       "narration": "結構上正好相反：孩子是站立的，承擔自己的體重，靠自己的步伐前進。沒有懸吊座椅，也沒有突然加速的問題。",
@@ -682,10 +1160,16 @@
       "pause_after_sec": 0.0,
       "narration_alt": {
         "en": "Mechanically, it's the inverse: the child is upright, bearing their own weight, moving at their own pace. No suspended seat, no speed problem."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 9534
+      },
+      "narration_text_hashes": {
+        "zh-TW": "431329625c66"
       }
     },
     {
-      "id": "s31",
+      "id": "s38",
       "section": "analysis",
       "beat": "Provides medical endorsement of push walker benefits",
       "narration": "兒科醫師對這款的態度是——可以。它在做的事，和孩子自然學走路是同一條路：練平衡、練步幅、練肌肉。",
@@ -703,10 +1187,16 @@
       "pause_after_sec": 0.0,
       "narration_alt": {
         "en": "Pediatricians consider these fine. What they do is what natural walking does — balance, stride, muscle memory. Useful practice, not replacement."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 10135
+      },
+      "narration_text_hashes": {
+        "zh-TW": "9a5a36680320"
       }
     },
     {
-      "id": "s32",
+      "id": "s39",
       "section": "analysis",
       "beat": "Offers practical selection criteria for push walkers",
       "narration": "選購重點：底盤要夠寬、不會翻；輪子最好有阻力，不要太滑；買的是站著推的，不是大孩子的滑步車。",
@@ -723,10 +1213,16 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "Shopping tips: a wide base so it won't tip, wheels with resistance not just slip, and a model the child stands behind — not a ride-on."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 9717
+      },
+      "narration_text_hashes": {
+        "zh-TW": "cd58a4932d65"
       }
     },
     {
-      "id": "s33",
+      "id": "s40",
       "section": "analysis",
       "beat": "Introduces stationary activity center as third product type",
       "narration": "第三種，定點活動架。看起來像學步車，但沒有輪子。寶寶坐在中間的彈跳座位，旁邊一圈玩具。",
@@ -745,10 +1241,16 @@
       "pause_after_sec": 0.0,
       "narration_alt": {
         "en": "Product three: the stationary activity center. Looks like a walker, but has no wheels. Baby sits in a bouncy seat ringed with toys."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 9247
+      },
+      "narration_text_hashes": {
+        "zh-TW": "11cad137d46d"
       }
     },
     {
-      "id": "s34",
+      "id": "s41",
       "section": "analysis",
       "beat": "Presents activity centers as medically recommended safe alternative",
       "narration": "這就是兒科學會二零零一年公開推薦的替代品。它不會跑、不會撞下樓梯、不會把寶寶突然送到熱鍋邊。",
@@ -764,10 +1266,16 @@
       "pause_after_sec": 0.0,
       "narration_alt": {
         "en": "This is the alternative the AAP explicitly endorsed in 2001. It can't run, can't fall down stairs, can't reach a stove."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 8829
+      },
+      "narration_text_hashes": {
+        "zh-TW": "074c5b3cd727"
       }
     },
     {
-      "id": "s35",
+      "id": "s42",
       "section": "analysis",
       "beat": "Warns against overuse of stationary activity centers",
       "narration": "但要注意一個但書：太久把孩子綁在裡面，會延遲他自己練習動作的時間。短時間用是好工具，整天放就不是。",
@@ -784,10 +1292,16 @@
       "pause_after_sec": 0.0,
       "narration_alt": {
         "en": "One caveat: leaving a child in it too long can delay independent motor development. Short sessions are fine; a whole afternoon is not."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 10840
+      },
+      "narration_text_hashes": {
+        "zh-TW": "b72852fe0e97"
       }
     },
     {
-      "id": "s36",
+      "id": "s43",
       "section": "analysis",
       "beat": "Provides selection and usage guidelines for activity centers",
       "narration": "選購重點：底座要穩、不會翻；座位高度可調，讓寶寶的雙腳能平踩到地板；用的時候，每次別超過一段時間。",
@@ -804,10 +1318,16 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "Shopping tips: stable wide base, height-adjustable seat so feet rest flat on the floor, and limit each session."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 9900
+      },
+      "narration_text_hashes": {
+        "zh-TW": "e975242826db"
       }
     },
     {
-      "id": "s37",
+      "id": "s44",
       "section": "analysis",
       "beat": "Summarizes safety hierarchy of the three product types",
       "narration": "三種產品擺在一起：危險的是有輪坐入式；安全的是學步推車；活動架沒有輪子，是另一個類別。",
@@ -826,14 +1346,20 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "Three products side by side: the wheeled sit-in is the dangerous one. The push-toy is safe. The stationary center is a different category entirely."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 9299
+      },
+      "narration_text_hashes": {
+        "zh-TW": "1bbdad064abf"
       }
     },
     {
-      "id": "s38",
+      "id": "s45",
       "section": "analysis",
       "beat": "Distills safety rule into simple terms",
-      "narration": "規則其實非常簡單。把它寫成一句話：有輪子加上吊式座椅，就是要避開的那一種設計。",
-      "narration_est_sec": 7.5,
+      "narration": "規則其實非常簡單。Wheels + suspended seat = the one to avoid. 有輪子加上吊式座椅，就是要避開的那一種設計。",
+      "narration_est_sec": 10.0,
       "facts_ref": [
         "f25"
       ],
@@ -845,10 +1371,16 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "The rule is simple. Wheels plus a suspended seat — the one to avoid."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 10422
+      },
+      "narration_text_hashes": {
+        "zh-TW": "1fcf86d59092"
       }
     },
     {
-      "id": "s39",
+      "id": "s46",
       "section": "analysis",
       "beat": "Provides clear identification criteria for dangerous products",
       "narration": "兩個關鍵字：「輪子」和「吊式座椅」。同時有，就是危險款；少一個，就是另一個產品類別。",
@@ -866,10 +1398,16 @@
       "pause_after_sec": 0.0,
       "narration_alt": {
         "en": "Wheels and a suspended seat together — that's the one. No wheels means a different category. A stand-behind push-toy is the opposite design."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 7810
+      },
+      "narration_text_hashes": {
+        "zh-TW": "cc440429623d"
       }
     },
     {
-      "id": "s40",
+      "id": "s47",
       "section": "analysis",
       "beat": "Warns about naming confusion and emphasizes design-based evaluation",
       "narration": "中文裡這幾個產品的名字也很亂——學步車、助行器、健力架——同樣的字常常指不同東西。買之前，先看設計，不要只看名字。",
@@ -886,6 +1424,12 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "The naming is messy in every language — researchers counted over 40 terms. Before you buy, look at the design, not the label."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 10553
+      },
+      "narration_text_hashes": {
+        "zh-TW": "134b6ac55ce8"
       }
     }
   ],
@@ -1064,50 +1608,66 @@
     {
       "from": "s22",
       "to": "s23",
-      "style": "none",
-      "duration_sec": 0.0
+      "style": "book-page-turn-v2",
+      "duration_sec": 1.5,
+      "page_count": 5,
+      "page_surface": "calligraphy_texture"
     },
     {
       "from": "s23",
       "to": "s24",
-      "style": "none",
-      "duration_sec": 0.0
+      "style": "book-page-turn-v2",
+      "duration_sec": 1.5,
+      "page_count": 5,
+      "page_surface": "calligraphy_texture"
     },
     {
       "from": "s24",
       "to": "s25",
-      "style": "none",
-      "duration_sec": 0.0
+      "style": "book-page-turn-v2",
+      "duration_sec": 1.5,
+      "page_count": 5,
+      "page_surface": "calligraphy_texture"
     },
     {
       "from": "s25",
       "to": "s26",
-      "style": "none",
-      "duration_sec": 0.0
+      "style": "book-page-turn-v2",
+      "duration_sec": 1.5,
+      "page_count": 5,
+      "page_surface": "calligraphy_texture"
     },
     {
       "from": "s26",
       "to": "s27",
-      "style": "none",
-      "duration_sec": 0.0
+      "style": "book-page-turn-v2",
+      "duration_sec": 1.5,
+      "page_count": 5,
+      "page_surface": "calligraphy_texture"
     },
     {
       "from": "s27",
       "to": "s28",
-      "style": "none",
-      "duration_sec": 0.0
+      "style": "book-page-turn-v2",
+      "duration_sec": 1.5,
+      "page_count": 5,
+      "page_surface": "calligraphy_texture"
     },
     {
       "from": "s28",
       "to": "s29",
-      "style": "none",
-      "duration_sec": 0.0
+      "style": "book-page-turn-v2",
+      "duration_sec": 1.5,
+      "page_count": 5,
+      "page_surface": "calligraphy_texture"
     },
     {
       "from": "s29",
       "to": "s30",
-      "style": "none",
-      "duration_sec": 0.0
+      "style": "book-page-turn-v2",
+      "duration_sec": 1.5,
+      "page_count": 5,
+      "page_surface": "calligraphy_texture"
     },
     {
       "from": "s30",
@@ -1166,6 +1726,48 @@
     {
       "from": "s39",
       "to": "s40",
+      "style": "none",
+      "duration_sec": 0.0
+    },
+    {
+      "from": "s40",
+      "to": "s41",
+      "style": "none",
+      "duration_sec": 0.0
+    },
+    {
+      "from": "s41",
+      "to": "s42",
+      "style": "none",
+      "duration_sec": 0.0
+    },
+    {
+      "from": "s42",
+      "to": "s43",
+      "style": "none",
+      "duration_sec": 0.0
+    },
+    {
+      "from": "s43",
+      "to": "s44",
+      "style": "none",
+      "duration_sec": 0.0
+    },
+    {
+      "from": "s44",
+      "to": "s45",
+      "style": "none",
+      "duration_sec": 0.0
+    },
+    {
+      "from": "s45",
+      "to": "s46",
+      "style": "none",
+      "duration_sec": 0.0
+    },
+    {
+      "from": "s46",
+      "to": "s47",
       "style": "none",
       "duration_sec": 0.0
     }
