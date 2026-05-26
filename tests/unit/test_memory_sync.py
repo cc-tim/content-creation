@@ -1,11 +1,11 @@
 # tests/unit/test_memory_sync.py
-import sys, os
-sys.path.insert(0, os.path.expanduser("~/.claude/bin"))
-import memory_sync as ms
-
 import datetime
-import pytest
+import os
+import sys
 from pathlib import Path
+
+sys.path.insert(0, os.path.expanduser("~/.claude/bin"))
+import memory_sync as ms  # noqa: E402
 
 
 def make_agent_memory(tmp_path: Path, index_lines: list[str], topic_files: dict[str, str] = None) -> Path:

@@ -1,9 +1,11 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from pipeline.niche_templates import NicheTemplate
 from pipeline.stages.compose import ComposeStage
 from pipeline.storyboard import Scene, Storyboard
 
@@ -87,6 +89,89 @@ async def test_compose_uses_storyboard_when_available(sample_context):
 
     assert ctx.final_video_path is not None
     mock_render.assert_called_once()
+
+
+async def test_compose_forwards_niche_split_style_fields(sample_context):
+    sb = Storyboard(
+        scenes=[
+            Scene(
+                id="s1",
+                section="hook",
+                narration="test",
+                narration_est_sec=5,
+                visual={"type": "text_card", "text": "Hook", "background": "#1a1a2e"},
+            ),
+        ]
+    )
+    sb_path = sample_context.work_dir / "storyboard.json"
+    sb.save(sb_path)
+    sample_context.storyboard_path = sb_path
+    sample_context.niche = "parenting"
+
+    audio_dir = sample_context.work_dir / "audio"
+    audio_dir.mkdir(parents=True)
+    narration = audio_dir / "narration.mp3"
+    narration.write_bytes(b"fake")
+    sample_context.narration_path = narration
+    subtitle = audio_dir / "subs.srt"
+    subtitle.write_text("1\n00:00:00,000 --> 00:00:05,000\ntest\n")
+    sample_context.subtitle_path = subtitle
+    sample_context.segment_timings = [
+        {
+            "index": 0,
+            "text": "test",
+            "path": str(audio_dir / "seg_000.mp3"),
+            "start_ms": 0,
+            "duration_ms": 5000,
+        }
+    ]
+    (audio_dir / "seg_000.mp3").write_bytes(b"fake audio")
+
+    template = NicheTemplate(
+        niche="parenting",
+        intro_type="generated_image",
+        intro_prompt_hint="hint",
+        visual_style="cream background, no text in images",
+        anchor_prompt="anchor",
+        medium_hint="soft sketch lines",
+        palette="cream background",
+        subject_bias="same parent-child duo",
+        universal_rules="no text in images",
+    )
+    style_anchor = SimpleNamespace(
+        style_descriptor="cream background, no text in images",
+        seed=123,
+        anchor_image=None,
+        suitability="",
+    )
+
+    stage = ComposeStage()
+    with (
+        patch("pipeline.niche_templates.load_niche_template", return_value=template),
+        patch("pipeline.composer.style_anchor.extract_style_anchor", return_value=style_anchor),
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose.render_scene") as mock_render,
+        patch("pipeline.stages.compose.apply_overlay"),
+        patch("pipeline.stages.compose.run_ffmpeg") as mock_ff,
+    ):
+        visual_out = sample_context.work_dir / "compose" / "scenes" / "s1_visual.mp4"
+        visual_out.parent.mkdir(parents=True, exist_ok=True)
+        visual_out.write_bytes(b"fake visual")
+        mock_render.return_value = visual_out
+
+        def _fake_ffmpeg(cmd):
+            out = cmd[-1]
+            if isinstance(out, str) and out.endswith(".mp4"):
+                Path(out).write_bytes(b"fake")
+
+        mock_ff.side_effect = _fake_ffmpeg
+        await stage.run(sample_context)
+
+    theme = mock_render.call_args.kwargs["theme"]
+    assert theme["medium_hint"] == "soft sketch lines"
+    assert theme["palette"] == "cream background"
+    assert theme["subject_bias"] == "same parent-child duo"
+    assert theme["universal_rules"] == "no text in images"
 
 
 async def test_render_one_scene_applies_frame_wrapper_when_theme_requests_it(tmp_path):

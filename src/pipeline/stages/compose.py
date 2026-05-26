@@ -664,6 +664,10 @@ class ComposeStage(PipelineStage):
 
         # Inject style anchor data into theme_dict (flows through render_scene → image.py)
         theme_dict["style_prefix"] = style_anchor.style_descriptor
+        if niche_template:
+            for key in ("medium_hint", "palette", "subject_bias", "universal_rules"):
+                if value := getattr(niche_template, key, ""):
+                    theme_dict[key] = value
         theme_dict["_seed"] = style_anchor.seed
         if style_anchor.anchor_image:
             theme_dict["_anchor_image"] = str(style_anchor.anchor_image)

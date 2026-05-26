@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -34,12 +35,57 @@ RESOLUTIONS = {
     "9:16": (720, 1280),
 }
 
+_SPLIT_NICHE_STYLE_KEYS = ("medium_hint", "palette", "subject_bias", "universal_rules")
+_CONTRADICTING_MEDIUM_RE = re.compile(
+    r"\b(photo[- ]?realistic|photorealistic|photograph|photographic|photo)\b",
+    re.IGNORECASE,
+)
+_STRONG_EXPLICIT_SUBJECT_RE = re.compile(
+    r"\b("
+    r"baby[- ]walker|sit[- ]in baby[- ]walker|product shot|consumer product|"
+    r"map of|courtroom|corridor|police officer|officer|suspect|victim|judge"
+    r")\b",
+    re.IGNORECASE,
+)
+
 
 def get_resolution(aspect_ratio: str) -> tuple[int, int]:
     """Return (width, height) for an aspect ratio string."""
     if aspect_ratio not in RESOLUTIONS:
         raise ValueError(f"Unknown aspect ratio: {aspect_ratio}. Use: {list(RESOLUTIONS)}")
     return RESOLUTIONS[aspect_ratio]
+
+
+def _has_contradicting_medium(prompt: str) -> bool:
+    return bool(_CONTRADICTING_MEDIUM_RE.search(prompt))
+
+
+def _has_strong_explicit_subject(prompt: str) -> bool:
+    return bool(_STRONG_EXPLICIT_SUBJECT_RE.search(prompt))
+
+
+def _assembled_niche_style(theme: dict[str, Any], content: str) -> str:
+    if theme.get("visual_style"):
+        return str(theme["visual_style"])
+
+    if any(theme.get(key) for key in _SPLIT_NICHE_STYLE_KEYS):
+        parts: list[str] = []
+        medium_hint = str(theme.get("medium_hint") or "")
+        palette = str(theme.get("palette") or "")
+        subject_bias = str(theme.get("subject_bias") or "")
+        universal_rules = str(theme.get("universal_rules") or "")
+
+        if medium_hint and not _has_contradicting_medium(content):
+            parts.append(medium_hint)
+        if palette:
+            parts.append(palette)
+        if subject_bias and not _has_strong_explicit_subject(content):
+            parts.append(subject_bias)
+        if universal_rules:
+            parts.append(universal_rules)
+        return ", ".join(parts)
+
+    return str(theme.get("style_prefix", ""))
 
 
 def image_to_video(
@@ -325,14 +371,14 @@ def render_scene(
     elif visual_type == "generated_image":
         from pipeline.composer.image import render_generated_image
 
-        # Style hierarchy: theme.visual_style > theme.style_prefix (niche template) > fallback
+        # Style hierarchy: theme.visual_style > split niche fields > theme.style_prefix.
         # Per-scene opt-out via visual.skip_niche_style — useful when the scene's
         # intent (e.g. photo-realistic product shot) clashes with a niche medium
         # descriptor (e.g. parenting niche = "soft sketch lines, hand-drawn warmth").
         if visual.get("skip_niche_style"):
             base_style = ""
         else:
-            base_style = theme.get("visual_style") or theme.get("style_prefix", "")
+            base_style = _assembled_niche_style(theme, visual.get("prompt", ""))
         modifier = visual.get("style_modifier", "")
         content = visual.get("prompt", "abstract background")
 

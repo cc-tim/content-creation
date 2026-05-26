@@ -1,10 +1,10 @@
 def test_scriptwrite_in_pre_review_chain():
     from pipeline.stages.acquire import AcquireStage
     from pipeline.stages.analyze import AnalyzeStage
+    from pipeline.stages.compose import ComposeStage
     from pipeline.stages.direct import DirectStage
     from pipeline.stages.scriptwrite import ScriptwriteStage
     from pipeline.stages.tts import TtsStage
-    from pipeline.stages.compose import ComposeStage
 
     all_stages = [
         AcquireStage(), AnalyzeStage(), DirectStage(),

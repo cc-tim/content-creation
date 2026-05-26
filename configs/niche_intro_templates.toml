@@ -1,13 +1,21 @@
 [parenting]
 intro_type = "generated_image"
 intro_prompt_hint = "parent and child in a warm home moment, sketch style, relatable, no text"
-visual_style = "cozy domestic scenes, consistent warm family home, soft sketch lines, cream background, muted earth tones, same parent-child duo across scenes in everyday moments, hand-drawn warmth, no clutter, no text in images"
+visual_style = "cream background, muted earth tones, no clutter, no text in images"
+medium_hint = "soft sketch lines, hand-drawn warmth"
+palette = "cream background, muted earth tones"
+subject_bias = "cozy domestic scenes, consistent warm family home, same parent-child duo across scenes in everyday moments"
+universal_rules = "no clutter, no text in images"
 anchor_prompt = "parent and child duo in a calm cozy home setting, soft sketch illustration, warm cream tones, hand-drawn warmth, friendly"
 rationale = "Parenting source videos reuse the same illustration panels; our hook must be original and our style defined by the story"
 
 [true-crime]
 intro_type = "text_card"
 intro_prompt_hint = "Dark background, bold white hook text — one sentence, drop viewer mid-action, no setup"
-visual_style = "cinematic still, dramatic lighting, documentary aesthetic, high contrast, desaturated"
+visual_style = "dramatic lighting, high contrast, desaturated"
+medium_hint = "cinematic still, documentary aesthetic"
+palette = "dramatic lighting, high contrast, desaturated"
+subject_bias = ""
+universal_rules = ""
 anchor_prompt = "empty corridor at night, single dim light source, tense atmosphere, photorealistic"
 rationale = "True-crime hooks land harder as stark text; cinematic style builds dread"

@@ -3,18 +3,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 from typer.testing import CliRunner
 
 from pipeline.style.cli import style_app
-from pipeline.style.log import StyleLogEntry, append_log
+from pipeline.style.log import append_log
 from pipeline.style.manifest import (
-    PerSceneOverride,
     StyleElement,
     StyleManifest,
     build_manifest,
 )
-
 
 # ── Data-structure smoke tests ────────────────────────────────────────────────
 
@@ -87,15 +84,55 @@ def test_build_manifest_visual_style_no_warning(tmp_path):
     assert el.warnings == []
 
 
-def test_build_manifest_visual_style_medium_warning(tmp_path):
+def test_build_manifest_split_style_elements(tmp_path):
+    sb = _write_storyboard(
+        tmp_path,
+        {
+            "medium_hint": "soft sketch lines, hand-drawn warmth",
+            "palette": "cream background, muted earth tones",
+            "subject_bias": "same parent-child duo across scenes",
+            "universal_rules": "no clutter, no text in images",
+            "visual_style": "cream background, muted earth tones, no clutter, no text in images",
+        },
+    )
+    manifest = build_manifest(sb)
+    elements = {e.id: e for e in manifest.elements}
+    assert elements["medium_hint"].kind == "image_prompt_prefix"
+    assert elements["medium_hint"].value == "soft sketch lines, hand-drawn warmth"
+    assert elements["palette"].value == "cream background, muted earth tones"
+    assert elements["subject_bias"].value == "same parent-child duo across scenes"
+    assert elements["medium_hint"].theme_key == "medium_hint"
+
+
+def test_build_manifest_medium_warning_uses_medium_hint(tmp_path):
+    sb = _write_storyboard(
+        tmp_path,
+        {
+            "medium_hint": "soft sketch lines, hand-drawn warmth",
+            "palette": "cream background",
+            "visual_style": "cream background, no text in images",
+        },
+    )
+    manifest = build_manifest(sb)
+    medium = next(e for e in manifest.elements if e.id == "medium_hint")
+    composite = next(e for e in manifest.elements if e.id == "visual_style")
+    assert len(medium.warnings) == 1
+    assert "medium descriptor" in medium.warnings[0]
+    assert "medium_hint" in medium.warnings[0]
+    assert composite.warnings == []
+
+
+def test_build_manifest_legacy_visual_style_keeps_composite_element(tmp_path):
     sb = _write_storyboard(
         tmp_path,
         {"visual_style": "soft sketch lines, hand-drawn warmth, no text in images"},
     )
     manifest = build_manifest(sb)
-    el = next(e for e in manifest.elements if e.id == "visual_style")
-    assert len(el.warnings) == 1
-    assert "medium descriptor" in el.warnings[0]
+    assert [e.id for e in manifest.elements] == ["visual_style"]
+    el = manifest.elements[0]
+    assert el.kind == "image_prompt_prefix"
+    assert el.value == "soft sketch lines, hand-drawn warmth, no text in images"
+    assert el.warnings == []
 
 
 def test_build_manifest_transition(tmp_path):
@@ -249,6 +286,26 @@ def test_style_list_shows_anchor_inactive(tmp_path, monkeypatch):
     assert "INACTIVE" in result.output
 
 
+def test_style_list_shows_split_image_prompt_fields(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _make_project(
+        tmp_path,
+        "test-split-style",
+        {
+            "medium_hint": "soft sketch lines",
+            "palette": "cream background",
+            "subject_bias": "same parent-child duo",
+        },
+    )
+    runner = CliRunner()
+    result = runner.invoke(style_app, ["list", "--project-id", "test-split-style"])
+    assert result.exit_code == 0, result.output
+    assert "medium_hint" in result.output
+    assert "palette" in result.output
+    assert "subject_bias" in result.output
+    assert "image_prompt_prefix" in result.output
+
+
 def test_style_list_unknown_project(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
@@ -375,7 +432,9 @@ def test_style_add_unknown_kind(tmp_path, monkeypatch):
 def test_render_generated_image_no_anchor_param():
     """anchor_image must NOT be a parameter of render_generated_image (dead code removed)."""
     import inspect
+
     from pipeline.composer.image import render_generated_image
+
     sig = inspect.signature(render_generated_image)
     assert "anchor_image" not in sig.parameters, (
         "anchor_image is still in render_generated_image signature. "

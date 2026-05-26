@@ -207,6 +207,139 @@ def test_fallback_to_style_prefix_when_no_visual_style(tmp_path):
     assert "clean educational sketch" in captured["prompt"]
 
 
+def _captured_try_chain_prompt(tmp_path, visual, theme):
+    from pipeline.composer.base import render_scene
+
+    captured = {}
+
+    def fake_try_chain(providers, prompt, out_path, size):
+        captured["prompt"] = prompt
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(_FAKE_PNG)
+        return MagicMock(provider="test")
+
+    with patch("pipeline.composer.image.try_chain", side_effect=fake_try_chain), \
+         patch("pipeline.composer.image.image_to_video"):
+        render_scene(
+            {"id": "s-style", "visual": visual},
+            5.0,
+            "16:9",
+            tmp_path,
+            theme=theme,
+        )
+    return captured["prompt"]
+
+
+def test_photo_realistic_prompt_suppresses_medium_hint_and_subject_bias(tmp_path):
+    prompt = _captured_try_chain_prompt(
+        tmp_path,
+        {
+            "type": "generated_image",
+            "prompt": "photo-realistic sit-in baby-walker product shot on a clean floor",
+        },
+        {
+            "medium_hint": "soft sketch lines, hand-drawn warmth",
+            "palette": "cream background, muted earth tones",
+            "subject_bias": "same parent-child duo across scenes",
+            "universal_rules": "no clutter, no text in images",
+        },
+    )
+
+    assert (
+        prompt
+        == "cream background, muted earth tones, no clutter, no text in images, "
+        "photo-realistic sit-in baby-walker product shot on a clean floor"
+    )
+
+
+def test_non_photo_prompt_retains_medium_hint(tmp_path):
+    prompt = _captured_try_chain_prompt(
+        tmp_path,
+        {"type": "generated_image", "prompt": "quiet living room after bedtime"},
+        {
+            "medium_hint": "soft sketch lines, hand-drawn warmth",
+            "palette": "cream background, muted earth tones",
+            "subject_bias": "same parent-child duo across scenes",
+            "universal_rules": "no clutter, no text in images",
+        },
+    )
+
+    assert (
+        prompt
+        == "soft sketch lines, hand-drawn warmth, cream background, muted earth tones, "
+        "same parent-child duo across scenes, no clutter, no text in images, "
+        "quiet living room after bedtime"
+    )
+
+
+def test_strong_explicit_subject_suppresses_subject_bias_only(tmp_path):
+    prompt = _captured_try_chain_prompt(
+        tmp_path,
+        {"type": "generated_image", "prompt": "sit-in baby-walker product shot in a clean room"},
+        {
+            "medium_hint": "soft sketch lines, hand-drawn warmth",
+            "palette": "cream background, muted earth tones",
+            "subject_bias": "same parent-child duo across scenes",
+            "universal_rules": "no clutter, no text in images",
+        },
+    )
+
+    assert (
+        prompt
+        == "soft sketch lines, hand-drawn warmth, cream background, muted earth tones, "
+        "no clutter, no text in images, sit-in baby-walker product shot in a clean room"
+    )
+
+
+def test_skip_niche_style_suppresses_all_split_fields(tmp_path):
+    prompt = _captured_try_chain_prompt(
+        tmp_path,
+        {
+            "type": "generated_image",
+            "prompt": "photo-realistic sit-in baby-walker product shot",
+            "skip_niche_style": True,
+        },
+        {
+            "medium_hint": "soft sketch lines",
+            "palette": "cream background",
+            "subject_bias": "same parent-child duo",
+            "universal_rules": "no clutter",
+        },
+    )
+
+    assert prompt == "photo-realistic sit-in baby-walker product shot"
+
+
+def test_legacy_visual_style_prompt_assembles_identically(tmp_path):
+    prompt = _captured_try_chain_prompt(
+        tmp_path,
+        {"type": "generated_image", "prompt": "photo-realistic product shot"},
+        {"visual_style": "soft sketch lines, cream background, no text in images"},
+    )
+
+    assert prompt == (
+        "soft sketch lines, cream background, no text in images, "
+        "photo-realistic product shot"
+    )
+
+
+def test_visual_style_override_ignores_split_niche_fields(tmp_path):
+    prompt = _captured_try_chain_prompt(
+        tmp_path,
+        {"type": "generated_image", "prompt": "photo-realistic product shot"},
+        {
+            "visual_style": "project-specific archival style",
+            "style_prefix": "clean sketch",
+            "medium_hint": "soft sketch lines",
+            "palette": "cream background",
+            "subject_bias": "same parent-child duo",
+            "universal_rules": "no clutter",
+        },
+    )
+
+    assert prompt == "project-specific archival style, photo-realistic product shot"
+
+
 
 
 def test_sidecar_png_written_after_generation(tmp_path):

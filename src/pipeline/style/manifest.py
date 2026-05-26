@@ -27,6 +27,22 @@ _MEDIUM_KEYWORDS = (
 )
 
 
+def _medium_descriptor_warnings(value: str, field_name: str) -> list[str]:
+    clashing = [
+        kw
+        for kw in _MEDIUM_KEYWORDS
+        if re.search(rf"\b{re.escape(kw)}\b", value, re.IGNORECASE)
+    ]
+    if not clashing:
+        return []
+    return [
+        f"{field_name} contains medium descriptor(s) {clashing!r} that may conflict "
+        "with photo-realistic generated_image prompts. The assembler suppresses "
+        "medium_hint for photo-realistic scenes; use visual.skip_niche_style: true "
+        "only when all niche styling must be removed."
+    ]
+
+
 @dataclass
 class StyleElement:
     id: str
@@ -80,17 +96,32 @@ def build_manifest(storyboard_path: Path) -> StyleManifest:
             )
         )
 
-    # 2. visual_style (niche image-prompt prefix)
-    if vs := theme.get("visual_style"):
-        warnings: list[str] = []
-        clashing = [kw for kw in _MEDIUM_KEYWORDS if re.search(rf"\b{re.escape(kw)}\b", vs, re.IGNORECASE)]
-        if clashing:
-            warnings.append(
-                f"Contains medium descriptor(s) {clashing!r} that may conflict with "
-                "photo-realistic generated_image prompts. "
-                "Use visual.skip_niche_style: true on affected scenes, "
-                "or restructure in E4 Slice 3."
+    # 2. Split niche image-prompt fields
+    for theme_key, element_id in (
+        ("medium_hint", "medium_hint"),
+        ("palette", "palette"),
+        ("subject_bias", "subject_bias"),
+    ):
+        if value := theme.get(theme_key):
+            warnings = (
+                _medium_descriptor_warnings(value, "medium_hint")
+                if theme_key == "medium_hint"
+                else []
             )
+            elements.append(
+                StyleElement(
+                    id=element_id,
+                    kind="image_prompt_prefix",
+                    value=value,
+                    source="project_theme",
+                    scope="generated_image_scenes",
+                    theme_key=theme_key,
+                    warnings=warnings,
+                )
+            )
+
+    # 3. visual_style (legacy/composite image-prompt prefix)
+    if vs := theme.get("visual_style"):
         elements.append(
             StyleElement(
                 id="visual_style",
@@ -99,11 +130,10 @@ def build_manifest(storyboard_path: Path) -> StyleManifest:
                 source="project_theme",
                 scope="generated_image_scenes",
                 theme_key="visual_style",
-                warnings=warnings,
             )
         )
 
-    # 3. intro_transition_style
+    # 4. intro_transition_style
     if trans := theme.get("intro_transition_style"):
         slug = trans.replace("-", "_").replace(" ", "_")
         elements.append(
@@ -117,7 +147,7 @@ def build_manifest(storyboard_path: Path) -> StyleManifest:
             )
         )
 
-    # 4. anchor_image (stored but never used — surfaces the no-op bug)
+    # 5. anchor_image (stored but never used — surfaces the no-op bug)
     if anchor := theme.get("_anchor_image"):
         elements.append(
             StyleElement(
@@ -135,7 +165,7 @@ def build_manifest(storyboard_path: Path) -> StyleManifest:
             )
         )
 
-    # 5. Per-scene overrides
+    # 6. Per-scene overrides
     for scene in scenes:
         sid = scene.get("id") or scene.get("scene_id", "")
         vis = scene.get("visual", {})
@@ -148,7 +178,7 @@ def build_manifest(storyboard_path: Path) -> StyleManifest:
                 PerSceneOverride(scene_id=sid, kind="style_modifier", value=modifier)
             )
 
-    # 6. callout overlay (aggregate-by-type): line charts with markers carry
+    # 7. callout overlay (aggregate-by-type): line charts with markers carry
     #    collision-placed callouts. Derived from chart data, not a theme global.
     callout_scenes = [
         (scene.get("id") or scene.get("scene_id", ""))
