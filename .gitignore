@@ -31,3 +31,9 @@ temp/
 !.agent-memory/engineering-manager/charter.md
 !.agent-memory/engineering-manager/standards.md
 !.agent-memory/engineering-manager/test-plan.md
+# storyboard-critic: standing standards + per-project loop reviews travel with the
+# committed agent (mirrors engineering-manager). Other agent-memory stays local.
+!.agent-memory/storyboard-critic/
+.agent-memory/storyboard-critic/*
+!.agent-memory/storyboard-critic/standards.md
+!.agent-memory/storyboard-critic/reviews/

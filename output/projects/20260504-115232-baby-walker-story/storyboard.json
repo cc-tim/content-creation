@@ -195,10 +195,15 @@
         "f4"
       ],
       "visual": {
-        "type": "text_card",
-        "text": "“I don’t think this idea of a baby-walker took off.”"
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/Learning_to_walk.png",
+        "alt": "A baby in a sit-in walker, 1905 — period stand-in for the failed 1901 Sloan commercialization"
       },
-      "overlay": null,
+      "overlay": {
+        "type": "namecard",
+        "name": "\"I don't think this idea of a baby-walker took off\"",
+        "role": "historian on Sloan's 1901 ad — photo: 1905"
+      },
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "1901 — the first time someone tried to make it a mass-market product. Canadian hotelier Thomas Sloan placed an ad in the Ottawa Journal. There was no market. A historian later put it this way:"
@@ -801,10 +806,15 @@
         "f35"
       ],
       "visual": {
-        "type": "text_card",
-        "text": "\"virtually impossible for the CPSC to ban a consumer product\"\n— Oriene Shin, Consumer Reports policy counsel, 2024"
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/north_america_blank_map.png",
+        "alt": "Blank political map of North America — the US that never banned the walker"
       },
-      "overlay": null,
+      "overlay": {
+        "type": "namecard",
+        "name": "\"virtually impossible for the CPSC to ban a consumer product\"",
+        "role": "Oriene Shin, Consumer Reports policy counsel, 2024"
+      },
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
         "zh-TW": 24685
@@ -940,10 +950,15 @@
         "f39"
       ],
       "visual": {
-        "type": "text_card",
-        "text": "\"do not help a child learn to walk\nand may delay motor development\"\n— AAP, 2001"
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/Baby_by_Vignesh.jpg",
+        "alt": "A child in a wheeled sit-in walker, 2022 — the device the AAP says does not help"
       },
-      "overlay": null,
+      "overlay": {
+        "type": "namecard",
+        "name": "\"do not help a child learn to walk and may delay motor development\"",
+        "role": "American Academy of Pediatrics, 2001"
+      },
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
         "zh-TW": 13766
@@ -1100,10 +1115,14 @@
         "f18"
       ],
       "visual": {
-        "type": "text_card",
-        "text": "Still legal.\nStill sold."
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/Baby_by_Vignesh.jpg",
+        "alt": "A child in a wheeled sit-in walker, 2022 — still legal, still sold"
       },
-      "overlay": null,
+      "overlay": {
+        "type": "text_emphasis",
+        "text": "Still legal. Still sold. 2024"
+      },
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "And here's the key: this product is still legal and still sold — in the US, in Taiwan, on the shelves you walk past."
@@ -1152,9 +1171,28 @@
         "f22"
       ],
       "visual": {
-        "type": "slide",
-        "text": "Sit-in walker → child suspended\nPush-toy → child upright\nMechanical inverse",
-        "layout": "comparison"
+        "type": "chart",
+        "chart_type": "comparison",
+        "title": "結構正好相反",
+        "data": {
+          "left": {
+            "label": "坐入式學步車",
+            "value": "孩子懸吊在座椅裡\n—自己不承重"
+          },
+          "right": {
+            "label": "學步推車",
+            "value": "孩子站立，自己承重\n—練習真實肌力"
+          }
+        },
+        "subtitle": "有懸吊座椅 → 突然加速 → 危險",
+        "source_credit": "AAP 2001",
+        "ai_background": true,
+        "background_prompt": "aged paper texture, soft sepia stains, faint grid",
+        "animate": {
+          "enabled": true,
+          "reveal_duration_sec": 4.0,
+          "easing": "ease_out_cubic"
+        }
       },
       "overlay": null,
       "pause_after_sec": 0.0,
@@ -1338,9 +1376,28 @@
         "f23"
       ],
       "visual": {
-        "type": "slide",
-        "text": "Wheeled sit-in — DANGER\nPush-toy — SAFE\nStationary — DIFFERENT",
-        "layout": "comparison"
+        "type": "chart",
+        "chart_type": "comparison",
+        "title": "同一個名字，三種產品",
+        "data": {
+          "left": {
+            "label": "有輪坐入式 — 危險",
+            "value": "懸吊座椅 + 輪子\n速度 + 延伸觸及 = 事故"
+          },
+          "right": {
+            "label": "學步推車 — 安全",
+            "value": "站立自推，無座椅\n練習真實步行肌力"
+          }
+        },
+        "subtitle": "定點活動架 = 無輪，另一類別",
+        "source_credit": "AAP 2001",
+        "ai_background": true,
+        "background_prompt": "aged paper texture, soft sepia stains, faint grid",
+        "animate": {
+          "enabled": true,
+          "reveal_duration_sec": 4.0,
+          "easing": "ease_out_cubic"
+        }
       },
       "overlay": null,
       "pause_after_sec": 0.5,
@@ -1358,53 +1415,27 @@
       "id": "s45",
       "section": "analysis",
       "beat": "Distills safety rule into simple terms",
-      "narration": "規則其實非常簡單。Wheels + suspended seat = the one to avoid. 有輪子加上吊式座椅，就是要避開的那一種設計。",
-      "narration_est_sec": 10.0,
+      "narration": "規則其實非常簡單。Wheels + suspended seat = the one to avoid. 同時有輪子和吊式座椅，就是要避開的那一種；少了其中一個，就是另一個產品類別。",
+      "narration_est_sec": 12.0,
       "facts_ref": [
         "f25"
       ],
       "visual": {
-        "type": "text_card",
-        "text": "Wheels + suspended seat\n= the one to avoid"
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/Baby_Walker.jpg",
+        "alt": "Push-toy walker — the opposite of the design to avoid"
       },
-      "overlay": null,
+      "overlay": {
+        "type": "namecard",
+        "name": "\"Wheels + suspended seat = the one to avoid\"",
+        "role": "the rule"
+      },
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "The rule is simple. Wheels plus a suspended seat — the one to avoid."
       },
-      "narration_durations_ms": {
-        "zh-TW": 10422
-      },
-      "narration_text_hashes": {
-        "zh-TW": "1fcf86d59092"
-      }
-    },
-    {
-      "id": "s46",
-      "section": "analysis",
-      "beat": "Provides clear identification criteria for dangerous products",
-      "narration": "兩個關鍵字：「輪子」和「吊式座椅」。同時有，就是危險款；少一個，就是另一個產品類別。",
-      "narration_est_sec": 9.0,
-      "facts_ref": [
-        "f25",
-        "f26"
-      ],
-      "visual": {
-        "type": "slide",
-        "text": "Wheels + suspended seat → AVOID\nNo wheels → different\nPush-toy → opposite",
-        "layout": "comparison"
-      },
-      "overlay": null,
-      "pause_after_sec": 0.0,
-      "narration_alt": {
-        "en": "Wheels and a suspended seat together — that's the one. No wheels means a different category. A stand-behind push-toy is the opposite design."
-      },
-      "narration_durations_ms": {
-        "zh-TW": 7810
-      },
-      "narration_text_hashes": {
-        "zh-TW": "cc440429623d"
-      }
+      "narration_durations_ms": {},
+      "narration_text_hashes": {}
     },
     {
       "id": "s47",
