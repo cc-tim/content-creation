@@ -16,7 +16,7 @@
 > video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
 > the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-05-26 (INTAKE: **production-project greenlight gate** added — a sibling `production-projects.md` queue tracks candidate *videos* behind a video-producer greenlight [governance rule in `standards.md`], with the **childhood-bloating explainer** as its first entry [parked, not greenlit]; the EM surfaces the gate every dispatch but does not clear it or produce videos. Prior: 4 ideas folded — 3D scene renderer + AI image-to-video [E2]; social-media B-roll [future-tasks]; real-scene demo [cross-cutting]; E7 Audio arsenal epic created. Recommended next sprint UNCHANGED = Sprint 6, E4 Slice 3) · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-05-27 (SPRINT: **Sprint 6 (E4 Slice 3) formally PROPOSED** — niche `visual_style` medium-clash refactor; flipped from sketched → ▶ next PROPOSED with a copy-pasteable starting prompt + full spec + 6 test-plan rows in `sprint-log.md`; four prior open questions resolved as decisions; acceptance includes a baby-walker s25 real-scene demo. Build deltas NOT pre-applied [no 🔵→🟢 until REVIEW PASS]. Prior: production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; 4 ideas folded — 3D scene renderer + AI image-to-video [E2], social-media B-roll [future-tasks], real-scene demo [cross-cutting], E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -394,14 +394,21 @@ Shipped on `feat/callout-overlay-v1`. Plan:
   primitive); **zero runtime**; no code-level fence in v1 (no animation yet — that fence
   lands with the E3 v2 animated entrance).
 
-### ▶ Sprint 6 — Niche `visual_style` medium-clash refactor (E4 Slice 3)  `[E4]`  🔵 *next — sketched (rolled from the prior Sprint-5 proposal per Tim's 2026-05-22 pivot)*
+### ▶ Sprint 6 — Niche `visual_style` medium-clash refactor (E4 Slice 3)  `[E4]`  🔵 *▶ next — PROPOSED 2026-05-27 (formalized from the Sprint-6 sketch; awaiting build session)*
 Split the niche template's monolithic `visual_style` into `medium_hint` / `palette` /
 `subject_bias` / `universal_rules` so the assembler at `composer/base.py:328-340` stops
 fusing a medium descriptor onto photo-realistic prompts (surreal baby-walker s25 output,
 today masked by the blunt `skip_niche_style` toggle). Backwards-compat `visual_style`
-composite preserved. Visual-quality axis (fixes existing degradation); zero runtime. The
-full 11-part proposal is preserved in `sprint-log.md` (annotated "superseded as Sprint 5;
-rolled to Sprint 6").
+composite preserved (the per-video `theme.visual_style` override at `storyboard.py:260`
+still wins). Four prior open questions resolved as decisions (hand-author parenting +
+true-crime fields, heuristic auto-split as fallback only; keep `skip_niche_style` as hard
+override; keyword-list medium detection, no taxonomy change; bug fix lands now). Acceptance
+includes a **baby-walker s25 real-scene demo** (standards step-6) — frame-level proof the
+surreal medium contamination is gone. Visual-quality axis (fixes existing degradation);
+zero runtime; no new loud-failure surface (the suppression is a feature, not a silent
+fallback). Copy-pasteable starting prompt + full spec in `sprint-log.md`
+(2026-05-27 entry). Not greenlit-to-build yet; build is a separate session and must pass
+the EM REVIEW gate before merge.
 
 ### Later / unscoped backlog
 - Animated overlays v2+ (E3): **animated entrance** for the callout primitive + lower-thirds
