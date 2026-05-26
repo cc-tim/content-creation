@@ -406,8 +406,21 @@
         "f7"
       ],
       "visual": {
-        "type": "text_card",
-        "text": "38% of admissions:\nskull fractures"
+        "type": "chart",
+        "chart_type": "stat_big_number",
+        "title": "送醫住院的孩子",
+        "data": {
+          "value": "38%",
+          "unit": "顱骨骨折"
+        },
+        "ai_background": true,
+        "background_prompt": "aged paper texture, soft sepia stains, faint grid",
+        "source_credit": "Pediatrics, 2018",
+        "animate": {
+          "enabled": true,
+          "reveal_duration_sec": 4.5,
+          "easing": "ease_out_cubic"
+        }
       },
       "overlay": null,
       "pause_after_sec": 0.0,
@@ -833,10 +846,14 @@
         "f36"
       ],
       "visual": {
-        "type": "text_card",
-        "text": "Still legal · Still sold · 2024\nAAP + Consumer Reports renew the ban call"
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/north_america_blank_map.png",
+        "alt": "Political map of North America — the US chose design standards over a ban under manufacturer lobbying pressure"
       },
-      "overlay": null,
+      "overlay": {
+        "type": "text_emphasis",
+        "text": "美國選擇設計標準，而非禁令"
+      },
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
         "zh-TW": 17998
@@ -1792,12 +1809,6 @@
     },
     {
       "from": "s45",
-      "to": "s46",
-      "style": "none",
-      "duration_sec": 0.0
-    },
-    {
-      "from": "s46",
       "to": "s47",
       "style": "none",
       "duration_sec": 0.0
