@@ -16,7 +16,7 @@
 > video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
 > the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-05-27 (SPRINT: **Sprint 6 (E4 Slice 3) formally PROPOSED** — niche `visual_style` medium-clash refactor; flipped from sketched → ▶ next PROPOSED with a copy-pasteable starting prompt + full spec + 6 test-plan rows in `sprint-log.md`; four prior open questions resolved as decisions; acceptance includes a baby-walker s25 real-scene demo. Build deltas NOT pre-applied [no 🔵→🟢 until REVIEW PASS]. Prior: production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; 4 ideas folded — 3D scene renderer + AI image-to-video [E2], social-media B-roll [future-tasks], real-scene demo [cross-cutting], E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-05-27 (REVIEW PASS: **Sprint 6 (E4 Slice 3) shipped** — niche `visual_style` medium-clash refactor split `medium_hint` / `palette` / `subject_bias` / `universal_rules`, preserved the back-compat composite, and passed EM REVIEW on `feat/niche-visual-style-split`; s25 demo evidence saved under `tmp/niche-visual-style-split/`. Prior: Sprint 6 formally proposed; production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -176,7 +176,7 @@ collision-checker in `overlay_rules.py`). E3 adds **placement intelligence and m
   now raise `SceneRenderError` (loud). **v2+:** animated entrance for the callout,
   lower-thirds, CapCut word-by-word subtitles (static→animated split mirrors E1→E2).
 
-### E4 — Style Manifest & traceability  `[infra · cross-cutting]`  🟡 *Slices 1–2 + 4 shipped (Sprint 3); Slice 3 sketched as Sprint 6 (rolled from Sprint 5 per Tim's pivot)*
+### E4 — Style Manifest & traceability  `[infra · cross-cutting]`  🟢 *Slices 1–4 shipped; Slice 5 dashboard surface rolled to E6*
 A first-class inventory of every style element active on a project — where it came from,
 which scenes it applies to, how to remove it. Surfaces today's *silent globals*
 (`frame_style`, niche `visual_style`, the unused anchor PNG, seed, rich_slide bg default).
@@ -185,14 +185,15 @@ which scenes it applies to, how to remove it. Surfaces today's *silent globals*
 - **Shipped (Sprint 3):** `src/pipeline/style/` package; `pipeline style list/add/remove`;
   append-only `style_log.json`; `anchor_image` dead-code removed (Slice 4 — the no-op was
   deleted; img2img re-implementation explicitly deferred).
-- **Remaining:** **Slice 3** — niche `visual_style` medium-clash root refactor (split into
-  `medium_hint`/`palette`/`subject_bias`/`universal_rules`; the prompt assembler in
-  `composer/base.py:328-340` consumes them at element granularity instead of the
-  all-or-nothing `skip_niche_style` symptom-fix) — **sketched as Sprint 6** (was the prior
-  Sprint-5 proposal; rolled per Tim's 2026-05-22 E3 pivot). **Slice 5** — dashboard Style
-  panel (rolls to E6 surfaces).
-- **Concrete bug still open:** niche `visual_style` contradicts photo-realistic prompts
-  (surreal output on baby-walker; the Slice 3 target).
+- **Shipped (Sprint 6):** **Slice 3** — niche `visual_style` medium-clash root refactor
+  split template style into `medium_hint`/`palette`/`subject_bias`/`universal_rules`; the
+  prompt assembler consumes palette + universal rules for all generated-image prompts and
+  suppresses medium/subject hints when the scene prompt already specifies a photographic
+  medium or strong subject. `visual.skip_niche_style` remains the explicit all-style escape
+  hatch. EM REVIEW returned PASS on `feat/niche-visual-style-split`.
+- **Rolled:** **Slice 5** — dashboard Style panel (E6 surfaces).
+- **Concrete bug fixed:** niche `visual_style` no longer forces sketch/open-book medium
+  contamination onto photo-realistic generated-image prompts.
 
 ### E5 — Scene validation & visual-decision checkpoint  `[infra · quality gate]`  🟢 *v1 shipped (Sprints 1, 4) — handoff doc no longer on disk*
 Defense-in-depth: a storyboard-write-time validator (per-type checks, taxonomy drift
@@ -394,21 +395,22 @@ Shipped on `feat/callout-overlay-v1`. Plan:
   primitive); **zero runtime**; no code-level fence in v1 (no animation yet — that fence
   lands with the E3 v2 animated entrance).
 
-### ▶ Sprint 6 — Niche `visual_style` medium-clash refactor (E4 Slice 3)  `[E4]`  🔵 *▶ next — PROPOSED 2026-05-27 (formalized from the Sprint-6 sketch; awaiting build session)*
-Split the niche template's monolithic `visual_style` into `medium_hint` / `palette` /
-`subject_bias` / `universal_rules` so the assembler at `composer/base.py:328-340` stops
-fusing a medium descriptor onto photo-realistic prompts (surreal baby-walker s25 output,
-today masked by the blunt `skip_niche_style` toggle). Backwards-compat `visual_style`
-composite preserved (the per-video `theme.visual_style` override at `storyboard.py:260`
-still wins). Four prior open questions resolved as decisions (hand-author parenting +
-true-crime fields, heuristic auto-split as fallback only; keep `skip_niche_style` as hard
-override; keyword-list medium detection, no taxonomy change; bug fix lands now). Acceptance
-includes a **baby-walker s25 real-scene demo** (standards step-6) — frame-level proof the
-surreal medium contamination is gone. Visual-quality axis (fixes existing degradation);
-zero runtime; no new loud-failure surface (the suppression is a feature, not a silent
-fallback). Copy-pasteable starting prompt + full spec in `sprint-log.md`
-(2026-05-27 entry). Not greenlit-to-build yet; build is a separate session and must pass
-the EM REVIEW gate before merge.
+### Sprint 6 — Niche `visual_style` medium-clash refactor (E4 Slice 3)  `[E4]`  🟢 *shipped 2026-05-27 — EM REVIEW PASS*
+Shipped on `feat/niche-visual-style-split`. Split the niche template's monolithic
+`visual_style` into `medium_hint` / `palette` / `subject_bias` / `universal_rules` so the
+assembler applies palette + universal rules to all generated-image prompts, but suppresses
+medium and subject hints when the scene prompt already specifies a photo-realistic medium or
+strong explicit subject. Backwards-compat `visual_style` composite preserved: per-video
+`theme.visual_style` still wins, style-anchor/direct/validator references remain compatible,
+and `pipeline style add image_prompt_prefix` still maps to the composite for v1. `skip_niche_style`
+remains the explicit hard override.
+
+Tests: `uv run pytest tests/unit/test_niche_templates.py tests/unit/test_image_style.py
+tests/unit/test_style_manifest.py -q` (61 passed), `uv run ruff check src/ tests/`, and
+`uv run mypy src/`. Extra guard: compose forwards split niche fields into `render_scene`.
+Real-scene demo evidence saved at `tmp/niche-visual-style-split/`: the old baby-walker s25
+product-shot prompt now assembles without `medium_hint`, retains palette/rules, and sampled
+frames show a clean product shot without the previous open-book/sketch contamination.
 
 ### Later / unscoped backlog
 - Animated overlays v2+ (E3): **animated entrance** for the callout primitive + lower-thirds

@@ -52,12 +52,12 @@ then `uv run ruff check src/ tests/ && uv run mypy src/`.
 | append-only `style_log.json` | `tests/unit/test_style_manifest.py` | ✅ |
 | `pipeline style list/add/remove` CLI | `tests/unit/test_style_manifest.py` | ✅ |
 | anchor_image surfaced INACTIVE (dead-code removed) | `tests/unit/test_style_anchor.py` | ✅ |
-| niche template load/save round-trip with split fields + legacy auto-split heuristic | `tests/unit/test_niche_templates.py` (new) | 🔲 planned (Sprint 6) |
-| assembler: photo-realistic prompt suppresses `medium_hint` (assembled prompt asserted) | `tests/unit/test_image_style.py` | 🔲 planned (Sprint 6) |
-| assembler: non-photo prompt retains `medium_hint` | `tests/unit/test_image_style.py` | 🔲 planned (Sprint 6) |
-| assembler: legacy-only `visual_style` composite renders identically (back-compat) | `tests/unit/test_image_style.py` | 🔲 planned (Sprint 6) |
-| manifest surfaces `medium_hint`/`palette`/`subject_bias` as separate elements + medium-warning re-pointed at `medium_hint` | `tests/unit/test_style_manifest.py` | 🔲 planned (Sprint 6) |
-| s25 real-scene demo: re-render baby-walker s25 with new assembler, frame-level confirm no surreal medium contamination | manual REVIEW evidence (logged in `sprint-log.md` on PASS) | 🔲 planned (Sprint 6) |
+| niche template load/save round-trip with split fields + legacy auto-split heuristic | `tests/unit/test_niche_templates.py` (new) | ✅ shipped Sprint 6 |
+| assembler: photo-realistic prompt suppresses `medium_hint` (assembled prompt asserted) | `tests/unit/test_image_style.py` | ✅ shipped Sprint 6 |
+| assembler: non-photo prompt retains `medium_hint` | `tests/unit/test_image_style.py` | ✅ shipped Sprint 6 |
+| assembler: legacy-only `visual_style` composite renders identically (back-compat) | `tests/unit/test_image_style.py` | ✅ shipped Sprint 6 |
+| manifest surfaces `medium_hint`/`palette`/`subject_bias` as separate elements + medium-warning re-pointed at `medium_hint` | `tests/unit/test_style_manifest.py` | ✅ shipped Sprint 6 |
+| s25 real-scene demo: re-render baby-walker s25 with new assembler, frame-level confirm no surreal medium contamination | manual REVIEW evidence in `tmp/niche-visual-style-split/` | ✅ REVIEW PASS Sprint 6 |
 
 ## E5 — Validation / checkpoint 🟢 (v1)
 
