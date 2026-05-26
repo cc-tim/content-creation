@@ -6,9 +6,15 @@ Tim-confirmed). Skill-managed.
 
 ## The two axes (guard this hardest)
 
-- Richer rendering — charts, animation, overlays — fixes **visual quality / slideshow
-  risk**. It does **NOT** add **runtime**. A 4–5 min story rendered beautifully is still
-  4–5 min. Runtime is bought with MORE distinct beats (more story / more sources).
+- **Quality now spans visual AND audio; the runtime invariant is unchanged.** The axes are
+  fundamentally **quality vs runtime**. Visual was the only quality sub-axis only because it
+  was the only thing on the menu; E7 (2026-05-26) adds the **audio** sub-axis (SFX/ambient
+  layering, mix legibility). SFX/ambient over a 4-min scene adds zero seconds, exactly as
+  richer rendering does not — do NOT let an audio sprint claim runtime either.
+- Richer rendering — charts, animation, overlays — **or richer audio** — fixes **production
+  quality / slideshow risk**. It does **NOT** add **runtime**. A 4–5 min story rendered
+  beautifully (or scored beautifully) is still 4–5 min. Runtime is bought with MORE distinct
+  beats (more story / more sources).
 - Every sprint names which axis it serves. Never let a sprint claim it "extends the video"
   by dressing up beats already on hand. (Source: producer loop 4, baby-walker — material
   greenlit for ~4–5 min did not reach a 6–8 min ask; charts/animation would not have closed
@@ -28,8 +34,15 @@ until it has ALL of:
    validator when that lands.
 4. Golden-PNG tests (one per sub-variant).
 5. `overlay_rules.py` wiring (does it carry its own text / suppress the narration subtitle?).
-6. Eventually: a Style Manifest element (E4) and a dashboard surface (E6).
-   Sprints 1–N may defer 6, but must name it as deferred, not forget it.
+6. **Real-scene demonstration.** Pick a canonical scene from a *recent real project* (not
+   a synthetic fixture) and render the new capability against it end-to-end, sampling
+   rendered mp4 frames to confirm it reads right in production — goldens prove determinism,
+   the demo proves it works on real content. This is existing practice (Sprint 1 baby-walker
+   stat scenes; Sprint 2/5 s21 decline-curve verified end-to-end), now codified. (Idea A,
+   2026-05-26: Tim wants new arsenal skills demonstrably verified against a real scene, not
+   only against fixtures.)
+7. Eventually: a Style Manifest element (E4) and a dashboard surface (E6).
+   Sprints 1–N may defer 7, but must name it as deferred, not forget it.
 
 **Lessons from Sprint 2 (animation):**
 - **Frame generators are PURE.** Contract: `(progress, visual, base_bg, w, h, palette,
@@ -101,6 +114,43 @@ until it has ALL of:
 - Don't fork a parallel backlog from `docs/future-tasks.md`; absorb rendering items into
   the epics and cross-link.
 
+## Production-project greenlight gate (governance — 2026-05-26, Tim)
+
+A second class of work now lives in my queue: **production video projects** (candidate
+videos), tracked in `.agent-memory/engineering-manager/production-projects.md`. They are a
+distinct entity from capability work and obey a standing three-part rule. **I track and
+surface the gate; I do NOT clear it (Tim, as video-producer, does) and I do NOT produce the
+video.**
+
+1. **Greenlight gate.** A parked production project must carry an explicit **video-producer
+   greenlight** flag before it can become a sprint nominee. Until greenlit it stays
+   **blocked**. The greenlight is a content/quality decision (Tim wearing the video-producer
+   hat), separate from my engineering role.
+2. **Backlog-review notification — every dispatch, every mode (INTAKE/SPRINT/REVIEW).** I
+   scan `production-projects.md` and emit a fixed `## Production-project gate status` block in
+   my reply: one `Blocked — awaiting greenlight: <title>` line per un-greenlit project, or an
+   explicit all-clear line if none are blocked (and an "(none tracked)" line if the file is
+   empty). **The block always prints** so its absence never reads as "the EM forgot." This is
+   not optional and is independent of mode. (Use a `notify-result` call too if that channel is
+   available; the in-reply block is the floor.)
+3. **Nomination rule.** Once a project receives video-producer greenlight it becomes a
+   nominee for the **next sprint slot** *unless* a very-high-impact capability sprint is
+   currently ongoing.
+
+**Capability sprint ≠ production-project sprint slot — keep them distinct.** A *capability
+sprint* I scope and propose end-to-end (my normal SPRINT output, gated by my REVIEW). A
+*production-project slot* I only **nominate** — the actual video production happens elsewhere
+(content work), not in a capability build session. Never silently start scoping a production
+video as if it were a capability sprint.
+
+**Pinned definitions (so future-me doesn't relitigate):**
+- *"Very-high-impact capability sprint ongoing"* — a capability sprint that has multiple
+  converging demand pointers AND/OR is fixing actively-degraded output today (the exact bar
+  Sprint 6 / E4 Slice 3 clears). If such a sprint is ongoing, it pre-empts a greenlit
+  production project for the slot; otherwise the greenlit production project takes it.
+- *"Currently ongoing"* — greenlit-and-in-flight. A sprint that is merely proposed-but-not-
+  yet-greenlit does NOT count as ongoing for pre-emption purposes.
+
 ## Definition of done (the REVIEW gate)
 
 - **A greenlit arsenal sprint is not "done" until I pass it in REVIEW mode.** This is the
@@ -115,6 +165,11 @@ until it has ALL of:
 - **Verdict is one of three:** `REWORK` (specific must-fix gaps; status does NOT advance),
   `ADVISE` (acceptance met, with recommendations), `PASS` (acceptance met). I check the
   two-axes claim held (no runtime smuggled in via an arsenal item) before any PASS.
+- **Real-scene demo is part of the gate** for any new visual/audio *capability* (not for a
+  pure-refactor/infra sprint): before PASS I require evidence the build was demonstrated
+  against a canonical scene on a recent real project (rendered-frame check), not only against
+  golden fixtures. Goldens prove determinism; the demo proves it works on real content.
+  (Idea A, 2026-05-26.)
 - **Only PASS advances state:** move ROADMAP 🔵→🟢, refresh `arsenal-state.md`, flip the
   `test-plan.md` rows to ✅. Always append the verdict to `sprint-log.md`.
 

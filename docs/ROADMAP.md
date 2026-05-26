@@ -7,8 +7,16 @@
 > and surface. Producing individual videos is **not** tracked here; that is content
 > work. When this file and a `tmp/*-handoff.md` design doc disagree, the handoff is the
 > detailed spec and this file is the prioritized plan of record.
+>
+> **Production-project queue (sibling, 2026-05-26):** candidate *videos* parked for a
+> future sprint slot are tracked separately in
+> `.agent-memory/engineering-manager/production-projects.md`, gated by an explicit
+> **video-producer greenlight** (a content/quality call Tim makes; the EM tracks and
+> surfaces the gate and nominates greenlit projects, but does not clear it or produce the
+> video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
+> the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-05-23 (Sprint 5 SHIPPED — E3 callout overlay primitive v1; E4 Slice 3 = Sprint 6 next) · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-05-26 (INTAKE: **production-project greenlight gate** added — a sibling `production-projects.md` queue tracks candidate *videos* behind a video-producer greenlight [governance rule in `standards.md`], with the **childhood-bloating explainer** as its first entry [parked, not greenlit]; the EM surfaces the gate every dispatch but does not clear it or produce videos. Prior: 4 ideas folded — 3D scene renderer + AI image-to-video [E2]; social-media B-roll [future-tasks]; real-scene demo [cross-cutting]; E7 Audio arsenal epic created. Recommended next sprint UNCHANGED = Sprint 6, E4 Slice 3) · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -23,10 +31,12 @@ weapons (know-fountains `CLAUDE.md` → "Elevating the visual arsenal").
 
 | Axis | What moves it | What does NOT move it |
 |------|---------------|------------------------|
-| **Visual quality / slideshow-risk** | richer rendering — charts, animation, overlays | — |
-| **Runtime** | more distinct beats (more story / more sources) | richer rendering. A 4–5 min story rendered beautifully is still 4–5 min. |
+| **Production quality (visual + audio)** | richer rendering — charts, animation, overlays — **and** richer audio — SFX/ambient layering, mix legibility (E7) | — |
+| **Runtime** | more distinct beats (more story / more sources) | richer rendering OR richer audio. A 4–5 min story rendered beautifully — or scored beautifully — is still 4–5 min. |
 
 Every sprint states which axis it serves. We never promise runtime from an arsenal item.
+(The quality axis spans **both** visual and audio capability; the runtime invariant is
+unchanged by either.)
 
 ---
 
@@ -92,9 +102,10 @@ See `.agent-memory/engineering-manager/arsenal-state.md` for the living inventor
 
 ## Epics
 
-Three are the **arsenal-direction** epics (the demand-driven backlog: programmatic charts,
-programmatic animation, animated overlays). Three are **cross-cutting infrastructure** that
-the arsenal needs in order to be traceable, safe, and iterable.
+Four are **arsenal-direction** epics (the demand-driven backlog: programmatic charts,
+programmatic animation, animated overlays, and — newest — the **audio arsenal**, E7). Three
+are **cross-cutting infrastructure** that the arsenal needs in order to be traceable, safe,
+and iterable.
 
 ### E1 — Programmatic charts  `[arsenal]`  🟢 *v1 shipped (Sprint 1)*
 Render data as **styled editorial graphics** (warm sepia / book-page feel), never a Plotly
@@ -114,9 +125,29 @@ Motion generated in-pipeline. v1 covers animated chart reveals for `line` / `bar
 **merged animated decline-curve** (1990→2014 with six regulation markers) is wired into
 s21 as the acceptance vehicle.
 - **Remaining in epic:** animated reveals for `proportion_blocks` / `timeline` /
-  `comparison`; Ken Burns push/zoom on stills; a *true* book-page-turn (current is an
-  approximation).
-- **Source:** chart handoff open-Q1; narrative-history handoff; future-tasks.
+  `comparison`; a *true* book-page-turn (current is an approximation).
+  - **NOTE — already shipped (not "remaining"):** camera-motion image-to-motion is
+    *done* — `image_to_video` applies a slow Ken Burns zoom to every still by default,
+    `_camera_motion_to_video` supports `slow_push_pan` / `ken_burns` with configurable
+    zoom (`composer/base.py`), and `composer/image_sequence.py` is a per-image
+    Ken-Burns sequencer. Do not re-scope these as new work.
+  - **🔵 3D scene renderer (Blender backend)** — true 3D geometry / mesh / physical
+    lighting for video segments or still frames, the quality tier Pillow/FFmpeg 2.5D
+    cannot reach. **First application:** a stock-quality book-page-turn (the current
+    `book-page-turn-v2` is a 2.5D approximation). Spec already on disk:
+    `docs/superpowers/plans/2026-05-13-3d-book-page-renderer-evaluation.md` (Blender
+    headless, analytic page-curl mesh, reuses the `BookSceneSpec` geometry contract,
+    Pillow v2 kept as fallback; "test example" = the benchmark/review-sheet harness in
+    that plan's Slice 1). Demand-future, not demand-now — sits below Sprint 6 in the
+    queue. *(Idea B, INTAKE 2026-05-26.)*
+  - **🔵 AI image-to-video motion (beyond camera moves)** — true generated motion
+    (parallax, subject/element animation) for beats where a static image + Ken Burns
+    still reads as a slide. Uses the `generate-video` skill tier ($0.029/sec budget →
+    $0.050/sec premium; cache by prompt hash). **Distinct from the shipped camera-motion
+    path above** — this is generated motion, not a zoom/pan over a fixed frame.
+    Demand-future, not demand-now. *(Idea C, INTAKE 2026-05-26.)*
+- **Source:** chart handoff open-Q1; narrative-history handoff; future-tasks; 3D
+  book-page renderer eval plan (2026-05-13); `generate-video` skill (image→video tier).
 - **Depends on:** E1 (animated reveal needs the static chart substrate). ✅
 - **Unblocks:** the decline-curve; count-up + bar-grow on stat-heavy beats; trend-over-time
   beats via `line`. **Does NOT** add runtime — `reveal_duration_sec` validated
@@ -183,6 +214,38 @@ Contract panel, render-freshness warnings, transition UI redesign, preview conta
 and (later) Style/Decision panels feeding from E4/E5.
 - **Source:** `tmp/dashboard-transition-workflow-improvement-plan.md` (5 phases). Some
   transition/frame groundwork already shipped (`book-page-turn-v2`, open-book frame).
+
+### E7 — Audio arsenal & SFX legibility  `[arsenal · audio]`  🔵 *new epic (2026-05-26, Tim-approved)*
+The **audio axis** of the quality north star. Until now the EM mandate was visual-only; E7
+formally extends it to what the pipeline can *score, layer, and surface* in sound — SFX,
+ambient, music — with the same standards (traceability, loud failure, two-axes discipline).
+Quality now spans visual **and** audio; the **runtime invariant is unchanged** — SFX/ambient
+over a 4-min scene adds zero seconds, exactly as richer rendering does not.
+- **Audio baseline today (what ships):** SFX is **transition-scoped** (`Transition.sfx`,
+  `src/pipeline/storyboard.py:27`); the only multi-cue mixing is
+  `book_scene._build_paged_sfx_track` (`src/pipeline/composer/book_scene.py:554`, `amix` of N
+  page-turn hits). Asset pool: `assets/sfx/` (today `page_turn.wav` + `.gitkeep`). Dashboard
+  substrate: `/api/sfx/list` + `/api/sfx/upload` (`src/pipeline/dashboard/server.py:55-796`).
+  A general per-scene SFX / ambient / music layer does **not** exist yet.
+- **Source / design spec:** `docs/superpowers/specs/2026-05-15-book-page-turn-sfx-design.md`
+  (the existing page-turn SFX design). Demand raised 2026-05-26 (INTAKE); Tim approved the
+  formal epic.
+- **Folded-in backlog (both 🔵 designed-not-built — neither is "next"):**
+  1. **SFX asset registry / config legibility + cross-project reuse** — a catalog over
+     `assets/sfx/` with per-asset metadata (name, source, license, default volume/role) so
+     SFX choices are legible in storyboard/config and reusable across projects instead of
+     re-discovered per video. *(Migrated 2026-05-26 from `docs/future-tasks.md` → Pipeline &
+     Infrastructure.)*
+  2. **SFX layer / overlap visibility (dashboard surface)** — surface the SFX cues active on
+     a project (and where they overlap) so layering is manageable from the dashboard rather
+     than hand-traced through the storyboard. **Scope caveat:** today's "overlap" is
+     transition-SFX bleeding into adjacent narration — a general per-scene SFX layer does not
+     exist yet, so this partly anticipates demand. *(Migrated 2026-05-26 from the E6
+     "Later/unscoped backlog"; it sits in E7 now, not E6, because audio is its own axis even
+     though item 2 is delivered as a dashboard surface.)*
+- **Depends on:** none blocking for the registry (item 1); item 2 leans on the E6 dashboard
+  surface machinery. **Unblocks:** legible, reusable, traceable audio — an **audio-quality**
+  lift. **Does NOT** add runtime.
 
 ---
 
@@ -347,6 +410,10 @@ rolled to Sprint 6").
   Decision table, transition preview sheets `🔵` — **partly in flight** by another agent
   (`docs/superpowers/plans/2026-05-16-dashboard-timeline-draggable-sections.md` + uncommitted
   job_queue/server edits); do not double-schedule.
+- **SFX layer visibility / overlap panel** → **migrated to E7** (Audio arsenal & SFX
+  legibility, 2026-05-26). Tim approved the formal audio epic, so this dashboard-surface
+  half moved out of the E6 backlog into E7 item 2 alongside its paired asset-registry half.
+  See the E7 epic above.
 - Ken Burns on stills; true stock-quality book-page-turn (E2 remaining) `🔵`
 - Animated reveal for `proportion_blocks` / `timeline` / `comparison` (E2 remaining) `🔵`
 - Stock-footage transition asset path (E6 Phase 5) `🔵`
@@ -369,8 +436,9 @@ The **engineering-manager** subagent owns this file. On each dispatch (via the
 
 ## Relationship to `docs/future-tasks.md`
 
-`future-tasks.md` remains the catch-all idea bin. **Arsenal/visual-rendering capabilities
-are tracked here**, not there — its "Visual & Rendering" entries that are rendering
-capabilities (Ken Burns, transition effects, animated subtitles) are absorbed into E1–E3/E6
-above. Material-acquisition and non-rendering items (B-roll sourcing, channel-brand
-templates, SQLite, discovery/observability) stay in `future-tasks.md`.
+`future-tasks.md` remains the catch-all idea bin. **Arsenal capabilities are tracked here**,
+not there — its "Visual & Rendering" rendering entries (Ken Burns, transition effects,
+animated subtitles) are absorbed into E1–E3/E6, and **audio-arsenal items** (the SFX asset
+registry / reuse, migrated 2026-05-26) are absorbed into **E7**. Material-acquisition and
+non-rendering items (B-roll sourcing, channel-brand templates, SQLite,
+discovery/observability) stay in `future-tasks.md`.

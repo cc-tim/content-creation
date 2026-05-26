@@ -70,9 +70,16 @@ then `uv run ruff check src/ tests/ && uv run mypy src/`.
 | Transition-change cache invalidation | `tests/unit/test_cli_compose_transition_invalidation.py` | ✅ |
 | Dashboard job-queue endpoints | `tests/integration/test_jobs_endpoints.py` / `tests/unit/test_job_queue.py` | ⏸️ in flight (another agent — do not double-schedule) |
 
+## E7 — Audio arsenal & SFX legibility 🔵 (new epic, 2026-05-26)
+
+_No rows yet — no E7 sprint proposed. The first E7 sprint (SFX asset registry, or the SFX
+layer-visibility dashboard surface) populates this section with its acceptance rows as
+`🔲 planned`._
+
 ## Cross-cutting
 
 | Capability | Test | Status |
 |------------|------|--------|
 | Animation-review harness | `tests/unit/test_animation_review.py` | ✅ |
 | Composer base dispatch (all visual types) | `tests/unit/test_composer_base.py` | ✅ |
+| Real-scene demonstration harness (canonical-scene picker + run a new capability against it) — _tooling half of Idea A; the REVIEW-gate requirement itself is in `standards.md`, this row tracks the picker/runner if/when it's built_ | _(test TBD — `tests/unit/test_demo_harness.py`)_ | 🔲 planned |

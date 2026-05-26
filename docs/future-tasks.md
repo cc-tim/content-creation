@@ -12,7 +12,8 @@ Improvements and features to revisit after the v2 compose engine is stable.
 - [→ ROADMAP E3] **Center-screen animated subtitles for Shorts** — Word-by-word highlight, CapCut style. → animated overlays epic.
 - [→ ROADMAP E2] **Ken Burns effect for still images** — Slow pan/zoom to add motion. → programmatic animation epic.
 - [→ ROADMAP E2/E6] **Transition effects between scenes** — Crossfade, fade, swipe. Partly shipped (`book-page-turn-v2`); rest → animation / dashboard-transition epics.
-- [ ] **B-roll stock footage integration** — Pull from Pexels/Pixabay API when source clips are insufficient. Free, no attribution required. *(material acquisition — stays here)*
+- [ ] **B-roll stock footage integration** — Pull from Pexels/Pixabay API when source clips are insufficient. Free, no attribution required. *(material acquisition — stays here)* — **partly shipped:** `src/pipeline/utils/gallery.py` already does tiered B-roll search (local → Pexels → Pixabay → generate); remaining work is wiring it into the compose loop as a fallback for thin source clips.
+- [ ] **Social-media B-roll / footage grabber** — Pull short clips from YouTube / TikTok / Instagram Reels for use as source B-roll or reference footage. *(material acquisition — stays here, NOT the rendering ROADMAP. Sibling to the Pexels/Pixabay B-roll line above.)* **Distinct from the existing YouTube *porting* acquire stage** (`src/pipeline/stages/acquire.py:download_video`, which yt-dlp-downloads the ONE source video being ported); this is multi-source raw-clip grabbing for B-roll, but reuses the same yt-dlp dependency. Cross-links: `acquire.py:download_video` (yt-dlp pattern to copy), `utils/gallery.py` (the tiered B-roll search + `clips/` cache to extend with a social tier). Open concerns: per-platform extractor reliability (yt-dlp handles all three), licensing/source-tracking for non-stock clips, the 5–15s "used sparingly" YouTube-policy constraint. *(Idea D, INTAKE 2026-05-26.)*
 - [ ] **Video templates per channel brand** — Intro animation, outro card, consistent color palette, watermark. *(channel branding — stays here)*
 
 ## Content & Knowledge
@@ -38,6 +39,7 @@ Improvements and features to revisit after the v2 compose engine is stable.
 - [ ] **Google Cloud TTS Neural2** — Premium voice option for higher quality narration.
 - [ ] **OpenAI TTS** — Highest naturalness option for special narration needs.
 - [ ] **Whisper fallback** — For videos without subtitles, use OpenAI Whisper API for transcription.
+- [x] **SFX asset registry / config legibility + cross-project reuse** → **migrated to `docs/ROADMAP.md` E7** (Audio arsenal & SFX legibility, 2026-05-26). Tim approved a formal audio epic, so this audio-arsenal item moved out of the idea bin into E7 (item 1) alongside the paired dashboard layer-visibility half; the EM mandate now formally covers the audio axis. *Tracked in ROADMAP E7 — do not re-add here.*
 
 ## Agent Skills
 

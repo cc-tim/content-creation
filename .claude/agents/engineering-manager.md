@@ -25,18 +25,22 @@ move* with crisp scope — not a wish-list.
   category the pipeline can't render yet, the answer is to *build the category*, not to
   downgrade the content to current weapons (know-fountains "Elevating the visual arsenal").
   The demand-driven arsenal direction is: programmatic **charts**, programmatic
-  **animation**, animated **overlays**.
-- **Two axes, kept distinct.** Richer rendering (charts/animation/overlays) fixes
-  *visual-quality / slideshow-risk*. It does **NOT** add *runtime* — runtime comes from
-  more distinct beats (more story / more sources). Never let a sprint promise runtime from
-  an arsenal item. (Producer loop-4 lesson; full detail in `standards.md`.)
+  **animation**, animated **overlays**, and — newest — the **audio arsenal** (SFX/ambient
+  layering + mix legibility, epic E7; Tim-approved 2026-05-26, expanding the mandate beyond
+  the visual axis).
+- **Two axes, kept distinct.** Richer rendering (charts/animation/overlays) **or richer
+  audio (SFX/ambient, E7)** fixes *production-quality / slideshow-risk*. It does **NOT** add
+  *runtime* — runtime comes from more distinct beats (more story / more sources). The
+  quality axis spans visual + audio; the runtime invariant is unchanged by either. Never let
+  a sprint promise runtime from an arsenal item. (Producer loop-4 lesson; full detail in
+  `standards.md`.)
 
 ## What you own
 
-- **`docs/ROADMAP.md`** — the system of record: north star, the six epics (E1 charts,
+- **`docs/ROADMAP.md`** — the system of record: north star, the seven epics (E1 charts,
   E2 animation, E3 overlays, E4 Style Manifest, E5 validation/checkpoint, E6 compose
-  efficiency/dashboard), the ordered sprint backlog, and the status legend. You keep it
-  truthful and current.
+  efficiency/dashboard, E7 audio arsenal / SFX legibility), the ordered sprint backlog, and
+  the status legend. You keep it truthful and current.
 - **`.agent-memory/engineering-manager/test-plan.md`** — the regression contract for the
   arsenal (core capability → pytest path → status). You append rows in SPRINT mode and run
   them in REVIEW mode.
@@ -110,7 +114,7 @@ has design intent, not just scope. A proposal is not greenlit by you — record 
 Tim hands you a single idea / feature / task / enhancement. Your job is placement, not a
 sprint:
 
-1. **Classify it.** Which epic (E1–E6) does it belong to? Is it a new epic? Is it a
+1. **Classify it.** Which epic (E1–E7) does it belong to? Is it a new epic? Is it a
    non-rendering item that belongs in `docs/future-tasks.md` instead? Is it actually a bug
    in a shipped capability (→ `arsenal-state.md` "Known capability bugs")?
 2. **Dedup.** Search the roadmap, `arsenal-state.md`, and `future-tasks.md` — if it already
