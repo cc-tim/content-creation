@@ -158,6 +158,7 @@ from pathlib import Path
 proj = Path('output/projects/<ID>')
 data = json.loads((proj / 'storyboard.json').read_text())
 scenes = data['scenes']
+removed_ids = set()   # every scene id removed by cut/merge — needed to keep transitions[] consistent
 
 for demand in auto_demands:
     sid = demand['scene_id']
@@ -166,6 +167,7 @@ for demand in auto_demands:
 
     if kind == 'cut':
         scenes = [s for s in scenes if s['id'] != sid]
+        removed_ids.add(sid)
 
     elif kind == 'rewrite' and patch:
         for s in scenes:
@@ -183,13 +185,70 @@ for demand in auto_demands:
                     s[k] = v
                 break
         scenes = [s for s in scenes if s['id'] not in remove_set]
+        removed_ids |= remove_set
+
+
+def reconcile_transitions(data, scenes, removed_ids):
+    """Keep the top-level transitions[] array consistent with scenes[] after cut/merge.
+
+    cut/merge edit only the scene list, so transitions can still reference a removed
+    scene id. The main compose seam-lookup (by_seam.get((scene_id, next_id))) silently
+    ignores dangling entries, BUT consumers that iterate transitions directly break —
+    e.g. animation_review resolves transition.from_scene to a scene clip that no longer
+    exists. So: drop every transition touching a removed scene, then bridge each gap
+    with a straight cut (style:none) between the removed scene's surviving neighbours
+    (following chains through consecutively-removed scenes). This is exactly the s46
+    orphan that loop 1's s45+s46 merge left behind and a human had to fix by hand.
+    """
+    if not removed_ids:
+        return
+    transitions = data.get('transitions') or []
+    final_ids = [s['id'] for s in scenes]
+    adj_set = set(zip(final_ids, final_ids[1:]))             # surviving adjacent seams
+    inbound  = {t['to']:   t['from'] for t in transitions if t['to']   in removed_ids}
+    outbound = {t['from']: t['to']   for t in transitions if t['from'] in removed_ids}
+    kept = [t for t in transitions
+            if t['from'] not in removed_ids and t['to'] not in removed_ids]
+    kept_seams = {(t['from'], t['to']) for t in kept}
+
+    def survive_back(x):
+        g = set()
+        while x in removed_ids and x not in g:
+            g.add(x); x = inbound.get(x)
+        return x
+
+    def survive_fwd(x):
+        g = set()
+        while x in removed_ids and x not in g:
+            g.add(x); x = outbound.get(x)
+        return x
+
+    bridges = {}
+    for r in removed_ids:
+        a, b = survive_back(inbound.get(r)), survive_fwd(outbound.get(r))
+        if (a and b and a not in removed_ids and b not in removed_ids
+                and (a, b) in adj_set and (a, b) not in kept_seams):
+            bridges[(a, b)] = {'from': a, 'to': b, 'style': 'none', 'duration_sec': 0.0}
+    data['transitions'] = kept + list(bridges.values())
+
+
+reconcile_transitions(data, scenes, removed_ids)
 
 data['scenes'] = scenes
 (proj / 'storyboard.json').write_text(
     json.dumps(data, ensure_ascii=False, indent=2)
 )
-print(f"Applied {len(auto_demands)} fixes. Scenes remaining: {len(scenes)}")
+print(f"Applied {len(auto_demands)} fixes. Scenes remaining: {len(scenes)}. "
+      f"Removed: {sorted(removed_ids) or 'none'}.")
 ```
+
+> **Why the transitions reconciliation matters:** `cut`/`merge` demands only touch
+> `scenes[]`. Without `reconcile_transitions`, the `transitions[]` array keeps dangling
+> references to removed scene ids — invisible to the main compose seam-lookup but fatal
+> to `animation_review` (which iterates transitions and resolves each `from_scene` to a
+> clip). Loop 1's s45+s46 merge left exactly this orphan, and it had to be repaired by
+> hand. This function is verified against single-cut, merge-removal, and
+> consecutive-removal-chain scenarios.
 
 **Re-derive the script after changes:**
 
