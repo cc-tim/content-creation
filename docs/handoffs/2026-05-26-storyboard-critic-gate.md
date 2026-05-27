@@ -3,7 +3,12 @@
 **Date:** 2026-05-26
 **Branch:** master (content-creation) / main (know-fountains)
 **Last commit (content-creation):** 507231a feat(em): three-mode engineering-manager with lean dispatch + acceptance gate
-**Status:** active
+**Status:** superseded — see `docs/handoffs/2026-05-27-baby-walker-render.md`
+
+## Related parts
+
+- **Successor (active):** `docs/handoffs/2026-05-27-baby-walker-render.md` — gate reached PASS
+  (loops 1–3), skill hardened, storyboard re-rendered; QA + commit remain. Pick up there.
 
 ## Goal
 
