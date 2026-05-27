@@ -42,13 +42,58 @@ render-prep edits — then it's publishable.
 
 ## Next step
 
-**The video is DONE for this pass — only publish remains (optional).** Visual-review (2026-05-27) is
-complete and the user DECIDED the deliverable variant: **`no_overlay` (clean images + audio, no
-burned text) — accepted as-is.** No re-render. The render-prep storyboard edits were committed
-(see WIP). The single remaining action is to publish if/when the user wants:
-```bash
-# invoke the publish skill on 20260504-115232-baby-walker-story (final_zh-TW_no_overlay.mp4)
-```
+**A QUALITY-ENHANCEMENT pass is required before publish** (user feedback 2026-05-27, after watching
+the no_overlay render). Four defects + the fix-prompt are below. The reviewer *principle* has already
+been enhanced this session (commit `1a29a18`: storyboard-critic now does a variant-aware review +
+reuse/substrate/locale/transition checks); the actual scene FIXES are to be done in a NEW session
+using the prompt in "## Quality-enhancement fix-prompt" below. Publish only after that pass.
+
+(Prior milestone, still true: visual-review done; deliverable variant DECIDED = `no_overlay`, clean
+images + audio. The render-prep storyboard edits are committed.)
+
+## Quality-enhancement fix-prompt (paste into a NEW session)
+
+> Project `20260504-115232-baby-walker-story` (content-creation, branch `feat/niche-visual-style-split`).
+> The video was rendered as `preferred_variant: no_overlay` (clean images + audio — NO burned
+> overlays/subtitles; this is the user's accepted deliverable, keep it). It's a PORTED video
+> (`source_locale: en` → `locale: zh-TW`). Fix these four quality defects, then re-gate and re-render.
+> The storyboard-critic standards were just upgraded (`.agent-memory/storyboard-critic/standards.md`,
+> commit `1a29a18`) to catch exactly these — read them first.
+>
+> **1. Image reuse reads as repetition (no_overlay strips the differentiators).**
+>    - `north_america_blank_map.png` on s24/s25/s26 (×3), `Baby_Walker.jpg` on s36/s38/s45/s47 (×4),
+>      `Baby_by_Vignesh.jpg` on s29/s33/s35 (×3), `Learning_to_walk.png` on s3/s6 (×2). With overlays
+>      off and no camera_motion, these are the identical frame repeated.
+>    - Fix: give each reuse a differentiator that SURVIVES into the no_overlay frame (distinct
+>      camera_motion/crop), OR a distinct real/generated image, OR merge redundant beats. Run a full
+>      `visual.path` reuse count and resolve every 3+.
+>
+> **2. The map is a blank substrate — meaningless without the (stripped) overlay.**
+>    - s24/s25/s26 use a blank grey map; its whole meaning (Canada BANNED 2004 vs US STILL SOLD) was
+>      in the `text_emphasis` overlay that no_overlay drops. Fix: bake the meaning INTO the image —
+>      generate annotated map(s) (Canada highlighted/banned vs US still-sold, color-coded + minimal
+>      labels) so the bare frame communicates. Differentiate the three (or merge).
+>
+> **3. Locale-locked text slides → depicting generated_images.**
+>    - s4 and s7 (and any other `slide`/`text_card` burning zh-TW text) are porting liabilities and
+>      missed visuals. Convert depictable concepts to `generated_image` via the `generate-image`
+>      skill (draft tier first per global CLAUDE.md): e.g. s7 "女性回到職場" → woman working in an
+>      office, "塑膠射出成型" → injection-molding machinery, "郊區開放格局" → suburban open-plan home.
+>      Keep text only for genuinely non-depictable beats.
+>
+> **4. Page-turn transitions are uniform (gimmicky).**
+>    - `book-page-turn-v2` is on ALL of s1→s30. Intended design = history scenes only. Sections:
+>      hook s1-3, context s4-9 (= history); rising s10-21, climax s22-29 (= analytical). Fix: keep
+>      page-turn within history (s1→s9) + the s9→s10 "close the history book" boundary; set s10→s30
+>      seams to `style:none`. Edit the `transitions[]` array directly.
+>
+> **Then:** re-run the `storyboard-review` gate (now variant-aware — it should verify these are
+> fixed), then re-render with `compose rescene --project-id 20260504-115232-baby-walker-story
+> --scene <changed ids>` (run `fit-image` first for any new generated images). Re-run `visual-review`.
+>
+> **Gotchas:** `produce` can't re-render an existing project (use `compose rescene`); `comparison`
+> charts need `animate.enabled=false`; don't rely on overlays (no_overlay); a `tail`-piped background
+> command masks its exit code — read the task output file.
 
 ### Visual-review outcome (all clear under the no_overlay decision)
 - **Image fitting RESOLVED:** compose fills+crops article_images, so the photos (s6/s29/s35/s36/
