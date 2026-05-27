@@ -19,6 +19,11 @@ The baby-walker storyboard (project 20260504-115232, 2026-05-26): 47 scenes, 22 
 
 Do NOT audit per-scene immediately. First, read the whole thing as a viewer would watch it.
 
+0. **FIRST — establish the delivery contract.** Before anything else: `grep -E "preferred_variant|source_locale|\"locale\"" output/projects/<ID>/context.json`.
+   - **If `preferred_variant` is `no_overlay`** (or any variant that doesn't burn per-scene overlays): the delivered video shows NO namecard / text_emphasis / text_bottom / text_top and NO subtitles. For the WHOLE review, treat every `overlay` field as if it does not exist. A scene's meaning, its differentiation from neighbours, and any verbatim-quote payload must live entirely in the rendered visual (the image content, camera motion, or chart labels). Never credit an overlay that won't render.
+   - **If `source_locale ≠ locale`**, this is a ported video — burned target-locale text on a `slide`/`text_card` is a porting liability; challenge every one for a depictable-as-`generated_image` concept.
+   This single step is what loop 3 skipped, and it is why a PASS shipped three blank maps and four identical frames. Do it first.
+
 1. **Full arc pass first.** Read every scene's narration in sequence. Note: does the story build? Where does it get abstract? Where does it earn its emotion? Write 2-3 sentences on what a viewer experiences watching this from start to finish. This catches arc and pacing problems that per-scene review misses.
 
 2. **Read the video_brief.** Find it in `output/projects/<ID>/source/explainer.md`. Per-beat visual specs in the brief are *binding on the storyboard* — they are the author's explicit direction, not suggestions. Flag every scene where the brief named a visual treatment and the storyboard chose text_card or slide instead.
@@ -27,8 +32,10 @@ Do NOT audit per-scene immediately. First, read the whole thing as a viewer woul
 
 4. **Read the existing chart scenes** to understand the chart schema in use. You will need to write valid chart `visual` dicts in your patch fields — model them on existing chart scenes in the storyboard.
 
-5. **Scene-by-scene audit.** For each `text_card` or `slide`, ask two questions:
-   - Was there a real visual option (article_image, chart, generated_image, clip) that should have been used here?
+5. **Count asset reuse + test self-sufficiency.** Tally `visual.path` across ALL scenes. Flag any image path used 3+ times unless each instance is distinct in the DELIVERED frame (distinct `camera_motion`/crop/refit — NOT a distinct overlay or distinct narration). For every `article_image`, ask: *if the overlay were stripped, does the bare frame still communicate the beat?* A blank map / empty chart frame / featureless diagram fails — its meaning must be baked into the asset, not an overlay.
+
+6. **Scene-by-scene audit.** For each `text_card` or `slide`, ask two questions:
+   - Was there a real visual option (article_image, chart, generated_image, clip) that should have been used here? (On a ported video, also: is the concept depictable as a `generated_image`? "No archival photo exists" is the wrong test.)
    - Does a demand pass the "better or just different?" test — is this change actually improving what a viewer sees, or just a personal preference for richness?
 
    Flag scenes only when the answer to both is yes.
@@ -38,7 +45,8 @@ Do NOT audit per-scene immediately. First, read the whole thing as a viewer woul
 - **Messaging** — does each scene's narration land its point? Scenes where the narration says one thing and the visual says nothing are the failure mode.
 - **Structure** — does the arc hold together? Flag scenes that should connect but feel stranded or that repeat the same beat.
 - **Pacing** — visual ebb and flow. A run of 4+ consecutive scenes with no article_image, clip, generated_image, or chart is a slideshow act. Judge it as a viewer would feel it.
-- **Visual coverage** — does every narration stretch have something real and meaningful on screen?
+- **Visual coverage** — does every narration stretch have something real and meaningful on screen? Apply the delivery-contract test from step 0: in a no_overlay variant, a scene whose only "real" content is an overlay has NO coverage.
+- **Transitions** — read the `transitions[]` array against the `section` boundaries. A distinctive transition (book-page-turn, wipe, slide) must mark a *meaningful* boundary (era/chapter/act), not every seam. Flag a distinctive style applied uniformly (e.g. to >~1/3 of seams or across unrelated analytical sections); within an act, seams should be straight cuts (`style:none`).
 
 ## What you can demand — scene-level
 
