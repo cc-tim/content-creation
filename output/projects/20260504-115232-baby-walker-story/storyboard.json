@@ -821,7 +821,8 @@
       "visual": {
         "type": "article_image",
         "path": "raw/parenting/baby-walker/assets/north_america_blank_map.png",
-        "alt": "Blank political map of North America — the US that never banned the walker"
+        "alt": "Blank political map of North America — the US that never banned the walker",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s24_outpaint_postcrop_00dbf5.png"
       },
       "overlay": {
         "type": "namecard",
@@ -848,7 +849,8 @@
       "visual": {
         "type": "article_image",
         "path": "raw/parenting/baby-walker/assets/north_america_blank_map.png",
-        "alt": "Political map of North America — the US chose design standards over a ban under manufacturer lobbying pressure"
+        "alt": "Political map of North America — the US chose design standards over a ban under manufacturer lobbying pressure",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s24_outpaint_postcrop_00dbf5.png"
       },
       "overlay": {
         "type": "text_emphasis",
@@ -1206,7 +1208,7 @@
         "ai_background": true,
         "background_prompt": "aged paper texture, soft sepia stains, faint grid",
         "animate": {
-          "enabled": true,
+          "enabled": false,
           "reveal_duration_sec": 4.0,
           "easing": "ease_out_cubic"
         }
@@ -1411,7 +1413,7 @@
         "ai_background": true,
         "background_prompt": "aged paper texture, soft sepia stains, faint grid",
         "animate": {
-          "enabled": true,
+          "enabled": false,
           "reveal_duration_sec": 4.0,
           "easing": "ease_out_cubic"
         }
@@ -1450,9 +1452,7 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "The rule is simple. Wheels plus a suspended seat — the one to avoid."
-      },
-      "narration_durations_ms": {},
-      "narration_text_hashes": {}
+      }
     },
     {
       "id": "s47",
