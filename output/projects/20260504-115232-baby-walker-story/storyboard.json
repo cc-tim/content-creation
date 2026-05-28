@@ -61,7 +61,7 @@
         "en": "Year 1440. A Dutch illuminated manuscript shows the infant Jesus, sitting in a four-wheeled wooden baby walker."
       },
       "narration_durations_ms": {
-        "zh-TW": 9900
+        "zh-TW": 9534
       },
       "narration_text_hashes": {
         "zh-TW": "36fee3c8de42"
@@ -91,7 +91,7 @@
         "en": "A century and a half later, 1584. A court portrait of a Savoy princess shows the exact same design."
       },
       "narration_durations_ms": {
-        "zh-TW": 9639
+        "zh-TW": 9247
       },
       "narration_text_hashes": {
         "zh-TW": "b06bd2aadfac"
@@ -122,7 +122,7 @@
         "en": "Three centuries later, a 1905 photograph: same seat, same frame, same wheels. Six hundred years unchanged."
       },
       "narration_durations_ms": {
-        "zh-TW": 11911
+        "zh-TW": 10605
       },
       "narration_text_hashes": {
         "zh-TW": "93f1aeba63e4"
@@ -139,9 +139,10 @@
         "f2"
       ],
       "visual": {
-        "type": "slide",
-        "text": "六百年的同一個答案\n直立 · 在視線裡 · 空出雙手",
-        "layout": "stat"
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/gen_parent_need.png",
+        "alt": "A parent with hands busy at the counter while a baby stands upright in a walker, in clear sight — the basic need the design solves",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s4_crop_5ac989.png"
       },
       "overlay": null,
       "pause_after_sec": 0.5,
@@ -149,7 +150,7 @@
         "en": "So why did this design survive six centuries? It solves one basic parental need — keep the not-yet-walking baby upright, in sight, with the adult's hands momentarily free."
       },
       "narration_durations_ms": {
-        "zh-TW": 11206
+        "zh-TW": 10239
       },
       "narration_text_hashes": {
         "zh-TW": "a5bea4f32a34"
@@ -178,7 +179,7 @@
         "en": "But for six centuries, that convenience belonged only to a few. From Dutch manuscripts to the Savoy court, the walker was a carpenter's handmade work — one frame per child, passed down to the next, a rare aristocratic possession."
       },
       "narration_durations_ms": {
-        "zh-TW": 13897
+        "zh-TW": 14785
       },
       "narration_text_hashes": {
         "zh-TW": "40f827390a5b"
@@ -209,36 +210,91 @@
         "en": "1901 — the first time someone tried to make it a mass-market product. Canadian hotelier Thomas Sloan placed an ad in the Ottawa Journal. There was no market. A historian later put it this way:"
       },
       "narration_durations_ms": {
-        "zh-TW": 16692
+        "zh-TW": 16039
       },
       "narration_text_hashes": {
         "zh-TW": "2f5a6477a254"
       }
     },
     {
-      "id": "s7",
+      "id": "s7a",
       "section": "context",
-      "beat": "Identifies three converging forces—plastic, suburban layouts, women in the workforce—that finally made the walker fit its moment",
-      "narration": "要再等六十年。一九六零、七零年代，三件事同時發生：塑膠射出成型壓低了成本；戰後郊區的開放格局，給了它跑動的空間；女性回到職場，需要一個能放小孩、空出雙手的工具。產品終於對上了時代。",
-      "narration_est_sec": 14.0,
+      "beat": "Force 1 — cheap plastic injection molding drove cost down",
+      "narration": "要再等六十年。一九六零、七零年代，三件事同時發生：塑膠射出成型壓低了成本。",
+      "narration_est_sec": 9.2,
       "facts_ref": [
         "f5"
       ],
       "visual": {
-        "type": "slide",
-        "text": "1960–1975 三力合流\n塑膠射出成型 → 成本下降\n郊區開放格局 → 空間\n女性回到職場 → 雙手解放",
-        "layout": "stat"
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/gen_injection_molding.png",
+        "alt": "1970s injection-molding machinery producing colorful molded plastic — the cost driver",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s7a_crop_02735c.png"
+      },
+      "overlay": null,
+      "pause_after_sec": 0.0,
+      "narration_alt": {
+        "en": "Another sixty years. In the 60s and 70s, three forces converged: cheap plastic injection molding pushed costs down."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 8411
+      },
+      "narration_text_hashes": {
+        "zh-TW": "608c9de672af"
+      }
+    },
+    {
+      "id": "s7b",
+      "section": "context",
+      "beat": "Force 2 — postwar suburban open-plan homes gave it room to roll",
+      "narration": "戰後郊區的開放格局，給了它跑動的空間。",
+      "narration_est_sec": 4.8,
+      "facts_ref": [
+        "f5"
+      ],
+      "visual": {
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/gen_suburban_openplan.png",
+        "alt": "Bright 1970s suburban open-plan living room — the space that let the walker roll",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s7b_crop_e24e2f.png"
+      },
+      "overlay": null,
+      "pause_after_sec": 0.0,
+      "narration_alt": {
+        "en": "Postwar suburban open-plan homes gave it room to roll."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 4571
+      },
+      "narration_text_hashes": {
+        "zh-TW": "0af5d7443142"
+      }
+    },
+    {
+      "id": "s7c",
+      "section": "context",
+      "beat": "Force 3 — women returning to work needed hands free; the product finally fit its moment",
+      "narration": "女性回到職場，需要一個能放小孩、空出雙手的工具。產品終於對上了時代。",
+      "narration_est_sec": 8.5,
+      "facts_ref": [
+        "f5"
+      ],
+      "visual": {
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/gen_woman_to_work.png",
+        "alt": "A woman in 1970s work attire entering an office — women returning to work needed hands free",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s7c_crop_5eeb80.png"
       },
       "overlay": null,
       "pause_after_sec": 0.5,
       "narration_alt": {
-        "en": "Another sixty years. In the 60s and 70s, three forces converged: cheap plastic injection molding; suburban open-plan homes; and women returning to work, needing somewhere to set the child down. The walker finally fit its moment."
+        "en": "And women returning to work needed somewhere to set the child down. The walker finally fit its moment."
       },
       "narration_durations_ms": {
-        "zh-TW": 19565
+        "zh-TW": 7026
       },
       "narration_text_hashes": {
-        "zh-TW": "efc78daa2ce7"
+        "zh-TW": "05b105ef5c92"
       }
     },
     {
@@ -260,7 +316,7 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 5720
+        "zh-TW": 5825
       },
       "narration_text_hashes": {
         "zh-TW": "942099881894"
@@ -287,7 +343,7 @@
         "en": "By the 1980s, it became the standard baby-shower gift. A friend's baby reaches one month — you give a walker. The logic was simple: every mother had one, so it must be safe."
       },
       "narration_durations_ms": {
-        "zh-TW": 10736
+        "zh-TW": 11389
       },
       "narration_text_hashes": {
         "zh-TW": "561a2455f047"
@@ -312,7 +368,7 @@
         "en": "But just as every nursery had this plastic frame in it, doctors in hospital emergency rooms began to see a pattern repeating itself."
       },
       "narration_durations_ms": {
-        "zh-TW": 8750
+        "zh-TW": 8986
       },
       "narration_text_hashes": {
         "zh-TW": "c443e0460164"
@@ -348,7 +404,7 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 9064
+        "zh-TW": 8463
       },
       "narration_text_hashes": {
         "zh-TW": "fe8a26a7f156"
@@ -428,7 +484,7 @@
         "en": "Of children admitted to hospital, more than one in three had skull fractures. A baby on stairs is never a small fall."
       },
       "narration_durations_ms": {
-        "zh-TW": 7392
+        "zh-TW": 7549
       },
       "narration_text_hashes": {
         "zh-TW": "db3a0568dd64"
@@ -463,7 +519,7 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 9639
+        "zh-TW": 8933
       },
       "narration_text_hashes": {
         "zh-TW": "4a9fbf9ede1b"
@@ -488,7 +544,7 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 11128
+        "zh-TW": 11859
       },
       "narration_text_hashes": {
         "zh-TW": "d7671b08ee6f"
@@ -512,7 +568,7 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 13766
+        "zh-TW": 13244
       },
       "narration_text_hashes": {
         "zh-TW": "8e276191b5bd"
@@ -536,7 +592,7 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 5642
+        "zh-TW": 5407
       },
       "narration_text_hashes": {
         "zh-TW": "8a27a75d7302"
@@ -572,7 +628,7 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 10422
+        "zh-TW": 10083
       },
       "narration_text_hashes": {
         "zh-TW": "33cba67ded28"
@@ -596,7 +652,7 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 10919
+        "zh-TW": 11154
       },
       "narration_text_hashes": {
         "zh-TW": "0eff4e2c6408"
@@ -637,7 +693,7 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 3630
+        "zh-TW": 3213
       },
       "narration_text_hashes": {
         "zh-TW": "737be481f857"
@@ -660,7 +716,7 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 20270
+        "zh-TW": 21524
       },
       "narration_text_hashes": {
         "zh-TW": "fa4b491d0b16"
@@ -775,7 +831,7 @@
         "en": "2010, the US finally made standards mandatory. By 2014, ER visits dropped to about 2,000 — ninety percent below the 1990 peak."
       },
       "narration_durations_ms": {
-        "zh-TW": 22909
+        "zh-TW": 20323
       },
       "narration_text_hashes": {
         "zh-TW": "e4c7d0497988"
@@ -793,9 +849,19 @@
       ],
       "visual": {
         "type": "article_image",
-        "path": "raw/parenting/baby-walker/assets/north_america_blank_map.png",
-        "alt": "Political map of North America — base for the BANNED 2004 (Canada) / STILL SOLD (USA) contrast",
-        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s24_outpaint_postcrop_00dbf5.png"
+        "path": "raw/parenting/baby-walker/assets/na_map_canada.png",
+        "alt": "North America map — Canada highlighted red, BANNED 2004: first country to fully ban wheeled sit-in walkers",
+        "camera_motion": {
+          "type": "slow_push_pan",
+          "focus_point": {
+            "x": 0.52,
+            "y": 0.45
+          },
+          "zoom_end": 1.22,
+          "easing": "smoothstep",
+          "direction": "slow push toward Canada"
+        },
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s24_crop_c33cd9.png"
       },
       "overlay": {
         "type": "text_emphasis",
@@ -803,7 +869,7 @@
       },
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 15908
+        "zh-TW": 14915
       },
       "narration_text_hashes": {
         "zh-TW": "bf934f953a82"
@@ -820,9 +886,19 @@
       ],
       "visual": {
         "type": "article_image",
-        "path": "raw/parenting/baby-walker/assets/north_america_blank_map.png",
-        "alt": "Blank political map of North America — the US that never banned the walker",
-        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s24_outpaint_postcrop_00dbf5.png"
+        "path": "raw/parenting/baby-walker/assets/na_map_both.png",
+        "alt": "North America map — Canada (banned) above, USA (still sold) below; twenty years on the policy never crossed the border",
+        "camera_motion": {
+          "type": "slow_push_pan",
+          "focus_point": {
+            "x": 0.45,
+            "y": 0.7
+          },
+          "zoom_end": 1.3,
+          "easing": "smoothstep",
+          "direction": "drift from the border down toward the USA"
+        },
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s25_crop_6aa645.png"
       },
       "overlay": {
         "type": "namecard",
@@ -831,7 +907,7 @@
       },
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 24685
+        "zh-TW": 25338
       },
       "narration_text_hashes": {
         "zh-TW": "61273ff8bb8a"
@@ -848,9 +924,19 @@
       ],
       "visual": {
         "type": "article_image",
-        "path": "raw/parenting/baby-walker/assets/north_america_blank_map.png",
-        "alt": "Political map of North America — the US chose design standards over a ban under manufacturer lobbying pressure",
-        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s24_outpaint_postcrop_00dbf5.png"
+        "path": "raw/parenting/baby-walker/assets/na_map_usa.png",
+        "alt": "North America map — USA highlighted amber, STILL SOLD 2024: design standards, not a ban",
+        "camera_motion": {
+          "type": "slow_push_pan",
+          "focus_point": {
+            "x": 0.45,
+            "y": 0.6
+          },
+          "zoom_end": 1.22,
+          "easing": "smoothstep",
+          "direction": "slow push toward the USA"
+        },
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s26_crop_41cfe1.png"
       },
       "overlay": {
         "type": "text_emphasis",
@@ -858,7 +944,7 @@
       },
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 17998
+        "zh-TW": 15934
       },
       "narration_text_hashes": {
         "zh-TW": "36fb8416c309"
@@ -903,7 +989,7 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 21159
+        "zh-TW": 22987
       },
       "narration_text_hashes": {
         "zh-TW": "2abff986b688"
@@ -953,7 +1039,7 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 13949
+        "zh-TW": 12564
       },
       "narration_text_hashes": {
         "zh-TW": "f371aba535e2"
@@ -980,7 +1066,7 @@
       },
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 13766
+        "zh-TW": 12094
       },
       "narration_text_hashes": {
         "zh-TW": "41e7f20ce1e6"
@@ -1015,7 +1101,7 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 9247
+        "zh-TW": 8280
       },
       "narration_text_hashes": {
         "zh-TW": "9c2bdb4b1ac9"
@@ -1032,7 +1118,7 @@
       ],
       "visual": {
         "type": "text_card",
-        "text": "40+ terms\nfor one product family"
+        "text": "四十多種名稱\n指向同一類產品"
       },
       "overlay": null,
       "pause_after_sec": 0.0,
@@ -1040,7 +1126,7 @@
         "en": "Why? Because the words baby walker actually cover three mechanically different products. Researchers have counted over 40 names for them."
       },
       "narration_durations_ms": {
-        "zh-TW": 10553
+        "zh-TW": 9456
       },
       "narration_text_hashes": {
         "zh-TW": "e75a7c76da0c"
@@ -1055,7 +1141,7 @@
       "facts_ref": [],
       "visual": {
         "type": "slide",
-        "text": "Three different products\nshare one name",
+        "text": "同一個名字\n三種不同的產品",
         "layout": "comparison"
       },
       "overlay": null,
@@ -1064,7 +1150,7 @@
         "en": "So instead of debating the ban, let's separate the three products. Their risk profiles are not even close."
       },
       "narration_durations_ms": {
-        "zh-TW": 7157
+        "zh-TW": 7679
       },
       "narration_text_hashes": {
         "zh-TW": "b14584ea3173"
@@ -1081,9 +1167,9 @@
       ],
       "visual": {
         "type": "article_image",
-        "path": "raw/parenting/baby-walker/assets/Baby_by_Vignesh.jpg",
-        "alt": "A child in a wheeled sit-in walker, 2022 — the dangerous design, still sold today",
-        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s33_crop_a650b0.png"
+        "path": "raw/parenting/baby-walker/assets/gen_sitin_walker.png",
+        "alt": "A wheeled sit-in baby walker — suspended fabric seat, legs through, four wheels: the dangerous type",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s33_crop_7b5dd2.png"
       },
       "overlay": null,
       "pause_after_sec": 0.0,
@@ -1091,7 +1177,7 @@
         "en": "Product one: the wheeled sit-in walker. The dangerous one. The baby is suspended in a fabric seat, legs through, four wheels below."
       },
       "narration_durations_ms": {
-        "zh-TW": 10083
+        "zh-TW": 9456
       },
       "narration_text_hashes": {
         "zh-TW": "1866229f4d3b"
@@ -1107,9 +1193,21 @@
         "f20"
       ],
       "visual": {
-        "type": "slide",
-        "text": "Wheeled sit-in walker\n3 ft / sec\nfaster than most adults can intercept",
-        "layout": "stat"
+        "type": "chart",
+        "chart_type": "stat_big_number",
+        "title": "還不會走，卻能衝刺",
+        "data": {
+          "value": "90",
+          "unit": "公分/秒 · 快過多數大人攔截"
+        },
+        "ai_background": true,
+        "background_prompt": "aged paper texture, soft sepia stains, faint grid",
+        "source_credit": "AAP",
+        "animate": {
+          "enabled": true,
+          "reveal_duration_sec": 4.5,
+          "easing": "ease_out_cubic"
+        }
       },
       "overlay": null,
       "pause_after_sec": 0.0,
@@ -1117,7 +1215,7 @@
         "en": "Here's the problem: a baby who can't walk yet can suddenly sprint at 3 feet per second — and reach a stairwell in one beat."
       },
       "narration_durations_ms": {
-        "zh-TW": 8986
+        "zh-TW": 8150
       },
       "narration_text_hashes": {
         "zh-TW": "65e9b5d77518"
@@ -1136,7 +1234,18 @@
       "visual": {
         "type": "article_image",
         "path": "raw/parenting/baby-walker/assets/Baby_by_Vignesh.jpg",
-        "alt": "A child in a wheeled sit-in walker, 2022 — still legal, still sold"
+        "alt": "A child in a wheeled sit-in walker, 2022 — still legal, still sold",
+        "camera_motion": {
+          "type": "slow_push_pan",
+          "focus_point": {
+            "x": 0.5,
+            "y": 0.38
+          },
+          "zoom_end": 1.5,
+          "easing": "smoothstep",
+          "direction": "slow push onto the child in the walker"
+        },
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s35_crop_a650b0.png"
       },
       "overlay": {
         "type": "text_emphasis",
@@ -1147,7 +1256,7 @@
         "en": "And here's the key: this product is still legal and still sold — in the US, in Taiwan, on the shelves you walk past."
       },
       "narration_durations_ms": {
-        "zh-TW": 7497
+        "zh-TW": 8150
       },
       "narration_text_hashes": {
         "zh-TW": "b6efa07c7694"
@@ -1173,7 +1282,7 @@
         "en": "Here's the key: still legal in the US, still sold — on the shelves you walk past."
       },
       "narration_durations_ms": {
-        "zh-TW": 8933
+        "zh-TW": 8568
       },
       "narration_text_hashes": {
         "zh-TW": "d42c8bd0b9a3"
@@ -1219,7 +1328,7 @@
         "en": "Mechanically, it's the inverse: the child is upright, bearing their own weight, moving at their own pace. No suspended seat, no speed problem."
       },
       "narration_durations_ms": {
-        "zh-TW": 9534
+        "zh-TW": 9900
       },
       "narration_text_hashes": {
         "zh-TW": "431329625c66"
@@ -1237,8 +1346,9 @@
       ],
       "visual": {
         "type": "article_image",
-        "path": "raw/parenting/baby-walker/assets/Baby_Walker.jpg",
-        "alt": "toddler using push-toy walker"
+        "path": "raw/parenting/baby-walker/assets/gen_push_walker_inuse.png",
+        "alt": "A toddler standing and pushing a colorful plastic push-walker — bearing their own weight, like natural walking",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s38_crop_a4bd74.png"
       },
       "overlay": null,
       "pause_after_sec": 0.0,
@@ -1246,7 +1356,7 @@
         "en": "Pediatricians consider these fine. What they do is what natural walking does — balance, stride, muscle memory. Useful practice, not replacement."
       },
       "narration_durations_ms": {
-        "zh-TW": 10135
+        "zh-TW": 9665
       },
       "narration_text_hashes": {
         "zh-TW": "9a5a36680320"
@@ -1263,7 +1373,7 @@
       ],
       "visual": {
         "type": "slide",
-        "text": "Push-toy checklist\n• wide base\n• resistance wheels\n• stand-behind, not ride-on",
+        "text": "學步推車選購\n• 底盤夠寬、不易翻\n• 輪子有阻力、不太滑\n• 站著推，不是坐著騎",
         "layout": "checklist"
       },
       "overlay": null,
@@ -1272,7 +1382,7 @@
         "en": "Shopping tips: a wide base so it won't tip, wheels with resistance not just slip, and a model the child stands behind — not a ride-on."
       },
       "narration_durations_ms": {
-        "zh-TW": 9717
+        "zh-TW": 9769
       },
       "narration_text_hashes": {
         "zh-TW": "cd58a4932d65"
@@ -1300,7 +1410,7 @@
         "en": "Product three: the stationary activity center. Looks like a walker, but has no wheels. Baby sits in a bouncy seat ringed with toys."
       },
       "narration_durations_ms": {
-        "zh-TW": 9247
+        "zh-TW": 8881
       },
       "narration_text_hashes": {
         "zh-TW": "11cad137d46d"
@@ -1317,7 +1427,7 @@
       ],
       "visual": {
         "type": "text_card",
-        "text": "AAP recommended\nalternative, 2001"
+        "text": "兒科學會推薦的\n替代品 · 2001"
       },
       "overlay": null,
       "pause_after_sec": 0.0,
@@ -1325,7 +1435,7 @@
         "en": "This is the alternative the AAP explicitly endorsed in 2001. It can't run, can't fall down stairs, can't reach a stove."
       },
       "narration_durations_ms": {
-        "zh-TW": 8829
+        "zh-TW": 9116
       },
       "narration_text_hashes": {
         "zh-TW": "074c5b3cd727"
@@ -1342,7 +1452,7 @@
       ],
       "visual": {
         "type": "slide",
-        "text": "Stationary activity center\nshort sessions ✓\nprolonged use ✗",
+        "text": "定點活動架\n短時間使用：適合\n長時間久放：不宜",
         "layout": "comparison"
       },
       "overlay": null,
@@ -1351,7 +1461,7 @@
         "en": "One caveat: leaving a child in it too long can delay independent motor development. Short sessions are fine; a whole afternoon is not."
       },
       "narration_durations_ms": {
-        "zh-TW": 10840
+        "zh-TW": 9769
       },
       "narration_text_hashes": {
         "zh-TW": "b72852fe0e97"
@@ -1368,7 +1478,7 @@
       ],
       "visual": {
         "type": "slide",
-        "text": "Activity center checklist\n• stable wide base\n• adjustable seat\n• limit session length",
+        "text": "定點活動架選購\n• 底座穩、不易翻\n• 座位高度可調，雙腳能平踩地板\n• 每次使用別過久",
         "layout": "checklist"
       },
       "overlay": null,
@@ -1377,7 +1487,7 @@
         "en": "Shopping tips: stable wide base, height-adjustable seat so feet rest flat on the floor, and limit each session."
       },
       "narration_durations_ms": {
-        "zh-TW": 9900
+        "zh-TW": 11572
       },
       "narration_text_hashes": {
         "zh-TW": "e975242826db"
@@ -1424,7 +1534,7 @@
         "en": "Three products side by side: the wheeled sit-in is the dangerous one. The push-toy is safe. The stationary center is a different category entirely."
       },
       "narration_durations_ms": {
-        "zh-TW": 9299
+        "zh-TW": 9769
       },
       "narration_text_hashes": {
         "zh-TW": "1bbdad064abf"
@@ -1442,7 +1552,18 @@
       "visual": {
         "type": "article_image",
         "path": "raw/parenting/baby-walker/assets/Baby_Walker.jpg",
-        "alt": "Push-toy walker — the opposite of the design to avoid"
+        "alt": "Push-toy walker — the opposite of the design to avoid",
+        "camera_motion": {
+          "type": "slow_push_pan",
+          "focus_point": {
+            "x": 0.5,
+            "y": 0.45
+          },
+          "zoom_end": 1.35,
+          "easing": "smoothstep",
+          "direction": "slow push onto the push-toy"
+        },
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s45_crop_bbbeca.png"
       },
       "overlay": {
         "type": "namecard",
@@ -1452,6 +1573,12 @@
       "pause_after_sec": 0.5,
       "narration_alt": {
         "en": "The rule is simple. Wheels plus a suspended seat — the one to avoid."
+      },
+      "narration_durations_ms": {
+        "zh-TW": 12982
+      },
+      "narration_text_hashes": {
+        "zh-TW": "d11dad37c366"
       }
     },
     {
@@ -1465,8 +1592,9 @@
       ],
       "visual": {
         "type": "article_image",
-        "path": "raw/parenting/baby-walker/assets/Baby_Walker.jpg",
-        "alt": "closing — push-toy as the safe positive close"
+        "path": "raw/parenting/baby-walker/assets/gen_push_walker_close.png",
+        "alt": "A toddler mid-stride pushing a colorful plastic walker — look at the design, not the name",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s47_crop_94fdc5.png"
       },
       "overlay": null,
       "pause_after_sec": 0.5,
@@ -1474,7 +1602,7 @@
         "en": "The naming is messy in every language — researchers counted over 40 terms. Before you buy, look at the design, not the label."
       },
       "narration_durations_ms": {
-        "zh-TW": 10553
+        "zh-TW": 11807
       },
       "narration_text_hashes": {
         "zh-TW": "134b6ac55ce8"
@@ -1527,14 +1655,30 @@
     },
     {
       "from": "s6",
-      "to": "s7",
+      "to": "s7a",
       "style": "book-page-turn-v2",
       "duration_sec": 1.5,
       "page_count": 5,
       "page_surface": "calligraphy_texture"
     },
     {
-      "from": "s7",
+      "from": "s7a",
+      "to": "s7b",
+      "style": "book-page-turn-v2",
+      "duration_sec": 1.5,
+      "page_count": 5,
+      "page_surface": "calligraphy_texture"
+    },
+    {
+      "from": "s7b",
+      "to": "s7c",
+      "style": "book-page-turn-v2",
+      "duration_sec": 1.5,
+      "page_count": 5,
+      "page_surface": "calligraphy_texture"
+    },
+    {
+      "from": "s7c",
       "to": "s8",
       "style": "book-page-turn-v2",
       "duration_sec": 1.5,
@@ -1560,162 +1704,122 @@
     {
       "from": "s10",
       "to": "s11",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s11",
       "to": "s12",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s12",
       "to": "s13",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s13",
       "to": "s14",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s14",
       "to": "s15",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s15",
       "to": "s16",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s16",
       "to": "s17",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s17",
       "to": "s18",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s18",
       "to": "s19",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s19",
       "to": "s20",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s20",
       "to": "s21",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s21",
       "to": "s22",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s22",
       "to": "s23",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s23",
       "to": "s24",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s24",
       "to": "s25",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s25",
       "to": "s26",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s26",
       "to": "s27",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s27",
       "to": "s28",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s28",
       "to": "s29",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s29",
       "to": "s30",
-      "style": "book-page-turn-v2",
-      "duration_sec": 1.5,
-      "page_count": 5,
-      "page_surface": "calligraphy_texture"
+      "style": "none",
+      "duration_sec": 0.0
     },
     {
       "from": "s30",

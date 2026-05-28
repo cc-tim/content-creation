@@ -74,3 +74,37 @@ Fresh pass found no new defects. The s13 fix created an s11–s14 four-chart run
 4. On publish: carry CC-BY/CC-BY-SA/CC0 attributions per CREDITS.md; flag both .mp4 clips as AI-generated; never assert "this is a baby walker" over the ambiguous boom-era clip (s8).
 
 **Final distribution:** article_image 19 (41%), chart 12 (26%), slide 7 (15%), text_card 5 (11%), clip 2 (4%), generated_image 1 (2%). Text-heavy 26%. STORYBOARD CLEARED FOR TTS/RENDER.
+
+## Loop 4 — 2026-05-27 — REWORK → fixes applied
+
+**Context:** Quality-enhancement pass. A human fixed the 4 post-render defects (image reuse, blank map, locale-locked s4/s7 slides, uniform page-turns); the critic re-reviewed under the upgraded no_overlay+porting standard.
+
+**Arc read:** Builds, earns its turns, lands soft — now a real film: 1440 manuscript Ken-Burns hook → four centuries page-turning past → three DEPICTED boom forces (molding/suburb/work) → 1980s default → clinical injury charts → mechanism montage → undercount → decline-curve → three distinct annotated ban-maps → BMJ delay → three-product close → one rule.
+
+**The 4 named fixes — VERIFIED CLEAN on disk + in pixels (do not re-litigate):**
+- Maps s24/s25/s26 → distinct annotated crops (na_map_canada/both/usa.png) baking Canada-BANNED-2004 (red) / USA-STILL-SOLD-2024 (amber) + labels INTO the image, each with distinct camera_motion. Blank-substrate defect dead.
+- s4 → gen_parent_need.png (depicting). s7 → split s7a/s7b/s7c, three distinct generated period images matching the three-forces narration split.
+- Asset reuse: every visual.path now ≤2; Vignesh & Baby_Walker differentiated by real camera_motion on 2nd instance; s33/s38/s47 new generated images.
+- book-page-turn-v2 confined to 11 history seams s1→s2 … s9→s10; style:none after (23% of seams).
+
+**NEW defect class found (REWORK) — 7 demands, all rewrite, all applied:**
+English text burned on cards in a zh-TW (source_locale=en ≠ locale) no_overlay delivery — slide/text_card text is VISUAL (renders even in no_overlay), so the Chinese viewer sees unreadable English. Same "differentiator/payload must survive into the delivered variant" principle, applied to LANGUAGE. Translated in place to zh-TW:
+- s31 text_card → 四十多種名稱／指向同一類產品 (borderline-redundant w/ narration — future prune candidate)
+- s32 slide → 同一個名字／三種不同的產品 (comparison)
+- s34 slide → **upgraded to stat_big_number chart** 90 公分/秒 (matches narration 每秒九十公分); source_credit corrected from critic's guessed "Consumer Reports 2024" → **"AAP"** (fact f20 attributes 3ft/s to AAP/Canada)
+- s39 slide → 學步推車選購 checklist (actionable — must be readable)
+- s41 text_card → 兒科學會推薦的／替代品 · 2001
+- s42 slide → 定點活動架 短時間使用✓／長時間久放✗ (comparison)
+- s43 slide → 定點活動架選購 checklist (actionable)
+
+**Greenpass carry-forward (durable):** loop-3 terms hold (s11–s14 chart run intentional; s41–s43 run-LENGTH greenlit — but their card LANGUAGE was wrong, now fixed; s26 wording accepted). NEW durable: on a ported video every on-screen card must be in the delivered locale — never revert these to English.
+
+**Demands:** 7 rewrite, 0 acquire, 0 cut/merge → all auto-applied, no pause. Eligible to loop to verification (loop 5).
+
+## Loop 5 — 2026-05-27 — PASS ✅
+
+**Verdict:** Clean PASS. All 7 loop-4 rewrite demands verified ON DISK — the English text cards in the zh-TW no_overlay delivery are now correct CJK (s31/s41 text_card; s32/s42 slide+comparison; s39/s43 slide+checklist; s34 upgraded to stat_big_number chart 90 公分/秒). s34 source_credit "AAP" accepted as the better attribution (f20 ties 3ft/s to AAP/Canada; matches s37/s44). No English text remains on any card. The four named loop-4 fixes untouched + already verified. No new defects.
+
+**Demands:** none. STORYBOARD CLEARED FOR TTS/RENDER.
+
+**Greenpass (durable, do not re-litigate):** the 7 cards are now language-correct CJK — never revert to English; on a ported video every on-screen card must be in the delivered locale. s34 is a stat chart (90 公分/秒, source AAP) — do not flatten back to slide. Plus all loop-3/loop-4 carry-forward terms.
