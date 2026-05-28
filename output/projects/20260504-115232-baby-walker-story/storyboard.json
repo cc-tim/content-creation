@@ -189,7 +189,7 @@
       "id": "s6",
       "section": "context",
       "beat": "Frames Sloan's 1901 ad as the first failed attempt at mass-market commercialization",
-      "narration": "一九零一年，第一次有人試著把它變成大眾商品。加拿大旅館老闆湯瑪斯·斯隆，在渥太華日報登了廣告。結果完全沒有市場。一位歷史學家後來這樣總結:「I don't think this idea of a baby-walker took off.」",
+      "narration": "一九零一年，加拿大旅館老闆湯瑪斯·斯隆試著把它做成商品——在報紙打廣告，沒有人買。",
       "narration_est_sec": 14.5,
       "facts_ref": [
         "f3",
@@ -197,8 +197,9 @@
       ],
       "visual": {
         "type": "article_image",
-        "path": "raw/parenting/baby-walker/assets/Learning_to_walk.png",
-        "alt": "A baby in a sit-in walker, 1905 — period stand-in for the failed 1901 Sloan commercialization"
+        "path": "raw/parenting/baby-walker/assets/gen_sloan_1901_ad.png",
+        "alt": "Stylized 1901 Ottawa Journal newspaper page with a classified ad for a baby walker — Thomas Sloan's failed commercialization attempt",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s6_crop_b54b75.png"
       },
       "overlay": {
         "type": "namecard",
@@ -210,10 +211,10 @@
         "en": "1901 — the first time someone tried to make it a mass-market product. Canadian hotelier Thomas Sloan placed an ad in the Ottawa Journal. There was no market. A historian later put it this way:"
       },
       "narration_durations_ms": {
-        "zh-TW": 16039
+        "zh-TW": 7993
       },
       "narration_text_hashes": {
-        "zh-TW": "2f5a6477a254"
+        "zh-TW": "179527f407d4"
       }
     },
     {
@@ -359,8 +360,10 @@
         "f6"
       ],
       "visual": {
-        "type": "text_card",
-        "text": "一個重複\n出現的模式"
+        "type": "article_image",
+        "path": "raw/parenting/baby-walker/assets/gen_pediatric_er_1980s.png",
+        "alt": "Late-1980s hospital pediatric ER — a doctor reviewing charts as a repeating baby-walker injury pattern emerges",
+        "refit_path": "output/projects/20260504-115232-baby-walker-story/edits/s10_crop_b50b04.png"
       },
       "overlay": null,
       "pause_after_sec": 0.5,
@@ -703,7 +706,7 @@
       "id": "s21",
       "section": "rising",
       "beat": "ACT B — explain NEISS low sensitivity + 40+ names",
-      "narration": "原因有兩個：一是 CPSC 的 NEISS 傷害資料庫，一九九六年的審計發現它對學步車漏報約百分之四；二是這個產品在學術、新聞、零售貨架上，有超過四十種叫法——名字一亂，就沒人能乾淨地數清楚。真正的數字，只會更高。",
+      "narration": "原因有兩個：第一，官方資料庫一直在漏報；第二，這個產品有超過四十種叫法。名字一亂，真正的數字只會更高。",
       "narration_est_sec": 14.0,
       "facts_ref": [
         "f32",
@@ -716,10 +719,10 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 21524
+        "zh-TW": 9116
       },
       "narration_text_hashes": {
-        "zh-TW": "fa4b491d0b16"
+        "zh-TW": "fa8135eaf09f"
       }
     },
     {
@@ -750,7 +753,7 @@
       "id": "s23",
       "section": "climax",
       "beat": "Shows US eventually strengthening regulations with dramatic results",
-      "narration": "有用，而且非常明顯。從一九八二年的研究、一九九五年的自願標準、一九九七年的 ASTM、二零零一年兒科學會、二零零四年加拿大、到二零一零年強制法規——到二零一四年，急診數字只剩兩千出頭，比一九九零年下降了百分之九十。",
+      "narration": "有用，而且非常明顯。一九九零年兩萬出頭，到二零一四年只剩兩千——標準逐步收緊，傷害數字下降了整整九成。",
       "narration_est_sec": 16.0,
       "facts_ref": [
         "f9",
@@ -831,10 +834,10 @@
         "en": "2010, the US finally made standards mandatory. By 2014, ER visits dropped to about 2,000 — ninety percent below the 1990 peak."
       },
       "narration_durations_ms": {
-        "zh-TW": 20323
+        "zh-TW": 10657
       },
       "narration_text_hashes": {
-        "zh-TW": "e4c7d0497988"
+        "zh-TW": "bf749cd8b7de"
       }
     },
     {
@@ -879,7 +882,7 @@
       "id": "s25",
       "section": "climax",
       "beat": "ACT C — why the US never banned: Shin verbatim quote on CPSC legal bar",
-      "narration": "二十年過去，美國還是沒跟上。不是因為證據比較弱——是同一台機器——而是兩國的法律寫法不同。一位消費者報告的政策顧問這樣說：virtually impossible for the CPSC to ban a consumer product. 在美國，要讓 CPSC 禁掉一項消費品並在法庭上站得住腳，幾乎不可能——除非國會直接下令。",
+      "narration": "二十年過去，美國還是沒跟上。不是因為證據比較弱——是同一台機器——而是因為美國的法律架構：CPSC 要主動禁掉一件合規的消費品，幾乎不可能，除非國會直接立法。",
       "narration_est_sec": 17.5,
       "facts_ref": [
         "f35"
@@ -907,10 +910,10 @@
       },
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 25338
+        "zh-TW": 15098
       },
       "narration_text_hashes": {
-        "zh-TW": "61273ff8bb8a"
+        "zh-TW": "8b9fa41fed49"
       }
     },
     {
@@ -954,7 +957,7 @@
       "id": "s27",
       "section": "climax",
       "beat": "ACT D — BMJ 2002 milestones bar chart (weeks of delay vs non-users)",
-      "narration": "醫學界還有第二個反對理由，常被安全爭論蓋過：就算它一個孩子都沒弄傷——它根本做不到盒子上暗示的那件事。一項一百九十名嬰兒的 BMJ 對照研究發現，用學步車的孩子，反而更晚達到每一個動作里程碑：爬、站、走，全部都晚了三到四週。",
+      "narration": "醫學界還有第二個理由：就算學步車一個孩子都沒弄傷，它也做不到盒子上說的那件事。一百九十名嬰兒的對照研究發現，用學步車的孩子，反而更晚學會爬、站、走——平均晚了三到四週。",
       "narration_est_sec": 15.0,
       "facts_ref": [
         "f37"
@@ -989,10 +992,10 @@
       "overlay": null,
       "pause_after_sec": 0.3,
       "narration_durations_ms": {
-        "zh-TW": 22987
+        "zh-TW": 14968
       },
       "narration_text_hashes": {
-        "zh-TW": "2abff986b688"
+        "zh-TW": "8f48569d4818"
       }
     },
     {
