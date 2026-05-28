@@ -439,6 +439,21 @@ def test_scenes_json_written_by_storyboard_compose(monkeypatch, tmp_path):
         lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None:
             Path(work_dir) / f"{scene['id']}.mp4")
 
+    # scenes.json is now derived from the ACTUAL concatenated clip durations.
+    # ffmpeg is mocked (clips are not real videos), so stub _get_duration_sec to
+    # report durations by clip filename: scene finals carry their audio length,
+    # pause clips carry pause_after_sec.
+    clip_durations = {"s1": 5.0, "s2": 8.0}
+    def fake_duration(path):
+        name = Path(path).name
+        if "_pause" in name:
+            return 0.5 if name.startswith("s1_") else 0.0
+        for sid, dur in clip_durations.items():
+            if name.startswith(f"{sid}_final"):
+                return dur
+        return 0.0
+    monkeypatch.setattr("pipeline.stages.compose._get_duration_sec", fake_duration)
+
     import asyncio
     asyncio.run(ComposeStage().run(ctx))
 
@@ -450,13 +465,56 @@ def test_scenes_json_written_by_storyboard_compose(monkeypatch, tmp_path):
     assert scenes[0]["id"] == "s1"
     assert scenes[0]["section"] == "hook"
     assert scenes[0]["start_sec"] == 0.0
-    assert scenes[0]["duration_sec"] == pytest.approx(5.5)   # 5000ms audio + 0.5s pause
+    assert scenes[0]["duration_sec"] == pytest.approx(5.5)   # 5.0s clip + 0.5s pause
     assert scenes[0]["narration"] == "First scene"
 
     assert scenes[1]["id"] == "s2"
     assert scenes[1]["start_sec"] == pytest.approx(5.5)
-    assert scenes[1]["duration_sec"] == pytest.approx(8.0)   # 8000ms audio + 0s pause
+    assert scenes[1]["duration_sec"] == pytest.approx(8.0)   # 8.0s clip + 0s pause
     assert scenes[1]["narration"] == "Second scene"
+
+
+def test_write_scenes_json_counts_intro_and_transitions(monkeypatch, tmp_path):
+    """scenes.json start_sec must include the intro plate and between-scene
+    transition clips (the dashboard-misalignment bug: the old model undercounted
+    these, pushing the playhead ahead of the content)."""
+    from pipeline.stages.compose import ComposeStage
+    from pipeline.storyboard import Scene, Storyboard
+
+    sb = Storyboard(scenes=[
+        Scene(id="s1", section="hook", narration="A", narration_est_sec=5.0,
+              visual={"type": "text_card", "text": "a"}),
+        Scene(id="s2", section="context", narration="B", narration_est_sec=8.0,
+              visual={"type": "text_card", "text": "b"}),
+    ])
+    # Ordered concat list as compose builds it: intro, s1, transition, s2, s2 pause.
+    clips = [
+        Path("transitions/book_start_plate.mp4"),
+        Path("s1_final_no_overlay_open_book_page.mp4"),
+        Path("transitions/abc123.mp4"),
+        Path("s2_final_no_overlay_open_book_page.mp4"),
+        Path("s2_pause.mp4"),
+    ]
+    durs = {
+        "book_start_plate.mp4": 1.5,
+        "s1_final_no_overlay_open_book_page.mp4": 5.0,
+        "abc123.mp4": 1.429,
+        "s2_final_no_overlay_open_book_page.mp4": 8.0,
+        "s2_pause.mp4": 0.3,
+    }
+    monkeypatch.setattr("pipeline.stages.compose._get_duration_sec",
+                        lambda p: durs[Path(p).name])
+
+    ComposeStage._write_scenes_json(tmp_path, clips, sb)
+    scenes = json.loads((tmp_path / "scenes.json").read_text())
+
+    # s1 begins after the 1.5s intro; s2 after intro + s1 + transition.
+    assert scenes[0]["start_sec"] == pytest.approx(1.5)
+    assert scenes[1]["start_sec"] == pytest.approx(1.5 + 5.0 + 1.429)
+    # Contiguous windows: s1 spans until s2 begins (absorbs the trailing transition).
+    assert scenes[0]["duration_sec"] == pytest.approx(5.0 + 1.429)
+    # s2 runs to the end of the concat (its clip + pause).
+    assert scenes[1]["duration_sec"] == pytest.approx(8.0 + 0.3)
 
 
 def test_preferred_variant_persists_in_context(tmp_path):

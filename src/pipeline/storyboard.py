@@ -259,6 +259,7 @@ class Theme:
     image_style: str = "flat minimalist illustration, simple clean lines, limited color palette"
     visual_style: str = ""  # per-video style override; takes priority over niche template
     frame_style: str = ""  # optional render wrapper, e.g. open_book_page
+    frameless_from_scene: str = ""  # scene id; this scene and all after render without frame_style
     content_inset: str = ""  # optional placement hint inside the frame
     intro_transition_style: str = ""
     intro_transition_duration_sec: str = ""
@@ -281,6 +282,7 @@ class Theme:
             "image_style": self.image_style,
             "visual_style": self.visual_style,
             "frame_style": self.frame_style,
+            "frameless_from_scene": self.frameless_from_scene,
             "content_inset": self.content_inset,
             "intro_transition_style": self.intro_transition_style,
             "intro_transition_duration_sec": self.intro_transition_duration_sec,
