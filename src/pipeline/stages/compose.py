@@ -683,6 +683,7 @@ class ComposeStage(PipelineStage):
         scenes_data, running_sec = self._precompute_scenes_data(
             storyboard, audio_segments,
         )
+        self._apply_transition_offsets(scenes_data, storyboard)
 
         scene_dicts = self._precompute_duplicate_guard(
             storyboard, ctx.video_path, style_anchor.style_descriptor,
@@ -922,6 +923,39 @@ class ComposeStage(PipelineStage):
             })
             running_sec += scene_dur
         return scenes_data, running_sec
+
+    @staticmethod
+    def _apply_transition_offsets(
+        scenes_data: list[dict[str, object]],
+        storyboard: Storyboard,
+    ) -> None:
+        """Adjust start_sec in-place to include intro + between-scene transition durations.
+
+        _precompute_scenes_data computes start_sec from audio only. The final video
+        also includes the intro transition and page-turn clips between scenes, which
+        shift every scene's actual start position. Without this correction the dashboard
+        playhead seeks to the wrong position (~15-25s early on a typical video).
+        """
+        theme = storyboard.theme
+        intro_dur = 0.0
+        if theme and theme.intro_transition_style:
+            try:
+                intro_dur = float(theme.intro_transition_duration_sec or 0)
+            except (ValueError, TypeError):
+                intro_dur = 0.0
+
+        trans_dur: dict[str, float] = {
+            t.from_scene: t.duration_sec
+            for t in (storyboard.transitions or [])
+            if t.style and t.style != "none" and t.duration_sec > 0
+        }
+
+        accumulated = intro_dur
+        for i, scene in enumerate(scenes_data):
+            if i > 0:
+                prev_id = str(scenes_data[i - 1]["id"])
+                accumulated += trans_dur.get(prev_id, 0.0)
+            scene["start_sec"] = float(scene["start_sec"]) + accumulated
 
     @staticmethod
     def _precompute_duplicate_guard(
