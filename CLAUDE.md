@@ -89,6 +89,7 @@ uv run pipeline storyboard set scene_003 narration="新文字"
 uv run pipeline compose set-variant --project-id <ID> --variant subtitles_no_overlay
 uv run pipeline compose rescene --project-id <ID> --scene s9
 uv run pipeline compose reburn --project-id <ID>
+uv run pipeline compose music --project-id <ID>   # lay mood music bed under narration (re-run after reburn)
 # Safety: rescene errors if --scene covers >50% storyboard. Use reburn for wide rebuilds.
 # Overlay text appears ONLY in overlay variants; use visual_text for no_overlay visibility.
 

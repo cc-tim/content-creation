@@ -223,9 +223,12 @@ uv run pipeline compose rescene --project-id <ID> --scene s9 [--scene s12]
 uv run pipeline compose transitions --project-id <ID>    # rebuild transition clips + concat/finals only
 uv run pipeline compose frame --project-id <ID>          # rewrap cached scene visuals in current frame_style
 uv run pipeline compose reburn --project-id <ID>
+uv run pipeline compose music --project-id <ID> [--dry-run]   # mood music bed under narration (per-scene music_mood)
 ```
 
 Safety: `compose rescene` errors if `--scene` covers more than half the storyboard. Use `compose reburn` for wide rebuilds. Pass `--force` to override.
+
+Music: `compose music` lays a sidechain-ducked mood bed (per-scene `music_mood` + `theme.music_default_mood`) under the narration and re-muxes it onto the final video(s) — no scene re-render. It's the last audio-finishing pass, so **re-run it after any `reburn`**. Beds live in `assets/music/<mood>/` (see that dir's README). `--dry-run` prints the cue plan.
 
 Final artifact durability: compose writes `raw.mp4` and `final_*.mp4` through sibling temp files, atomically replaces the prior playable file only after FFmpeg succeeds, and validates final videos with `ffprobe`. Publish outro concat uses the same atomic helper for `final_with_outro.mp4`.
 
