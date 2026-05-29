@@ -77,9 +77,23 @@ then `uv run ruff check src/ tests/ && uv run mypy src/`.
 
 ## E7 — Audio arsenal & SFX legibility 🔵 (new epic, 2026-05-26)
 
-_No rows yet — no E7 sprint proposed. The first E7 sprint (SFX asset registry, or the SFX
-layer-visibility dashboard surface) populates this section with its acceptance rows as
-`🔲 planned`._
+**Music/audio-axis (first E7 sprint — engineering shipped on master `12bfce3`; EM REVIEW
+2026-05-29 = ADVISE, NOT PASS — the epic item stays 🔵 until the real-scene demo + real tracks
+land and EM re-REVIEWs). Engineering rows below are `✅` (run by me on the master worktree); the
+real-scene demo row is `🔲` because the music library is empty so the demo could not run.**
+
+| Capability | Test | Status |
+|------------|------|--------|
+| `Scene.music_mood` + `Theme.music_default_mood` schema (inherit-on-blank, back-compat defaults) | `tests/unit/test_storyboard_music_mood.py` | ✅ |
+| Mood resolution (`resolve_effective_moods` walk; unknown mood raises) + library load (blank `file` skipped) | `tests/unit/test_music_resolve.py` | ✅ |
+| Cue planning (`plan_cues`: scenes.json spans → merged cues; `"none"` breaks a run) | `tests/unit/test_music_cues.py` | ✅ |
+| `build_bed` full-length 48k/stereo bed, crossfades at abutting cues, **clamped to total video length** (two-axes fence: bed cannot extend runtime) | `tests/integration/test_music_bed.py` | ✅ |
+| `duck_bed` sidechain-duck measurable (bed >8 dB below speech, recovers >4 dB in pauses) + `mux_music_onto_final` idempotent (no music doubling) + video stream preserved | `tests/integration/test_music_duck.py` | ✅ |
+| `pipeline compose music` CLI (dry-run cue plan; loud `Exit(1)` + suggested_fix on missing bed/scenes.json/storyboard) | `tests/unit/test_cli_compose_music.py` | ✅ |
+| **Real-scene demo (spec point 5, gating for 🟢):** baby-walker s19→s23 dark→hopeful arc rendered with real free tracks; narration stays intelligible under the bed; artifact saved | _manual REVIEW evidence (TBD — needs licensed tracks; was empty-library at REVIEW)_ | 🔲 planned |
+
+_(The two older E7 items — SFX asset registry, SFX layer-visibility dashboard surface — remain
+designed-not-built with no rows; their first sprints populate them when proposed.)_
 
 ## Cross-cutting
 

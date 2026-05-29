@@ -43,6 +43,24 @@ until it has ALL of:
    only against fixtures.)
 7. Eventually: a Style Manifest element (E4) and a dashboard surface (E6).
    Sprints 1–N may defer 7, but must name it as deferred, not forget it.
+8. **Locale-portable by default** (cross-cutting authoring bar, Tim 2026-05-29). A scene's
+   visual content should stay language-neutral so ONE render serves future multi-language
+   audio tracks without re-rendering visuals (we already ship MLA — `--mla
+   --secondary-locale`; this is the visual-side complement). Bias order: (1) numerics /
+   charts / data graphics, (2) image-only, (3) iconography / emoji. When baked-in on-screen
+   text is genuinely unavoidable, default it to **English (en-US first)**, never the locale
+   narration language. **Scope split vs the existing niche `universal_rules` "no text in
+   images" (shipped, parenting/true-crime):** that rule governs **AI-generated image
+   backgrounds** (Flux renders baked-in text garbled, so suppress it entirely); this bar's
+   "en-US first" governs **deliberate** on-screen text we author — chart labels, overlays,
+   callouts — where the text is intentional and legible. Not contradictory: no-text for AI
+   backgrounds, en-US-first for deliberate text. This is **orthogonal to both axes** — it is portability/i18n, NOT a
+   slideshow-quality lift and NOT runtime; do not mis-file it as a quality sprint. The
+   director-prompt-bias half of this rides along with the next `stages/direct.py`-touching
+   sprint (don't spin it into its own epic); the lint-enforcement half is an E5 🔵 item
+   (locale-portability lint, below current priorities). *(Note: animated emoji/iconography
+   is NOT a current visual type — flag as possible future E2/E3 demand if a beat names it,
+   per arsenal-is-a-variable; do not build pre-emptively.)*
 
 **Lessons from Sprint 2 (animation):**
 - **Frame generators are PURE.** Contract: `(progress, visual, base_bg, w, h, palette,
@@ -78,6 +96,44 @@ until it has ALL of:
 - **A new type owns a warm/editorial palette** rather than consuming the cool slate
   `Theme` color defaults (`secondary_bg` = slate-700); consume `theme.image_style` for the
   AI-bg prompt (art-direction continuity) and defer full Theme-color integration to E4.
+
+## Anatomy of a new audio capability (E7)
+
+*Accreted from the first E7 sprint — the music/audio-axis feature (master `12bfce3`, EM REVIEW
+2026-05-29).* An audio capability mirrors the visual-type anatomy but the analogues differ:
+
+1. **Schema additive + back-compat.** A new audio control is an optional `Scene`/`Theme` field
+   with a no-op default (music: `Scene.music_mood = ""` inherit, `Theme.music_default_mood =
+   "none"`). It must never change output for storyboards that don't set it.
+2. **Pure DSP core, orchestrator owns I/O — same as frame generators.** Cue planning and any
+   timeline math (`plan_cues`, mood resolution) are pure functions over data
+   (storyboard + `scenes.json`); ffmpeg filter-graph builders (`build_bed`/`duck_bed`/`mux`)
+   are thin, deterministic command emitters. `compose/scenes.json` is the timing source of
+   truth (accurate per-scene start/duration) — align audio cues to it, never re-derive timing.
+3. **The two-axes fence is the LENGTH CLAMP.** Audio is the quality (audio) sub-axis with ZERO
+   runtime. The in-code fence: build the bed to the *exact* existing video duration
+   (`apad whole_dur=total, atrim 0:total`), stream-copy the video (`-c:v copy`), and mix with
+   `duration=first` keyed to narration — so audio physically cannot extend the video. Prove it
+   with a length-assertion test (bed length == total ±tol), the audio analogue of the
+   `reveal_duration_sec ≤ scene − 0.5s` validator. This belongs in code, not docs.
+4. **Mix legibility is MEASURABLE, not eyeballed.** A duck/mix is verified by `volumedetect`
+   dB deltas on synthetic tones (bed sits N dB below speech; recovers in pauses), and
+   re-application is idempotent (source the narration bus from the pristine `raw.mp4`, never
+   the already-mixed final → no doubling). These are the audio analogue of golden PNGs.
+5. **Loud failure on a missing asset.** A used-but-unstocked mood/SFX must `Exit` loudly with
+   a `suggested_fix`; library entries with a blank `file` are skipped on load so they error at
+   use, not silently render nothing.
+6. **Real-scene demo is STILL gating (step 6 of the visual anatomy applies).** Goldens/dB-tests
+   prove determinism + the mix math on synthetic audio; they do NOT prove it sounds right on
+   real content. A new audio capability is not 🟢 until it is demonstrated against a canonical
+   real-scene arc with real (license-clear) assets and the artifact saved — for music, the
+   s19→s23 baby-walker intelligibility check. **Lesson learned the hard way:** the music
+   feature's engineering passed every test but the library was empty, so the demo could not run
+   → EM returned ADVISE, not PASS, and E7 stayed 🔵. Synthetic-only ≠ proven.
+7. **Asset library = a license-tracking manifest from day one.** `library.json` carries
+   per-asset `source`/`source_url`/`license`/loudness — this is the same shape E7 item 1 (SFX
+   asset registry) wants, so a music/SFX library should converge on one registry pattern, not
+   fork two.
 
 ## Budget discipline ($50/mo cap)
 

@@ -16,7 +16,14 @@
 > video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
 > the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-05-27 (REVIEW PASS: **Sprint 6 (E4 Slice 3) shipped** — niche `visual_style` medium-clash refactor split `medium_hint` / `palette` / `subject_bias` / `universal_rules`, preserved the back-compat composite, and passed EM REVIEW on `feat/niche-visual-style-split`; s25 demo evidence saved under `tmp/niche-visual-style-split/`. Prior: Sprint 6 formally proposed; production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-05-29 (REVIEW post-hoc: **E7 music/audio-axis** — first E7 sprint, built
+off-roadmap and merged to master `12bfce3` without a pre-merge gate; EM acceptance verdict
+**ADVISE, NOT PASS** [engineering clean + invariants held: schema, `composer/music.py` mix
+engine with an in-code length-clamp two-axes fence, `pipeline compose music` CLI, loud failure,
+19 measurable tests + ruff/mypy green — but the music library is **empty**, so the spec's named
+s19→s23 real-scene intelligibility demo could not run]. E7 item **stays 🔵**; flip to 🟢 needs
+licensed tracks + the demo + a separate code review + EM re-REVIEW. Branch note: music is on
+master; my EM memory edits are uncommitted on `feat/baby-walker-quality-pass` — reconcile later.) · Prior: 2026-05-29 (INTAKE: **locale-portability authoring principle folded** — prefer language-neutral visuals [numeric/chart → image-only → icon/emoji], default unavoidable on-screen text to English/en-US; cross-cutting bar → `standards.md` step 8 + the next `direct.py` sprint, lint-enforcement half → E5 🔵 [NOT next]; orthogonal to both axes; visual-side complement to shipped MLA. Recommended next sprint UNCHANGED.) · Prior: 2026-05-27 (REVIEW PASS: **Sprint 6 (E4 Slice 3) shipped** — niche `visual_style` medium-clash refactor split `medium_hint` / `palette` / `subject_bias` / `universal_rules`, preserved the back-compat composite, and passed EM REVIEW on `feat/niche-visual-style-split`; s25 demo evidence saved under `tmp/niche-visual-style-split/`. Prior: Sprint 6 formally proposed; production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -205,6 +212,16 @@ a `confidence`/`rationale` decision table the user reviews before TTS.
 - **Remaining (narrow, not sprint-sized):** `namecard`/`map` still silently fall back to
   `text_card` in `composer/base.py:413-422` — make loud or scope-validate when next in
   that file.
+- **🔵 Locale-portability lint** (Tim 2026-05-29, designed-not-built, **NOT next** — below
+  current priorities): flag scenes whose visual carries **locale-locked (non-English)
+  baked-in on-screen text**, surfaced in the decision table, so a video stays portable to
+  future multi-language audio tracks (we already ship MLA — `--mla --secondary-locale`;
+  this is the visual-side complement). The standing authoring principle — prefer
+  language-neutral visuals (numeric/chart → image-only → icon/emoji), and when on-screen
+  text is unavoidable default it to **English (en-US first)** — lives in the EM
+  `standards.md` "Anatomy of a new visual type" (step 8) as a cross-cutting bar; the
+  director-prompt-bias half rides the next `stages/direct.py`-touching sprint. **Orthogonal
+  to both axes** (portability/i18n — neither slideshow-quality nor runtime).
 - **Interface with E1:** chart validation hooks (`chart_type` in set, `data` matches
   schema) live here; the chart branch delegates to `composer/chart.py:validate_chart_visual`.
 
@@ -216,7 +233,7 @@ and (later) Style/Decision panels feeding from E4/E5.
 - **Source:** `tmp/dashboard-transition-workflow-improvement-plan.md` (5 phases). Some
   transition/frame groundwork already shipped (`book-page-turn-v2`, open-book frame).
 
-### E7 — Audio arsenal & SFX legibility  `[arsenal · audio]`  🔵 *new epic (2026-05-26, Tim-approved)*
+### E7 — Audio arsenal & SFX legibility  `[arsenal · audio]`  🔵 *new epic (2026-05-26, Tim-approved); first sprint (music/audio-axis) engineering on master `12bfce3` but EM REVIEW 2026-05-29 = ADVISE — stays 🔵 pending real-scene demo + licensed tracks*
 The **audio axis** of the quality north star. Until now the EM mandate was visual-only; E7
 formally extends it to what the pipeline can *score, layer, and surface* in sound — SFX,
 ambient, music — with the same standards (traceability, loud failure, two-axes discipline).
@@ -247,6 +264,21 @@ over a 4-min scene adds zero seconds, exactly as richer rendering does not.
 - **Depends on:** none blocking for the registry (item 1); item 2 leans on the E6 dashboard
   surface machinery. **Unblocks:** legible, reusable, traceable audio — an **audio-quality**
   lift. **Does NOT** add runtime.
+- **Music / audio-axis (first E7 sprint — engineering on master `12bfce3`; 🔵 pending demo):**
+  built off-roadmap (no SPRINT proposal / no pre-merge greenlight; merged to master locally),
+  EM gated it post-hoc 2026-05-29 = **ADVISE, NOT PASS**. **Shipped engineering:**
+  `Scene.music_mood` + `Theme.music_default_mood` schema; `src/pipeline/composer/music.py`
+  (`plan_cues` → `build_bed` full-length 48k bed clamped to total length → `duck_bed`
+  sidechain → idempotent `mux_music_onto_final`); `pipeline compose music --project-id`
+  (re-mux, no scene re-render); `assets/music/` scaffold + `library.json` license manifest.
+  **Two-axes fence in code** (bed clamped to existing video length; video stream-copied; mix
+  keyed to narration duration — music cannot extend runtime). **Loud failure** on a
+  used-but-unstocked mood. **Why still 🔵, not 🟢:** the music library is **empty** (no
+  license-clear tracks), so the spec's named real-scene demo (baby-walker s19→s23 dark→hopeful
+  arc, narration intelligible under the bed — `docs/superpowers/specs/2026-05-29-music-audio-axis-prompt.md`
+  point 5) **could not run**. 🟢 requires proof on real content. **To advance:** source free
+  tracks → populate `library.json` → run the demo + save the intelligibility artifact → a
+  separate code-correctness review → summon EM REVIEW again.
 
 ---
 
