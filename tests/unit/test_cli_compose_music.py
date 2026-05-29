@@ -95,3 +95,29 @@ def test_music_happy_path_builds_and_muxes(tmp_path, monkeypatch):
     duck.assert_called_once()
     mux.assert_called_once()  # one final variant present
     assert "Done" in res.output
+
+
+def test_music_targets_canonical_variants_not_sidecars(tmp_path, monkeypatch):
+    work_dir = _make_project(tmp_path, [("s1", "tense")])
+    compose = work_dir / "compose"
+    (compose / "final_zh-TW_no_overlay.mp4").write_bytes(b"f")
+    (compose / "final_zh-TW.mp4").write_bytes(b"f")
+    (compose / "final_zh-TW_no_overlay.PRE-REDERIVE.mp4").write_bytes(b"backup")  # must NOT be touched
+    _, _, mux = _patch_ffmpeg(monkeypatch, {"tense": MoodTrack("tense", Path("/x/t.mp3"))})
+    res = _run(work_dir, monkeypatch, [])
+    assert res.exit_code == 0, res.output
+    muxed = {Path(c.args[0]).name for c in mux.call_args_list}
+    assert "final_zh-TW_no_overlay.PRE-REDERIVE.mp4" not in muxed   # sidecar excluded
+    assert {"final_zh-TW.mp4", "final_zh-TW_no_overlay.mp4",
+            "final_zh-TW_subtitles_no_overlay.mp4"} <= muxed
+
+
+def test_music_falls_back_to_raw_no_overlay(tmp_path, monkeypatch):
+    work_dir = _make_project(tmp_path, [("s1", "tense")])
+    compose = work_dir / "compose"
+    (compose / "raw.mp4").unlink()                               # only raw_no_overlay present
+    (compose / "raw_no_overlay.mp4").write_bytes(b"rawnoov")
+    _, _, mux = _patch_ffmpeg(monkeypatch, {"tense": MoodTrack("tense", Path("/x/t.mp3"))})
+    res = _run(work_dir, monkeypatch, [])
+    assert res.exit_code == 0, res.output
+    assert Path(mux.call_args.args[1]).name == "raw_no_overlay.mp4"  # narration source

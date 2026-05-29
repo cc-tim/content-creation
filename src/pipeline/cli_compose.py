@@ -385,20 +385,33 @@ def music(
 
     raw = compose_dir / "raw.mp4"
     if not raw.exists():
-        typer.echo(f"No raw.mp4 at {raw} — run compose first.", err=True)
+        raw = compose_dir / "raw_no_overlay.mp4"  # shares its audio with raw.mp4
+    if not raw.exists():
+        typer.echo(
+            f"No raw.mp4 / raw_no_overlay.mp4 in {compose_dir} — run compose first.",
+            err=True,
+        )
         raise typer.Exit(code=1)
+
+    # Only the canonical variant finals — never sidecars/backups like
+    # final_<locale>_no_overlay.PRE-REDERIVE.mp4.
+    finals = [
+        compose_dir / f"final_{locale}{suffix}.mp4"
+        for suffix in _VARIANT_SUFFIXES.values()
+    ]
+    finals = [f for f in finals if f.exists()]
+    if not finals:
+        typer.echo(
+            f"No final_{locale} variant to mux onto — run compose/reburn first.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
     total = _get_duration_sec(raw)
     music_dir = compose_dir / "music"
     bed = build_bed(cues, library, total, music_dir / f"bed_{locale}.m4a")
     assert bed is not None  # cues is non-empty here, so build_bed returns a path
     ducked = duck_bed(bed, raw, music_dir / f"ducked_{locale}.m4a", duck_db=duck_db)
-
-    finals = sorted(compose_dir.glob(f"final_{locale}*.mp4"))
-    if not finals:
-        typer.echo(
-            f"No final_{locale}*.mp4 to mux onto — run compose/reburn first.", err=True
-        )
-        raise typer.Exit(code=1)
 
     entry = SessionEntry(
         session_id=new_session_id(),
