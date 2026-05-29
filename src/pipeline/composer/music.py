@@ -162,3 +162,56 @@ def build_bed(
          "-map", "[bed]", "-ar", "48000", "-ac", "2", str(out_path)]
     )
     return out_path
+
+
+def duck_bed(
+    bed_path: Path,
+    key_audio_path: Path,
+    out_path: Path,
+    duck_db: float = 15.0,
+) -> Path:
+    """Sidechain-duck the bed under ``key_audio`` (the narration), as a standalone
+    artifact so the result is directly measurable.
+
+    ``volume=-duck_db`` sets the bed's resting floor; ``sidechaincompress`` keyed by
+    the narration adds dynamic ducking while speech is present (recovering in pauses).
+    Target during speech ≈ 12-15 dB below narration. Output is 48 kHz/stereo.
+    """
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fc = (
+        "[1:a]aformat=sample_rates=48000:channel_layouts=stereo[key];"
+        f"[0:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=-{duck_db}dB[m];"
+        "[m][key]sidechaincompress=threshold=0.05:ratio=8:attack=5:release=300[duck]"
+    )
+    run_ffmpeg(
+        ["ffmpeg", "-y", "-i", str(bed_path), "-i", str(key_audio_path),
+         "-filter_complex", fc, "-map", "[duck]", "-ar", "48000", "-ac", "2", str(out_path)]
+    )
+    return out_path
+
+
+def mux_music_onto_final(
+    final_video: Path,
+    narration_audio: Path,
+    ducked_bed: Path,
+    out_path: Path,
+) -> None:
+    """Mix narration + ducked bed and mux onto ``final_video`` (video stream-copied).
+
+    The narration bus is read from ``narration_audio`` (the pristine ``raw.mp4``),
+    NOT from ``final_video`` — so re-running over an already-musicked final does not
+    double the music (idempotent). Written atomically over ``out_path``.
+    """
+    fc = (
+        "[1:a]aformat=sample_rates=48000:channel_layouts=stereo[n];"
+        "[2:a]aformat=sample_rates=48000:channel_layouts=stereo[d];"
+        "[n][d]amix=inputs=2:normalize=0:duration=first[mix]"
+    )
+    run_ffmpeg_atomic(
+        ["ffmpeg", "-y", "-i", str(final_video), "-i", str(narration_audio),
+         "-i", str(ducked_bed), "-filter_complex", fc,
+         "-map", "0:v", "-c:v", "copy", "-map", "[mix]", "-c:a", "aac", "-b:a", "192k",
+         str(out_path)],
+        Path(out_path),
+    )
