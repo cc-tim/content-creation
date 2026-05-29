@@ -158,6 +158,7 @@ class Scene:
     compartment: dict[str, Any] | None = None
     narration_source: NarrationSource | None = None
     subtitle_override: str | None = None
+    music_mood: str = ""  # audio axis: tense|somber|hopeful|triumphant|reflective|none; ""=inherit prev
     # Measured audio durations per locale, written back after successful TTS.
     # Stale entries (text-hash mismatch) are dropped on load — see from_dict.
     narration_durations_ms: dict[str, int] = field(default_factory=dict)
@@ -200,6 +201,7 @@ class Scene:
             compartment=data.get("compartment"),
             narration_source=narration_source,
             subtitle_override=data.get("subtitle_override"),
+            music_mood=data.get("music_mood", ""),
             narration_durations_ms=narration_durations_ms,
             narration_text_hashes=narration_text_hashes,
         )
@@ -224,6 +226,8 @@ class Scene:
             out["narration_source"] = self.narration_source.to_dict()
         if self.subtitle_override is not None:
             out["subtitle_override"] = self.subtitle_override
+        if self.music_mood:
+            out["music_mood"] = self.music_mood
         if self.narration_durations_ms:
             out["narration_durations_ms"] = self.narration_durations_ms
         if self.narration_text_hashes:
@@ -260,6 +264,7 @@ class Theme:
     visual_style: str = ""  # per-video style override; takes priority over niche template
     frame_style: str = ""  # optional render wrapper, e.g. open_book_page
     content_inset: str = ""  # optional placement hint inside the frame
+    music_default_mood: str = "none"  # audio axis: base music mood; "none"=silent default
     intro_transition_style: str = ""
     intro_transition_duration_sec: str = ""
     intro_transition_page_count: str = ""
@@ -282,6 +287,7 @@ class Theme:
             "visual_style": self.visual_style,
             "frame_style": self.frame_style,
             "content_inset": self.content_inset,
+            "music_default_mood": self.music_default_mood,
             "intro_transition_style": self.intro_transition_style,
             "intro_transition_duration_sec": self.intro_transition_duration_sec,
             "intro_transition_page_count": self.intro_transition_page_count,
