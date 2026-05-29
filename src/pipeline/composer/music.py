@@ -12,6 +12,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from pipeline.utils.ffmpeg import run_ffmpeg, run_ffmpeg_atomic
+
 MUSIC_MOODS = ("tense", "somber", "hopeful", "triumphant", "reflective", "none")
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -104,3 +106,59 @@ def plan_cues(storyboard, scenes: list[dict]) -> list[Cue]:
         else:
             cues.append(Cue(mood, start, end))
     return cues
+
+
+def build_bed(
+    cues: list[Cue],
+    library: dict[str, MoodTrack],
+    total_sec: float,
+    out_path: Path,
+) -> Path | None:
+    """Render the full-length mood bed (48 kHz/stereo) aligned to the timeline.
+
+    Each cue loops its mood track, trims to the cue length, fades at the edges,
+    and is placed via ``adelay``. Adjacent (abutting) cues overlap by ``_XFADE_SEC``
+    so their equal-power fades crossfade; a cue against a gap/edge fades to silence
+    over ``_EDGE_FADE_SEC``. Returns ``None`` when there are no cues.
+    """
+    if not cues:
+        return None
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    eps = 1e-2
+    inputs: list[str] = []
+    filters: list[str] = []
+    for i, c in enumerate(cues):
+        track = library[c.mood].file
+        left_abut = i > 0 and abs(cues[i - 1].end_sec - c.start_sec) < eps
+        right_abut = i < len(cues) - 1 and abs(cues[i + 1].start_sec - c.end_sec) < eps
+        place_at = max(0.0, c.start_sec - (_XFADE_SEC if left_abut else 0.0))
+        seg_dur = c.end_sec - place_at
+        fin = min(_XFADE_SEC if left_abut else _EDGE_FADE_SEC, seg_dur / 2)
+        fout = min(_XFADE_SEC if right_abut else _EDGE_FADE_SEC, seg_dur / 2)
+        delay_ms = int(round(place_at * 1000))
+        inputs += ["-stream_loop", "-1", "-i", str(track)]
+        filters.append(
+            f"[{i}:a]aformat=sample_rates=48000:channel_layouts=stereo,"
+            f"atrim=0:{seg_dur:.3f},asetpts=PTS-STARTPTS,"
+            f"afade=t=in:st=0:d={fin:.3f},"
+            f"afade=t=out:st={seg_dur - fout:.3f}:d={fout:.3f},"
+            f"adelay={delay_ms}:all=1[c{i}]"
+        )
+
+    if len(cues) == 1:
+        mix = f"[c0]apad=whole_dur={total_sec:.3f},atrim=0:{total_sec:.3f}[bed]"
+    else:
+        labels = "".join(f"[c{i}]" for i in range(len(cues)))
+        mix = (
+            f"{labels}amix=inputs={len(cues)}:normalize=0:dropout_transition=0,"
+            f"apad=whole_dur={total_sec:.3f},atrim=0:{total_sec:.3f}[bed]"
+        )
+
+    fc = ";".join([*filters, mix])
+    run_ffmpeg(
+        ["ffmpeg", "-y", *inputs, "-filter_complex", fc,
+         "-map", "[bed]", "-ar", "48000", "-ac", "2", str(out_path)]
+    )
+    return out_path
