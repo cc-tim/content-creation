@@ -92,6 +92,6 @@ def run_checks(
     """
     findings: list[Finding] = []
     findings.extend(check_duplicate_frames([(sid, png) for sid, png, _ in stills]))
-    for scene_id, png, scene in stills:
+    for _scene_id, png, scene in stills:
         findings.extend(check_blank_substrate(png, scene))
     return findings

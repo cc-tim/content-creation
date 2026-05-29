@@ -4,7 +4,11 @@ from pathlib import Path
 
 from PIL import Image
 
-from pipeline.director.still_gate.checks import check_blank_substrate, check_duplicate_frames
+from pipeline.director.still_gate.checks import (
+    check_blank_substrate,
+    check_duplicate_frames,
+    run_checks,
+)
 
 
 def _png(path: Path, color) -> Path:
@@ -37,3 +41,19 @@ def test_blank_substrate_flags_flat_image(flat_grey_png):
 def test_blank_substrate_true_negative_on_busy_image(busy_png):
     scene = {"id": "s1", "visual": {"type": "article_image", "path": "x"}}
     assert check_blank_substrate(busy_png, scene) == []
+
+
+def test_run_checks_aggregates_both_checks(tmp_path, flat_grey_png):
+    import shutil
+    s1 = tmp_path / "s1.png"
+    shutil.copy(flat_grey_png, s1)
+    s2 = tmp_path / "s2.png"
+    shutil.copy(flat_grey_png, s2)
+    stills = [
+        ("s1", s1, {"id": "s1", "visual": {"type": "article_image"}}),
+        ("s2", s2, {"id": "s2", "visual": {"type": "article_image"}}),
+    ]
+    findings = run_checks(stills)
+    kinds = sorted(f.check for f in findings)
+    assert "duplicate_frame" in kinds
+    assert kinds.count("blank_substrate") == 2
