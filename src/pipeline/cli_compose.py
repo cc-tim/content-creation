@@ -390,6 +390,7 @@ def music(
     total = _get_duration_sec(raw)
     music_dir = compose_dir / "music"
     bed = build_bed(cues, library, total, music_dir / f"bed_{locale}.m4a")
+    assert bed is not None  # cues is non-empty here, so build_bed returns a path
     ducked = duck_bed(bed, raw, music_dir / f"ducked_{locale}.m4a", duck_db=duck_db)
 
     finals = sorted(compose_dir.glob(f"final_{locale}*.mp4"))

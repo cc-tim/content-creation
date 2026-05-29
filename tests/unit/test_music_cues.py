@@ -1,5 +1,5 @@
 """Cue planning: effective moods + scenes.json spans -> contiguous cues."""
-from pipeline.composer.music import Cue, plan_cues
+from pipeline.composer.music import plan_cues
 from pipeline.storyboard import Scene, Storyboard, Theme
 
 
