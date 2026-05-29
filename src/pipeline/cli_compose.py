@@ -315,6 +315,110 @@ def reburn(
     append_session(work_dir, entry)
 
 
+@compose_app.command("music")
+def music(
+    project_id: str = typer.Option(..., "--project-id"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Print the resolved cue plan and exit (no render)."
+    ),
+    duck_db: float = typer.Option(
+        15.0, "--duck-db", help="Target dB the music sits below narration."
+    ),
+) -> None:
+    """Lay the mood music bed under the narration and mux it onto the final video(s).
+
+    Reads per-scene ``music_mood`` + ``compose/scenes.json``, builds a sidechain-ducked
+    bed from the pristine ``raw.mp4`` narration, and re-muxes it onto every
+    ``final_<locale>*.mp4`` (video stream-copied; no scene re-render). It is the last
+    audio-finishing pass — re-run it after any ``reburn``.
+    """
+    import json
+
+    from pipeline.composer.music import (
+        build_bed,
+        duck_bed,
+        load_library,
+        mux_music_onto_final,
+        plan_cues,
+    )
+    from pipeline.stages.compose import _get_duration_sec
+    from pipeline.storyboard import Storyboard
+
+    work_dir = _resolve_work_dir(project_id)
+    ctx = PipelineContext.load(work_dir / "context.json")
+    if ctx.storyboard_path is None or not Path(ctx.storyboard_path).exists():
+        typer.echo("No storyboard in context — cannot build music.", err=True)
+        raise typer.Exit(code=1)
+    storyboard = Storyboard.load(ctx.storyboard_path)
+    compose_dir = work_dir / "compose"
+    locale = ctx.locale
+
+    scenes_json = compose_dir / "scenes.json"
+    if not scenes_json.exists():
+        typer.echo(f"No scenes.json at {scenes_json} — run compose first.", err=True)
+        raise typer.Exit(code=1)
+    scenes = json.loads(scenes_json.read_text(encoding="utf-8"))
+
+    cues = plan_cues(storyboard, scenes)
+    if not cues:
+        typer.echo("No music moods tagged (all 'none') — nothing to do.")
+        return
+
+    library = load_library()
+    missing = sorted({c.mood for c in cues if c.mood not in library})
+    if missing:
+        typer.echo(
+            f"No music bed for mood(s): {', '.join(missing)}. Add a track + manifest "
+            "entry under assets/music/<mood>/ (see assets/music/README.md).",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    if dry_run:
+        typer.echo(f"Music cue plan ({len(cues)} cue(s)), locale {locale}:")
+        for c in cues:
+            typer.echo(
+                f"  {c.mood:>10}  [{c.start_sec:8.2f} -> {c.end_sec:8.2f}]  "
+                f"{c.duration:6.2f}s  <- {library[c.mood].file.name}"
+            )
+        return
+
+    raw = compose_dir / "raw.mp4"
+    if not raw.exists():
+        typer.echo(f"No raw.mp4 at {raw} — run compose first.", err=True)
+        raise typer.Exit(code=1)
+    total = _get_duration_sec(raw)
+    music_dir = compose_dir / "music"
+    bed = build_bed(cues, library, total, music_dir / f"bed_{locale}.m4a")
+    ducked = duck_bed(bed, raw, music_dir / f"ducked_{locale}.m4a", duck_db=duck_db)
+
+    finals = sorted(compose_dir.glob(f"final_{locale}*.mp4"))
+    if not finals:
+        typer.echo(
+            f"No final_{locale}*.mp4 to mux onto — run compose/reburn first.", err=True
+        )
+        raise typer.Exit(code=1)
+
+    entry = SessionEntry(
+        session_id=new_session_id(),
+        timestamp=datetime.now().isoformat(timespec="seconds"),
+        command="compose music",
+    )
+    try:
+        for f in finals:
+            typer.echo(f"Muxing music -> {f.name}")
+            mux_music_onto_final(f, raw, ducked, f)
+        entry.summary = f"music: {len(cues)} cue(s) -> {len(finals)} variant(s)"
+        typer.echo(f"Done -> {len(finals)} variant(s) now carry the music bed.")
+    except Exception as exc:
+        entry.outcome = "failed"
+        entry.error = str(exc)[:200]
+        entry.summary = "music failed"
+        append_session(work_dir, entry)
+        raise
+    append_session(work_dir, entry)
+
+
 @compose_app.command("transitions")
 def transitions(
     project_id: str = typer.Option(..., "--project-id"),
