@@ -31,6 +31,19 @@ class MoodTrack:
     file: Path
 
 
+@dataclass(frozen=True)
+class Cue:
+    """A contiguous span of one (non-"none") mood on the video timeline."""
+
+    mood: str
+    start_sec: float
+    end_sec: float
+
+    @property
+    def duration(self) -> float:
+        return self.end_sec - self.start_sec
+
+
 def resolve_effective_moods(storyboard) -> list[tuple[str, str]]:
     """Resolve each scene's *effective* mood by walking scenes in order.
 
@@ -67,3 +80,27 @@ def load_library(path: Path = MUSIC_LIBRARY_JSON) -> dict[str, MoodTrack]:
         if rel:
             lib[mood] = MoodTrack(mood=mood, file=(path.parent / rel))
     return lib
+
+
+def plan_cues(storyboard, scenes: list[dict]) -> list[Cue]:
+    """Turn effective per-scene moods + scenes.json spans into cues.
+
+    Adjacent scenes sharing a mood are merged into one cue; a ``"none"`` scene
+    breaks the run (so the same mood either side of a silent gap yields two cues).
+    ``scenes`` are rows from ``compose/scenes.json`` (``id``/``start_sec``/
+    ``duration_sec``).
+    """
+    moods = dict(resolve_effective_moods(storyboard))
+    rows = sorted(scenes, key=lambda s: s["start_sec"])
+    cues: list[Cue] = []
+    for s in rows:
+        mood = moods.get(s["id"], "none")
+        if mood == "none":
+            continue
+        start = float(s["start_sec"])
+        end = start + float(s["duration_sec"])
+        if cues and cues[-1].mood == mood and abs(cues[-1].end_sec - start) < 1e-2:
+            cues[-1] = Cue(mood, cues[-1].start_sec, end)
+        else:
+            cues.append(Cue(mood, start, end))
+    return cues
