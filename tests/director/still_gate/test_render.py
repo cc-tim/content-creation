@@ -26,5 +26,8 @@ def test_resolve_variant_reads_context_json(tmp_path: Path):
     assert resolve_variant(tmp_path) == "no_overlay"
 
 
-def test_resolve_variant_defaults_to_plain(tmp_path: Path):
-    assert resolve_variant(tmp_path) == "plain"  # no context.json => safe default
+def test_resolve_variant_defaults_to_no_overlay(tmp_path: Path):
+    # No context.json (the usual pre-TTS gate state) => judge the BARE frame, so
+    # overlay-faked reuse/blankness is caught. Defaulting to a burning variant
+    # (plain) would mask the very defect the gate exists to catch.
+    assert resolve_variant(tmp_path) == "no_overlay"

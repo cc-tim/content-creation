@@ -13,14 +13,25 @@ _OVERLAY_VARIANTS = {"plain", "subtitles"}  # variants that burn per-scene overl
 
 
 def resolve_variant(project_dir: Path) -> str:
-    """Read the delivered overlay variant from context.json; default 'plain'."""
+    """Resolve the variant the still-gate renders.
+
+    Uses ``preferred_variant`` from context.json when present. Otherwise defaults
+    to ``no_overlay`` — NOT ``plain`` — because at the Phase-3.5 gate (before TTS)
+    the delivered variant is usually not yet written, and the gate must judge the
+    BARE composited frame. Per the storyboard-critic standards a scene's
+    differentiation and a substrate's meaning must survive WITHOUT the overlay, so
+    reuse and blank-substrate are judged un-burned. Defaulting to an overlay-burning
+    variant (``plain``) lets distinct overlays mask an otherwise-identical reused
+    image, silently passing the exact defect this gate exists to catch (EM REVIEW
+    2026-05-30 demonstrated this).
+    """
     ctx = project_dir / "context.json"
     if ctx.exists():
         data = json.loads(ctx.read_text())
         v = data.get("preferred_variant")
         if isinstance(v, str) and v:
             return v
-    return "plain"
+    return "no_overlay"
 
 
 def render_scene_still(
