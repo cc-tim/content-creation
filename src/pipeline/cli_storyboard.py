@@ -337,6 +337,56 @@ def backfill_beats_file(path: Path) -> bool:
     return True
 
 
+@storyboard_app.command("still-gate")
+def still_gate(
+    project_id: str = typer.Argument(..., help="Project folder under output/projects/."),
+) -> None:
+    """Render a still per scene + run render-truth checks BEFORE TTS/compose."""
+    import tempfile
+
+    from pipeline.director.still_gate import (
+        build_contact_sheet,
+        render_scene_still,
+        resolve_variant,
+        run_checks,
+    )
+
+    pdir = PipelineConfig().OUTPUT_DIR / "projects" / project_id
+    if not pdir.exists():
+        typer.echo(f"Project not found: {pdir}", err=True)
+        raise typer.Exit(1)
+    sb_path = pdir / "storyboard.json"
+    if not sb_path.exists():
+        typer.echo(f"No storyboard.json in {pdir}", err=True)
+        raise typer.Exit(1)
+
+    variant = resolve_variant(pdir)
+    scenes = json.loads(sb_path.read_text())["scenes"]
+    work = Path(tempfile.mkdtemp(prefix=f"stillgate_{project_id}_"))
+
+    stills: list[tuple[str, Path, dict]] = []
+    sheet_items: list[tuple[str, Path, str]] = []
+    for scene in scenes:
+        sid = scene.get("id", "scene")
+        png = render_scene_still(scene, variant=variant, work_dir=work / sid, theme={})
+        stills.append((sid, png, scene))
+        vis = scene.get("visual", {})
+        meta = vis.get("type", "?")
+        if vis.get("path"):
+            meta = f"{meta} · {Path(vis['path']).name}"
+        sheet_items.append((sid, png, meta))
+
+    sheet = build_contact_sheet(sheet_items, pdir / "still_gate_sheet.png")
+    findings = run_checks(stills)
+
+    typer.echo(f"Contact sheet: {sheet}  (variant={variant}, {len(scenes)} scenes)")
+    if findings:
+        for f in findings:
+            typer.echo(f"  [{f.check}] {f.scene_id}: {f.message}  Fix: {f.suggested_fix}")
+        raise typer.Exit(2)
+    typer.echo("Still-gate clean — no render-truth findings.")
+
+
 @storyboard_app.command("migrate")
 def migrate(
     project_id: str = typer.Option(None, "--project-id", help="Migrate one project"),
