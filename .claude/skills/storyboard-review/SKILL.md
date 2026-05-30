@@ -149,8 +149,8 @@ reused across scenes — perceptual hash) and `blank_substrate` (a genuinely-fla
 content panel — content-inset dominant-color). Exit 0 = clean; exit 2 = findings printed.
 
 **Layer 2 — in-session vision pass (ZERO extra Anthropic billing — same as the visual-review skill):**
-Open `output/projects/<ID>/still_gate_sheet.png` (zoom individual `scene_<id>.png` as needed) and
-look at every scene's rendered frame. Judge the *semantic* render-truth defects the deterministic
+Open `output/projects/<ID>/still_gate_sheet.png` (and the per-scene stills in
+`output/projects/<ID>/still_gate_scenes/<id>.png` to zoom) and look at every scene's rendered frame. Judge the *semantic* render-truth defects the deterministic
 checks cannot — this is the narrow, scoped model-vision check (Tim's call, 2026-05-30):
 - **Meaningfulness** — does the bare frame communicate its beat, or is it an informationally-empty
   substrate (blank/unannotated map, empty chart) whose meaning lived only in a stripped overlay?

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
-Severity = str  # "error" | "warning"
+Severity = Literal["error", "warning"]
 
 
 @dataclass(frozen=True)

@@ -27,10 +27,13 @@ def resolve_variant(project_dir: Path) -> str:
     """
     ctx = project_dir / "context.json"
     if ctx.exists():
-        data = json.loads(ctx.read_text())
-        v = data.get("preferred_variant")
-        if isinstance(v, str) and v:
-            return v
+        try:
+            data = json.loads(ctx.read_text())
+            v = data.get("preferred_variant")
+            if isinstance(v, str) and v:
+                return v
+        except (json.JSONDecodeError, OSError):
+            pass  # malformed/unreadable context.json => fall back to the bare-frame default
     return "no_overlay"
 
 
