@@ -133,10 +133,43 @@ Append this loop's verdict to `.agent-memory/storyboard-critic/reviews/<ID>.md`:
 
 ## Step 8 — Act on the verdict
 
-### If PASS
+### If PASS (JSON critic) → run the render-truth still-gate BEFORE proceeding
 
-Tell the user: "Storyboard cleared by the editor (loop N). Greenpass terms: <terms>. Proceed to Phase 4 (fit-image → TTS → compose)."
-Done.
+The JSON critic judges the *plan*. Before TTS, run the **render-truth still-gate**, which judges
+the *composited frame* — the defect class the JSON critic is structurally blind to (clipped text,
+wrong-language chart labels, a blank-map composite, as-rendered duplicate images). Two layers:
+
+**Layer 1 — deterministic checks (cheap, byte-stable) via CLI:**
+```bash
+uv run pipeline storyboard still-gate <ID>
+```
+Composites each scene to a still in the project's delivered variant, writes a labeled contact sheet
+to `output/projects/<ID>/still_gate_sheet.png`, and runs `duplicate_frame` (same composited frame
+reused across scenes — perceptual hash) and `blank_substrate` (a genuinely-flat / missing-image
+content panel — content-inset dominant-color). Exit 0 = clean; exit 2 = findings printed.
+
+**Layer 2 — in-session vision pass (ZERO extra Anthropic billing — same as the visual-review skill):**
+Open `output/projects/<ID>/still_gate_sheet.png` (zoom individual `scene_<id>.png` as needed) and
+look at every scene's rendered frame. Judge the *semantic* render-truth defects the deterministic
+checks cannot — this is the narrow, scoped model-vision check (Tim's call, 2026-05-30):
+- **Meaningfulness** — does the bare frame communicate its beat, or is it an informationally-empty
+  substrate (blank/unannotated map, empty chart) whose meaning lived only in a stripped overlay?
+  (The bordered-blank-map case `blank_substrate` cannot catch.)
+- **Wrong-language text** — on a ported video (`source_locale ≠ locale`), flag baked-in on-screen
+  text in the wrong language (e.g. English chart labels on a zh-TW deck).
+- **Clipping / overflow** — text cut off at the content-panel edges (e.g. a verbatim quote clipped
+  left/right).
+Look at every scene; concentrate on `slide`/`text_card`/`chart`/`map` scenes and on anything Layer 1
+flagged.
+
+**Act on the combined findings:**
+- If Layer 1 OR Layer 2 found defects: surface them with the contact sheet and treat them like critic
+  demands — rewrite/cut/merge the offending scenes (annotate the map, swap the reused image, redo the
+  clipped card, regenerate the wrong-language asset), apply, re-derive the script, and re-run BOTH the
+  JSON-critic loop and this still-gate. **Do NOT proceed to TTS with open render-truth findings.**
+- If both layers are clean: tell the user "Storyboard cleared by the editor (loop N) AND the
+  render-truth still-gate (deterministic + in-session frame review). Greenpass terms: <terms>.
+  Proceed to Phase 4 (fit-image → TTS → compose)." Done.
 
 ---
 
