@@ -43,6 +43,31 @@ def test_blank_substrate_true_negative_on_busy_image(busy_png):
     assert check_blank_substrate(busy_png, scene) == []
 
 
+def test_blank_substrate_measures_inset_not_whole_frame(tmp_path):
+    # Busy brown border + flat-grey content inset => must fire (inset is what matters).
+    from PIL import Image
+
+    from pipeline.composer.base import get_resolution
+    from pipeline.composer.book_scene import BookSceneSpec
+    w, h = get_resolution("16:9")
+    g = BookSceneSpec.open_book(w, h).as_frame_geometry()
+    img = Image.new("RGB", (w, h), (20, 20, 20))
+    px = img.load()
+    for y in range(h):                       # busy stripes EVERYWHERE (incl. border)
+        for x in range(0, w, 3):
+            px[x, y] = (240, 200, 40)
+    # overwrite the inset region with flat grey
+    for y in range(g["inset_y"], g["inset_y"] + g["inset_h"]):
+        for x in range(g["inset_x"], g["inset_x"] + g["inset_w"]):
+            px[x, y] = (136, 136, 136)
+    p = tmp_path / "framed_flat.png"
+    img.save(p)
+    scene = {"id": "s9", "visual": {"type": "article_image", "path": "x"}}
+    findings = check_blank_substrate(p, scene)
+    assert len(findings) == 1
+    assert findings[0].check == "blank_substrate"
+
+
 def test_run_checks_aggregates_both_checks(tmp_path, flat_grey_png):
     import shutil
     s1 = tmp_path / "s1.png"

@@ -5,6 +5,8 @@ from pathlib import Path
 import imagehash
 from PIL import Image
 
+from pipeline.composer.base import get_resolution
+from pipeline.composer.book_scene import BookSceneSpec
 from pipeline.director.still_gate.model import Finding
 
 # Hamming distance <= this means "the same delivered frame" for phash(hash_size=8).
@@ -57,12 +59,35 @@ _BLANK_DOMINANT_FRACTION_MAX = 0.85
 
 
 def check_blank_substrate(still: Path, scene: dict) -> list[Finding]:
-    """Flag a still that is mostly one flat color (a meaningless substrate)."""
+    """Flag a still that is mostly one flat color (a meaningless substrate).
+
+    Measurement is taken over the content inset region of the book frame so
+    that the brown border material does not dilute the dominant-color fraction
+    and mask genuinely flat content panels.
+    """
     scene_id = scene.get("id", "scene")
     with Image.open(still) as im:
         rgb = im.convert("RGB")
-        total = rgb.width * rgb.height
-        colors = rgb.getcolors(maxcolors=total) or []
+        w, h = rgb.size
+        # Measure only the content inset so the book border does not dilute the
+        # dominant-color fraction.  Fall back to the full frame for non-standard
+        # canvas sizes or if geometry extraction fails.
+        try:
+            canvas_w, canvas_h = get_resolution("16:9")
+            if (w, h) == (canvas_w, canvas_h):
+                g = BookSceneSpec.open_book(canvas_w, canvas_h).as_frame_geometry()
+                ix = int(g["inset_x"])
+                iy = int(g["inset_y"])
+                iw = int(g["inset_w"])
+                ih = int(g["inset_h"])
+                box = (ix, iy, ix + iw, iy + ih)
+                region = rgb.crop(box)
+            else:
+                region = rgb
+        except Exception:
+            region = rgb
+        total = region.width * region.height
+        colors = region.getcolors(maxcolors=total) or []
     if not colors:
         return []
     dominant = max(c for c, _ in colors)
