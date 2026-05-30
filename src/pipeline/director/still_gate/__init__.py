@@ -5,8 +5,7 @@ from pipeline.director.still_gate.checks import (
 )
 from pipeline.director.still_gate.model import Finding
 from pipeline.director.still_gate.render import render_scene_still, resolve_variant
-
-# build_contact_sheet added in the sheet task
+from pipeline.director.still_gate.sheet import build_contact_sheet
 
 __all__ = [
     "Finding",
@@ -15,4 +14,5 @@ __all__ = [
     "run_checks",
     "check_duplicate_frames",
     "check_blank_substrate",
+    "build_contact_sheet",
 ]
