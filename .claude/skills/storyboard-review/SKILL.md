@@ -146,7 +146,11 @@ uv run pipeline storyboard still-gate <ID>
 Composites each scene to a still in the project's delivered variant, writes a labeled contact sheet
 to `output/projects/<ID>/still_gate_sheet.png`, and runs `duplicate_frame` (same composited frame
 reused across scenes — perceptual hash) and `blank_substrate` (a genuinely-flat / missing-image
-content panel — content-inset dominant-color). Exit 0 = clean; exit 2 = findings printed.
+content panel — content-inset dominant-color). **Exit codes: 0 = clean · 2 = render-truth findings
+printed · 1 = tool error** (e.g. a scene asset is missing — this gate runs before fit-image, so a
+not-yet-resolved asset surfaces here). **Treat any non-zero exit as "not clean" — do NOT proceed to
+TTS.** On exit 1, resolve the named asset(s) and re-run the gate; on exit 2, act on the findings
+below.
 
 **Layer 2 — in-session vision pass (ZERO extra Anthropic billing — same as the visual-review skill):**
 Open `output/projects/<ID>/still_gate_sheet.png` (and the per-scene stills in
