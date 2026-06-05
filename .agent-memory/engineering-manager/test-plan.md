@@ -59,13 +59,45 @@ then `uv run ruff check src/ tests/ && uv run mypy src/`.
 | manifest surfaces `medium_hint`/`palette`/`subject_bias` as separate elements + medium-warning re-pointed at `medium_hint` | `tests/unit/test_style_manifest.py` | ✅ shipped Sprint 6 |
 | s25 real-scene demo: re-render baby-walker s25 with new assembler, frame-level confirm no surreal medium contamination | manual REVIEW evidence in `tmp/niche-visual-style-split/` | ✅ REVIEW PASS Sprint 6 |
 
-## E5 — Validation / checkpoint 🟢 (v1)
+## E5 — Validation / checkpoint 🟢 (v1) · render-truth still-gate 🟢 SHIPPED (Sprint 7 — TWO-LAYER, Tim-approved descope; EM REVIEW PASS 2026-05-31)
+
+> **Shipped 2026-05-31 (EM REVIEW PASS, re-review of the reworked build)** as the as-built,
+> Tim-approved, constraint-forced design: a **two-layer gate** wired into
+> `.claude/skills/storyboard-review/SKILL.md` after the JSON-critic PASS, before TTS. **Layer 1** =
+> deterministic CLI `pipeline storyboard still-gate <id>` running `duplicate_frame` (phash+colorhash)
+> + `blank_substrate` (content-INSET dominant-color); exit 0 clean / 1 tool-error / 2 findings.
+> **Layer 2** = in-session vision pass (zero extra Anthropic billing, the `visual-review` pattern)
+> judging meaningfulness / wrong-language / clipping — the scoped model-vision use Tim authorized,
+> reversing the blanket "NO model-vision" guard for THIS use only. Deterministic OCR (ex-check-3) +
+> bbox-overflow (ex-check-4) are **superseded by Layer 2**; tesseract is unprovisioned here (no
+> passwordless sudo). Variant-at-gen-time (piece C) is **deferred** (the principled form of the
+> variant fix; the `no_overlay` default is the accepted minimal fix). The original REWORK gap (gate
+> defaulted to `plain`, missing the seed reused-map defect) is **FIXED** — `resolve_variant` now
+> defaults to `no_overlay`, demonstrated to fire `duplicate_frame` on the defect snapshot via the
+> wired path. See sprint-log 2026-05-31 RE-REVIEW PASS.
 
 | Capability | Test | Status |
 |------------|------|--------|
 | `validate_storyboard` branches all visual types incl. chart | `tests/director/test_storyboard_validator.py` (26 tests) | ✅ |
 | `pipeline validate <id>` CLI exit codes (0/1/2) | `tests/unit/test_cli_validate.py` | ✅ |
 | Unknown `visual.type` → error | `tests/director/test_storyboard_validator.py` | ✅ |
+| **Sprint 7 (Layer 1)** — still-composite renderer is DETERMINISTIC (render twice → byte-identical via `+bitexact`) | `tests/director/still_gate/test_render.py` (`test_render_scene_still_is_deterministic`) | ✅ |
+| **Sprint 7 (Layer 1)** — `Finding` is a frozen dataclass with the issue shape (M-4: `Severity = Literal["error","warning"]`) | `tests/director/still_gate/test_model.py` | ✅ |
+| **Sprint 7 (Layer 1)** — contact-sheet assembler emits labeled sheet (scene id · type · path) | `tests/director/still_gate/test_sheet.py` | ✅ |
+| **Sprint 7 (Layer 1)** — check 1 duplicate-frame (phash+colorhash) is pure + FIRES on identical stills | `tests/director/still_gate/test_checks.py` (dup-positive) | ✅ |
+| **Sprint 7 (Layer 1)** — check 1 TRUE-NEGATIVE: two visibly-distinct frames → NO dup finding | `tests/director/still_gate/test_checks.py` (dup-negative) | ✅ |
+| **Sprint 7 (Layer 1)** — check 2 blank/flat-substrate is pure + FIRES on a content-empty frame | `tests/director/still_gate/test_checks.py` (blank-positive) | ✅ |
+| **Sprint 7 (Layer 1)** — check 2 measured on the **content INSET** (book border excluded), not the whole frame | `tests/director/still_gate/test_checks.py` (`test_blank_substrate_measures_inset_not_whole_frame`) | ✅ (the `fe89cc1` post-plan correction) |
+| **Sprint 7 (Layer 1)** — check 2 TRUE-NEGATIVE: a sparse-but-valid frame (busy/photo) → NO blank finding (cry-wolf guard) | `tests/director/still_gate/test_checks.py` (blank-negative) | ✅ |
+| **Sprint 7 (Layer 1)** — `pipeline storyboard still-gate <id>` CLI exit codes (0 clean / 1 tool-error / 2 findings); I-1 missing-asset → exit 1, no traceback | `tests/director/still_gate/test_cli.py` | ✅ (exit-1 hardening verified live at REVIEW) |
+| **Sprint 7 (Layer 1)** — END-TO-END CLEAN PASS: gate on a clean storyboard → exit 0, zero findings | `tests/director/still_gate/test_cli.py` (`test_still_gate_exits_0_when_clean`) | ✅ |
+| **Sprint 7 — WIRED DEFAULT VARIANT (was the REWORK blocker, now FIXED):** gate driven through `resolve_variant` with NO `preferred_variant` in `context.json` (the real Phase-3.5 state) defaults to **`no_overlay`** (NOT `plain`) → `duplicate_frame` FIRES on the defect-snapshot reused map. Malformed/unreadable context.json also falls back to `no_overlay` (M-3 guard). | `tests/director/still_gate/test_real_scene_demo.py` (`test_wired_default_variant_catches_dup_on_snapshot`) + `test_render.py` (`test_resolve_variant_defaults_to_no_overlay`) | ✅ (demonstrated firing via the wired path at REVIEW) |
+| **Sprint 7 (Layer 2 wiring)** — `storyboard-review/SKILL.md` Step 8 invokes Layer-1 CLI THEN the in-session vision pass (meaningfulness / wrong-language / clipping) before TTS; reads per-scene stills from `still_gate_scenes/<id>.png` (M-5); refuses TTS on any non-zero exit (0/1/2 documented) | manual REVIEW evidence (SKILL Step 8 re-read + exit-1 branch tightened 2026-05-31) | ✅ (acceptance = the SKILL wiring; the human/vision judgment is by-design not unit-testable) |
+| **Sprint 7 — REAL-SCENE DEMO (gating, DoD step-6):** gate on baby-walker DEFECT-STATE snapshot (`tmp/storyboard.BEFORE-quality-pass.json` — s24/s25/s26 carry the identical `north_america_blank_map.png`) → **`duplicate_frame` FIRES on the reuse** via the wired default path. `blank_substrate` does NOT fire on this bordered ~62%-dominant map (honest known gap — Layer-2 meaningfulness covers it). s23 English labels + s25 clip covered by Layer-2, NOT deterministic checks. | `tests/director/still_gate/test_real_scene_demo.py` | ✅ (both the forced-`no_overlay` demo and the wired-default regression assert dup fires) |
+| **Sprint 7 — deterministic OCR wrong-language (ex-check-3)** — Latin-script block on a zh-TW scene fires a deterministic finding | _superseded — covered by the Layer-2 vision pass; tesseract unprovisioned (no passwordless sudo)_ | ⏸️ superseded by Layer-2 |
+| **Sprint 7 — deterministic OCR skip-if-absent (ex-check-3, Q4)** | _superseded — no deterministic OCR shipped_ | ⏸️ superseded by Layer-2 |
+| **Sprint 7 — deterministic overflow/clipping (ex-check-4)** — laid-out text bbox vs inner-panel inset fires on s25-style clip | _superseded — covered by the Layer-2 vision pass; the novel text-bbox instrumentation was high-risk/low-verifiability here_ | ⏸️ superseded by Layer-2 |
+| **Sprint 7 — overlay-variant field at gen-time (piece C)** — single-source-of-truth with `context.json` `preferred_variant`, authoritative pre-TTS | `tests/director/still_gate/` (variant) — when built | ⏸️ deferred (the gate currently reads existing `preferred_variant` via `resolve_variant`; moving the decision to gen-time is NOT done — and is one of the fix options for the BLOCKING row above) |
 
 ## E6 — Compose efficiency / dashboard 🟡 (partly in flight)
 

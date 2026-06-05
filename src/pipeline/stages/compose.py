@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -679,10 +680,9 @@ class ComposeStage(PipelineStage):
         audio_segments = ctx.segment_timings or []
 
         # === SEQUENTIAL PHASE: pre-compute metadata + duplicate guard ===
-
-        scenes_data, running_sec = self._precompute_scenes_data(
-            storyboard, audio_segments,
-        )
+        # scenes.json is written AFTER concat from the actual clip durations
+        # (see _write_scenes_json) so the dashboard playhead matches the real
+        # video — intro, transitions and pauses included.
 
         scene_dicts = self._precompute_duplicate_guard(
             storyboard, ctx.video_path, style_anchor.style_descriptor,
@@ -693,6 +693,13 @@ class ComposeStage(PipelineStage):
         max_workers = PipelineConfig().MAX_COMPOSE_WORKERS
         init_ffmpeg_executor(max_workers)
 
+        # Per-scene frame resolution: frame_style applies until frameless_from_scene,
+        # then drops (e.g. the book frame covers the history section, the modern
+        # data section renders frameless).
+        frameless_from = (theme_dict.get("frameless_from_scene") or "").strip()
+        _scene_ids = [s.id for s in storyboard.scenes]
+        frameless_idx = _scene_ids.index(frameless_from) if frameless_from in _scene_ids else None
+
         tasks: list[asyncio.Task[ComposeSceneResult]] = []
         for i, scene in enumerate(storyboard.scenes):
             if i < len(audio_segments):
@@ -702,6 +709,9 @@ class ComposeStage(PipelineStage):
                 duration = scene.narration_est_sec
                 audio_path = None
 
+            scene_frame_style = (
+                None if (frameless_idx is not None and i >= frameless_idx) else frame_style
+            )
             task = asyncio.create_task(
                 self._render_one_scene(
                     i=i,
@@ -714,7 +724,7 @@ class ComposeStage(PipelineStage):
                     scenes_dir=scenes_dir,
                     source_video=ctx.video_path,
                     theme_dict=theme_dict,
-                    frame_style=frame_style,
+                    frame_style=scene_frame_style,
                     ctx=ctx,
                     audio_segments=audio_segments,
                 )
@@ -795,11 +805,6 @@ class ComposeStage(PipelineStage):
             storyboard.save(ctx.storyboard_path)
             logger.info("compose.edit_mode.batch_cleared")
 
-        (compose_dir / "scenes.json").write_text(
-            json.dumps(scenes_data, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
-
         # === POST-PROCESSING (must be sequential) ===
         raw_path = compose_dir / "raw.mp4"
         raw_no_overlay_path = compose_dir / "raw_no_overlay.mp4"
@@ -860,6 +865,16 @@ class ComposeStage(PipelineStage):
         if need_no_overlay:
             self._concat_scenes(finals_no_overlay_with_transitions, raw_no_overlay_path)
 
+        # Dashboard timeline: derive scene start times from the ACTUAL concatenated
+        # clip durations so the playhead matches the final video exactly.
+        ordered_for_timing = (
+            finals_no_overlay_with_transitions if need_no_overlay else finals_with_transitions
+        )
+        raw_for_timing = raw_no_overlay_path if need_no_overlay else raw_path
+        self._write_scenes_json(
+            compose_dir, ordered_for_timing, storyboard, output_video=raw_for_timing,
+        )
+
         # Step 6: Produce final variants.
         locale = ctx.locale
         plain        = compose_dir / f"final_{locale}.mp4"
@@ -896,32 +911,70 @@ class ComposeStage(PipelineStage):
         return final_path
 
     @staticmethod
-    def _precompute_scenes_data(
+    def _write_scenes_json(
+        compose_dir: Path,
+        ordered_clips: list[Path],
         storyboard: Storyboard,
-        audio_segments: list[dict],
-    ) -> tuple[list[dict[str, object]], float]:
-        """Build scenes_data and running_sec from storyboard + audio timings.
+        output_video: Path | None = None,
+    ) -> None:
+        """Write compose/scenes.json with start_sec derived from the ACTUAL
+        concatenated clip durations.
 
-        Pure function — does not depend on render output, so it can be computed
-        before the parallel rendering phase.
+        The dashboard playhead seeks by these timestamps, so they must match the
+        final video exactly. ``ordered_clips`` is the fully spliced concat list
+        (intro + scene finals + transitions + pauses), so summing real clip
+        durations and recording the offset at each scene-final clip is correct by
+        construction — no modelling of intro/transition/pause time required.
+
+        The concat filter re-times every clip to 30fps and pads each up to a whole
+        frame, so the rendered video runs slightly longer than the raw clip-sum.
+        When ``output_video`` is given we scale the timeline to its true duration
+        so the last scene ends exactly at the end of the video and the residual
+        per-clip drift is distributed proportionally.
         """
+        meta = {s.id: s for s in storyboard.scenes}
+        scene_final_re = re.compile(r"^(s[0-9a-z]+)_final")
+        scene_start: dict[str, float] = {}
+        cum = 0.0
+        for clip in ordered_clips:
+            match = scene_final_re.match(clip.name)
+            if match and match.group(1) in meta and match.group(1) not in scene_start:
+                scene_start[match.group(1)] = cum
+            try:
+                cum += _get_duration_sec(clip)
+            except (subprocess.CalledProcessError, ValueError):
+                # A real clip always probes (it just passed concat); only mocked
+                # test clips reach here. Treat as zero-length rather than abort.
+                logger.warning("compose.scenes_json.unprobeable_clip", clip=clip.name)
+        total = cum
+
+        scale = 1.0
+        if output_video is not None and total > 0:
+            try:
+                actual_total = _get_duration_sec(output_video)
+                if actual_total > 0:
+                    scale = actual_total / total
+                    total = actual_total
+            except (subprocess.CalledProcessError, ValueError):
+                pass
+
+        ordered_ids = [s.id for s in storyboard.scenes if s.id in scene_start]
         scenes_data: list[dict[str, object]] = []
-        running_sec = 0.0
-        for i, scene in enumerate(storyboard.scenes):
-            if i < len(audio_segments):
-                duration = audio_segments[i]["duration_ms"] / 1000.0
-            else:
-                duration = scene.narration_est_sec
-            scene_dur = duration + scene.pause_after_sec
+        for idx, sid in enumerate(ordered_ids):
+            start = scene_start[sid] * scale
+            end = scene_start[ordered_ids[idx + 1]] * scale if idx + 1 < len(ordered_ids) else total
             scenes_data.append({
-                "id": scene.id,
-                "section": scene.section,
-                "start_sec": running_sec,
-                "duration_sec": scene_dur,
-                "narration": scene.narration,
+                "id": sid,
+                "section": meta[sid].section,
+                "start_sec": round(start, 3),
+                "duration_sec": round(end - start, 3),
+                "narration": meta[sid].narration,
             })
-            running_sec += scene_dur
-        return scenes_data, running_sec
+
+        (compose_dir / "scenes.json").write_text(
+            json.dumps(scenes_data, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
 
     @staticmethod
     def _precompute_duplicate_guard(
@@ -1028,6 +1081,15 @@ class ComposeStage(PipelineStage):
             except Exception as e:
                 logger.warning("compose.scene.visual_failed", scene_id=scene.id, error=str(e))
                 vis = self._black_screen(scenes_dir, scene.id, duration, width, height)
+
+            # Frameless scenes: scale the visual to fill the full canvas so every
+            # clip shares the canvas resolution (the open_book_page frame did this
+            # placement for framed scenes; without it, inset-sized refit crops
+            # would break the uniform-dimension concat).
+            if not frame_style:
+                vis = self._fit_to_canvas(
+                    vis, scenes_dir / f"{scene.id}_fullbleed.mp4", width, height
+                )
 
             # Step 1b: Compartment animation
             if scene.compartment:
@@ -1337,6 +1399,39 @@ class ComposeStage(PipelineStage):
         run_ffmpeg_atomic(cmd, final_path)
         _assert_playable_video(final_path)
         return final_path
+
+    @staticmethod
+    def _fit_to_canvas(src: Path, out: Path, width: int, height: int) -> Path:
+        """Scale a visual to fill the full canvas (frameless full-bleed).
+
+        The open_book_page frame used to place inset-sized visuals (e.g.
+        article_image refit crops at the book-inset size) onto the full canvas.
+        Frameless scenes have no such step, so without this they stay inset-sized
+        and the concat filter — which requires uniform dimensions — fails. Scenes
+        already at the canvas size (charts, slides) are returned untouched.
+        """
+        try:
+            probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                 "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", str(src)],
+                capture_output=True, text=True, check=True,
+            )
+            cur_w, cur_h = (int(x) for x in probe.stdout.strip().split("x"))
+        except (subprocess.CalledProcessError, ValueError):
+            # Only mocked test clips fail to probe; a real clip always succeeds.
+            return src
+        if (cur_w, cur_h) == (width, height):
+            return src
+        run_ffmpeg([
+            "ffmpeg", "-y", "-i", str(src),
+            "-vf",
+            f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+            f"crop={width}:{height},setsar=1",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+            "-pix_fmt", "yuv420p", "-an",
+            str(out),
+        ])
+        return out
 
     @staticmethod
     def _mux(vis: Path, out: Path, aud: Path | None) -> None:

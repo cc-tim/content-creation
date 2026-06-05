@@ -16,14 +16,7 @@
 > video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
 > the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-05-29 (REVIEW post-hoc: **E7 music/audio-axis** — first E7 sprint, built
-off-roadmap and merged to master `12bfce3` without a pre-merge gate; EM acceptance verdict
-**ADVISE, NOT PASS** [engineering clean + invariants held: schema, `composer/music.py` mix
-engine with an in-code length-clamp two-axes fence, `pipeline compose music` CLI, loud failure,
-19 measurable tests + ruff/mypy green — but the music library is **empty**, so the spec's named
-s19→s23 real-scene intelligibility demo could not run]. E7 item **stays 🔵**; flip to 🟢 needs
-licensed tracks + the demo + a separate code review + EM re-REVIEW. Branch note: music is on
-master; my EM memory edits are uncommitted on `feat/baby-walker-quality-pass` — reconcile later.) · Prior: 2026-05-29 (INTAKE: **locale-portability authoring principle folded** — prefer language-neutral visuals [numeric/chart → image-only → icon/emoji], default unavoidable on-screen text to English/en-US; cross-cutting bar → `standards.md` step 8 + the next `direct.py` sprint, lint-enforcement half → E5 🔵 [NOT next]; orthogonal to both axes; visual-side complement to shipped MLA. Recommended next sprint UNCHANGED.) · Prior: 2026-05-27 (REVIEW PASS: **Sprint 6 (E4 Slice 3) shipped** — niche `visual_style` medium-clash refactor split `medium_hint` / `palette` / `subject_bias` / `universal_rules`, preserved the back-compat composite, and passed EM REVIEW on `feat/niche-visual-style-split`; s25 demo evidence saved under `tmp/niche-visual-style-split/`. Prior: Sprint 6 formally proposed; production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-05-31 (**Sprint 7 SHIPPED 🟢 — EM RE-REVIEW PASS** after one REWORK round — render-truth still-gate, a **two-layer gate** [Tim-approved descope 2026-05-30 + hard constraint: tesseract unprovisioned, no passwordless sudo]: Layer 1 deterministic CLI [`duplicate_frame` phash+colorhash + `blank_substrate` content-INSET; exit 0 clean / 1 tool-error / 2 findings] + Layer 2 scoped in-session vision pass [meaningfulness / wrong-language / clipping] wired into `storyboard-review/SKILL.md`. Deterministic OCR + bbox-overflow SUPERSEDED by Layer 2; variant-at-gen-time [piece C] DEFERRED [principled form of the variant fix]; the blanket "NO model-vision" guard LIFTED for the scoped Layer-2 use only. **REWORK→PASS:** first REVIEW caught the gate defaulting to `plain` [overlays burned] at Phase-3.5, missing the seed reused-map defect; both fixes landed — #1 `resolve_variant` defaults to `no_overlay` [+malformed-context guard], demonstrated firing dup on the defect snapshot via the wired path + regression test; #2 independent code review done, its I-1 render-crash finding fixed [per-scene try/except → exit 1, persisted Layer-2 stills]. EM ran pytest [16 still-gate + 143 regression], ruff, mypy, live I-1 exit-1 check — all clean. Prior 2026-05-30: Sprint 7 GREENLIT; 2026-05-29 still-gate→E5; Sprint 6 REVIEW PASS) · Prior: 2026-05-29 (REVIEW post-hoc: **E7 music/audio-axis** — first E7 sprint, built off-roadmap and merged to master `12bfce3` without a pre-merge gate; EM acceptance verdict **ADVISE, NOT PASS** [engineering clean + invariants held: schema, `composer/music.py` mix engine with an in-code length-clamp two-axes fence, `pipeline compose music` CLI, loud failure, 19 measurable tests + ruff/mypy green — but the music library is **empty**, so the spec's named s19→s23 real-scene intelligibility demo could not run]. E7 item **stays 🔵**; flip to 🟢 needs licensed tracks + the demo + a separate code review + EM re-REVIEW.) · Prior: 2026-05-29 (INTAKE: **locale-portability authoring principle folded** — prefer language-neutral visuals [numeric/chart → image-only → icon/emoji], default unavoidable on-screen text to English/en-US; cross-cutting bar → `standards.md` step 8 + the next `direct.py` sprint, lint-enforcement half → E5 🔵 [NOT next]; orthogonal to both axes; visual-side complement to shipped MLA. Recommended next sprint UNCHANGED.) · Prior: 2026-05-27 (REVIEW PASS: **Sprint 6 (E4 Slice 3) shipped** — niche `visual_style` medium-clash refactor split `medium_hint` / `palette` / `subject_bias` / `universal_rules`, preserved the back-compat composite, and passed EM REVIEW on `feat/niche-visual-style-split`; s25 demo evidence saved under `tmp/niche-visual-style-split/`. Prior: Sprint 6 formally proposed; production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -202,13 +195,50 @@ which scenes it applies to, how to remove it. Surfaces today's *silent globals*
 - **Concrete bug fixed:** niche `visual_style` no longer forces sketch/open-book medium
   contamination onto photo-realistic generated-image prompts.
 
-### E5 — Scene validation & visual-decision checkpoint  `[infra · quality gate]`  🟢 *v1 shipped (Sprints 1, 4) — handoff doc no longer on disk*
+### E5 — Scene validation & visual-decision checkpoint  `[infra · quality gate]`  🟢 *v1 shipped (Sprints 1, 4); render-truth still-gate shipped (Sprint 7 — two-layer, EM REVIEW PASS 2026-05-31)*
 Defense-in-depth: a storyboard-write-time validator (per-type checks, taxonomy drift
 detection) + compose-time hard failures replacing the old silent `text_card` fallbacks +
 a `confidence`/`rationale` decision table the user reviews before TTS.
 - **Shipped:** all-type `storyboard_validator.py` incl. the `chart` branch (Sprint 4),
   wired into `direct.py`; standalone `pipeline validate` CLI (Sprint 4); compose-time
   `SceneRenderError` for missing/corrupt `article_image` (5a33f0a); the decision table.
+- **🟢 Render-truth still-gate (pixel-grounded pre-render quality gate) — Sprint 7, built
+  two-layer on `feat/baby-walker-quality-pass`; EM REVIEW 2026-05-31 = PASS (shipped, after one
+  REWORK round).** Today's defense-in-depth has TWO tiers — JSON-write-time validator (Sprint 4)
+  → full ~10-min compose. There is **no third tier that judges the *composited frame***. So
+  render-truth defects (clipped verbatim text, English labels on a zh-TW chart, a blank-grey
+  map composite, as-rendered image duplicates) surface only AFTER an expensive full compose —
+  the documented cause of the month-long baby-walker churn. This item adds the missing tier as a
+  **two-layer gate** (Tim-approved descope 2026-05-30, forced by a hard constraint): a
+  **still-composite path** (`render_scene` at minimal duration → 1 frame → `composite_scene_frame`
+  book-wrap → overlays in the project variant → labeled contact sheet) feeding **Layer 1**
+  (deterministic pure `(still, scene_meta) → list[Finding]` checks, the `validate_chart_visual`
+  shape) + **Layer 2** (a scoped in-session model-vision pass). **As built:** Layer 1 ships
+  `duplicate_frame` (phash+colorhash, `imagehash`) + `blank_substrate` (content-INSET dominant
+  color, pure PIL). Layer 2 (in `storyboard-review/SKILL.md`) judges **meaningfulness** (the
+  bordered-blank-map case Layer 1 cannot catch), **wrong-language text** (supersedes ex-check-3
+  OCR — `tesseract` unprovisioned here, no passwordless sudo), and **clipping/overflow**
+  (supersedes ex-check-4 bbox — the novel text-bbox instrumentation was high-risk/low-verifiability).
+  **NO blanket model-vision ban for this scoped Layer-2 use** — Tim lifted the guard for it only
+  (zero extra Anthropic billing, the `visual-review` pattern). **Variant-at-gen-time (piece C) is
+  DEFERRED** (the principled form of the variant fix) — the gate reads `preferred_variant` via
+  `resolve_variant`, which now **defaults to `no_overlay`** (judge the bare frame) when none is set.
+  Slots into the existing Phase-3.5 `storyboard-review` skill gate (a skill that dispatches the
+  `storyboard-critic` subagent — NOT a `direct.py` Python phase), AFTER the JSON-critic PASS,
+  BEFORE TTS. Source: `docs/handoffs/2026-05-27-baby-walker-render.md` (the 4-defect fix-prompt),
+  `tmp/baby-walker-visual-review-report.md` (s25 clip + s23 English-label render-truth defects),
+  storyboard-critic standards (`.agent-memory/storyboard-critic/standards.md` — the no_overlay
+  step-0 + blank-substrate + reuse lessons this gate enforces in code). **REWORK→PASS:** the first
+  REVIEW caught that the gate defaulted to `plain` (overlays burned) at Phase-3.5 and missed the seed
+  reused-map defect; the fix (default `no_overlay` + malformed-context guard + the I-1 render-error
+  exit-1 hardening + persisted per-scene stills for Layer-2) landed and re-REVIEW PASSED, with the
+  dup catch demonstrated on the defect snapshot via the wired path. CLI exit codes: 0 clean /
+  1 tool-error / 2 findings; the SKILL refuses TTS on any non-zero. **Two-axes:** pure quality-gate
+  (visual sub-axis); **ZERO runtime** — it inspects frames, never adds beats.
+- **🔵 Locale-portability lint** — flag scenes with locale-locked (non-English) baked-in
+  on-screen text and surface them in the decision table (visual-side complement to the MLA
+  `--secondary-locale` audio path). Authoring principle in `standards.md` (Anatomy step 8).
+  Ordered below current priorities — NOT next. (INTAKE 2026-05-29.)
 - **Remaining (narrow, not sprint-sized):** `namecard`/`map` still silently fall back to
   `text_card` in `composer/base.py:413-422` — make loud or scope-validate when next in
   that file.
@@ -443,6 +473,96 @@ tests/unit/test_style_manifest.py -q` (61 passed), `uv run ruff check src/ tests
 Real-scene demo evidence saved at `tmp/niche-visual-style-split/`: the old baby-walker s25
 product-shot prompt now assembles without `medium_hint`, retains palette/rules, and sampled
 frames show a clean product shot without the previous open-book/sketch contamination.
+
+### Sprint 7 — Render-truth still-gate: TWO-LAYER gate (deterministic + scoped in-session vision)  `[E5]`  🟢 *shipped 2026-05-31 — EM REVIEW PASS (after one REWORK round) on `feat/baby-walker-quality-pass`*
+Pixel-grounded pre-render quality gate. **As-built design (Tim-approved descope, 2026-05-30 +
+hard machine constraint):** the greenlit four-deterministic-check plan was reduced to a
+**two-layer gate**, because (a) a bordered-but-informationally-empty map (the baby-walker
+`north_america_blank_map.png`, ~62% dominant color) cannot be caught by any cheap deterministic
+metric, so the SEMANTIC defects move to a **scoped in-session model-vision pass** (zero extra
+Anthropic billing, the `visual-review` pattern — Tim reversed the blanket "NO model-vision" guard
+for THIS use only); and (b) `tesseract` is not installed and there is no passwordless sudo here, so
+deterministic OCR (ex-check-3) could not be built/verified, and the novel text-bbox instrumentation
+for overflow (ex-check-4) was high-risk/low-verifiability.
+- **Layer 1 (deterministic, CLI `pipeline storyboard still-gate <id>`):** `duplicate_frame`
+  (phash + colorhash; VERIFIED firing on the real reused baby-walker map) + `blank_substrate`
+  (content-INSET dominant-color ≥0.85; catches genuinely-flat/missing-image panels; correctly does
+  NOT fire on the bordered map). Renders a still per scene + a labeled contact sheet.
+- **Layer 2 (in-session vision pass, documented in `storyboard-review/SKILL.md`):** the agent looks
+  at the contact sheet and judges **meaningfulness** (the blank-map case), **wrong-language text**
+  (covers ex-check-3), and **clipping/overflow** (covers ex-check-4). Deterministic OCR + bbox are
+  **superseded by Layer 2**; variant-at-gen-time (piece C) is **deferred**.
+- **REVIEW HISTORY (2026-05-31).** First REVIEW = **REWORK**: the wired gate defaulted to `plain`
+  at the Phase-3.5 gate (no `preferred_variant` until post-TTS), burning overlays so the seed
+  reused-map defect (s24/s25/s26) rendered as three DISTINCT stills and `duplicate_frame` did NOT
+  fire — the gate missed its own churn class at its real invocation point. **Both fixes landed and
+  RE-REVIEW = PASS (shipped):** (#1) `resolve_variant` now defaults to **`no_overlay`** (the
+  storyboard-critic step-0 posture — judge the bare frame), with a malformed-context guard;
+  demonstrated firing `duplicate_frame` on the defect snapshot via the wired path; regression test
+  `test_wired_default_variant_catches_dup_on_snapshot` added. (#2) An independent code review ran; its
+  Important finding I-1 (render-loop crash before fit-image on a missing asset) + minors were fixed —
+  per-scene `try/except` → clean **exit 1** (codes 0 clean / 1 tool-error / 2 findings), temp-dir
+  intermediates, per-scene stills persisted to `<proj>/still_gate_scenes/<id>.png` for Layer-2, and
+  the SKILL refuses TTS on any non-zero exit. Variant-at-gen-time (piece C) remains the principled
+  form of #1 and stays **deferred** on the E5 backlog; the `no_overlay` default is the accepted
+  minimal fix. Full verdict + commands run: sprint-log 2026-05-31 (RE-REVIEW PASS).
+- **Goal:** add the missing third defense-in-depth tier — a deterministic still-composite
+  quality gate that judges the *composited frame* in the delivered overlay variant, BEFORE the
+  ~10-min compose, so render-truth defects are caught cheaply at the Phase-3.5 review gate.
+- **Demand source:** `docs/handoffs/2026-05-27-baby-walker-render.md` (4 render-truth defects);
+  `tmp/baby-walker-visual-review-report.md` (s25 clip, s23 English labels); storyboard-critic
+  standards (the no_overlay step-0 + blank-substrate + 3+-reuse lessons — this gate enforces
+  them in code instead of relying on a human/LLM remembering them).
+- **Scope IN:** (A spine) `src/pipeline/director/still_gate.py` — deterministic still-composite
+  path (`render_scene` at minimal duration → extract 1 frame → `composite_scene_frame` book-wrap
+  → `apply_overlay` per the variant → `scene_<id>.png`) + labeled contact-sheet assembler (scene
+  id · `visual.type` · `visual.path`); pure check registry `(still, scene_meta) → list[Finding]`
+  mirroring `validate_chart_visual`. **All four checks:** **(1)** duplicate-frame (perceptual
+  hash, Hamming threshold, `imagehash`); **(2)** blank/flat substrate (content-region
+  edge-density / dominant-color %, pure PIL); **(3)** wrong-language text (OCR — `tesseract`
+  system binary + `pytesseract` dep, **declare-dep + skip-if-absent** per Q4; flag Latin-script
+  blocks on a zh-TW target); **(4)** layout overflow/clipping (instrument `text_card`/overlay to
+  report the laid-out text bbox — or pixel-detect text extent — and compare against the
+  `frame.py` inner-panel inset `inset_x/y/w/h`; fires on the s25 verbatim clip). (C) one
+  overlay-variant field at storyboard-generation time + plumbing + the critic reads it —
+  **storyboard/Theme field authoritative at gen-time, `context.json` `preferred_variant` syncs
+  from it** (single-source-of-truth, Q2). New **`pipeline storyboard still-gate <id>`** CLI (Q3).
+  Wire the `storyboard-review` skill to invoke it after JSON-critic PASS. (B) regression fixtures
+  for all four checks, seeded from baby-walker's REAL defects via the **defect-state snapshot
+  `tmp/storyboard.BEFORE-quality-pass.json`** (code-verified: s24/s25/s26 carry the identical
+  `north_america_blank_map.png`): blank map → check 2; 3+-reuse map → check 1; s23 English labels
+  → check 3; s25 clip → check 4. (Do NOT demo on the LIVE storyboard — Sprint 6 already rewrote
+  s25, so it no longer reproduces the defect.)
+- **Scope OUT (deferred):** animated/over-time frame inspection (still-gate is single-frame by
+  design — motion is out of scope); a dashboard surface for the contact sheet (→ E6); model-vision
+  judgment of the sheet (**explicitly excluded by Tim** — deterministic checks + human glance only);
+  director-emitted variant taxonomy beyond the single gen-time field.
+- **Dependencies:** none blocking — `render_scene` (`composer/base.py:325`),
+  `composite_scene_frame` (`composer/frame.py:17`), `apply_overlay` (`composer/overlay.py:18`),
+  and `imagehash` (declared dep) all exist. `validate_chart_visual` is the pure-check precedent.
+  Check 3 requires provisioning `tesseract` (+ zh/eng packs) on the build/run machine; check 4
+  requires the text-bbox instrumentation (no renderer-reported bbox exists today — `text_card` is
+  ffmpeg `drawtext` with fixed `font_size`).
+- **Unblocks:** all four baby-walker defect classes the JSON-critic structurally cannot see
+  (blank substrate, as-rendered dup, wrong-language labels, clipped verbatim) are caught
+  pre-render — directly attacks the "we keep failing to create a quality video" loop. **Does
+  NOT** add runtime (inspects frames; adds zero beats). **No model-vision** (Tim's call).
+- **Acceptance:** still-composite renderer is **deterministic** (render twice → byte-identical,
+  tested before any golden); contact sheet assembles with labels; all four checks are pure +
+  list-returning, each with a **firing case AND a true-negative** (esp. check 2's cry-wolf guard:
+  a sparse-but-valid `stat_big_number`/photo frame must NOT fire) + an end-to-end clean-pass
+  (known-good storyboard → exit 0, zero findings); OCR test asserts the **finding fires** (not a
+  byte-exact transcript — tesseract is not byte-stable); **real-scene demo** = run the gate on the
+  defect-state snapshot and confirm checks 1–4 each fire on the real defect they target (prove it
+  would have caught the churn); variant field is single-source with `context.json`;
+  `storyboard-review` skill invokes the gate after JSON PASS; `pytest` + `ruff` + `mypy` green.
+- **Cost:** ~$0 incremental — the still-sheet reuses prompt-hash-cached Flux backgrounds (any
+  generation is generation you'd pay at compose anyway, pulled earlier; no h264 encode);
+  `imagehash` is a declared dep; `tesseract`/`pytesseract` are free local deps; no
+  provider/model-vision calls.
+- **Size:** ~3 build sessions (spine + 4 pure checks incl. the tesseract provisioning + the
+  check-4 bbox instrumentation + variant field/plumbing + skill wiring + fixtures + determinism
+  test).
 
 ### Later / unscoped backlog
 - Animated overlays v2+ (E3): **animated entrance** for the callout primitive + lower-thirds

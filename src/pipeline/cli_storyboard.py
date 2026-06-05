@@ -337,6 +337,83 @@ def backfill_beats_file(path: Path) -> bool:
     return True
 
 
+@storyboard_app.command("still-gate")
+def still_gate(
+    project_id: str = typer.Argument(..., help="Project folder under output/projects/."),
+) -> None:
+    """Render a still per scene + run render-truth checks BEFORE TTS/compose."""
+    import shutil
+    import tempfile
+
+    from pipeline.director.still_gate import (
+        build_contact_sheet,
+        render_scene_still,
+        resolve_variant,
+        run_checks,
+    )
+
+    pdir = PipelineConfig().OUTPUT_DIR / "projects" / project_id
+    if not pdir.exists():
+        typer.echo(f"Project not found: {pdir}", err=True)
+        raise typer.Exit(1)
+    sb_path = pdir / "storyboard.json"
+    if not sb_path.exists():
+        typer.echo(f"No storyboard.json in {pdir}", err=True)
+        raise typer.Exit(1)
+
+    variant = resolve_variant(pdir)
+    scenes = json.loads(sb_path.read_text())["scenes"]
+
+    # Per-scene stills persist here so the Layer-2 in-session vision pass can open
+    # them (rebuilt fresh each run). Render intermediates go to a temp dir.
+    scenes_dir = pdir / "still_gate_scenes"
+    if scenes_dir.exists():
+        shutil.rmtree(scenes_dir)
+    scenes_dir.mkdir(parents=True)
+
+    stills: list[tuple[str, Path, dict]] = []
+    sheet_items: list[tuple[str, Path, str]] = []
+    render_errors: list[str] = []
+    with tempfile.TemporaryDirectory(prefix=f"stillgate_{project_id}_") as _work:
+        work = Path(_work)
+        for scene in scenes:
+            sid = scene.get("id", "scene")
+            try:
+                tmp_png = render_scene_still(scene, variant=variant, work_dir=work / sid, theme={})
+            except Exception as exc:  # gate runs before fit-image; an asset may be missing
+                typer.echo(f"  [render_error] {sid}: {exc}", err=True)
+                render_errors.append(sid)
+                continue
+            png = scenes_dir / f"{sid}.png"
+            shutil.copyfile(tmp_png, png)
+            stills.append((sid, png, scene))
+            vis = scene.get("visual", {})
+            meta = vis.get("type", "?")
+            if vis.get("path"):
+                meta = f"{meta} · {Path(vis['path']).name}"
+            sheet_items.append((sid, png, meta))
+
+    if render_errors:
+        typer.echo(
+            f"Render failed for {len(render_errors)} scene(s): {', '.join(render_errors)}",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    sheet = build_contact_sheet(sheet_items, pdir / "still_gate_sheet.png")
+    findings = run_checks(stills)
+
+    typer.echo(
+        f"Contact sheet: {sheet}  ·  per-scene stills: {scenes_dir}  "
+        f"(variant={variant}, {len(scenes)} scenes)"
+    )
+    if findings:
+        for f in findings:
+            typer.echo(f"  [{f.check}] {f.scene_id}: {f.message}  Fix: {f.suggested_fix}")
+        raise typer.Exit(2)
+    typer.echo("Still-gate clean — no render-truth findings.")
+
+
 @storyboard_app.command("migrate")
 def migrate(
     project_id: str = typer.Option(None, "--project-id", help="Migrate one project"),
