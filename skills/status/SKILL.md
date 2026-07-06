@@ -2,10 +2,6 @@
 name: status
 description: Check the current state, progress, or stage of a pipeline project. Use when asked "where are we on project X", "what's done", "what step comes next", or "show me project status".
 version: 1.0.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv]
 ---
 
 # Status — Project State Check

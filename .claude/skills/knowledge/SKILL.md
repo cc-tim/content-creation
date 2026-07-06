@@ -2,10 +2,6 @@
 name: knowledge
 description: View and edit the Layer 1 knowledge base (facts, entities, timeline, context bridges) for a pipeline project. Use when asked to show knowledge, add facts, fix entities, or update context bridges.
 version: 1.0.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv]
 ---
 
 # Knowledge — View & Edit

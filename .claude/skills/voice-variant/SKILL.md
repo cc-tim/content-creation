@@ -2,10 +2,6 @@
 name: voice-variant
 description: Build a variant of an existing project with a different TTS voice. Use when asked to try a custom voice, build a voice variant, promote a variant, or discard one.
 version: 1.0.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv, ffmpeg]
 ---
 
 # Voice Variant — Try a Different Voice

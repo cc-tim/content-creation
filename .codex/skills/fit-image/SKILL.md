@@ -2,10 +2,6 @@
 name: fit-image
 description: Refit article_image and image scenes so source images fill the active frame inset without clipping the subject. Use when asked to "fit-image", "refit s2", "remove image padding", "fix book-page letterboxing", or before rendering after storyboard approval.
 version: 1.0.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv, ffmpeg]
 ---
 
 # Fit Image

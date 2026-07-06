@@ -2,10 +2,6 @@
 name: visual-review
 description: Look at the rendered scenes of a project and report visual issues (subtitle/overlay overlap, illegible text, off-screen content, image-narration mismatch, style drift). Use when asked to "review the rendered video", "check for visual issues", "look for layout problems", "did the overlay come out right", or after a render finishes and the user wants a sanity check before publish. Runs entirely inside this Claude Code session — no extra Anthropic API call. Triggers also on phrases like "judge the scene image", "do a visual pass on project X", "spot check the rendered scenes".
 version: 1.0.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv, ffmpeg]
 ---
 
 # Visual Review — Look at What Was Actually Rendered

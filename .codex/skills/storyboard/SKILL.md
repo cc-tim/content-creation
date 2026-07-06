@@ -2,10 +2,6 @@
 name: storyboard
 description: View, list, edit, regenerate, or compare the storyboard for a project. Use when asked about specific scenes, narration, visual types, overlays, or storyboard structure.
 version: 1.0.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv]
 ---
 
 # Storyboard — View & Edit

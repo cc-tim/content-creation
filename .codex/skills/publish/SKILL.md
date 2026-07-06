@@ -2,10 +2,6 @@
 name: publish
 description: Upload a produced project to YouTube. Use when asked to upload, publish, or schedule a video. Covers preflight checks, metadata review, OAuth verification, and the 3-phase upload.
 version: 1.0.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv]
 ---
 
 # Publish — YouTube Upload

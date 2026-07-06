@@ -164,7 +164,7 @@ docs/superpowers/specs/  # Design specs
 
 ## Skills (project plugin)
 
-This project ships skills at `skills/<name>/SKILL.md`. They are read by **openclaw** (directly) and **Claude Code** (via `.claude-plugin/` manifest as `content-creation:<skill>`).
+This project ships skills at `skills/<name>/SKILL.md`, read by Claude Code via `.claude-plugin/` manifest as `content-creation:<skill>`.
 
 Deprecated flat-form skills at `.claude/skills/*.md` are not loaded by either system.
 

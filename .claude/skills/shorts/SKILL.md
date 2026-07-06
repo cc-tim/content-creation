@@ -2,10 +2,6 @@
 name: shorts
 description: Generate a YouTube Shorts storyboard from an existing project. Use when asked to make a Short, create a 60-second version, or generate vertical video from a project.
 version: 1.0.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv]
 ---
 
 # Shorts — Generate YouTube Shorts Storyboard

@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "content-creation-local",
-  "description": "Project-local marketplace exposing content-creation pipeline skills to Claude Code. The same skills/<name>/SKILL.md files are read directly by openclaw — this manifest only registers them with Claude Code.",
+  "description": "Project-local marketplace exposing content-creation pipeline skills to Claude Code.",
   "owner": {
     "name": "tim-huang"
   },

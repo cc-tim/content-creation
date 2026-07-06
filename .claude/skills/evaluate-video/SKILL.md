@@ -2,10 +2,6 @@
 name: evaluate-video
 description: Evaluate whether a YouTube video is worth porting to zh-TW (or other locale). Score niche match, portability, recency, view velocity, and narrative quality. Use when asked "should we port this?", "is this worth doing?", or "evaluate this video".
 version: 1.0.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv]
 ---
 
 # Evaluate Video — Porting Candidate Scoring

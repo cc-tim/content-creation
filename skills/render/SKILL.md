@@ -2,10 +2,6 @@
 name: render
 description: Compose video from an existing storyboard. Run TTS + compose stages. Use when asked to render, re-render, reburn, or rescene a project.
 version: 1.0.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv, ffmpeg]
 ---
 
 # Render — TTS + Compose
