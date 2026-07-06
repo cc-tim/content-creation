@@ -16,6 +16,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Many local agent sessions may work in this repository at the same time. Before touching any file that already has uncommitted changes, make the existing state traceable: inspect `git status`, identify the current diff owner/scope, and create a local checkpoint commit for coherent work before editing over it. If the diff is ambiguous, unstable, or on `master` where commit confirmation is required, ask before proceeding. Stage only the relevant files; leave unrelated scratch output alone.
 
+For feature work or larger changes, start in a dedicated git worktree (see `.worktrees/`) instead of working directly on a shared branch. Commit each completed unit of work on its own — small `type(scope): message` commits, not one batch at the end — so `git log` stays a readable trail.
+
 ## Project Identity
 
 **content-creation** is a YouTube content porting pipeline: find trending EN content → cross-check target locale for gaps → create original, restructured video for that market. This is 搬運 (independent research + rebuild), NOT translation/dubbing.
@@ -199,3 +201,4 @@ When using Claude API for script adaptation, always:
 | Outro build commands | README.md |
 | Publish/metadata full workflow | README.md |
 | Design specs | `docs/superpowers/specs/` |
+| Standing autopilot conventions | `docs/project-conventions.md` — check before asking the user to confirm a routine, repeatable decision |
