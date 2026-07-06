@@ -2,10 +2,6 @@
 name: scene-update
 description: Fix wording, narration text, overlays, or audio in a specific scene. Use when asked to fix/rewrite/enhance a scene, change what a scene says, fix overlay text, or re-render a single scene. Triggers on phrases like "fix scene X", "change s2 to say Y", "the wording in s9 is off", "redo the overlay on s12", "tighten the narration in scene 3".
 version: 1.1.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv, ffmpeg]
 ---
 
 # Scene Update — Fix a Specific Scene

@@ -2,10 +2,6 @@
 name: produce
 description: "Run the full YouTube porting pipeline OR the wiki-explainer porting pipeline. For YouTube: pass a URL. For wiki explainers: pass a path to a `.md` file with `intent: video` frontmatter. Covers: acquire → analyze → storyboard → TTS → compose."
 version: 1.0.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv, ffmpeg]
 ---
 
 # Produce — Full Pipeline
@@ -94,6 +90,17 @@ Then raise questions where the manifest is ambiguous. Always check:
 - Conflicting `required_sequence` vs prose section order → ask which wins
 - Long explainer (>2000 words body) with empty `video_brief` → ask for direction
 - Required images with no caption → ask for one (used for storyboard scene generation)
+
+### Producer greenlight check
+
+Check the explainer frontmatter for a `video_producer` block:
+- **Absent** → warn the user: "This explainer hasn't been green-lit by the producer.
+  Run the `video-pitch` skill in know-fountains first, or proceed at your own risk."
+  Continue only if the user insists.
+- **`decision: GREENLIT` or `OVERRIDDEN`** → show the decision, date, and `terms`, then
+  continue.
+
+This is warn-only; it never blocks production.
 
 If the user wants changes, edit the manifest block(s) in the **wiki**
 explainer (the source of truth), then re-copy into `output/projects/<ID>/source/`.

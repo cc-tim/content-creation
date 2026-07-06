@@ -2,10 +2,6 @@
 name: scene-update
 description: Fix wording, narration text, overlays, or audio in a specific scene. Use when asked to fix/rewrite/enhance a scene, change what a scene says, fix overlay text, or re-render a single scene. Triggers on phrases like "fix scene X", "change s2 to say Y", "the wording in s9 is off", "redo the overlay on s12", "tighten the narration in scene 3".
 version: 1.1.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv, ffmpeg]
 ---
 
 # Scene Update — Fix a Specific Scene
@@ -209,6 +205,37 @@ Then:
 ```bash
 uv run pipeline compose rescene --project-id <ID> --scene <scene_id>
 ```
+
+### MLA alt regen (only if the project has `mla=true`)
+
+If `ctx.mla` is true, the scene also has a `narration_alt[<secondary_locale>]`
+entry (typically EN) that drives the alt audio track on YouTube. Whenever you
+change the primary narration text, the alt must be regenerated with a length
+budget so the MLA drift gate passes without a manual `pipeline mla rebalance`.
+
+**Length budget rule:** `target_english_words ≈ zh-TW_char_count × 0.55`.
+
+After you commit the zh-TW change above (and re-synthesized the primary audio),
+do for each changed scene:
+
+1. Compute the new zh-TW char count (only CJK chars, ignore Latin/digits/punct).
+2. Multiply by 0.55 → target EN word count.
+3. Rewrite `scene.narration_alt[en]` to roughly that budget, preserving meaning,
+   names, numbers, and dates verbatim. Drop articles and hedges to compress.
+4. Run the rebalance dry-run to verify the math before re-synthing the alt:
+
+   ```bash
+   uv run pipeline mla rebalance --project-id <ID>           # dry-run, no changes
+   uv run pipeline mla rebalance --project-id <ID> --apply   # apply + re-synth EN only
+   ```
+
+   The `--apply` form re-synthesizes only the scenes whose EN text changed,
+   so the unchanged scenes' audio durations stay bit-identical across runs.
+
+If you batch-edited several scenes' alts and want the tool to find offenders
+and re-budget them for you automatically, you can skip step 3 — just hand-edit
+the zh-TW, re-synth primary as above, then run `mla rebalance --apply` and let
+Claude Haiku regenerate the offending EN scenes to the calibrated budget.
 
 ---
 

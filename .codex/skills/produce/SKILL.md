@@ -2,10 +2,6 @@
 name: produce
 description: "Run the full YouTube porting pipeline OR the wiki-explainer porting pipeline. For YouTube: pass a URL. For wiki explainers: pass a path to a `.md` file with `intent: video` frontmatter. Covers: acquire → analyze → storyboard → TTS → compose."
 version: 1.0.0
-metadata:
-  openclaw:
-    requirements:
-      binaries: [uv, ffmpeg]
 ---
 
 # Produce — Full Pipeline
@@ -95,6 +91,17 @@ Then raise questions where the manifest is ambiguous. Always check:
 - Long explainer (>2000 words body) with empty `video_brief` → ask for direction
 - Required images with no caption → ask for one (used for storyboard scene generation)
 
+### Producer greenlight check
+
+Check the explainer frontmatter for a `video_producer` block:
+- **Absent** → warn the user: "This explainer hasn't been green-lit by the producer.
+  Run the `video-pitch` skill in know-fountains first, or proceed at your own risk."
+  Continue only if the user insists.
+- **`decision: GREENLIT` or `OVERRIDDEN`** → show the decision, date, and `terms`, then
+  continue.
+
+This is warn-only; it never blocks production.
+
 If the user wants changes, edit the manifest block(s) in the **wiki**
 explainer (the source of truth), then re-copy into `output/projects/<ID>/source/`.
 
@@ -153,6 +160,24 @@ In short: every `verbatim_lines` entry must appear unmodified somewhere
 (narration/overlay/subtitle); every `required_images` path must appear in
 at least one scene's visual; `required_sequence` shapes scene order;
 `video_brief` shapes pacing and intro feel.
+
+## Phase 3.5 — Storyboard review (editor gate)
+
+After the user approves the storyboard summary, invoke the `storyboard-review` skill
+before proceeding to TTS. This is not optional for explainer-path projects — the
+storyboard generator routinely collapses rich material into text_card/slide scenes.
+
+```text
+/storyboard-review --project-id <ID>
+```
+
+The skill dispatches the storyboard-critic subagent, which reads the storyboard.json
+and video_brief, then returns scene-level demands. If the critic issues REWORK, fix
+the flagged scenes (using the storyboard skill) and re-run until PASS. Only then
+proceed to Phase 4.
+
+The user may override ("proceed anyway") — record that override in the session notes
+and continue. But never skip silently.
 
 ## Phase 4 — Render
 

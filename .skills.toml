@@ -1,13 +1,14 @@
 [skills]
-evaluate-video = { sha = "fa1f63ff4dbe", installed = "2026-05-13" }
-fit-image = { sha = "ad4fd0e2a6b2", installed = "2026-05-14" }
-knowledge = { sha = "61eccce7bd44", installed = "2026-05-13" }
-produce = { sha = "93a2ed095231", installed = "2026-05-14" }
-publish = { sha = "43399386b375", installed = "2026-05-13" }
-render = { sha = "fb25c881cc8f", installed = "2026-05-13" }
-scene-update = { sha = "7c1d9056741d", installed = "2026-05-14" }
-shorts = { sha = "6a969116f310", installed = "2026-05-13" }
-status = { sha = "1d72ab57afe0", installed = "2026-05-13" }
-storyboard = { sha = "e30ede2ffbc1", installed = "2026-05-13" }
-visual-review = { sha = "21b2a21b9356", installed = "2026-05-13" }
-voice-variant = { sha = "9b1346c6729c", installed = "2026-05-13" }
+align-guidelines = { sha = "a7daddf9e120", installed = "2026-07-06" }
+evaluate-video = { sha = "d59d01648b30", installed = "2026-07-06" }
+fit-image = { sha = "952f803d3525", installed = "2026-07-06" }
+knowledge = { sha = "bc91b00cff45", installed = "2026-07-06" }
+produce = { sha = "72c119c129d4", installed = "2026-07-06" }
+publish = { sha = "284ad60dc677", installed = "2026-07-06" }
+render = { sha = "9831f32d1ad9", installed = "2026-07-06" }
+scene-update = { sha = "f6e183127dd7", installed = "2026-07-06" }
+shorts = { sha = "526ca73b0c89", installed = "2026-07-06" }
+status = { sha = "572e620c3942", installed = "2026-07-06" }
+storyboard = { sha = "7098d8a87f3f", installed = "2026-07-06" }
+visual-review = { sha = "9ff415d42637", installed = "2026-07-06" }
+voice-variant = { sha = "fe43ea64ed0f", installed = "2026-07-06" }
