@@ -8,7 +8,7 @@ publish = { sha = "284ad60dc677", installed = "2026-07-06" }
 render = { sha = "9831f32d1ad9", installed = "2026-07-06" }
 scene-update = { sha = "f6e183127dd7", installed = "2026-07-06" }
 shorts = { sha = "526ca73b0c89", installed = "2026-07-06" }
-status = { sha = "572e620c3942", installed = "2026-07-06" }
+status = { sha = "67f407bed95b", installed = "2026-09-05" }
 storyboard = { sha = "7098d8a87f3f", installed = "2026-07-06" }
 visual-review = { sha = "9ff415d42637", installed = "2026-07-06" }
 voice-variant = { sha = "fe43ea64ed0f", installed = "2026-07-06" }
