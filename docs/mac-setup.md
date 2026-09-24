@@ -22,6 +22,8 @@ Hub storage: repo `output/` is a symlink to `/mnt/windows_ssd/content-creation/o
 brew install git gh uv ffmpeg rsync
 brew install --cask font-noto-sans-cjk font-noto-serif-cjk   # CJK fonts the renderer needs
 fc-cache -f                                                   # refresh fontconfig so ffmpeg sees them
+# Keep the Noto casks in ~/Library/Fonts (the cask default): burned subtitles (libass) may
+# look fonts up through CoreText, which does not see PIPELINE_FONT_DIRS or fontconfig-only dirs.
 ffmpeg -hide_banner -encoders | grep videotoolbox             # expect h264_videotoolbox
 # The renderer needs an ffmpeg with libfreetype + libfontconfig + libass (drawtext and
 # subtitles filters). If step 8 reports one missing: `brew install ffmpeg-full` and put it

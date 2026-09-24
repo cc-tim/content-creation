@@ -103,3 +103,24 @@ def test_storyboard_migrate_all_scans_output_dir(monkeypatch, tmp_path):
     assert result.exit_code == 0, result.output
     m.assert_called_once()
     assert Path(m.call_args.args[0]) == proj / "storyboard.json"
+
+
+def test_write_to_gallery_images_follow_index_location(monkeypatch, tmp_path):
+    from PIL import Image
+
+    from pipeline.composer.image import _write_to_gallery
+
+    monkeypatch.setenv("PIPELINE_OUTPUT_DIR", str(tmp_path / "elsewhere"))
+    img = tmp_path / "i.png"
+    Image.new("RGB", (4, 4)).save(img)
+    index = tmp_path / "custom" / "gallery_index.json"
+    _write_to_gallery(img, "p", index, "parenting", "n")
+    assert list((tmp_path / "custom" / "images").glob("*.png"))
+    assert not (tmp_path / "elsewhere").exists()
+
+
+def test_gallery_searcher_dir_follows_explicit_index(tmp_path):
+    from pipeline.utils.gallery import GallerySearcher
+
+    s = GallerySearcher(index_path=tmp_path / "g" / "gallery_index.json")
+    assert s._gallery_dir == tmp_path / "g"

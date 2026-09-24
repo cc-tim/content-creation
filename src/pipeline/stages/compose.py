@@ -37,7 +37,12 @@ from pipeline.utils.ffmpeg import (
     run_ffmpeg,
     run_ffmpeg_atomic,
 )
-from pipeline.utils.fonts import DEFAULT_FAMILY, load_pil_font, verify_fontconfig_family
+from pipeline.utils.fonts import (
+    DEFAULT_FAMILY,
+    FontResolutionError,
+    load_pil_font,
+    verify_fontconfig_family,
+)
 
 logger = structlog.get_logger()
 
@@ -52,7 +57,18 @@ def verify_theme_fonts(theme_dict: dict[str, Any]) -> None:
     """
     family = theme_dict.get("font") or DEFAULT_FAMILY
     for style in ("Regular", "Bold"):
-        verify_fontconfig_family(family, style)
+        try:
+            verify_fontconfig_family(family, style)
+        except FontResolutionError as exc:
+            if family == DEFAULT_FAMILY:
+                raise
+            raise FontResolutionError(
+                f"storyboard theme.font '{family}' is not installed ({exc.args[0]})",
+                suggested_fix=(
+                    f"set theme.font to '{DEFAULT_FAMILY}' in storyboard.json, "
+                    f"or install '{family}' and run fc-cache -f"
+                ),
+            ) from exc
 
 
 def _hex_to_ass_color(hex_color: str) -> str:

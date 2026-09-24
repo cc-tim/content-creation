@@ -214,3 +214,18 @@ def test_compose_theme_font_missing_raises():
 
     with pytest.raises(FontResolutionError):
         verify_theme_fonts({"font": "Nonexistent Font XYZ"})
+
+
+def test_compose_nondefault_theme_font_error_names_the_theme_fix():
+    from pipeline.stages.compose import verify_theme_fonts
+
+    with (
+        patch(
+            "pipeline.stages.compose.verify_fontconfig_family",
+            side_effect=FontResolutionError("substituted"),
+        ),
+        pytest.raises(FontResolutionError) as ei,
+    ):
+        verify_theme_fonts({"font": "Inter"})
+    assert "theme.font" in ei.value.suggested_fix
+    assert "Noto Sans CJK TC" in ei.value.suggested_fix

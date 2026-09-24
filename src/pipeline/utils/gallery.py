@@ -124,7 +124,7 @@ class GallerySearcher:
         pixabay_api_key: str | None = None,
     ):
         self._index_path = index_path or gallery_index_path()
-        self._gallery_dir = gallery_dir or gallery_index_path().parent
+        self._gallery_dir = gallery_dir or self._index_path.parent
         self._pexels_key = pexels_api_key
         self._pixabay_key = pixabay_api_key
 

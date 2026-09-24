@@ -91,7 +91,8 @@ def check_ffmpeg() -> list[CheckResult]:
     ).stdout
     results: list[CheckResult] = []
     for flag in _REQUIRED_BUILD_FLAGS:
-        ok = f"--enable-{flag}" in conf
+        # configure also accepts the short spelling (--enable-fontconfig)
+        ok = any(f"--enable-{n}" in conf for n in (flag, flag.removeprefix("lib")))
         detail = f"--enable-{flag} ({ffmpeg})" if ok else (
             f"--enable-{flag} missing from {ffmpeg} -buildconf; fix: {_ffmpeg_hint()}"
         )
@@ -109,6 +110,10 @@ def check_glyph_probes(out_dir: Path) -> list[CheckResult]:
     results: list[CheckResult] = []
     for probe in run_glyph_probes(out_dir):
         where = f" [{', '.join(p.name for p in probe.files)}]" if probe.files else ""
+        if probe.name == "libass" and sys.platform == "darwin":
+            # libass may resolve FontName via CoreText, not fontconfig; a PingFang
+            # substitute still passes distinctness, so eyeball the probe PNG.
+            where += " (macOS: libass may use CoreText; check the PNG is Noto, not PingFang)"
         results.append(CheckResult(f"glyph probe {probe.name}", probe.ok, probe.detail + where))
     return results
 

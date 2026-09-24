@@ -184,7 +184,12 @@ def _override_dirs() -> list[Path]:
 
 @functools.cache
 def resolve_font(role: Role, weight: Weight, region: str = DEFAULT_REGION) -> ResolvedFont:
-    """Find the exact Noto CJK face for (role, weight, region) or raise."""
+    """Find the exact Noto CJK face for (role, weight, region) or raise.
+
+    Successful results are cached for the process lifetime (a change to
+    ``PIPELINE_FONT_DIRS`` needs ``resolve_font.cache_clear()``); failures are
+    not cached.
+    """
     family = family_name(role, region)
     style = _WEIGHT_STYLE[weight]
 
@@ -247,9 +252,11 @@ def drawtext_font_arg(weight: Weight = "regular", family: str = DEFAULT_FAMILY) 
     never a filesystem path. ``:`` is escaped once for the filter-option level
     (the single quotes protect it at the filtergraph level).
     """
-    if "'" in family or "\\" in family:
+    # ffmpeg's option parser strips one backslash level, so fontconfig escapes
+    # (\- \: \,) would not survive; reject those characters outright.
+    if any(ch in family for ch in "'\\-:,"):
         raise ValueError(f"unsupported character in font family: {family!r}")
-    pattern = f"{_fc_escape(family)}:style={_WEIGHT_STYLE[weight]}"
+    pattern = f"{family}:style={_WEIGHT_STYLE[weight]}"
     return "fontfile='" + pattern.replace(":", "\\:") + "'"
 
 

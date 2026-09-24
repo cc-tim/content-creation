@@ -185,3 +185,10 @@ def test_home_tool_paths_match_providers():
     from pipeline.providers.gen_image import _GEN_IMAGE_BIN
 
     assert cli_doctor._home_tool_paths() == [_GEN_IMAGE_BIN, _KM]
+
+
+def test_check_ffmpeg_accepts_short_fontconfig_spelling(monkeypatch):
+    conf = _BUILDCONF.replace("--enable-libfontconfig", "--enable-fontconfig")
+    monkeypatch.setattr(cli_doctor.shutil, "which", lambda n: "/usr/bin/ffmpeg")
+    monkeypatch.setattr(cli_doctor.subprocess, "run", _fake_ffmpeg(conf, _FILTERS))
+    assert all(r.ok for r in cli_doctor.check_ffmpeg())

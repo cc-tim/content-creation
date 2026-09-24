@@ -222,9 +222,9 @@ def _write_to_gallery(
     import shutil
     from datetime import date
 
-    from pipeline.utils.gallery import GalleryEntry, GalleryIndex, gallery_dir
+    from pipeline.utils.gallery import GalleryEntry, GalleryIndex
 
-    gallery_images_dir = gallery_dir() / "images"
+    gallery_images_dir = gallery_path.parent / "images"
     gallery_images_dir.mkdir(parents=True, exist_ok=True)
 
     entry_id = hashlib.md5(prompt.encode()).hexdigest()[:12]

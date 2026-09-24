@@ -242,3 +242,9 @@ def test_drawtext_font_arg_never_a_path():
 def test_drawtext_font_arg_rejects_quote():
     with pytest.raises(ValueError):
         drawtext_font_arg("bold", family="Bad'Family")
+
+
+@pytest.mark.parametrize("bad", ["Foo-Bar", "A:B", "A,B"])
+def test_drawtext_font_arg_rejects_pattern_metachars(bad):
+    with pytest.raises(ValueError):
+        drawtext_font_arg("regular", family=bad)
