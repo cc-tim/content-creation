@@ -3,6 +3,7 @@
 .claude/worktrees/
 .openclaw/
 output/
+/output
 .env
 __pycache__/
 *.pyc
