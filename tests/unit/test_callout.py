@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import pytest
@@ -14,6 +13,7 @@ from pipeline.composer.callout import (
     place_callouts,
     render_callouts,
 )
+from tests.golden_policy import assert_matches_golden
 
 
 # Deterministic measure: 10 px per char. Keeps geometry tests independent of
@@ -118,17 +118,6 @@ def _render(callouts):
     )
 
 
-def _assert_golden(image, name: str) -> None:
-    golden = _GOLDEN / f"{name}.png"
-    if os.environ.get("UPDATE_GOLDENS"):
-        golden.parent.mkdir(parents=True, exist_ok=True)
-        image.save(golden)
-        return
-    assert golden.exists(), f"missing golden {golden}; run with UPDATE_GOLDENS=1"
-    diff = ImageChops.difference(image, Image.open(golden).convert("RGB"))
-    assert diff.getbbox() is None, f"{name} render drifted from golden"
-
-
 def test_render_callouts_is_deterministic():
     cs = [Callout(x=600, label="1995"), Callout(x=620, label="1997")]
     a = _render(cs)
@@ -137,33 +126,28 @@ def test_render_callouts_is_deterministic():
 
 
 def test_golden_one_marker():
-    _assert_golden(_render([Callout(x=600, label="1990 data starts")]), "one_marker")
+    img = _render([Callout(x=600, label="1990 data starts")])
+    assert_matches_golden(img, _GOLDEN / "one_marker.png")
 
 
 def test_golden_two_close():
-    _assert_golden(
-        _render([Callout(x=600, label="1995 ban"), Callout(x=640, label="1997 std")]),
-        "two_close",
-    )
+    img = _render([Callout(x=600, label="1995 ban"), Callout(x=640, label="1997 std")])
+    assert_matches_golden(img, _GOLDEN / "two_close.png")
 
 
 def test_golden_three_close():
-    _assert_golden(
-        _render([
-            Callout(x=600, label="1995"), Callout(x=636, label="1997"),
-            Callout(x=672, label="2001"),
-        ]),
-        "three_close",
-    )
+    img = _render([
+        Callout(x=600, label="1995"), Callout(x=636, label="1997"),
+        Callout(x=672, label="2001"),
+    ])
+    assert_matches_golden(img, _GOLDEN / "three_close.png")
 
 
 def test_golden_tight_cluster():
     # The s21 case: 6 regulation markers, several <5yr apart on a long span.
-    _assert_golden(
-        _render([
-            Callout(x=300, label="1982 study"), Callout(x=560, label="1995 ban"),
-            Callout(x=600, label="1997 std"), Callout(x=700, label="2001 voluntary"),
-            Callout(x=760, label="2004 ASTM"), Callout(x=900, label="2010 mandatory"),
-        ]),
-        "tight_cluster",
-    )
+    img = _render([
+        Callout(x=300, label="1982 study"), Callout(x=560, label="1995 ban"),
+        Callout(x=600, label="1997 std"), Callout(x=700, label="2001 voluntary"),
+        Callout(x=760, label="2004 ASTM"), Callout(x=900, label="2010 mandatory"),
+    ])
+    assert_matches_golden(img, _GOLDEN / "tight_cluster.png")

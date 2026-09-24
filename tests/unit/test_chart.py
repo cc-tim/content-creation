@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -6,6 +5,7 @@ import pytest
 from PIL import Image, ImageChops
 
 from pipeline.composer.chart import _validate_chart, render_chart
+from tests.golden_policy import assert_matches_golden
 
 _GOLDEN = Path(__file__).parent.parent / "fixtures" / "chart" / "golden"
 W, H = 1280, 720
@@ -71,18 +71,6 @@ def _render_png(visual, tmp_path, scene_id):
     return png
 
 
-def _assert_golden(png_path, name):
-    golden = _GOLDEN / f"{name}.png"
-    if os.environ.get("UPDATE_GOLDENS"):
-        golden.parent.mkdir(parents=True, exist_ok=True)
-        Image.open(png_path).save(golden)
-        return
-    assert golden.exists(), f"missing golden {golden}; run with UPDATE_GOLDENS=1"
-    diff = ImageChops.difference(
-        Image.open(png_path).convert("RGB"), Image.open(golden).convert("RGB")
-    )
-    assert diff.getbbox() is None, f"{name} render drifted from golden"
-
 
 # Real baby-walker datapoints (the demand this sprint answers).
 _STAT = {
@@ -128,23 +116,23 @@ def test_render_is_deterministic(tmp_path):
 
 # ── Golden tests, one per chart_type ─────────────────────────────────────────────
 def test_golden_stat_big_number(tmp_path):
-    _assert_golden(_render_png(_STAT, tmp_path, "s13"), "stat_big_number")
+    assert_matches_golden(_render_png(_STAT, tmp_path, "s13"), _GOLDEN / "stat_big_number.png")
 
 
 def test_golden_proportion_blocks(tmp_path):
-    _assert_golden(_render_png(_PROP, tmp_path, "s12"), "proportion_blocks")
+    assert_matches_golden(_render_png(_PROP, tmp_path, "s12"), _GOLDEN / "proportion_blocks.png")
 
 
 def test_golden_timeline(tmp_path):
-    _assert_golden(_render_png(_TIMELINE, tmp_path, "s10"), "timeline")
+    assert_matches_golden(_render_png(_TIMELINE, tmp_path, "s10"), _GOLDEN / "timeline.png")
 
 
 def test_golden_bar(tmp_path):
-    _assert_golden(_render_png(_BAR, tmp_path, "s11"), "bar")
+    assert_matches_golden(_render_png(_BAR, tmp_path, "s11"), _GOLDEN / "bar.png")
 
 
 def test_golden_comparison(tmp_path):
-    _assert_golden(_render_png(_COMPARISON, tmp_path, "s14"), "comparison")
+    assert_matches_golden(_render_png(_COMPARISON, tmp_path, "s14"), _GOLDEN / "comparison.png")
 
 
 # ── Dispatch + AI-background path ─────────────────────────────────────────────────
@@ -246,7 +234,7 @@ def test_validate_passes_static_without_animate_block():
 
 
 def test_golden_line(tmp_path):
-    _assert_golden(_render_png(_LINE, tmp_path, "s_line"), "line")
+    assert_matches_golden(_render_png(_LINE, tmp_path, "s_line"), _GOLDEN / "line.png")
 
 
 def test_ai_background_path_calls_provider(tmp_path):

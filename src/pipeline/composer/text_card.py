@@ -34,7 +34,7 @@ def render_text_card(
     lines = escaped.split("\\n")
     if len(lines) == 1:
         drawtext = (
-            f"drawtext=text='{escaped}':fontfile=:fontsize={font_size}"
+            f"drawtext=text='{escaped}':fontsize={font_size}"
             f":fontcolor={text_color}:font='{font}'"
             f":x=(w-text_w)/2:y=(h-text_h)/2"
             f":shadowcolor=black@0.3:shadowx=2:shadowy=2"

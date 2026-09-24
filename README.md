@@ -257,6 +257,11 @@ uv run pipeline proofread run --project-id <ID> --apply      # show + apply all 
 ```bash
 uv run pipeline visual-review extract-frames --project-id <ID>
 ```
+
+### Render readiness
+```bash
+uv run pipeline doctor [--out tmp/doctor]   # fonts (Noto CJK TC), fontconfig, ffmpeg drawtext/libass, CJK glyph probes; exit 0 = ready
+```
 Natural-language triggers: "review the rendered video", "check for visual issues", "look at the rendered scenes", "judge the scene image"
 
 ### Dashboard (always-on)

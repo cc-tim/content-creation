@@ -13,22 +13,20 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from PIL import ImageFont
 
 from pipeline.composer.base import image_to_video
+from pipeline.utils.fonts import Role, Weight, load_pil_font
 
 logger = structlog.get_logger()
 
-# ── Font paths ────────────────────────────────────────────────────────────────
-_SANS_REGULAR = Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc")
-_SANS_BOLD    = Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc")
-_SERIF_REGULAR = Path("/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc")
-_SERIF_BOLD    = Path("/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc")
-_TC_INDEX = 4   # Noto CJK TTC index order: JP=0, HK=1, KR=2, SC=3, TC=4
+# ── Fonts ─────────────────────────────────────────────────────────────────────
+# Resolved by NAME through pipeline.utils.fonts (Noto {Sans,Serif} CJK TC); a
+# missing font raises FontResolutionError — there is no fallback font.
 
 
-def _load_font(path: Path, size: int, index: int = _TC_INDEX):
-    from PIL import ImageFont
-    return ImageFont.truetype(str(path), size=size, index=index)
+def _load_font(role: Role, weight: Weight, size: int) -> ImageFont.FreeTypeFont:
+    return load_pil_font(role, weight, size)
 
 
 def _wrap_text(text: str, font, max_width: int, draw) -> list[str]:
@@ -179,7 +177,7 @@ def _render_slide_layout(draw, visual, width, height, pad_x, text_w, accent, whi
     y += 14
 
     # Title
-    title_font = _load_font(_SERIF_BOLD, 44)
+    title_font = _load_font("serif", "bold", 44)
     wrapped = _wrap_text(title, title_font, text_w, draw)
     for line in wrapped:
         draw.text((pad_x, y), line, font=title_font, fill=accent + (255,) if len(accent) == 3 else accent)
@@ -188,7 +186,7 @@ def _render_slide_layout(draw, visual, width, height, pad_x, text_w, accent, whi
     y += 18
 
     # Bullets
-    bullet_font = _load_font(_SANS_REGULAR, 32)
+    bullet_font = _load_font("sans", "regular", 32)
     for bullet in bullets:
         # Bullet dot
         dot_y = y + 12
@@ -202,7 +200,7 @@ def _render_slide_layout(draw, visual, width, height, pad_x, text_w, accent, whi
 
     # Footer
     if footer:
-        footer_font = _load_font(_SANS_REGULAR, 26)
+        footer_font = _load_font("sans", "regular", 26)
         y += 8
         draw.line([pad_x, y, pad_x + 80, y], fill=(*muted, 180), width=1)
         y += 12
@@ -217,7 +215,7 @@ def _render_quote_layout(draw, visual, width, height, pad_x, text_w, accent, whi
     """Large centred quote block."""
     text = visual.get("text", "")
 
-    quote_font = _load_font(_SERIF_REGULAR, 38)
+    quote_font = _load_font("serif", "regular", 38)
     lines = _wrap_text(text, quote_font, text_w, draw)
 
     total_h = 0
