@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -23,6 +22,7 @@ from pipeline.composer.chart_anim import (
     _resolve_reveal_duration,
     render_animated_chart,
 )
+from tests.golden_policy import assert_matches_golden
 
 _GOLDEN_ANIM = Path(__file__).parent.parent / "fixtures" / "chart_anim" / "golden"
 W, H = 1280, 720
@@ -156,16 +156,6 @@ def _line_base_bg(width=W, height=H):
     return bg, pal, top
 
 
-def _assert_anim_golden(image, name: str) -> None:
-    golden = _GOLDEN_ANIM / f"{name}.png"
-    if os.environ.get("UPDATE_GOLDENS"):
-        golden.parent.mkdir(parents=True, exist_ok=True)
-        image.save(golden)
-        return
-    assert golden.exists(), f"missing golden {golden}; run with UPDATE_GOLDENS=1"
-    diff = ImageChops.difference(image, Image.open(golden).convert("RGB"))
-    assert diff.getbbox() is None, f"{name} render drifted from golden"
-
 
 def test_animate_line_frame_is_pure():
     base, pal, top = _line_base_bg()
@@ -178,19 +168,19 @@ def test_animate_line_frame_is_pure():
 def test_golden_line_progress_00():
     base, pal, top = _line_base_bg()
     img = _animate_line_frame(0.0, _LINE_VISUAL, base, W, H, pal, top)
-    _assert_anim_golden(img, "line_p00")
+    assert_matches_golden(img, _GOLDEN_ANIM / "line_p00.png")
 
 
 def test_golden_line_progress_05():
     base, pal, top = _line_base_bg()
     img = _animate_line_frame(0.5, _LINE_VISUAL, base, W, H, pal, top)
-    _assert_anim_golden(img, "line_p05")
+    assert_matches_golden(img, _GOLDEN_ANIM / "line_p05.png")
 
 
 def test_golden_line_progress_10():
     base, pal, top = _line_base_bg()
     img = _animate_line_frame(1.0, _LINE_VISUAL, base, W, H, pal, top)
-    _assert_anim_golden(img, "line_p10")
+    assert_matches_golden(img, _GOLDEN_ANIM / "line_p10.png")
 
 
 # ── bar animated variant ───────────────────────────────────────────────────────
@@ -225,19 +215,19 @@ def test_animate_bar_frame_is_pure():
 def test_golden_bar_progress_00():
     base, pal, top = _bar_base_bg()
     img = _animate_bar_frame(0.0, _BAR_VISUAL, base, W, H, pal, top)
-    _assert_anim_golden(img, "bar_p00")
+    assert_matches_golden(img, _GOLDEN_ANIM / "bar_p00.png")
 
 
 def test_golden_bar_progress_05():
     base, pal, top = _bar_base_bg()
     img = _animate_bar_frame(0.5, _BAR_VISUAL, base, W, H, pal, top)
-    _assert_anim_golden(img, "bar_p05")
+    assert_matches_golden(img, _GOLDEN_ANIM / "bar_p05.png")
 
 
 def test_golden_bar_progress_10():
     base, pal, top = _bar_base_bg()
     img = _animate_bar_frame(1.0, _BAR_VISUAL, base, W, H, pal, top)
-    _assert_anim_golden(img, "bar_p10")
+    assert_matches_golden(img, _GOLDEN_ANIM / "bar_p10.png")
 
 
 # ── stat_big_number animated variant ───────────────────────────────────────────
@@ -268,19 +258,19 @@ def test_animate_stat_frame_is_pure():
 def test_golden_stat_progress_00():
     base, pal, top = _stat_base_bg()
     img = _animate_stat_frame(0.0, _STAT_VISUAL, base, W, H, pal, top)
-    _assert_anim_golden(img, "stat_p00")
+    assert_matches_golden(img, _GOLDEN_ANIM / "stat_p00.png")
 
 
 def test_golden_stat_progress_05():
     base, pal, top = _stat_base_bg()
     img = _animate_stat_frame(0.5, _STAT_VISUAL, base, W, H, pal, top)
-    _assert_anim_golden(img, "stat_p05")
+    assert_matches_golden(img, _GOLDEN_ANIM / "stat_p05.png")
 
 
 def test_golden_stat_progress_10():
     base, pal, top = _stat_base_bg()
     img = _animate_stat_frame(1.0, _STAT_VISUAL, base, W, H, pal, top)
-    _assert_anim_golden(img, "stat_p10")
+    assert_matches_golden(img, _GOLDEN_ANIM / "stat_p10.png")
 
 
 # ── Orchestrator (ffmpeg mocked; no encode in CI) ──────────────────────────────
