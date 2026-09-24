@@ -139,9 +139,9 @@ def render_callouts(
     """
     from PIL import ImageDraw
 
-    from pipeline.composer.rich_slide import _SANS_BOLD, _load_font
+    from pipeline.composer.rich_slide import _load_font
 
-    font = _load_font(_SANS_BOLD, font_size)
+    font = _load_font("sans", "bold", font_size)
     img = base_image.copy()
     draw = ImageDraw.Draw(img)
     placed = place_callouts(

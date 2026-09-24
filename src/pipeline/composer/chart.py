@@ -26,9 +26,6 @@ from pipeline.composer.callout import (
     place_callouts,
 )
 from pipeline.composer.rich_slide import (
-    _SANS_BOLD,
-    _SANS_REGULAR,
-    _SERIF_BOLD,
     _load_font,
     _wrap_text,
 )
@@ -333,13 +330,13 @@ def _draw_header(draw, visual, width, height, pal) -> int:
     y = int(height * 0.09)
     title = visual.get("title", "")
     if title:
-        f = _load_font(_SERIF_BOLD, 40)
+        f = _load_font("serif", "bold", 40)
         for line in _wrap_text(title, f, width - pad * 2, draw):
             draw.text((pad, y), line, font=f, fill=pal["ink"])
             y += draw.textbbox((0, 0), line, font=f)[3] + 6
     subtitle = visual.get("subtitle", "")
     if subtitle:
-        f = _load_font(_SANS_REGULAR, 24)
+        f = _load_font("sans", "regular", 24)
         draw.text((pad, y), subtitle, font=f, fill=pal["muted"])
         y += 34
     draw.rectangle([pad, y + 6, pad + 70, y + 10], fill=pal["accent"])
@@ -350,7 +347,7 @@ def _draw_credit(draw, visual, width, height, pal) -> None:
     credit = visual.get("source_credit")
     if not credit:
         return
-    f = _load_font(_SANS_REGULAR, 20)
+    f = _load_font("sans", "regular", 20)
     txt = f"Source: {credit}"
     pad = int(width * 0.07)
     tb = draw.textbbox((0, 0), txt, font=f)
@@ -363,7 +360,7 @@ def _render_stat(draw, visual, width, height, pal, top) -> None:
     cx = width // 2
     body_top = max(top + _HEADER_GAP, int(height * 0.30))
 
-    num_f = _load_font(_SERIF_BOLD, 150)
+    num_f = _load_font("serif", "bold", 150)
     value = str(data["value"])
     nb = draw.textbbox((0, 0), value, font=num_f)
     draw.text((cx - (nb[2] - nb[0]) // 2, body_top), value, font=num_f, fill=pal["accent"])
@@ -373,14 +370,14 @@ def _render_stat(draw, visual, width, height, pal, top) -> None:
 
     unit = str(data.get("unit", ""))
     if unit:
-        uf = _load_font(_SANS_BOLD, 36)
+        uf = _load_font("sans", "bold", 36)
         ub = draw.textbbox((0, 0), unit.upper(), font=uf)
         draw.text((cx - (ub[2] - ub[0]) // 2, y), unit.upper(), font=uf, fill=pal["ink"])
         y += 52
 
     context = str(data.get("context", ""))
     if context:
-        cf = _load_font(_SANS_REGULAR, 28)
+        cf = _load_font("sans", "regular", 28)
         cb = draw.textbbox((0, 0), context, font=cf)
         draw.text((cx - (cb[2] - cb[0]) // 2, y), context, font=cf, fill=pal["muted"])
 
@@ -397,11 +394,11 @@ def _render_proportion(draw, visual, width, height, pal, top) -> None:
     draw.rectangle([pad, y0, split, y0 + bar_h], fill=pal["accent"])
     draw.rectangle([split, y0, pad + bar_w, y0 + bar_h], fill=pal["muted"])
 
-    pf = _load_font(_SERIF_BOLD, 52)
+    pf = _load_font("serif", "bold", 52)
     draw.text((pad + 24, y0 + bar_h // 2 - 30), f"{round(ratio * 100)}%",
               font=pf, fill=pal["paper"])
 
-    lf = _load_font(_SANS_REGULAR, 28)
+    lf = _load_font("sans", "regular", 28)
     draw.text((pad, y0 + bar_h + 22), str(data.get("label", "")), font=lf, fill=pal["ink"])
     sec = data.get("secondary_label")
     if sec:
@@ -418,8 +415,8 @@ def _render_timeline(draw, visual, width, height, pal, top) -> None:
     n = len(data)
     draw.line([pad, axis_y, pad + span, axis_y], fill=pal["muted"], width=3)
 
-    yf = _load_font(_SERIF_BOLD, 30)
-    lf = _load_font(_SANS_REGULAR, 22)
+    yf = _load_font("serif", "bold", 30)
+    lf = _load_font("sans", "regular", 22)
     for i, entry in enumerate(data):
         x = pad + (span * i // max(1, n - 1))
         draw.ellipse([x - 9, axis_y - 9, x + 9, axis_y + 9], fill=pal["accent"])
@@ -444,8 +441,8 @@ def _render_bar(draw, visual, width, height, pal, top) -> None:
     unit = data.get("y_unit", "")
     pad = int(width * 0.07)
 
-    label_f = _load_font(_SANS_BOLD, 26)
-    val_f = _load_font(_SERIF_BOLD, 28)
+    label_f = _load_font("sans", "bold", 26)
+    val_f = _load_font("serif", "bold", 28)
     max_v = max(ys) or 1.0
     track_w = int(width * 0.62)
     y0 = max(top + _HEADER_GAP, int(height * 0.28))
@@ -471,8 +468,8 @@ def _render_comparison(draw, visual, width, height, pal, top) -> None:
     body_bottom = int(height * _BODY_BOTTOM_FRAC)
     draw.line([mid, int(height * 0.30), mid, body_bottom], fill=pal["muted"], width=2)
 
-    vf = _load_font(_SERIF_BOLD, 92)
-    lf = _load_font(_SANS_REGULAR, 30)
+    vf = _load_font("serif", "bold", 92)
+    lf = _load_font("sans", "regular", 30)
     for side, cx, color in (
         ("left", mid // 2, pal["accent"]),
         ("right", mid + mid // 2, pal["ink"]),
@@ -524,7 +521,7 @@ def _render_line(draw, visual, width, height, pal, top) -> None:
               fill=pal["muted"], width=2)
     draw.line([pad_l, body_top, pad_l, body_bottom], fill=pal["muted"], width=2)
 
-    yf = _load_font(_SANS_REGULAR, 22)
+    yf = _load_font("sans", "regular", 22)
     # Label the FIRST and LAST data points (not the extended axis ends), so the
     # axis labels stay anchored to real data. Placed INSIDE the plot just above
     # the axis line to keep the 0.70-0.75 strip free for the source credit.
@@ -543,7 +540,7 @@ def _render_line(draw, visual, width, height, pal, top) -> None:
     for px, py in px_points:
         draw.ellipse([px - 5, py - 5, px + 5, py + 5], fill=pal["accent"])
 
-    mf = _load_font(_SANS_BOLD, 18)
+    mf = _load_font("sans", "bold", 18)
     callouts = []
     for m in markers:
         mx = float(m["x"])

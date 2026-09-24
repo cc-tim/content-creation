@@ -123,8 +123,6 @@ def _animate_line_frame(
 
     from pipeline.composer.chart import _BODY_BOTTOM_FRAC, _HEADER_GAP
     from pipeline.composer.rich_slide import (
-        _SANS_BOLD,
-        _SANS_REGULAR,
         _load_font,
     )
 
@@ -171,7 +169,7 @@ def _animate_line_frame(
     draw.line([pad_l, body_top, pad_l, body_bottom],
               fill=palette["muted"], width=2)
 
-    yf = _load_font(_SANS_REGULAR, 22)
+    yf = _load_font("sans", "regular", 22)
     label_bb = draw.textbbox((0, 0), "9999", font=yf)
     label_h = label_bb[3] - label_bb[1]
     for x_label in (min(xs), max(xs)):
@@ -223,7 +221,7 @@ def _animate_line_frame(
     else:
         cur_x_data = xs[0] - 1.0
 
-    mf = _load_font(_SANS_BOLD, 18)
+    mf = _load_font("sans", "bold", 18)
     revealed = []
     for m in markers:
         mx = float(m["x"])
@@ -270,8 +268,6 @@ def _animate_bar_frame(
 
     from pipeline.composer.chart import _BODY_BOTTOM_FRAC, _HEADER_GAP
     from pipeline.composer.rich_slide import (
-        _SANS_BOLD,
-        _SERIF_BOLD,
         _load_font,
     )
 
@@ -284,8 +280,8 @@ def _animate_bar_frame(
     unit = data.get("y_unit", "")
     pad = int(width * 0.07)
 
-    label_f = _load_font(_SANS_BOLD, 26)
-    val_f = _load_font(_SERIF_BOLD, 28)
+    label_f = _load_font("sans", "bold", 26)
+    val_f = _load_font("serif", "bold", 28)
     max_v = max(ys) or 1.0
     track_w = int(width * 0.62)
     y0 = max(top + _HEADER_GAP, int(height * 0.28))
@@ -339,9 +335,6 @@ def _animate_stat_frame(
 
     from pipeline.composer.chart import _HEADER_GAP
     from pipeline.composer.rich_slide import (
-        _SANS_BOLD,
-        _SANS_REGULAR,
-        _SERIF_BOLD,
         _load_font,
     )
 
@@ -362,7 +355,7 @@ def _animate_stat_frame(
     cx = width // 2
     body_top = max(top + _HEADER_GAP, int(height * 0.30))
 
-    num_f = _load_font(_SERIF_BOLD, 150)
+    num_f = _load_font("serif", "bold", 150)
     nb = draw.textbbox((0, 0), display_value, font=num_f)
     if parsed_ok:
         color = palette["accent"]
@@ -382,7 +375,7 @@ def _animate_stat_frame(
 
     unit = str(data.get("unit", ""))
     if unit:
-        uf = _load_font(_SANS_BOLD, 36)
+        uf = _load_font("sans", "bold", 36)
         ub = draw.textbbox((0, 0), unit.upper(), font=uf)
         draw.text((cx - (ub[2] - ub[0]) // 2, y), unit.upper(),
                   font=uf, fill=palette["ink"])
@@ -390,7 +383,7 @@ def _animate_stat_frame(
 
     context = str(data.get("context", ""))
     if context:
-        cf = _load_font(_SANS_REGULAR, 28)
+        cf = _load_font("sans", "regular", 28)
         cb = draw.textbbox((0, 0), context, font=cf)
         draw.text((cx - (cb[2] - cb[0]) // 2, y), context,
                   font=cf, fill=palette["muted"])

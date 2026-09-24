@@ -9,9 +9,13 @@ from PIL import Image, ImageDraw
 from pipeline.config import PipelineConfig
 from pipeline.publish.channels import ChannelProfile
 from pipeline.utils.ffmpeg import run_ffmpeg
+from pipeline.utils.fonts import DEFAULT_FAMILY, drawtext_font_arg, verify_fontconfig_family
 
-_NOTO_BOLD = "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"
-_NOTO_REGULAR = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+# drawtext font options: fontconfig patterns (Noto Sans CJK TC + style), never a
+# file path. A TTC path loads face 0 (JP glyph forms) and drawtext has no
+# face-index option.
+_FONT_BOLD = drawtext_font_arg("bold")
+_FONT_REGULAR = drawtext_font_arg("regular")
 
 
 def _make_circle_png(src: Path, size: int, dest: Path) -> None:
@@ -48,6 +52,10 @@ def build_outro(
     pill_w = 220
     pill_x = (w - pill_w) // 2
     pill_y = tag_y + 54             # subscribe pill top
+
+    # fontconfig substitutes a missing family silently — fail before rendering.
+    for style in ("Bold", "Regular"):
+        verify_fontconfig_family(DEFAULT_FAMILY, style)
 
     display = profile.display_name or profile.name
     tagline = profile.tagline
@@ -128,7 +136,7 @@ def build_outro(
     name_text = display.replace("'", "\\'").replace(":", "\\:")
     name = (
         f"[v1]drawtext="
-        f"fontfile={_NOTO_BOLD}:"
+        f"{_FONT_BOLD}:"
         f"text='{name_text}':"
         f"fontcolor=#6b3f00:"
         f"fontsize=42:"
@@ -141,7 +149,7 @@ def build_outro(
     tag_text = tagline.replace("'", "\\'").replace(":", "\\:")
     tagline_filter = (
         f"[v2]drawtext="
-        f"fontfile={_NOTO_REGULAR}:"
+        f"{_FONT_REGULAR}:"
         f"text='{tag_text}':"
         f"fontcolor=#a06030:"
         f"fontsize=26:"
@@ -158,7 +166,7 @@ def build_outro(
         f"color=#f59e0b:t=fill:"
         f"enable='gte(t,4)',"
         f"drawtext="
-        f"fontfile={_NOTO_BOLD}:"
+        f"{_FONT_BOLD}:"
         f"text='訂閱頻道 ▶':"
         f"fontcolor=white:"
         f"fontsize=22:"

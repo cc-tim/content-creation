@@ -13,7 +13,7 @@ from pipeline.composer.frame import composite_scene_frame
 from pipeline.config import PipelineConfig
 from pipeline.session_log import SessionEntry, append_session, new_session_id
 from pipeline.stages.base import PipelineContext
-from pipeline.stages.compose import ComposeStage, _burn_subtitle_pass
+from pipeline.stages.compose import ComposeStage, _burn_subtitle_pass, verify_theme_fonts
 
 logger = structlog.get_logger()
 compose_app = typer.Typer(name="compose", help="Compose iteration commands")
@@ -271,6 +271,7 @@ def reburn(
     if ctx.storyboard_path and ctx.storyboard_path.exists():
         sb = Storyboard.load(ctx.storyboard_path)
         theme_dict = sb.theme.to_dict()
+    verify_theme_fonts(theme_dict)  # fail before the burn, not after
 
     raw = compose_dir / "raw.mp4"
     raw_no_ov = compose_dir / "raw_no_overlay.mp4"

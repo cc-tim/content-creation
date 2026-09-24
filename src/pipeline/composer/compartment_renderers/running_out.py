@@ -6,6 +6,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
+from pipeline.utils.fonts import load_pil_font
+
 
 @dataclass
 class CompartmentFrame:
@@ -13,22 +15,9 @@ class CompartmentFrame:
     duration_sec: float
 
 
-_FONT_CANDIDATES = [
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
-    "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
-    "/usr/share/fonts/opentype/noto/NotoSansCJK.ttc",
-    "/usr/share/fonts/truetype/noto/NotoSansCJK.ttc",
-    "/System/Library/Fonts/PingFang.ttc",
-]
-
-
-def _load_font(size: int) -> ImageFont.ImageFont:
-    for path in _FONT_CANDIDATES:
-        try:
-            return ImageFont.truetype(path, size)
-        except OSError:
-            continue
-    return ImageFont.load_default()
+def _load_font(size: int) -> ImageFont.FreeTypeFont:
+    """Noto Sans CJK TC Bold; raises FontResolutionError — no substitute font."""
+    return load_pil_font("sans", "bold", size)
 
 
 def _draw_face(draw: ImageDraw.ImageDraw, cx: int, cy: int, r: int, kind: str) -> None:

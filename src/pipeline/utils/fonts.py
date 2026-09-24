@@ -380,7 +380,7 @@ def probe_libass(out_dir: Path, ffmpeg: str = "ffmpeg", family: str = DEFAULT_FA
     """(c) libass subtitle burn with FontName=<family>, as the compose burn pass does."""
     out_dir.mkdir(parents=True, exist_ok=True)
     paths = _probe_paths(out_dir, "libass")
-    style = f"FontName={family},FontSize=120,PrimaryColour=&H00000000,Outline=0,Shadow=0"
+    style = f"FontName={family},FontSize=120,Bold=1,PrimaryColour=&H00000000,Outline=0,Shadow=0"
     for i, (text, path) in enumerate(zip((*PROBE_TEXTS, NOTDEF_TEXT), paths, strict=True)):
         srt = out_dir / f"probe_libass_{i}.srt"
         srt.write_text(f"1\n00:00:00,000 --> 00:00:05,000\n{text}\n", encoding="utf-8")

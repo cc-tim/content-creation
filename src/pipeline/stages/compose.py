@@ -37,8 +37,22 @@ from pipeline.utils.ffmpeg import (
     run_ffmpeg,
     run_ffmpeg_atomic,
 )
+from pipeline.utils.fonts import DEFAULT_FAMILY, load_pil_font, verify_fontconfig_family
 
 logger = structlog.get_logger()
+
+
+def verify_theme_fonts(theme_dict: dict[str, Any]) -> None:
+    """Fail fast if fontconfig would substitute the theme font family.
+
+    drawtext ``font=`` (overlays, slides, text cards; Regular) and libass
+    ``FontName=`` (burned subtitles; Bold=1) resolve the family by name, and
+    fontconfig silently substitutes a missing one. Run once at compose start so a
+    missing font fails before any scene renders, not after the whole render.
+    """
+    family = theme_dict.get("font") or DEFAULT_FAMILY
+    for style in ("Regular", "Bold"):
+        verify_fontconfig_family(family, style)
 
 
 def _hex_to_ass_color(hex_color: str) -> str:
@@ -244,13 +258,9 @@ def _display_book_title(title: str) -> str:
     return title.strip()[:72] or "Narrative History"
 
 
-def _title_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    for name in ("NotoSerifCJK-Regular.ttc", "DejaVuSerif.ttf"):
-        try:
-            return ImageFont.truetype(name, size)
-        except OSError:
-            continue
-    return ImageFont.load_default()
+def _title_font(size: int) -> ImageFont.FreeTypeFont:
+    """Noto Serif CJK TC Regular; raises FontResolutionError — no substitute font."""
+    return load_pil_font("serif", "regular", size)
 
 
 def _wrap_title_lines(
@@ -639,6 +649,7 @@ class ComposeStage(PipelineStage):
 
         width, height = get_resolution(storyboard.aspect_ratio)
         theme_dict = storyboard.theme.to_dict()
+        verify_theme_fonts(theme_dict)  # before any scene renders
         frame_style = theme_dict.get("frame_style") or None
 
         # --- Style anchor: source suitability → niche style → anchor image ---
@@ -1353,6 +1364,7 @@ class ComposeStage(PipelineStage):
 
     async def _compose_mvp(self, ctx: PipelineContext, compose_dir: Path) -> Path:
         """Fallback: MVP compose (continuous source footage)."""
+        verify_theme_fonts({})  # burned subtitles use the default family
         assert ctx.video_path is not None
         assert ctx.narration_path is not None
         assert ctx.subtitle_path is not None
