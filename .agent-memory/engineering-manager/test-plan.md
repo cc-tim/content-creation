@@ -127,6 +127,33 @@ real-scene demo row is `🔲` because the music library is empty so the demo cou
 _(The two older E7 items — SFX asset registry, SFX layer-visibility dashboard surface — remain
 designed-not-built with no rows; their first sprints populate them when proposed.)_
 
+## E8 — Two-machine workflow & render portability 🔵 (Sprint 8 = item 1, proposed 2026-09-24)
+
+Spec: `docs/superpowers/specs/2026-09-24-e8-cross-platform-fonts-design.md`. Acceptance is split:
+**(A) hub rows gate merge**, **(B) Mac rows gate 🔵→🟢** (Tim supplies the artifacts; the EM
+follow-up REVIEW flips them). Golden policy: hub-canonical, golden compare SKIPPED on darwin,
+determinism tests everywhere.
+
+| Capability | Test | Status |
+|------------|------|--------|
+| (A) Resolver resolves by NAME: all 4 role×weight → `Noto {Sans,Serif} CJK TC {Regular,Bold}`; hub sans-bold = `NotoSansCJK-Bold.ttc` **index 3** (locks HK→TC fix) | `tests/unit/test_fonts.py` | 🔲 planned |
+| (A) Resolver precedence (`PIPELINE_FONT_DIRS` > fc-match > known dirs) + TTC face scan by name + accepts Super-OTC/per-weight/.otf packaging | `tests/unit/test_fonts.py` | 🔲 planned |
+| (A) Loud failure: nothing found → `FontResolutionError` with platform `suggested_fix`; `verify_fontconfig_family` rejects fc-match substitution (`Nonexistent Font XYZ`) | `tests/unit/test_fonts.py` | 🔲 planned |
+| (A) Call sites raise, never degrade: `_title_font`, `running_out`, `rich_slide`/chart/callout propagate `FontResolutionError`; compose-start verifies theme font family once | `tests/unit/test_font_callsites.py` | 🔲 planned |
+| (A) Static fence: no `/usr/share/fonts`, `/System/Library/Fonts`, `load_default(`, stray `ImageFont.truetype(`, drawtext `fontfile=`, or `Path("output/` literals in `src/pipeline` | `tests/unit/test_font_callsites.py` | 🔲 planned |
+| (A) Outro drawtext uses `drawtext_font_arg` (fontconfig TC pattern), no absolute font path | `tests/unit/test_font_callsites.py` (or `tests/unit/test_outro_builder.py`) | 🔲 planned |
+| (A) Render truth: glyph-distinctness probes (PIL / drawtext / libass) — two CJK strings differ and neither equals the .notdef render | `tests/integration/test_cjk_render_truth.py` (`--integration`) | 🔲 planned |
+| (A) Golden policy: darwin → skip w/ hub-canonical reason; `UPDATE_GOLDENS` on non-linux → error; `PIPELINE_GOLDEN_STRICT=1` compares; chart/chart_anim/callout migrated to shared helper, fixtures unchanged | `tests/unit/test_golden_policy.py` + `tests/golden_policy.py` | 🔲 planned |
+| (A) `pipeline doctor` exit 0/1 per check; `--out` saves probe PNGs | `tests/unit/test_cli_doctor.py` | 🔲 planned |
+| (A) Output paths honour `PipelineConfig().OUTPUT_DIR` (migrate CLI, gallery index, composer gallery path) | `tests/unit/test_output_paths.py` | 🔲 planned |
+| (A) Full suite collects cleanly (`test_memory_sync.py` importorskip) — 0 errors, 0 failures | `uv run pytest -q` | 🔲 planned |
+| (A) Hub real-scene before/after: baby-walker s11/s31/s24 + outro | manual evidence `tmp/e8-fonts/hub/` | 🔲 planned |
+| (B) Mac: ffmpeg buildconf has freetype/fontconfig/libass/harfbuzz; drawtext + subtitles filters | manual evidence (Tim, spec §8B step 1) | 🔲 planned |
+| (B) Mac: `pipeline doctor` exit 0 + probe PNGs | manual evidence `tmp/e8-fonts/mac/` | 🔲 planned |
+| (B) Mac: `pytest -q -rs` 0 failed/0 errors, only golden-policy skips new; render-truth integration passes | manual evidence (Tim) | 🔲 planned |
+| (B) Mac real-scene: s11/s31/s24 frames show Noto TC glyphs (no tofu, not PingFang), layout matches hub | manual evidence `tmp/e8-fonts/mac/` | 🔲 planned |
+| (B, informational — does not gate) Mac `PIPELINE_GOLDEN_STRICT=1` golden match result | recorded in sprint-log | ⏸️ informational |
+
 ## Cross-cutting
 
 | Capability | Test | Status |
