@@ -201,4 +201,5 @@ When using Claude API for script adaptation, always:
 | Outro build commands | README.md |
 | Publish/metadata full workflow | README.md |
 | Design specs | `docs/superpowers/specs/` |
+| Two-machine setup (hub + Mac), project copy between machines | `docs/mac-setup.md` |
 | Standing autopilot conventions | `docs/project-conventions.md` — check before asking the user to confirm a routine, repeatable decision |
