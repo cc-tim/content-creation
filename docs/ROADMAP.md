@@ -16,7 +16,7 @@
 > video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
 > the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-05-31 (**Sprint 7 SHIPPED 🟢 — EM RE-REVIEW PASS** after one REWORK round — render-truth still-gate, a **two-layer gate** [Tim-approved descope 2026-05-30 + hard constraint: tesseract unprovisioned, no passwordless sudo]: Layer 1 deterministic CLI [`duplicate_frame` phash+colorhash + `blank_substrate` content-INSET; exit 0 clean / 1 tool-error / 2 findings] + Layer 2 scoped in-session vision pass [meaningfulness / wrong-language / clipping] wired into `storyboard-review/SKILL.md`. Deterministic OCR + bbox-overflow SUPERSEDED by Layer 2; variant-at-gen-time [piece C] DEFERRED [principled form of the variant fix]; the blanket "NO model-vision" guard LIFTED for the scoped Layer-2 use only. **REWORK→PASS:** first REVIEW caught the gate defaulting to `plain` [overlays burned] at Phase-3.5, missing the seed reused-map defect; both fixes landed — #1 `resolve_variant` defaults to `no_overlay` [+malformed-context guard], demonstrated firing dup on the defect snapshot via the wired path + regression test; #2 independent code review done, its I-1 render-crash finding fixed [per-scene try/except → exit 1, persisted Layer-2 stills]. EM ran pytest [16 still-gate + 143 regression], ruff, mypy, live I-1 exit-1 check — all clean. Prior 2026-05-30: Sprint 7 GREENLIT; 2026-05-29 still-gate→E5; Sprint 6 REVIEW PASS) · Prior: 2026-05-29 (REVIEW post-hoc: **E7 music/audio-axis** — first E7 sprint, built off-roadmap and merged to master `12bfce3` without a pre-merge gate; EM acceptance verdict **ADVISE, NOT PASS** [engineering clean + invariants held: schema, `composer/music.py` mix engine with an in-code length-clamp two-axes fence, `pipeline compose music` CLI, loud failure, 19 measurable tests + ruff/mypy green — but the music library is **empty**, so the spec's named s19→s23 real-scene intelligibility demo could not run]. E7 item **stays 🔵**; flip to 🟢 needs licensed tracks + the demo + a separate code review + EM re-REVIEW.) · Prior: 2026-05-29 (INTAKE: **locale-portability authoring principle folded** — prefer language-neutral visuals [numeric/chart → image-only → icon/emoji], default unavoidable on-screen text to English/en-US; cross-cutting bar → `standards.md` step 8 + the next `direct.py` sprint, lint-enforcement half → E5 🔵 [NOT next]; orthogonal to both axes; visual-side complement to shipped MLA. Recommended next sprint UNCHANGED.) · Prior: 2026-05-27 (REVIEW PASS: **Sprint 6 (E4 Slice 3) shipped** — niche `visual_style` medium-clash refactor split `medium_hint` / `palette` / `subject_bias` / `universal_rules`, preserved the back-compat composite, and passed EM REVIEW on `feat/niche-visual-style-split`; s25 demo evidence saved under `tmp/niche-visual-style-split/`. Prior: Sprint 6 formally proposed; production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-09-24 (INTAKE: **new epic E8 — Two-machine workflow & render portability** [Hub Linux box + Workshop M3 Mac]; three items in Tim's order: (1) cross-platform font resolver + Linux-assumption audit [Mac-render blocker; folds `cli_storyboard.py:428` + `output/gallery` path fixes + the silent `load_default()` font fallback], (2) project checkout/checkin + hub ownership lock, (3) draft/preview encode profile [hw encoders, non-publishable flag, bitrate-check aware]. Item 1 recommended as next sprint slot. Iteration-speed axis — neither quality nor runtime.) · Prior: 2026-05-31 (**Sprint 7 SHIPPED 🟢 — EM RE-REVIEW PASS** after one REWORK round — render-truth still-gate, a **two-layer gate** [Tim-approved descope 2026-05-30 + hard constraint: tesseract unprovisioned, no passwordless sudo]: Layer 1 deterministic CLI [`duplicate_frame` phash+colorhash + `blank_substrate` content-INSET; exit 0 clean / 1 tool-error / 2 findings] + Layer 2 scoped in-session vision pass [meaningfulness / wrong-language / clipping] wired into `storyboard-review/SKILL.md`. Deterministic OCR + bbox-overflow SUPERSEDED by Layer 2; variant-at-gen-time [piece C] DEFERRED [principled form of the variant fix]; the blanket "NO model-vision" guard LIFTED for the scoped Layer-2 use only. **REWORK→PASS:** first REVIEW caught the gate defaulting to `plain` [overlays burned] at Phase-3.5, missing the seed reused-map defect; both fixes landed — #1 `resolve_variant` defaults to `no_overlay` [+malformed-context guard], demonstrated firing dup on the defect snapshot via the wired path + regression test; #2 independent code review done, its I-1 render-crash finding fixed [per-scene try/except → exit 1, persisted Layer-2 stills]. EM ran pytest [16 still-gate + 143 regression], ruff, mypy, live I-1 exit-1 check — all clean. Prior 2026-05-30: Sprint 7 GREENLIT; 2026-05-29 still-gate→E5; Sprint 6 REVIEW PASS) · Prior: 2026-05-29 (REVIEW post-hoc: **E7 music/audio-axis** — first E7 sprint, built off-roadmap and merged to master `12bfce3` without a pre-merge gate; EM acceptance verdict **ADVISE, NOT PASS** [engineering clean + invariants held: schema, `composer/music.py` mix engine with an in-code length-clamp two-axes fence, `pipeline compose music` CLI, loud failure, 19 measurable tests + ruff/mypy green — but the music library is **empty**, so the spec's named s19→s23 real-scene intelligibility demo could not run]. E7 item **stays 🔵**; flip to 🟢 needs licensed tracks + the demo + a separate code review + EM re-REVIEW.) · Prior: 2026-05-29 (INTAKE: **locale-portability authoring principle folded** — prefer language-neutral visuals [numeric/chart → image-only → icon/emoji], default unavoidable on-screen text to English/en-US; cross-cutting bar → `standards.md` step 8 + the next `direct.py` sprint, lint-enforcement half → E5 🔵 [NOT next]; orthogonal to both axes; visual-side complement to shipped MLA. Recommended next sprint UNCHANGED.) · Prior: 2026-05-27 (REVIEW PASS: **Sprint 6 (E4 Slice 3) shipped** — niche `visual_style` medium-clash refactor split `medium_hint` / `palette` / `subject_bias` / `universal_rules`, preserved the back-compat composite, and passed EM REVIEW on `feat/niche-visual-style-split`; s25 demo evidence saved under `tmp/niche-visual-style-split/`. Prior: Sprint 6 formally proposed; production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -103,9 +103,9 @@ See `.agent-memory/engineering-manager/arsenal-state.md` for the living inventor
 ## Epics
 
 Four are **arsenal-direction** epics (the demand-driven backlog: programmatic charts,
-programmatic animation, animated overlays, and — newest — the **audio arsenal**, E7). Three
+programmatic animation, animated overlays, and — newest — the **audio arsenal**, E7). Four
 are **cross-cutting infrastructure** that the arsenal needs in order to be traceable, safe,
-and iterable.
+and iterable (E4–E6, plus **E8** two-machine workflow & render portability, 2026-09-24).
 
 ### E1 — Programmatic charts  `[arsenal]`  🟢 *v1 shipped (Sprint 1)*
 Render data as **styled editorial graphics** (warm sepia / book-page feel), never a Plotly
@@ -309,6 +309,64 @@ over a 4-min scene adds zero seconds, exactly as richer rendering does not.
   point 5) **could not run**. 🟢 requires proof on real content. **To advance:** source free
   tracks → populate `library.json` → run the demo + save the intelligibility artifact → a
   separate code-correctness review → summon EM REVIEW again.
+
+### E8 — Two-machine workflow & render portability  `[infra · iteration loop]`  🔵 *new epic (INTAKE 2026-09-24, Tim-decided topology)*
+The pipeline now runs on **two machines**: the **Hub** (this Linux box — i5-7400, 4 cores, HDD
+system disk, always on; owns dashboard, tunnel, Telegram, discovery, publish, YouTube tokens;
+project data on the SSD volume via the `output/` → `/mnt/windows_ssd/content-creation/output`
+symlink, NTFS/ntfs3, commit `97cb4b9`) and the **Workshop** (M3 MacBook Pro, 18 GB, daytime only;
+dev + fast iteration). Tim wants the Mac to render **both quick previews AND full finals**.
+Standing rule: **code syncs via git/GitHub only; project data (`output/projects/<id>`) syncs by
+copy; a project is owned by exactly one machine at a time.**
+- **Two-axes:** neither axis directly — this is an **iteration-speed / portability** lift. It
+  adds zero runtime and zero rendered capability; it shortens the look-fix-rerender loop, which
+  serves quality indirectly. Never cite E8 as a quality or runtime gain.
+- **Relationship to E6:** E6 = fewer/cheaper re-renders (scoping); E8 item 3 = cheaper *each*
+  render (encode profile). Complementary, not duplicates — cross-link, do not merge.
+- **Items (priority order, Tim 2026-09-24):**
+  1. **🔵 Cross-platform font resolution + Linux-assumption audit — BLOCKER for any Mac render.**
+     Hardcoded Linux Noto CJK paths: `composer/rich_slide.py:22-25`, `outro/builder.py:13-14`,
+     `composer/compartment_renderers/running_out.py:17-20`. Also `stages/compose.py:248`
+     `_title_font` **silently falls back to `ImageFont.load_default()`** (no CJK glyphs → tofu,
+     no error) — convert to loud failure under the same resolver. One resolver
+     (`utils/fonts.py`-style: config override → `fc-match` → known macOS paths → raise
+     `FontResolutionError`), consumed by every PIL call site; ffmpeg `drawtext` family names
+     (`"Noto Sans CJK TC"` in `storyboard.py:262`, `overlay.py`, `slide.py`, `text_card.py`,
+     `utils/ffmpeg.py`) must resolve via fontconfig on macOS too (Homebrew ffmpeg + installed
+     Noto CJK) — verify, don't assume. Audit scope: ffmpeg flags/filters, `animation_review.py`
+     playwright/chromium path, any other `/usr/...` literals. **Folded consistency fixes:**
+     `cli_storyboard.py:428` `Path("output/projects")` → `PipelineConfig().OUTPUT_DIR`; same
+     class `utils/gallery.py:23` + `composer/base.py:365,391` `Path("output/gallery")`.
+     **Acceptance must include a render-truth check on macOS** (a zh-TW `rich_slide` +
+     `text_card` + overlay still actually showing CJK glyphs, artifact saved) — the EM cannot
+     run the Mac, so the build supplies the artifact. **Golden-PNG risk:** freetype/font-build
+     differences will make PIL goldens diverge on darwin — decide explicitly (hub-canonical
+     goldens + darwin tolerance/skip), don't let the suite go red-on-Mac silently.
+     *Depends on:* none. *Unblocks:* any Mac render (previews and finals).
+  2. **🔵 Project checkout/checkin between machines.** `pipeline project checkout <id> --from hub`
+     / `pipeline project checkin <id>` over Tailscale rsync; an **ownership lock on the hub**
+     (lock file in the project dir: owner machine, timestamp, git SHA) that the **dashboard
+     shows** and that **blocks hub-side edits/renders/job-queue actions** while checked out
+     (loud refusal, explicit `--force-release` escape). Must support **Mac renders the final →
+     checkin pushes it back → hub publishes** (checkin carries `final*.mp4` + `context.json` +
+     storyboard; hub verifies integrity + that the final is not a draft — see item 3). NTFS
+     target: rsync without perms/owner, `--modify-window` for mtime, symlink behavior checked.
+     *Depends on:* item 1 for the render half to be useful (the sync/lock mechanics themselves
+     don't). *Interim:* manual rsync + "don't touch it on the hub" convention until this lands.
+  3. **🔵 Draft/preview render mode.** An **encoder-profile seam** (today ~44 `libx264`/preset
+     call sites across `src/pipeline/`) with profiles `final` (libx264 medium, unchanged) and
+     `draft` (720p + fast encode; hardware encoder when available — `h264_videotoolbox` on M3,
+     `h264_qsv` on the hub's Kaby Lake i5-7400 *if* the Intel media driver is provisioned —
+     probed at runtime, logged fallback to libx264 `veryfast`). Draft output must be **marked
+     non-publishable** (filename suffix + `context.json` flag) and `compose.py:_validate_bitrate`
+     must be profile-aware (skip or draft threshold — not trip, not silently pass a draft as a
+     final). **Publish refuses a draft-flagged final** (loud). Draft must not poison the final
+     render cache (separate cache keys per profile). *Depends on:* item 1 (to matter on the Mac);
+     item 2 for the publish-guard handoff path, but can ship before it.
+- **Recommended order:** **1 → 2 → 3** (Tim's order holds). Item 1 is a hard blocker and small.
+  Item 2 before 3 because a full-quality Mac render is already fast on an M3 and the real risk
+  of two machines is **divergent project state** (hub dashboard edits vs Mac edits), which only
+  the lock prevents; item 3 is a pure speed multiplier and is safe to follow.
 
 ---
 
@@ -563,6 +621,12 @@ for overflow (ex-check-4) was high-risk/low-verifiability.
 - **Size:** ~3 build sessions (spine + 4 pure checks incl. the tesseract provisioning + the
   check-4 bbox instrumentation + variant field/plumbing + skill wiring + fixtures + determinism
   test).
+
+### Next candidate — E8 item 1: cross-platform font resolver + Linux-assumption audit  `[E8]`  🔵 *intake-placed 2026-09-24; not yet a SPRINT proposal*
+Recommended as the next sprint slot (blocker for Tim's two-machine topology; ~1 session). Then
+E8 item 2 (checkout/checkin + hub lock, ~2 sessions) → E8 item 3 (draft/preview encode profile,
+~1 session). Full scope in the E8 epic above; a SPRINT dispatch turns item 1 into a proposal +
+test-plan rows.
 
 ### Later / unscoped backlog
 - Animated overlays v2+ (E3): **animated entrance** for the callout primitive + lower-thirds
