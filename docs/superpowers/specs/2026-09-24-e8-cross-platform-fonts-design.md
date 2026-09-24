@@ -75,7 +75,8 @@ Weight = Literal["regular", "bold"]
 def resolve_font(role: Role, weight: Weight, region: str = "TC") -> ResolvedFont   # lru_cached
 def load_pil_font(role: Role, weight: Weight, size: int, region: str = "TC") -> ImageFont.FreeTypeFont
 def drawtext_font_arg(weight: Weight = "regular", family: str = "Noto Sans CJK TC") -> str
-    # returns the escaped `font=...` drawtext option (a fontconfig pattern incl. style), never fontfile=
+    # returns the escaped drawtext option `fontfile='Noto Sans CJK TC\:style=Bold'`: a fontconfig
+    # pattern, never a real file path. As built: `font=` with a style suffix renders tofu on ffmpeg 6.1.
 def verify_fontconfig_family(family: str, style: str | None = None) -> str
     # runs `fc-match -f '%{family}|%{style}'`; raises FontResolutionError if the returned
     # family list (comma-separated) does not contain `family` → no silent substitution.
@@ -295,7 +296,8 @@ uv run pipeline visual-review extract-frames --project-id $ID
 ## 9. Risks
 - **R1. Escaping of the fontconfig pattern in drawtext** (`Noto Sans CJK TC\:style=Bold` inside
   a filter option). Mitigation: `drawtext_font_arg` is the only builder, and the drawtext
-  probe exercises that exact string.
+  probe exercises that exact string. As built, the pattern goes through `fontfile=`, because
+  `font=` treats the whole value as a family name. Mac ffmpeg 7/8 behaviour is checked by B2.
 - **R2. The Homebrew ffmpeg build may lack fontconfig/libass** (Homebrew has slimmed the
   default formula before). Mitigation: Mac step 1 plus doctor check 3. The fallback is
   `ffmpeg-full`. Do not guess; the doctor tells.
