@@ -425,7 +425,7 @@ def migrate(
     if all_projects and project_id:
         raise typer.BadParameter("Pass --project-id or --all, not both")
 
-    projects_root = Path("output/projects")
+    projects_root = PipelineConfig().OUTPUT_DIR / "projects"
     if all_projects:
         targets = sorted(projects_root.glob("*/"))
     elif project_id:

@@ -20,9 +20,18 @@ from typing import Any
 
 import httpx
 
-GALLERY_DIR = Path("output/gallery")
-GALLERY_INDEX_PATH = GALLERY_DIR / "gallery_index.json"
 MATCH_THRESHOLD = 0.6
+
+
+def gallery_dir() -> Path:
+    """The shared asset gallery, under OUTPUT_DIR (resolved at call time)."""
+    from pipeline.config import PipelineConfig
+
+    return PipelineConfig().OUTPUT_DIR / "gallery"
+
+
+def gallery_index_path() -> Path:
+    return gallery_dir() / "gallery_index.json"
 
 
 @dataclass
@@ -109,13 +118,13 @@ class GallerySearcher:
 
     def __init__(
         self,
-        index_path: Path = GALLERY_INDEX_PATH,
-        gallery_dir: Path = GALLERY_DIR,
+        index_path: Path | None = None,
+        gallery_dir: Path | None = None,
         pexels_api_key: str | None = None,
         pixabay_api_key: str | None = None,
     ):
-        self._index_path = index_path
-        self._gallery_dir = gallery_dir
+        self._index_path = index_path or gallery_index_path()
+        self._gallery_dir = gallery_dir or gallery_index_path().parent
         self._pexels_key = pexels_api_key
         self._pixabay_key = pixabay_api_key
 

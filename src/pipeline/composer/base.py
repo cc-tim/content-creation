@@ -9,6 +9,7 @@ import structlog
 
 from pipeline.errors import SceneRenderError
 from pipeline.utils.ffmpeg import run_ffmpeg
+from pipeline.utils.gallery import gallery_index_path
 
 logger = structlog.get_logger()
 
@@ -362,7 +363,7 @@ def render_scene(
             height,
             work_dir,
             scene_id,
-            gallery_path=Path("output/gallery/gallery_index.json"),
+            gallery_path=gallery_index_path(),
             niche=theme.get("niche") if theme else None,
             scene_narration=scene.get("narration", ""),
             theme=theme,
@@ -388,7 +389,7 @@ def render_scene(
         seed_raw = theme.get("_seed")
         seed: int | None = int(seed_raw) if seed_raw is not None else None
 
-        gallery_path = Path("output/gallery/gallery_index.json")
+        gallery_path = gallery_index_path()
         return render_generated_image(
             visual,
             duration_sec,
