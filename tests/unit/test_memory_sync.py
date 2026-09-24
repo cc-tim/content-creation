@@ -4,8 +4,13 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, os.path.expanduser("~/.claude/bin"))
-import memory_sync as ms  # noqa: E402
+ms = pytest.importorskip(
+    "memory_sync",
+    reason="~/.claude/bin/memory_sync.py (home-dir tool) is not installed on this machine",
+)
 
 
 def make_agent_memory(tmp_path: Path, index_lines: list[str], topic_files: dict[str, str] = None) -> Path:
