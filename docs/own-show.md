@@ -42,7 +42,8 @@ Tryouts (throwaway; code + renders + comparison page) are in the EP1 project fol
 | 3 | **Chibi** (Tim's pick) — hair/glasses options sheet; chibi in **3D** (Three.js toon shading + screen-space ink outlines) | 3D keeps the C&H look from any angle (turntable, side, ¾ front, over-the-shoulder showing the real laptop screen). Open issue: the big chibi head blocks the screen in over-the-shoulder while typing. |
 
 **Tim's inputs so far:** chibi proportions; signature features = hair + glasses (clothes and
-colours don't matter); wants more camera angles (3D); can work on the M3 Mac.
+colours don't matter) — **picked hair A (spiky) + glasses 1 (round)**; wants more camera
+angles (3D); can work on the M3 Mac.
 
 **Research (2026-09-26):**
 - Tools: keep the bank as repo data (JSON/SVG/YAML); Remotion as scene/compositing engine
@@ -58,12 +59,12 @@ colours don't matter); wants more camera angles (3D); can work on the M3 Mac.
 
 ## Next steps (resume here — planned on the M3 Mac)
 
-1. Tim picks hair + glasses from the options sheet (e.g. "B + 2"), or describes changes.
+1. ~~Tim picks hair + glasses~~ — done: **A (spiky) + 1 (round)**. Lock these into the chibi.
 2. Decide 2D rig vs 3D toon (or both: 3D for camera-heavy shots) → then the engine
    (Remotion suggested). Fix the over-the-shoulder framing if 3D.
-3. Tim creates the BytePlus ModelArk account (Taiwan) + API key → add a BytePlus provider to
-   `~/.claude/bin/gen-video.py` and the key to `~/.claude/api-keys.json` → run the ~$1 Seedance
-   restyle test.
+3. **⏳ NEEDS TIM:** Tim creates the BytePlus ModelArk account (Taiwan) and provides the API
+   key next session. Then: add a BytePlus provider to `~/.claude/bin/gen-video.py` and the key
+   to `~/.claude/api-keys.json` → run the ~$1 Seedance restyle test.
 4. Freeze the style guide → build bank v0 (Tim's chibi, desk set, laptop/phone, core poses,
    camera presets).
 5. Retarget critics/evaluators to the audience lens above before scene reviews start.
