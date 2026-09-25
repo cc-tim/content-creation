@@ -25,6 +25,8 @@ For feature work or larger changes, start in a dedicated git worktree (see `.wor
 **Target locales:** zh-TW → Japanese → Spanish (Latin American). Start with zh-TW.
 **Budget constraint:** $50/month for all paid APIs.
 
+**Tim's own hosted videos (not ports):** `docs/own-show.md` is the top guideline for these and overrides the porting defaults here — host-led format, Tim decides each scene's creative elements, audience-angle critics, style guide + reusable resource bank first. Read it before any work on those videos.
+
 **Codex guard (token budget):** Codex is installed and authenticated on this machine — `codex:setup` is a one-time check, never reload it. `gpt-5-4-prompting` loads inside codex subagents automatically — never load it in the main session. When dispatching to codex, go straight to `codex:codex-rescue` without loading setup or prompting skills first.
 
 ## Architecture
