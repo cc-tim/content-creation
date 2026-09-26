@@ -182,6 +182,18 @@ wheels = [
 ]
 
 [[package]]
+name = "cairocffi"
+version = "1.7.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cffi" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/70/c5/1a4dc131459e68a173cbdab5fad6b524f53f9c1ef7861b7698e998b837cc/cairocffi-1.7.1.tar.gz", hash = "sha256:2e48ee864884ec4a3a34bfa8c9ab9999f688286eb714a15a43ec9d068c36557b", size = 88096, upload-time = "2024-06-18T10:56:06.741Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/93/d8/ba13451aa6b745c49536e87b6bf8f629b950e84bd0e8308f7dc6883b67e2/cairocffi-1.7.1-py3-none-any.whl", hash = "sha256:9803a0e11f6c962f3b0ae2ec8ba6ae45e957a146a004697a1ac1bbf16b073b3f", size = 75611, upload-time = "2024-06-18T10:55:59.489Z" },
+]
+
+[[package]]
 name = "certifi"
 version = "2026.2.25"
 source = { registry = "https://pypi.org/simple" }
@@ -370,6 +382,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
+    { name = "cairocffi" },
     { name = "edge-tts" },
     { name = "fastapi" },
     { name = "ffmpeg-python" },
@@ -379,6 +392,7 @@ dependencies = [
     { name = "google-genai" },
     { name = "httpx" },
     { name = "imagehash" },
+    { name = "numpy" },
     { name = "openai" },
     { name = "pillow" },
     { name = "pydantic-settings" },
@@ -406,6 +420,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=0.49" },
+    { name = "cairocffi", specifier = ">=1.7" },
     { name = "edge-tts", specifier = ">=7.0" },
     { name = "fastapi", specifier = ">=0.111" },
     { name = "ffmpeg-python", specifier = ">=0.2" },
@@ -415,6 +430,7 @@ requires-dist = [
     { name = "google-genai", specifier = ">=0.3.0" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "imagehash", specifier = ">=4.3" },
+    { name = "numpy", specifier = ">=1.26" },
     { name = "openai", specifier = ">=2.30.0" },
     { name = "pillow", specifier = ">=12.2.0" },
     { name = "pydantic-settings", specifier = ">=2.7" },
