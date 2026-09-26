@@ -154,6 +154,39 @@ determinism tests everywhere.
 | (B) Mac real-scene: s11/s31/s24 frames show Noto TC glyphs (no tofu, not PingFang), layout matches hub | manual evidence `tmp/e8-fonts/mac/` | 🔲 planned |
 | (B, informational — does not gate) Mac `PIPELINE_GOLDEN_STRICT=1` golden match result | recorded in sprint-log | ⏸️ informational |
 
+## E9 — Toon engine & resource bank 🔵 (Sprint 9 = v0; rows added at INTAKE 2026-09-27)
+
+Spec: `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md` (§8 is the source for these
+rows; the duration-fence row comes from §5 and the cache row from §6). **One REVIEW, and every
+row gates PASS**, including the hub rows (the EM re-runs them on the hub) and Tim's scene-001
+confirmation. Golden policy follows E8: hub-canonical, compared on linux only via
+`tests/golden_policy.py`, skipped elsewhere with the counted reason, minted with
+`UPDATE_GOLDENS=1` on the hub only. Determinism tests run everywhere and must pass before any
+golden is minted. Test paths below are the ones the build must create. When built, add
+`tests/toon/` + `tests/unit/test_composer_toon.py` + `tests/unit/test_cli_toon.py` to the run-all
+command.
+
+| Capability | Test | Status |
+|------------|------|--------|
+| Bank loader: every v0 YAML under `assets/toon/bank/` loads into a typed `Bank`; every item carries `picked:` provenance; a missing or unknown field fails with the file and the field path | `tests/toon/test_bank.py` | 🔲 planned |
+| Scene validation: an unknown bank item / set spot / camera / icon name → error naming the scene file and the path inside it | `tests/toon/test_scene.py` | 🔲 planned |
+| Wordless rule (locale-portability fence in code): any free-text field or unknown field in a scene → error; graphics, bubbles and screens accept icon-registry names only | `tests/toon/test_scene.py` | 🔲 planned |
+| Timing: a beat outside its shot → error; `at: {sentence: n}` anchors resolve (narration split into sentences, audio duration shared out by character count) | `tests/toon/test_scene.py` | 🔲 planned |
+| **Two-axes fence (spec §5):** the rendered toon clip lasts exactly as long as the narration. Narration longer → the last shot holds, still boiling. Narration shorter than the last beat → load warning, and the clip is cut at the narration's end. A toon scene cannot extend runtime | `tests/toon/test_scene.py` (timing) + `tests/unit/test_composer_toon.py` (clip length) | 🔲 planned |
+| Engine: projection and IK maths; draw-order cases from the tryout (desk between camera and character or not; arms raised behind the head); the per-shot layer override is honoured | `tests/toon/test_engine.py` | 🔲 planned |
+| Determinism: `frame(scene, bank, t)` rendered twice gives identical bytes, and identical bytes again from a worker process; no global random state (boil seeds from item keys + `floor(t·12)`) | `tests/toon/test_determinism.py` | 🔲 planned |
+| Clip cache key (spec §6) covers the scene file, the bank files it uses, and the engine version: editing a used bank YAML or bumping the engine version re-renders; an unrelated bank file is a cache hit | `tests/toon/test_render.py` | 🔲 planned |
+| **Golden frames, hub-only:** a few scene-001 key frames plus the Tim model sheet via `assert_matches_golden`; skipped off-linux with the hub-canonical reason; minted on the hub only, each golden eyeballed, hub cairo version recorded next to the fixtures | `tests/toon/test_golden.py` + `tests/fixtures/toon/golden/` | 🔲 planned (hub) |
+| Pipeline adapter: `render_scene` dispatches `toon` for both a `scene:` reference and inline `shots`; any load/render failure raises `SceneRenderError` with a `suggested_fix` (no `text_card` fallback); `toon` is **not** in `overlay_rules._TEXT_VISUALS` (narration subtitle kept) | `tests/unit/test_composer_toon.py` | 🔲 planned |
+| Storyboard validator `toon` branch: a storyboard toon scene with a bad bank name or a free-text field fails at the review gate (`pipeline validate` exit 2) | `tests/director/test_storyboard_validator.py` | 🔲 planned |
+| CLI `pipeline toon validate\|render\|sheet` is registered on the pipeline CLI; `validate` exits 0 when clean and non-zero on errors; `sheet` writes the bank review sheets (model sheet, pose and prop contact sheets) | `tests/unit/test_cli_toon.py` | 🔲 planned |
+| `pipeline doctor` toon check: cairo loads and a one-frame smoke render works; a missing cairo gives a loud FAIL with a platform `suggested_fix` | `tests/unit/test_cli_doctor.py` | 🔲 planned |
+| `pipeline doctor` toon check passes (exit 0) **on both machines** | manual evidence `tmp/toon-v0/hub/doctor.txt` (EM runs) + `tmp/toon-v0/mac/doctor.txt` (build/Tim) | 🔲 planned |
+| **Pipeline smoke (hub):** a two-scene storyboard (a `clip` plus a `toon` scene) composes end to end; the final contains both scenes and the toon segment matches its narration length | `tests/integration/test_toon_compose_smoke.py` (`--integration`, hub) | 🔲 planned (hub) |
+| **Acceptance: scene 001 (real-scene demo, gating):** `assets/toon/scenes/001-lioness-dishes.yaml` renders a clip that matches `output/own-show/scenes/001-lioness-dishes/animatic_v2_bulb.mp4` in shots, timing and look (key-frame side-by-side), and **Tim confirms it still meets his bar** | manual evidence `tmp/toon-v0/scene001/` + Tim's words quoted in sprint-log | 🔲 planned (Tim) |
+| Non-goal fence (spec §1): the bank holds only the spec §4 v0 items (no campfire, no unpicked items), and `assets/toon/scenes/` holds only `001-lioness-dishes.yaml` (no EP1 scenes) | REVIEW check (diff + `ls`) | 🔲 planned |
+| Full suite collects and passes with `src/toon` packaged (`cairocffi` in deps, `src/toon` in hatch `packages`); `ruff check src/ tests/` and `mypy src/` clean | `uv run pytest -q` + ruff + mypy | 🔲 planned |
+
 ## Cross-cutting
 
 | Capability | Test | Status |

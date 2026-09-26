@@ -16,7 +16,7 @@
 > video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
 > the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-09-24 (REVIEW: **Sprint 8 hub (A) gate ADVISE** — all 12 hub rows green [83 unit + 8 render-truth integration + 74 golden, full suite 1224 passed/21 skipped/0 errors, ruff+mypy clean, doctor 16/16, resolver = TC index 3]; merge cleared; E8 item 1 stays 🔵 pending Mac (B)) · Prior: 2026-09-24 (SPRINT: **Sprint 8 = E8 item 1 proposed + Tim-greenlit** — font resolver + Linux-assumption audit; spec `docs/superpowers/specs/2026-09-24-e8-cross-platform-fonts-design.md`; hub/Mac split acceptance; golden policy = hub-canonical, darwin skip; found HK-face `_TC_INDEX` + JP-face outro bugs; E8 item 3 hub encoder corrected to nvenc) · Prior: 2026-09-24 (INTAKE: **new epic E8 — Two-machine workflow & render portability** [Hub Linux box + Workshop M3 Mac]; three items in Tim's order: (1) cross-platform font resolver + Linux-assumption audit [Mac-render blocker; folds `cli_storyboard.py:428` + `output/gallery` path fixes + the silent `load_default()` font fallback], (2) project checkout/checkin + hub ownership lock, (3) draft/preview encode profile [hw encoders, non-publishable flag, bitrate-check aware]. Item 1 recommended as next sprint slot. Iteration-speed axis — neither quality nor runtime.) · Prior: 2026-05-31 (**Sprint 7 SHIPPED 🟢 — EM RE-REVIEW PASS** after one REWORK round — render-truth still-gate, a **two-layer gate** [Tim-approved descope 2026-05-30 + hard constraint: tesseract unprovisioned, no passwordless sudo]: Layer 1 deterministic CLI [`duplicate_frame` phash+colorhash + `blank_substrate` content-INSET; exit 0 clean / 1 tool-error / 2 findings] + Layer 2 scoped in-session vision pass [meaningfulness / wrong-language / clipping] wired into `storyboard-review/SKILL.md`. Deterministic OCR + bbox-overflow SUPERSEDED by Layer 2; variant-at-gen-time [piece C] DEFERRED [principled form of the variant fix]; the blanket "NO model-vision" guard LIFTED for the scoped Layer-2 use only. **REWORK→PASS:** first REVIEW caught the gate defaulting to `plain` [overlays burned] at Phase-3.5, missing the seed reused-map defect; both fixes landed — #1 `resolve_variant` defaults to `no_overlay` [+malformed-context guard], demonstrated firing dup on the defect snapshot via the wired path + regression test; #2 independent code review done, its I-1 render-crash finding fixed [per-scene try/except → exit 1, persisted Layer-2 stills]. EM ran pytest [16 still-gate + 143 regression], ruff, mypy, live I-1 exit-1 check — all clean. Prior 2026-05-30: Sprint 7 GREENLIT; 2026-05-29 still-gate→E5; Sprint 6 REVIEW PASS) · Prior: 2026-05-29 (REVIEW post-hoc: **E7 music/audio-axis** — first E7 sprint, built off-roadmap and merged to master `12bfce3` without a pre-merge gate; EM acceptance verdict **ADVISE, NOT PASS** [engineering clean + invariants held: schema, `composer/music.py` mix engine with an in-code length-clamp two-axes fence, `pipeline compose music` CLI, loud failure, 19 measurable tests + ruff/mypy green — but the music library is **empty**, so the spec's named s19→s23 real-scene intelligibility demo could not run]. E7 item **stays 🔵**; flip to 🟢 needs licensed tracks + the demo + a separate code review + EM re-REVIEW.) · Prior: 2026-05-29 (INTAKE: **locale-portability authoring principle folded** — prefer language-neutral visuals [numeric/chart → image-only → icon/emoji], default unavoidable on-screen text to English/en-US; cross-cutting bar → `standards.md` step 8 + the next `direct.py` sprint, lint-enforcement half → E5 🔵 [NOT next]; orthogonal to both axes; visual-side complement to shipped MLA. Recommended next sprint UNCHANGED.) · Prior: 2026-05-27 (REVIEW PASS: **Sprint 6 (E4 Slice 3) shipped** — niche `visual_style` medium-clash refactor split `medium_hint` / `palette` / `subject_bias` / `universal_rules`, preserved the back-compat composite, and passed EM REVIEW on `feat/niche-visual-style-split`; s25 demo evidence saved under `tmp/niche-visual-style-split/`. Prior: Sprint 6 formally proposed; production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-09-27 (INTAKE: **new epic E9 — Toon engine & resource bank** [own-show character animation: deterministic 2.5D hand-drawn cairo rig + YAML bank of Tim's picks + wordless scene files + new `toon` visual type]; spec `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md` Tim-approved 2026-09-27; **v0 = Sprint 9, now the recommended next sprint** (Tim's direction), ahead of E8 item 2; 18 test-plan rows 🔲; non-goal held: no EP1 scene/story composition until Tim gives the outline) · Prior: 2026-09-24 (REVIEW: **Sprint 8 hub (A) gate ADVISE** — all 12 hub rows green [83 unit + 8 render-truth integration + 74 golden, full suite 1224 passed/21 skipped/0 errors, ruff+mypy clean, doctor 16/16, resolver = TC index 3]; merge cleared; E8 item 1 stays 🔵 pending Mac (B)) · Prior: 2026-09-24 (SPRINT: **Sprint 8 = E8 item 1 proposed + Tim-greenlit** — font resolver + Linux-assumption audit; spec `docs/superpowers/specs/2026-09-24-e8-cross-platform-fonts-design.md`; hub/Mac split acceptance; golden policy = hub-canonical, darwin skip; found HK-face `_TC_INDEX` + JP-face outro bugs; E8 item 3 hub encoder corrected to nvenc) · Prior: 2026-09-24 (INTAKE: **new epic E8 — Two-machine workflow & render portability** [Hub Linux box + Workshop M3 Mac]; three items in Tim's order: (1) cross-platform font resolver + Linux-assumption audit [Mac-render blocker; folds `cli_storyboard.py:428` + `output/gallery` path fixes + the silent `load_default()` font fallback], (2) project checkout/checkin + hub ownership lock, (3) draft/preview encode profile [hw encoders, non-publishable flag, bitrate-check aware]. Item 1 recommended as next sprint slot. Iteration-speed axis — neither quality nor runtime.) · Prior: 2026-05-31 (**Sprint 7 SHIPPED 🟢 — EM RE-REVIEW PASS** after one REWORK round — render-truth still-gate, a **two-layer gate** [Tim-approved descope 2026-05-30 + hard constraint: tesseract unprovisioned, no passwordless sudo]: Layer 1 deterministic CLI [`duplicate_frame` phash+colorhash + `blank_substrate` content-INSET; exit 0 clean / 1 tool-error / 2 findings] + Layer 2 scoped in-session vision pass [meaningfulness / wrong-language / clipping] wired into `storyboard-review/SKILL.md`. Deterministic OCR + bbox-overflow SUPERSEDED by Layer 2; variant-at-gen-time [piece C] DEFERRED [principled form of the variant fix]; the blanket "NO model-vision" guard LIFTED for the scoped Layer-2 use only. **REWORK→PASS:** first REVIEW caught the gate defaulting to `plain` [overlays burned] at Phase-3.5, missing the seed reused-map defect; both fixes landed — #1 `resolve_variant` defaults to `no_overlay` [+malformed-context guard], demonstrated firing dup on the defect snapshot via the wired path + regression test; #2 independent code review done, its I-1 render-crash finding fixed [per-scene try/except → exit 1, persisted Layer-2 stills]. EM ran pytest [16 still-gate + 143 regression], ruff, mypy, live I-1 exit-1 check — all clean. Prior 2026-05-30: Sprint 7 GREENLIT; 2026-05-29 still-gate→E5; Sprint 6 REVIEW PASS) · Prior: 2026-05-29 (REVIEW post-hoc: **E7 music/audio-axis** — first E7 sprint, built off-roadmap and merged to master `12bfce3` without a pre-merge gate; EM acceptance verdict **ADVISE, NOT PASS** [engineering clean + invariants held: schema, `composer/music.py` mix engine with an in-code length-clamp two-axes fence, `pipeline compose music` CLI, loud failure, 19 measurable tests + ruff/mypy green — but the music library is **empty**, so the spec's named s19→s23 real-scene intelligibility demo could not run]. E7 item **stays 🔵**; flip to 🟢 needs licensed tracks + the demo + a separate code review + EM re-REVIEW.) · Prior: 2026-05-29 (INTAKE: **locale-portability authoring principle folded** — prefer language-neutral visuals [numeric/chart → image-only → icon/emoji], default unavoidable on-screen text to English/en-US; cross-cutting bar → `standards.md` step 8 + the next `direct.py` sprint, lint-enforcement half → E5 🔵 [NOT next]; orthogonal to both axes; visual-side complement to shipped MLA. Recommended next sprint UNCHANGED.) · Prior: 2026-05-27 (REVIEW PASS: **Sprint 6 (E4 Slice 3) shipped** — niche `visual_style` medium-clash refactor split `medium_hint` / `palette` / `subject_bias` / `universal_rules`, preserved the back-compat composite, and passed EM REVIEW on `feat/niche-visual-style-split`; s25 demo evidence saved under `tmp/niche-visual-style-split/`. Prior: Sprint 6 formally proposed; production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -102,10 +102,11 @@ See `.agent-memory/engineering-manager/arsenal-state.md` for the living inventor
 
 ## Epics
 
-Four are **arsenal-direction** epics (the demand-driven backlog: programmatic charts,
-programmatic animation, animated overlays, and — newest — the **audio arsenal**, E7). Four
-are **cross-cutting infrastructure** that the arsenal needs in order to be traceable, safe,
-and iterable (E4–E6, plus **E8** two-machine workflow & render portability, 2026-09-24).
+Five are **arsenal-direction** epics (the demand-driven backlog: programmatic charts,
+programmatic animation, animated overlays, the **audio arsenal** (E7), and, newest, the
+**toon engine** for Tim's own hosted shows (E9, 2026-09-27)). Four are **cross-cutting
+infrastructure** that the arsenal needs in order to be traceable, safe, and iterable (E4–E6,
+plus **E8** two-machine workflow & render portability, 2026-09-24).
 
 ### E1 — Programmatic charts  `[arsenal]`  🟢 *v1 shipped (Sprint 1)*
 Render data as **styled editorial graphics** (warm sepia / book-page feel), never a Plotly
@@ -145,7 +146,10 @@ s21 as the acceptance vehicle.
     still reads as a slide. Uses the `generate-video` skill tier ($0.029/sec budget →
     $0.050/sec premium; cache by prompt hash). **Distinct from the shipped camera-motion
     path above** — this is generated motion, not a zoom/pan over a fixed frame.
-    Demand-future, not demand-now. *(Idea C, INTAKE 2026-05-26.)*
+    Demand-future, not demand-now. *(Idea C, INTAKE 2026-05-26.)* **First concrete demand
+    (2026-09-27):** the own-show Seedance accent-shot test (restyle a toon animatic, ~$1, needs
+    Tim's BytePlus ModelArk account; `docs/own-show.md` next step 3). It stays here and is **not**
+    part of E9 v0.
 - **Source:** chart handoff open-Q1; narrative-history handoff; future-tasks; 3D
   book-page renderer eval plan (2026-05-13); `generate-video` skill (image→video tier).
 - **Depends on:** E1 (animated reveal needs the static chart substrate). ✅
@@ -367,6 +371,63 @@ copy; a project is owned by exactly one machine at a time.**
   Item 2 before 3 because a full-quality Mac render is already fast on an M3 and the real risk
   of two machines is **divergent project state** (hub dashboard edits vs Mac edits), which only
   the lock prevents; item 3 is a pure speed multiplier and is safe to follow.
+  **Re-ordered 2026-09-27:** E9 v0 (Sprint 9) goes ahead of item 2 on Tim's direction. Toon
+  bank and scene files live in git and renders are deterministic and regenerable, so toon work
+  does not add to the divergent-state risk; the interim manual-rsync convention still holds.
+
+### E9 — Toon engine & resource bank (own-show character animation)  `[arsenal]`  🔵 *new epic (INTAKE 2026-09-27); v0 spec Tim-approved 2026-09-27 → Sprint 9 (next)*
+A deterministic **2.5D hand-drawn character-animation** visual type for Tim's own hosted videos
+(`docs/own-show.md` is the top guideline for those videos and overrides the porting defaults).
+A code rig (cairo) draws the frozen character (Tim: likeness 2, short crop A, navy hoodie,
+line A marker) and other picked characters, ghosted sets, props and wordless explainer graphics:
+3D joints, props and camera, flat boiling linework, drawings on twos and camera on ones. Scenes
+are YAML files that name bank items and always render the same frames. The pipeline gains a
+`toon` visual type; Tim's A-roll stays an ordinary `clip`.
+- **Demand:** `docs/own-show.md` order of work, step 2 (resource bank) and step 3 (scene
+  scripts reference bank items by name and render consistently by construction); scene library
+  001 (`docs/own-show-scenes.md`), which Tim says meets his quality bar. Tim, 2026-09-27: build
+  v0 next.
+- **Spec:** `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md` (commit `9baf4dc`,
+  approved 2026-09-27). **Precedent (port, don't rewrite):** the throwaway r4 rig
+  (`output/projects/20260724-hybrid-ai-agent-controller/style-tryouts/r4/rig_r4.py`,
+  `character_tim.py`) and `output/own-show/scenes/001-lioness-dishes/scene_lioness.py`.
+- **Why a new epic, not an E2 item:** E2 covers motion over existing pipeline visuals (chart
+  reveals, camera moves). E9 is a separate subsystem (`src/toon`: engine, kit, bank, scene
+  model, renderer) with its own data bank and scene format, its own demand line (Tim's hosted
+  show, not ports) and its own follow-on backlog. It is still programmatic animation, so the E2
+  lessons apply: `frame()` is pure, and determinism is tested before any golden.
+- **Two axes:** production quality (visual). **Zero runtime.** A toon scene lasts exactly as
+  long as its narration (spec §5). If the narration is longer, the last shot holds, still
+  boiling. If it is shorter than the last beat, loading warns and the scene is cut at the
+  narration's end. That rule is the in-code fence. EP1's runtime comes from Tim's script,
+  never from the engine.
+- **Locale-portable by construction:** no words are drawn. The scene loader rejects free-text
+  fields and graphics take icon names only (standards step 8, enforced in code).
+- **Cross-links (not merged):**
+  - **E2:** the Seedance accent-shot test is E2's AI image-to-video line.
+  - **E3:** toon-kit graphics (pictogram bubble, ✗ card, ✓ pill, pop-ins) are drawn inside the
+    toon renderer; they are not the E3 overlay layer.
+  - **E4/E6:** registering toon as a Style Manifest element and giving it a dashboard surface
+    are deferred.
+  - **E8:** hub-canonical goldens use `tests/golden_policy.py`; the toon check extends
+    `pipeline doctor`.
+  - Retargeting the audience-lens critics is `own-show.md` step 5 (content/critic work, not
+    tracked here).
+- **Items:**
+  1. **🔵 v0: engine + bank + scene file + `toon` visual type** (Sprint 9, next; see below).
+  2. **⚪ After v0 (spec §10, unscoped):**
+     - word-level timing (Whisper word timestamps)
+     - more characters and sets, from Tim's picks only
+     - explainer-graphic kinds (map, timeline, arrows between cards). These are wordless and
+       drawn in line A; E1 chart types can inform them, but they don't reuse the PIL chart
+       renderer.
+     - host A-roll ↔ toon transitions
+     - Shorts/vertical framing
+     - a `stages/direct.py` taxonomy entry, only if EP1's scene breakdown shows the director
+       should emit `toon`
+- **Non-goal (Tim, 2026-09-27):** no EP1 scene or story composition until Tim gives the
+  outline and plot. Composing EP1 scenes is content work (`own-show.md` step 6) and does not
+  belong on this roadmap. Scene 001 appears only as v0's worked example and acceptance test.
 
 ---
 
@@ -631,7 +692,117 @@ for overflow (ex-check-4) was high-risk/low-verifiability.
 - **Golden policy (decided):** hub/Linux goldens are canonical. Golden compares are **skipped on darwin** with a counted reason. `UPDATE_GOLDENS` on non-linux is an error. `PIPELINE_GOLDEN_STRICT=1` forces a compare (the Mac runs this once, for information only). Determinism tests run everywhere. Expected hub golden churn: zero (the goldens are Latin-only, and Latin is identical across the HK and TC faces).
 - **Scope OUT:** locale → region plumbing (ja/es); making the rich_slide flat-bg fallback loud (E5); item 2 checkout/lock; item 3 encoders.
 - **Acceptance:** split. **(A) hub** criteria gate the merge; the EM runs them. **(B) Mac** criteria Tim runs after merge (doctor, suite, render-truth integration, real-scene s11/s31/s24 frames). Item flips 🔵→🟢 only at an EM follow-up review of the (B) evidence.
-- **Cost:** $0. **Size:** ~1.5 sessions. **Then:** E8 item 2 (~2 sessions) → item 3 (~1 session).
+- **Cost:** $0. **Size:** ~1.5 sessions. **Then:** ~~E8 item 2 → item 3~~ **Sprint 9 (E9 v0)
+  first** (re-ordered 2026-09-27, Tim), then E8 item 2 (~2 sessions) → item 3 (~1 session).
+- **(B) status (2026-09-27, not yet adjudicated):** Mac evidence was collected 2026-09-25 (hub
+  `tmp/e8-fonts/mac/EVIDENCE.md`). B1–B4 pass. **B5 s31 fails:** `text_card` splits on the
+  escaped `"\\n"`, so a raw newline reaches drawtext and ffmpeg 8 draws a .notdef box. The EM
+  follow-up REVIEW is still pending. The evidence also reports two unfiled bugs affecting both
+  machines: `visual-review extract-frames` is unregistered, and burned subtitles lead the
+  picture by up to ~18 s. Both are in arsenal-state "Known capability bugs". None of this
+  blocks Sprint 9.
+
+### Sprint 9 — E9 v0: toon engine + resource bank + `toon` visual type  `[E9]`  🔵 *spec Tim-approved 2026-09-27 · recommended next · implementation plan being written · 🟢 only at EM REVIEW PASS*
+**Spec (build from this):** `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md`. This
+block is the sprint shape. The spec is the design and is not restated here.
+- **Goal:** promote the r4 tryout rig into a tested `src/toon` package and a bank of Tim's
+  picks, so that a wordless scene file renders deterministically as an ordinary pipeline
+  `toon` scene.
+- **Axis:** production quality (visual). **Zero runtime**; the fence is duration = narration
+  (E9 above, spec §5).
+- **Demand:** own-show order of work, steps 2 and 3. Scene library 001 is the acceptance bar.
+- **Scope IN, in spec §9 delivery order.** Use one worktree, with one small commit per unit:
+  1. **Engine port + tests** (`src/toon/engine/`): pen (line A, ghost pen), camera and
+     projection, rig + IK, sphere-projected head/face/hair, 2.5D draw order with a small rule
+     set plus an explicit per-shot layer override, paper composite. The rig's global
+     `FACE/HAIR/BODY/HIP` become per-character arguments.
+  2. **Bank loader + v0 YAML** (`src/toon/bank.py`, `assets/toon/bank/**`): only the items the
+     spec §4 table lists, each with `picked:` provenance. `src/toon/kit/` holds the drawing
+     kinds (props, graphics, icon registry, sets).
+  3. **Scene model + validation** (`src/toon/scene.py`, Pydantic): every name resolves (errors
+     report file and path), the wordless rule (no free-text fields, unknown fields rejected),
+     beats stay inside their shot, `at: {sentence: n}` anchors resolve, and the duration
+     hold/cut rule applies.
+  4. **Renderer** (`src/toon/render.py`): pure `frame(scene, bank, t) → RGBA` with boil seeds
+     taken from item keys and `floor(t·12)` (never global random state); `render_clip` renders
+     in parallel workers, streams to ffmpeg (libx264, yuv420p, 1920×1080, 24 fps), and caches
+     by a hash of the scene file, the bank files it uses, and the engine version. 16:9 only.
+  5. **Scene 001 + acceptance** (`assets/toon/scenes/001-lioness-dishes.yaml`). **Checkpoint:**
+     Tim looks at the scene-001 side-by-side before step 6, so the pipeline adapter isn't
+     built on an engine that misses his bar.
+  6. **Pipeline adapter:**
+     - `composer/toon.py:render_toon_scene`, with `"toon"` added to `VISUAL_TYPES` and a
+       `render_scene` branch. It accepts a `scene:` reference or inline `shots`, and on any
+       load or render failure it raises `SceneRenderError` with a `suggested_fix` (no
+       `text_card` fallback).
+     - A `toon` branch in `storyboard_validator.py` that runs the scene loader's validation,
+       so bad names fail at the review gate.
+  7. **CLI + doctor:** `pipeline toon validate|render|sheet` (`src/toon/cli.py`, registered on
+     the pipeline CLI; `sheet` renders the bank review sheets) and a toon check in
+     `pipeline doctor` (cairo loads, a one-frame smoke render works).
+
+  **Plumbing (don't miss):**
+  - `cairocffi` goes into `[project] dependencies`.
+  - `src/toon` goes into `[tool.hatch.build.targets.wheel] packages`. Today that list is only
+    `["src/pipeline"]`, so `import toon` would fail from an installed build.
+  - macOS loader shim pointing cairocffi at `/opt/homebrew/lib`.
+- **Scope OUT (deferred):**
+  - **EP1 scenes or story** (waits for Tim's outline; content work, `own-show.md` step 6).
+  - Any bank item Tim hasn't picked (the campfire stays a library idea).
+  - Word-level sync (→ E9 after v0).
+  - Remotion.
+  - AI video / Seedance (→ E2 AI image-to-video; `own-show.md` step 3).
+  - Shorts/vertical; lip-sync.
+  - A `direct.py` taxonomy entry (→ E9 after v0).
+  - Style Manifest element (→ E4); dashboard surface (→ E6).
+- **New-visual-type anatomy (standards), mapped:**
+  1. Dispatch: in scope.
+  2. Director taxonomy + worked example: **deferred, named** (own-show scenes are authored
+     with Tim, not generated by the director).
+  3. Validation: validator branch.
+  4. Goldens: hub-only.
+  5. `overlay_rules`: toon draws no text, so it stays **out** of `_TEXT_VISUALS` and the
+     narration subtitle is kept. Locked by a test.
+  6. Real-scene demo: scene 001 confirmed by Tim, plus the clip + toon compose smoke.
+  7. Style Manifest / dashboard: deferred, named.
+  8. Locale: wordless, enforced in code.
+- **Dependencies:** none blocking.
+  - E8 item 1 infrastructure (`tests/golden_policy.py`, `pipeline doctor`) is merged on master.
+  - The cairo runtime is on both machines (hub `libcairo.so.2`, Mac Homebrew; checked
+    2026-09-27).
+  - The tryout sources are on the Mac (`r4/`, `scene_lioness.py`, `animatic_v2_bulb.mp4`).
+  - Toon draws no text, so it has no CJK-font exposure, and the open E8 (B) s31 drawtext bug
+    doesn't touch it.
+  - **Before any hub row: push master.** The spec commits are local to the Mac (ahead of
+    origin), and the branch must reach the hub.
+  - Don't lean on `visual-review extract-frames` for evidence (it is unregistered; see
+    Sprint 8 (B)). Extract key frames with `extract_review_frames` or ffmpeg directly. Spec
+    §7's "works unchanged" holds only once that bug is fixed.
+- **Unblocks:** Tim's own-show videos can use deterministic, on-model animated scenes as an
+  ordinary visual type, and later EP1 scenes are authored from the bank rather than one-off
+  code. **Does NOT** add runtime, and does **not** produce any EP1 scene.
+- **Acceptance:** the E9 rows in `test-plan.md`. There is a single REVIEW and **every row gates
+  PASS**:
+  - unit, determinism and CLI rows green on the build machine;
+  - hub rows (goldens compared, compose smoke, doctor) green on the hub, re-run by the EM;
+  - Mac doctor evidence;
+  - **Tim's recorded confirmation that scene 001 still meets his bar**;
+  - `uv run pytest` + `uv run ruff check src/ tests/` + `uv run mypy src/` clean;
+  - `assets/toon/scenes/` contains only `001-lioness-dishes.yaml` (the non-goal fence);
+  - a separate code-correctness review has happened.
+- **Cost:** $0. Local cairo and ffmpeg only, no provider calls. Render time is about 20 s per
+  13 s scene on the Mac (11 workers) and about 45 s on the hub (4 cores).
+- **Size:** ~4 build sessions (engine; bank + scene model; renderer + scene 001; adapter + CLI
+  + doctor), plus a short hub pass (mint goldens with `UPDATE_GOLDENS=1` on Linux only, run the
+  smoke) and Tim's scene-001 look.
+- **Risks (spec §9):**
+  - The draw order is heuristic (mitigated by the per-shot layer override).
+  - Goldens can drift between cairo versions: they are hub-only, and the hub cairo version
+    should be recorded next to the fixtures.
+  - The cairocffi loader path on macOS (covered by the doctor check).
+  - The spec header still reads "draft for Tim's review". Flip it to approved before the build
+    cites it.
+- **Then:** E8 item 2 (checkout/checkin + hub lock) → E8 item 3 (draft encoder profile).
 
 ### Later / unscoped backlog
 - Animated overlays v2+ (E3): **animated entrance** for the callout primitive + lower-thirds

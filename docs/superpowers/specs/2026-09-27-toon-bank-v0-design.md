@@ -1,6 +1,6 @@
 # Toon engine + resource bank v0 — design
 
-**Status:** draft for Tim's review (2026-09-27)
+**Status:** approved by Tim (2026-09-27) · roadmap: epic **E9**, **Sprint 9** (`docs/ROADMAP.md`)
 **Guideline:** [`docs/own-show.md`](../../own-show.md) (top guideline for Tim's own videos) ·
 scene library: [`docs/own-show-scenes.md`](../../own-show-scenes.md)
 **Designed with Tim:** approach (part 1), bank (part 2) and scene file (part 3) approved in
@@ -166,7 +166,10 @@ shots:
   names fail at the review gate, not during composing.
 - Subtitles, music, transitions and publishing are unchanged. Narration comes from TTS or
   Tim's prerecorded voice (existing workflow).
-- `visual-review extract-frames` works unchanged, because toon scenes produce ordinary clips.
+- Toon scenes produce ordinary clips, so frame-based review works as for any clip. Note:
+  `visual-review extract-frames` is not registered on either machine (a known bug, tracked in
+  the EM's arsenal-state), so pull evidence frames with `extract_review_frames` or ffmpeg.
+- `toon` stays out of `overlay_rules._TEXT_VISUALS`, so narration subtitles are kept.
 
 ## 8. Testing and done criteria (part 4)
 

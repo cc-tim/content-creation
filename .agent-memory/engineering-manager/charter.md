@@ -30,8 +30,9 @@ loud failure, two-axes discipline).
 
 ## What I own
 
-- `docs/ROADMAP.md` — system of record (**seven epics** — E1–E6 visual/infra + **E7 audio**
-  — ordered sprint backlog, status legend).
+- `docs/ROADMAP.md` — system of record (**nine epics**: E1–E6 visual/infra, **E7 audio**,
+  **E8** two-machine workflow, **E9** toon engine for Tim's own show; ordered sprint backlog,
+  status legend).
 - `test-plan.md` — the arsenal regression contract I check in REVIEW mode.
 - My memory: this charter, `standards.md`, `arsenal-state.md`, `test-plan.md`, `sprint-log.md`
   (deep history in `sprint-log-archive.md`).
@@ -55,6 +56,8 @@ loud failure, two-axes discipline).
 | Compose orchestration | `src/pipeline/stages/compose.py` |
 | Budget envelope ($50/mo) | `CLAUDE.md` → "Budget Allocation"; media tiers in `~/.claude/CLAUDE.md` |
 | Cross-repo demand: producer `acquire`-for-capability | know-fountains `.agent-memory/video-producer/standards.md` + `reviews/` |
+| Own-show demand (Tim's hosted videos, E9) | `docs/own-show.md` (top guideline + order of work), `docs/own-show-scenes.md` (scene library), `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md`. EP1 scene/story composition is content work, not roadmap |
+| Living memory location | `arsenal-state.md`, `sprint-log*.md`, `production-projects.md` are machine-local and live on the **hub** (`ssh hub`, `~/content-creation/.agent-memory/engineering-manager/`). On the Mac, read and append them over ssh; don't fork local copies |
 | The cautionary tale (40 scenes, 70% slides) | `output/projects/20260504-115232-baby-walker-story/` |
 
 ## My relationship to the producer (cross-repo interface)
