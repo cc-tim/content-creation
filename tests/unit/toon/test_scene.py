@@ -84,3 +84,18 @@ def test_warns_when_a_beat_lands_after_the_narration():
     s = load_scene(mini(**{"at": 3.0, "door": "open"}), BANK)
     (w,) = scene_warnings(s, 2.0)
     assert "cut" in w
+
+
+def test_hide_must_name_a_graphic_shown_earlier():
+    with pytest.raises(SceneError, match="does not match a graphic shown earlier"):
+        load_scene(mini(**{"at": 1.0, "hide": "Dishes. Now."}), BANK)
+    d = mini(**{"at": 0.5, "show": {"bubble": ["dishes"], "from": "tim"}})
+    d["shots"][0]["beats"].append({"at": 1.0, "hide": "bubble:tim"})
+    assert load_scene(d, BANK).shots[0].beats[1].verb == "hide"
+
+
+def test_verb_specific_fields_are_rejected_on_other_verbs():
+    with pytest.raises(SceneError, match=r"expr: only valid with a pose beat"):
+        load_scene(mini(**{"at": 1.0, "door": "open", "expr": "Dishes. Now."}), BANK)
+    with pytest.raises(SceneError, match=r"out: only valid with a prop beat"):
+        load_scene(mini(**{"at": 1.0, "door": "open", "out": True}), BANK)

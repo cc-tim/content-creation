@@ -228,15 +228,21 @@ def _check(scene: ToonScene, bank: Bank) -> list[str]:
                 if ref is not None and ref not in shot.place:
                     p.append(f"{w}.props.{name}: {ref!r} is not placed in this shot")
         length = shot_length(scene, i)
+        # Collect shown graphics in this shot
+        shown: dict[str, float] = {}  # graphic_key -> at time
+        for _j, b in enumerate(shot.beats):
+            if b.verb == "show" and isinstance(b.at, float):
+                shown[graphic_key(b.show)] = b.at
         for j, b in enumerate(shot.beats):
             bw = f"{w}.beats[{j}]"
             if isinstance(b.at, (int, float)) and not (0 <= b.at <= length):
                 p.append(f"{bw}.at: {b.at:g}s is outside the shot (0–{length:g}s)")
-            p += _check_beat(b, bw, shot, spots, bank)
+            p += _check_beat(b, bw, shot, spots, bank, shown)
     return p
 
 
-def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank) -> list[str]:
+def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
+                 shown: dict[str, float] | None = None) -> list[str]:
     p: list[str] = []
     placed = shot.place
     v = b.verb
@@ -277,8 +283,25 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank) -> list[s
             if icon not in ICONS:
                 p.append(f"{bw}.show: {icon!r} is not an icon — animation is wordless; "
                          f"use one of {sorted(ICONS)}")
+    elif v == "hide":
+        if shown is None or b.hide not in shown:
+            keys = sorted(shown.keys()) if shown else []
+            p.append(f"{bw}.hide: {b.hide!r} does not match a graphic shown earlier in this shot (shown: {keys})")
+        elif isinstance(b.at, float) and shown[b.hide] > b.at:
+            p.append(f"{bw}.hide: {b.hide!r} was shown at {shown[b.hide]:g}s, after this hide at {b.at:g}s")
     elif v == "camera" and b.camera not in bank.cameras:
         p.append(f"{bw}.camera: unknown camera {b.camera!r}")
+    # Check verb-specific fields on other verbs
+    if v != "pose" and b.expr is not None:
+        p.append(f"{bw}.expr: only valid with a pose beat")
+    if v != "prop" and b.flicker is not None:
+        p.append(f"{bw}.flicker: only valid with a prop beat")
+    if v != "prop" and b.blink is not None:
+        p.append(f"{bw}.blink: only valid with a prop beat")
+    if v != "prop" and b.out:
+        p.append(f"{bw}.out: only valid with a prop beat")
+    if v != "move" and b.bob != 0.0:
+        p.append(f"{bw}.bob: only valid with a move beat")
     return p
 
 
