@@ -79,6 +79,11 @@ ignore = [
     # Some locale regression tests use CJK names to document the exact vocabulary under test.
     "N802",
 ]
+"tests/unit/toon/test_kit.py" = [
+    # `V0_ICONS <= set(ICONS)` is a subset check, not a Yoda equality; kept verbatim from the
+    # task brief's given test code.
+    "SIM300",
+]
 "src/toon/**/*.py" = [
     # Ported 2.5D maths keeps matrix/vector notation (Rb, Rh, Ry, L).
     "N806", "N802", "N803",
