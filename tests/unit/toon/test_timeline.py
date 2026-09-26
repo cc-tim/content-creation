@@ -1,0 +1,80 @@
+import copy
+
+import pytest
+
+from toon.bank import load_bank
+from toon.scene import load_scene
+from toon.timeline import state_at
+
+BANK = load_bank()
+BASE = {
+    "id": "t", "duration": 8.0, "cast": {"tim": "tim", "lioness": "lioness"},
+    "shots": [
+        {"at": 0.0, "set": "office", "camera": "two_shot",
+         "place": {"tim": {"spot": "desk_seat", "pose": "sit_typing", "expr": "focused"},
+                   "lioness": {"spot": "doorway_out", "pose": "stand_point", "expr": "angry", "layer": "low"}},
+         "props": {"idea": {"kind": "idea_bulb", "on": "tim", "b": 1.0}},
+         "beats": [
+             {"at": 1.0, "door": "open", "over": 1.0, "ease": "linear"},
+             {"at": 1.0, "move": "lioness", "to": "doorway", "over": 1.0, "ease": "linear"},
+             {"at": 1.0, "pose": "tim", "to": "sit_shock", "expr": "shocked", "over": 1.0, "ease": "linear"},
+             {"at": 2.0, "prop": "idea", "flicker": {"every": 4, "low": 0.35, "high": 0.85}},
+             {"at": 1.0, "show": {"bubble": ["dishes", "bang"], "from": "lioness"}},
+         ]},
+        {"at": 4.0, "set": "kitchen", "camera": "close_push",
+         "place": {"tim": {"spot": "sink", "pose": "stand_wash", "expr": "glum", "loop": False}},
+         "props": {"idea": {"kind": "idea_bulb", "on": "tim", "b": 0.3},
+                   "stack": {"kind": "plate_stack", "count": 6}},
+         "beats": [
+             {"at": 0.0, "prop": "stack", "to": {"count": 3}, "over": 2.0, "ease": "linear"},
+             {"at": 0.0, "prop": "idea", "to": {"b": 0.05}, "over": 1.0, "ease": "linear"},
+             {"at": 0.5, "prop": "idea", "blink": {"b": 0.35, "over": 0.2}},
+             {"at": 1.0, "prop": "idea", "out": True},
+         ]},
+    ],
+}
+SCENE = load_scene(copy.deepcopy(BASE), BANK)
+
+
+def test_pose_blends_and_expression_switches_after_half():
+    tim = state_at(SCENE, BANK, 1.5).chars["tim"]
+    assert tim.pose.lean == pytest.approx((15 + -10) / 2)
+    assert tim.pose.eyes == "dot"                   # discrete fields switch only once k > 0.5
+    assert state_at(SCENE, BANK, 1.75).chars["tim"].pose.eyes == "wide"
+
+
+def test_door_and_move_progress():
+    fs = state_at(SCENE, BANK, 1.5)
+    assert fs.door == pytest.approx(0.5)
+    assert fs.chars["lioness"].root[0] == pytest.approx((-3.25 + -2.4) / 2, abs=1e-9)
+
+
+def test_flicker_dims_every_fourth_drawing():
+    lows = [state_at(SCENE, BANK, i / 12).props["idea"].b for i in range(24, 36)]
+    assert lows.count(0.35) == 3 and set(lows) == {0.35, 0.85}
+
+
+def test_counts_step_toward_zero_and_blink_then_out():
+    fs = state_at(SCENE, BANK, 5.0)                 # rel 1.0 in shot 2: stack k=0.5 → 6 - 1 = 5
+    assert fs.props["stack"].count == 5
+    assert state_at(SCENE, BANK, 4.6).props["idea"].b == 0.35   # inside the blink
+    out = state_at(SCENE, BANK, 5.5).props["idea"]
+    assert out.mode == "out" and out.smoke == pytest.approx(0.5)
+
+
+def test_bubble_pops_in():
+    assert state_at(SCENE, BANK, 0.9).graphics == []
+    (g,) = state_at(SCENE, BANK, 1.125).graphics
+    assert g.key == "bubble:lioness" and g.k == pytest.approx(0.5)
+
+
+def test_camera_punch_and_push():
+    assert state_at(SCENE, BANK, 0.0).cam.focal == pytest.approx(3050)
+    assert state_at(SCENE, BANK, 0.25, 0.25).cam.focal == pytest.approx(3200)
+    assert state_at(SCENE, BANK, 4.0).cam.focal == pytest.approx(5000)
+    assert state_at(SCENE, BANK, 7.99, 7.99).cam.focal == pytest.approx(5500, abs=1)
+
+
+def test_the_cut_follows_camera_time_and_clamps_drawing_time():
+    fs = state_at(SCENE, BANK, 3.95, 4.0)
+    assert fs.shot == 1 and fs.set_id == "kitchen"
