@@ -10,7 +10,7 @@ when the rig changes, so the entry records what was decided, not just where the 
 
 | # | Scene | Status | Episode | Files |
 |---|---|---|---|---|
-| 001 | Locked in → the lioness → dishes → the idea fades | tryout · animatic v2 (wordless, bulb) | not assigned | `output/own-show/scenes/001-lioness-dishes/` |
+| 001 | Locked in → the lioness → dishes → the idea fades | tryout · animatic v2 (wordless, bulb) — **meets Tim's expectation** (quality bar) | not assigned | `output/own-show/scenes/001-lioness-dishes/` |
 
 ## 001 · Locked in → the lioness → dishes → the idea fades
 
@@ -32,6 +32,8 @@ when the rig changes, so the entry records what was decided, not just where the 
   kitchen (ghosted sets); idea bulb and campfire (props); plates, plate stack, faucet and suds;
   pictogram speech bubble, anger mark, ✗ card, speed lines, focus glow (graphics); standing
   point and washing dishes (poses).
+- **Verdict (Tim, 2026-09-26):** "this tryout scene meet my expectation" — use v2 as the
+  reference bar for scene quality and the acceptance scene for bank v0.
 - **Files:** `scene_lioness.py` (throwaway; uses the style-tryouts `r4` rig) · step-3 sheets
   `r5_lioness_options.png`, `r5_bulb_options.png`, `r5_idea_options.png`, `r5_thumbs.png` ·
   v1 animatics with on-screen words `r5_animatic_{bulb,fire}.mp4` · **v2 wordless**
