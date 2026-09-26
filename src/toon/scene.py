@@ -17,6 +17,23 @@ VERBS = ("door", "move", "pose", "face", "prop", "show", "hide", "camera")
 SHOW_KINDS = ("speed_lines", "bubble", "anger", "x_card", "check_pill")
 
 
+class _SceneLoader(yaml.SafeLoader):
+    """A YAML loader for scene files that keeps `on`/`off`/`yes`/`no` as plain strings.
+
+    ``PropUse.on`` (e.g. ``idea: {kind: idea_bulb, on: tim}``) collides with YAML 1.1's
+    implicit booleans (``on|On|ON|off|Off|OFF|yes|Yes|YES|no|No|NO``), which `yaml.safe_load`
+    would otherwise turn into `True`/`False` mapping keys — see the design doc's own example
+    at `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md` line 118. `true`/`false`
+    (used by e.g. `Place.loop`) are left resolving to booleans as normal.
+    """
+
+
+_SceneLoader.yaml_implicit_resolvers = {
+    ch: [(tag, rx) for tag, rx in resolvers if not (tag == "tag:yaml.org,2002:bool" and ch in "yYnNoO")]
+    for ch, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
+}
+
+
 class SceneError(ValueError):
     def __init__(self, problems: list[str]):
         self.problems = problems
@@ -340,7 +357,7 @@ def read_scene(ref: str) -> dict:
         path = scenes_root() / f"{ref}.yaml"
     if not path.exists():
         raise SceneError([f"scene file not found: {path}"])
-    return yaml.safe_load(path.read_text())
+    return yaml.load(path.read_text(), Loader=_SceneLoader)
 
 
 def scene_data_from_visual(visual: dict) -> dict:

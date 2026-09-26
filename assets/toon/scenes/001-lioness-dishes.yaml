@@ -1,0 +1,53 @@
+# Library scene 001 (docs/own-show-scenes.md). Tim: "this tryout scene meet my expectation".
+id: 001-lioness-dishes
+duration: 13.0
+cast: {tim: tim, lioness: lioness}
+shots:
+  - at: 0.0                                   # 1 · locked in
+    set: office
+    camera: front34_push
+    place: {tim: {spot: desk_seat, pose: sit_typing, expr: focused}}
+    props: {idea: {kind: idea_bulb, on: tim, b: 1.0}}
+    fx: [{glow: {at: [0.0, 2.9, 0.1], radius: 2.4, color: warm, alpha: 0.42}}]
+  - at: 3.5                                   # 2 · break-in
+    set: office
+    camera: two_shot
+    place:
+      tim: {spot: desk_seat, pose: sit_typing, expr: focused}
+      lioness: {spot: doorway_out, pose: stand_point, expr: angry, layer: low}
+    props: {idea: {kind: idea_bulb, on: tim, b: 1.0}}
+    beats:
+      - {at: 0.05, door: open, over: 0.25}
+      - {at: 0.1, move: lioness, to: doorway, over: 0.6, ease: out, bob: 0.06}
+      - {at: 0.12, show: {speed_lines: lioness}, over: 0.2}
+      - {at: 0.25, pose: tim, to: sit_shock, expr: shocked, over: 0.2, ease: back}
+      - {at: 0.35, prop: idea, flicker: {every: 4, low: 0.35, high: 0.85}}
+      - {at: 0.8, show: {bubble: [dishes, bang], from: lioness}}
+      - {at: 0.8, show: {anger: lioness}}
+  - at: 6.2                                   # 3 · dishes
+    set: kitchen
+    camera: side_truck
+    place: {tim: {spot: sink, pose: stand_wash, expr: glum}}
+    props:
+      idea: {kind: idea_bulb, on: tim, b: 0.75}
+      stack: {kind: plate_stack, count: 6}
+      plate: {kind: plate, held_by: tim}
+    fx: [{glow: {at: [0.0, 2.6, 0.0], radius: 2.0, color: cool, alpha: 0.3}}]
+    beats:
+      - {at: 0.0, prop: idea, to: {b: 0.3}, over: 3.5, ease: linear}
+      - {at: 0.0, prop: stack, to: {count: 3}, over: 3.5, ease: linear}
+  - at: 9.7                                   # 4 · idea gone
+    set: kitchen
+    camera: close_push
+    place: {tim: {spot: sink, pose: stand_wash, expr: glum, loop: false}}
+    props:
+      idea: {kind: idea_bulb, on: tim, b: 0.3}
+      stack: {kind: plate_stack, count: 3}
+      plate: {kind: plate, held_by: tim}
+    fx: [{glow: {at: [0.0, 2.6, 0.0], radius: 2.0, color: cool, alpha: 0.3}}]
+    beats:
+      - {at: 0.1, pose: tim, to: stand_sink_idle, expr: deflated, over: 0.4}
+      - {at: 0.0, prop: idea, to: {b: 0.05}, over: 0.9, ease: linear}
+      - {at: 0.65, prop: idea, blink: {b: 0.35, over: 0.15}}
+      - {at: 0.9, prop: idea, out: true}
+      - {at: 1.6, show: {x_card: bulb, at: [0.64, 0.30]}}
