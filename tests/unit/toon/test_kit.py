@@ -8,7 +8,7 @@ from toon.cairo_compat import cairo
 from toon.engine.camera import orbit
 from toon.engine.mathx import V
 from toon.engine.pen import Pen
-from toon.kit.graphics import anger_mark, bubble, check_pill, speed_lines, x_card
+from toon.kit.graphics import anger_mark, bubble, bubble_layout, check_pill, speed_lines, x_card
 from toon.kit.icons import ICONS, draw_icon
 from toon.kit.props import idea_bulb, plate_stack
 from toon.kit.sets import build_set
@@ -28,6 +28,28 @@ def _ink(s) -> int:
 
 def test_icon_registry_has_the_v0_icons():
     assert V0_ICONS <= set(ICONS)
+
+
+def test_bubble_layout_pins_the_dishes_bang_bubble():
+    """Ruling R10: the [dishes, bang] bubble reproduces the tryout's hand-placed speech() exactly
+    (330x170 box, SCN 280-302) -- dishes centred at (0.38w, 0.62h) with its native size 124 (at
+    this box's reference height of 170), bang anchored off (0.80w, 0.52h) with the size the
+    tryout's bar/dot geometry least-squares-fits onto `toon.kit.icons.bang`'s own center+size
+    parameterisation."""
+    w, h = 330.0, 170.0
+    (dishes_c, dishes_size), (bang_c, bang_size) = bubble_layout(["dishes", "bang"], w, h)
+    assert dishes_c == pytest.approx((0.38 * w, 0.62 * h))
+    assert dishes_size == pytest.approx(124.0)
+    assert bang_c == pytest.approx((0.80 * w, 0.52 * h))
+    assert bang_size == pytest.approx(267 / 301 * h)
+
+
+def test_bubble_layout_falls_back_to_even_spacing_for_unlisted_icons():
+    w, h = 330.0, 170.0
+    (c0, s0), (c1, s1) = bubble_layout(["check", "cross"], w, h)
+    assert c0 == pytest.approx((w * (0.1 + 0.8 * 0.25), h * 0.55))
+    assert c1 == pytest.approx((w * (0.1 + 0.8 * 0.75), h * 0.55))
+    assert s0 == pytest.approx(s1) == pytest.approx(h * 0.6)
 
 
 def test_unknown_icon_is_a_wordless_error():

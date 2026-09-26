@@ -78,8 +78,43 @@ def anger_mark(pen, c, r, key="anger"):
         pen.stroke(arc, f"{key}{i}", wk=0.7, color=RED)
 
 
+# Per-icon layout inside a speech bubble (ruling R10): (x_frac of w, y_frac of h, size_frac of
+# h) -- each icon's exact anchor and size as the tryout hand-placed it in its one wordless bubble
+# (SCN `speech()` 280-302: the dishes stack at `x+0.38w, y+0.62h` with its native size 124 at the
+# box's reference height of 170, and the "!" whose bar/dot the tryout drew straight off the box
+# (`ex = x+0.8w`; offsets `0.18h`/`0.6h`/`0.78h`) -- least-squares fit onto `bang()`'s own
+# center+size parameterisation (`toon.kit.icons.bang`), residual < 0.01h on every offset. Icons
+# with no entry fall back to `_BUBBLE_DEFAULT`, the original v0 even-spacing rule, so `bubble()`
+# stays generic for any icon list -- it never branches on an icon's name.
+#
+# An icon listed here also draws with the bare bubble `key` (no per-index suffix): that is what
+# `speech()` itself did (both `dishes` and `bang` hand-authored their sub-shape keys, e.g.
+# "speechpl0"/"speechex", straight off `key`, never off an icon index), and `Pen`'s hand-drawn
+# wobble is seeded from that exact key string (`Pen.seed`) -- an "ic{i}"-suffixed key reproduces
+# the right shape at the wrong *wobble phase*, which still shows up as a few-pixel outline diff.
+# `dishes`'s and `bang`'s own sub-keys ("pl"/"pr"/"suds" vs "ex") don't collide, so this is safe
+# for the ported pair; unlisted/fallback icons keep the "ic{i}" suffix to avoid colliding.
+BUBBLE_LAYOUT: dict[str, tuple[float, float, float]] = {
+    "dishes": (0.38, 0.62, 124 / 170),
+    "bang": (0.80, 0.52, 267 / 301),
+}
+_BUBBLE_DEFAULT_SIZE = 0.6
+_BUBBLE_DEFAULT_Y = 0.55
+
+
+def bubble_layout(icons: list[str], w: float, h: float) -> list[tuple[tuple[float, float], float]]:
+    """The `(center, size)` -- relative to the box's own `(0, 0)`-`(w, h)` -- for each icon."""
+    n = len(icons)
+    out = []
+    for i, name in enumerate(icons):
+        x_frac, y_frac, size_frac = BUBBLE_LAYOUT.get(
+            name, (0.1 + 0.8 * (i + 0.5) / n, _BUBBLE_DEFAULT_Y, _BUBBLE_DEFAULT_SIZE))
+        out.append(((w * x_frac, h * y_frac), h * size_frac))
+    return out
+
+
 def bubble(pen, box, tail_to, icons, key="speech"):
-    """A speech-bubble body + tail (SCN 280-289) with wordless icons spaced evenly across it.
+    """A speech-bubble body + tail (SCN 280-289) with wordless icons laid out by `bubble_layout`.
 
     `box` (x, y, w, h) and `tail_to` are expected in FINAL render pixels (ruling R5): the caller
     scales its own 1080p literals by `pen.px` before calling in -- e.g. the renderer (Task 8)
@@ -94,10 +129,9 @@ def bubble(pen, box, tail_to, icons, key="speech"):
     pen.fill(body, "white", key)
     pen.stroke(body, key, closed=True, wk=0.8)
     pen.stroke(tail, key + "t", wk=0.8)
-    n = len(icons)
-    for i, name in enumerate(icons):
-        c = (x + w * (0.1 + 0.8 * (i + 0.5) / n), y + h * 0.55)
-        draw_icon(pen, name, c, h * 0.6, f"{key}ic{i}")
+    for i, (name, ((cx, cy), size)) in enumerate(zip(icons, bubble_layout(icons, w, h), strict=True)):
+        icon_key = key if name in BUBBLE_LAYOUT else f"{key}ic{i}"
+        draw_icon(pen, name, (x + cx, y + cy), size, icon_key)
 
 
 def x_card(pen, x, y, icon, size=140, key="xcard"):
