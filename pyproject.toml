@@ -84,6 +84,10 @@ ignore = [
     # task brief's given test code.
     "SIM300",
 ]
+"tests/unit/toon/test_render.py" = [
+    # `from toon import render as R` is kept verbatim from the task brief's given test code.
+    "N812",
+]
 "src/toon/**/*.py" = [
     # Ported 2.5D maths keeps matrix/vector notation (Rb, Rh, Ry, L).
     "N806", "N802", "N803",
