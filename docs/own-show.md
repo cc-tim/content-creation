@@ -28,6 +28,13 @@ The porting pipeline keeps its existing rules. (Decided with Tim 2026-09-26.)
      style + narrative → build each scene until done.
 - **Randomness belongs at design time.** Generate options, Tim picks, the pick is frozen into
   the bank. Scene rendering must be deterministic.
+- **Wordless animation** (Tim, 2026-09-26): scenes tell it with images, emotion and gestures
+  — no words drawn on screen, so a scene works in any language. Laptop/phone screens show icons
+  (bars, ✓/✗, progress), bubbles hold pictograms, cards hold icons. Words live only in the
+  narration and subtitles, which the pipeline makes per locale.
+- **Scene library:** every scene idea or tryout is recorded in
+  [`own-show-scenes.md`](own-show-scenes.md) (brief in Tim's words, picks, status), even if it
+  never reaches a video; files in `output/own-show/scenes/<nnn-slug>/`.
 
 ## Style exploration — status (2026-09-26: **character + line frozen**)
 
@@ -44,7 +51,18 @@ Tryouts (throwaway; code + renders + comparison page) are in the EP1 project fol
 | 4b | Face + hair option sheets (`r4/faces_r4.py`): 12 faces (front + turned) × 6 spiky-hair variants (front/40°/side/back), mix-and-match; face/hair are presets in the rig | Superseded by 4c (Tim sent his headshot instead of picking). |
 | 4c | **Likeness from Tim's headshot** (`r4/likeness_r4.py`; photo not stored): two-layer hair (black spiky top with high M-hairline + forward tuft, grey buzzed sides + sideburns), thin wire panto glasses, ears, small almond eyes, straight brows, navy hoodie. 4 likeness levels (cute → closest, + C&H-simple); desk beat re-rendered with level 2 | Tim: hairline a little higher, hair more like short crop → 4d. |
 | 4d | Hairline raised (forehead y 0.62 → 0.70) + **short crop** top (even short spikes, near-straight fringe, receding corners kept); variants A all-black crop (default) / B crop over grey buzzed sides / C = 4c. Likeness sheet + desk beat re-rendered with A + level 2 | **Tim: "A it is — my character is settled."** |
+| 5 | **Tryout scene 1** — Tim's lioness brief, run as: brief → beat table → option sheets (lioness A/B/C, bulb A/B, draft stills) → timed animatic (bulb vs campfire) → wordless v2. Library entry **001** | Tim: lioness A, bulb, "your calls" on timing; **animation must be wordless**; keep every idea findable → scene library. |
 | ✅ | **FROZEN: Tim = likeness 2 + short crop A + navy hoodie, line A (marker)**, 2.5D code rig. Preset + model sheet in `r4/character_tim.py` → `r4/tim_model_sheet.png` (turnaround 0–180°, 6 expressions, palette, line rules) | Seed of the character bank. |
+
+**Animation grammar (Tim, 2026-09-26): "their grammar, my doodle look"** — reference: the opening
+of *How to raise calm kids like the Japanese* (Hana Explores, youtu.be/UdOx9lAbLvo). Take its
+structure, keep the frozen doodle character + line A: the chibi-Tim **hosts** (stands beside the
+content and presents: open palm, point, think, wave); explainer graphics **build up** beside him
+(framed icon cards, red ✗ over wrong ways, green ✓ pills joined by arrows, bubbles,
+maps/timelines — icons and pictograms only, see *Wordless animation*); **sets are ghosted** (faint thin line art, no fill) while the focus
+character is in colour, optional warm focus **glow** and crowd fade; comic emphasis (speed lines,
+tears/shake marks); **limited motion** — 3–5 s holds where elements pop in one by one, gentle
+zoom, pose changes between beats, small wiggle loops (line boil). Not their clean/AI look.
 
 **Tim's inputs so far:** chibi proportions; signature features = hair + glasses (clothes and
 colours don't matter) — **picked hair A (spiky) + glasses 1 (round)**; wants more camera
