@@ -6,6 +6,7 @@ import math
 import multiprocessing
 import os
 import subprocess
+import tempfile
 from collections.abc import Iterable, Iterator
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
@@ -156,6 +157,14 @@ def cache_key(scene: ToonScene, bank: Bank, duration: float, width: int, height:
     return h.hexdigest()[:16]
 
 
+def _tail(f, n: int = 2000) -> str:
+    """The last `n` bytes of a binary file object, decoded leniently (for ffmpeg stderr)."""
+    f.seek(0, os.SEEK_END)
+    size = f.tell()
+    f.seek(max(0, size - n))
+    return f.read().decode("utf-8", errors="replace").strip()
+
+
 def render_clip(scene: ToonScene, bank: Bank, out_path: Path, duration: float,
                 width: int = 1920, height: int = 1080, workers: int | None = None) -> Path:
     out_path = Path(out_path)
@@ -167,22 +176,30 @@ def render_clip(scene: ToonScene, bank: Bank, out_path: Path, duration: float,
     n = round(duration * fps)
     tmp = out_path.with_suffix(".part.mp4")
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.Popen(
-        ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "bgra", "-s", f"{width}x{height}",
-         "-r", str(fps), "-i", "-", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18",
-         "-preset", "medium", str(tmp)], stdin=subprocess.PIPE)
-    try:
-        for data in render_frames(scene, bank, [i / fps for i in range(n)], width, height, workers):
-            proc.stdin.write(data)
-        proc.stdin.close()
-        if proc.wait() != 0:
-            raise ToonRenderError(f"ffmpeg exited {proc.returncode} while encoding {out_path.name}")
-    except Exception as exc:
-        proc.kill()
-        tmp.unlink(missing_ok=True)
-        if isinstance(exc, ToonRenderError):
-            raise
-        raise ToonRenderError(f"rendering {scene.id} failed: {exc}") from exc
+    # ffmpeg's stderr goes to a spooled tempfile, not a pipe: the parent is busy writing frames to
+    # stdin, and a PIPE's small OS buffer would deadlock against ffmpeg blocking on a full stderr
+    # pipe while nobody is draining it.
+    with tempfile.TemporaryFile() as err:
+        proc = subprocess.Popen(
+            ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "bgra", "-s", f"{width}x{height}",
+             "-r", str(fps), "-i", "-", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18",
+             "-preset", "medium", str(tmp)], stdin=subprocess.PIPE, stderr=err)
+        try:
+            for data in render_frames(scene, bank, [i / fps for i in range(n)], width, height, workers):
+                proc.stdin.write(data)
+            proc.stdin.close()
+            if proc.wait() != 0:
+                raise ToonRenderError(f"ffmpeg exited {proc.returncode} while encoding {out_path.name}: "
+                                      f"{_tail(err)}")
+        except Exception as exc:
+            if proc.stdin is not None and not proc.stdin.closed:
+                proc.stdin.close()
+            proc.kill()
+            proc.wait()  # reap: kill() alone leaves a zombie until the child is waited on
+            tmp.unlink(missing_ok=True)
+            if isinstance(exc, ToonRenderError):
+                raise
+            raise ToonRenderError(f"rendering {scene.id} failed: {exc} (ffmpeg stderr: {_tail(err)})") from exc
     tmp.replace(out_path)
     stamp.write_text(key)
     return out_path
