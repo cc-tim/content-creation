@@ -8,7 +8,15 @@ from toon.cairo_compat import cairo
 from toon.engine.camera import orbit
 from toon.engine.mathx import V
 from toon.engine.pen import Pen
-from toon.kit.graphics import anger_mark, bubble, bubble_layout, check_pill, speed_lines, x_card
+from toon.kit.graphics import (
+    anger_mark,
+    bubble,
+    bubble_icon_keys,
+    bubble_layout,
+    check_pill,
+    speed_lines,
+    x_card,
+)
 from toon.kit.icons import ICONS, draw_icon
 from toon.kit.props import idea_bulb, plate_stack
 from toon.kit.sets import build_set
@@ -44,12 +52,58 @@ def test_bubble_layout_pins_the_dishes_bang_bubble():
     assert bang_size == pytest.approx(267 / 301 * h)
 
 
-def test_bubble_layout_falls_back_to_even_spacing_for_unlisted_icons():
+def test_bubble_layout_default_weight_spaces_unlisted_icons_evenly():
+    """Icons with no registry entry share the default weight (4), so two of them split the
+    0.08w-0.92w content span into two equal 0.42w slots, centred at 0.08w+0.21w and
+    0.08w+0.42w+0.21w."""
     w, h = 330.0, 170.0
     (c0, s0), (c1, s1) = bubble_layout(["check", "cross"], w, h)
-    assert c0 == pytest.approx((w * (0.1 + 0.8 * 0.25), h * 0.55))
-    assert c1 == pytest.approx((w * (0.1 + 0.8 * 0.75), h * 0.55))
+    assert c0 == pytest.approx((0.08 * w + 0.21 * w, h * 0.55))
+    assert c1 == pytest.approx((0.08 * w + 0.42 * w + 0.21 * w, h * 0.55))
     assert s0 == pytest.approx(s1) == pytest.approx(h * 0.6)
+
+
+def test_bubble_layout_is_order_aware():
+    """Ruling R11: position follows LIST ORDER, not icon name -- with bang first, its slot (and
+    centre) is to the left of dishes', the reverse of `[dishes, bang]`."""
+    w, h = 330.0, 170.0
+    (bang_c, _), (dishes_c, _) = bubble_layout(["bang", "dishes"], w, h)
+    assert bang_c[0] < dishes_c[0]
+
+
+def test_bubble_layout_repeated_icon_gets_distinct_centre_and_key():
+    """Ruling R11: `[dishes, dishes]` must not draw both copies on top of each other with the
+    same wobble -- distinct slot centres, and (since `Pen`'s wobble is seeded off the draw key,
+    ruling R10) a distinct key for the repeat."""
+    w, h = 330.0, 170.0
+    (c0, _), (c1, _) = bubble_layout(["dishes", "dishes"], w, h)
+    assert c0[0] != pytest.approx(c1[0])
+    keys = bubble_icon_keys(["dishes", "dishes"], "speech")
+    assert keys == ["speech", "speechic1"]
+
+
+def test_bubble_layout_slots_are_disjoint_and_contain_each_icon():
+    """Ruling R11: a mixed listed/unlisted list (`[dishes, bulb, bang]`, weights 5:4:2) never
+    overlaps -- each icon's drawn extent (centre +/- size*width_per_size/2) stays inside its own
+    slot, and the slots themselves (independently recomputed here) are disjoint."""
+    w, h = 330.0, 170.0
+    weights = {"dishes": 5.0, "bulb": 4.0, "bang": 2.0}
+    width_per_size = {"dishes": 150 / 124, "bulb": 1.0, "bang": 16 / (267 / 301 * 170)}
+    icons = ["dishes", "bulb", "bang"]
+    total = sum(weights[n] for n in icons)
+    content_w = (0.92 - 0.08) * w
+    x, slots = 0.08 * w, []
+    for n in icons:
+        sw = content_w * weights[n] / total
+        slots.append((x, x + sw))
+        x += sw
+    assert slots[0][1] == pytest.approx(slots[1][0])
+    assert slots[1][1] == pytest.approx(slots[2][0])
+    layout = bubble_layout(icons, w, h)
+    for name, ((cx, _cy), size), (lo, hi) in zip(icons, layout, slots, strict=True):
+        half = size * width_per_size[name] / 2
+        assert lo - 1e-6 <= cx - half
+        assert cx + half <= hi + 1e-6
 
 
 def test_unknown_icon_is_a_wordless_error():

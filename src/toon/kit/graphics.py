@@ -3,9 +3,10 @@
 Ported from SCN (scene_lioness.py) 122-131 (glow), 238-248 (speed_lines), 259-279 (rrect,
 popped), 280-289 (bubble, formerly `speech`'s body+tail), 305-314 (anger_mark), 315-331
 (x_card, formerly `x_card_bulb`). `bubble`'s icon layout is generalised, per the task brief, to
-evenly space any list of wordless icons across the bubble instead of the original's hardcoded
-dishes-stack-plus-bang. `check_pill` has no plan-code original (ruling R3): it is a new minimal
-wordless pill -- a check-circle plus an icon, no text.
+lay out any list of wordless icons across the bubble in order-aware weighted slots (ruling
+R11; see `bubble_layout`) instead of the original's hardcoded dishes-stack-plus-bang.
+`check_pill` has no plan-code original (ruling R3): it is a new minimal wordless pill -- a
+check-circle plus an icon, no text.
 
 Every literal pixel size ported here (the bubble corner, the tail width, the ✗ card size and
 corner, the pill height) is scaled by `pen.px` so it stays proportioned at any render
@@ -22,6 +23,7 @@ render pixels -- callers pre-scale their own 1080p literals by `pen.px` before c
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -78,39 +80,77 @@ def anger_mark(pen, c, r, key="anger"):
         pen.stroke(arc, f"{key}{i}", wk=0.7, color=RED)
 
 
-# Per-icon layout inside a speech bubble (ruling R10): (x_frac of w, y_frac of h, size_frac of
-# h) -- each icon's exact anchor and size as the tryout hand-placed it in its one wordless bubble
-# (SCN `speech()` 280-302: the dishes stack at `x+0.38w, y+0.62h` with its native size 124 at the
-# box's reference height of 170, and the "!" whose bar/dot the tryout drew straight off the box
-# (`ex = x+0.8w`; offsets `0.18h`/`0.6h`/`0.78h`) -- least-squares fit onto `bang()`'s own
-# center+size parameterisation (`toon.kit.icons.bang`), residual < 0.01h on every offset. Icons
-# with no entry fall back to `_BUBBLE_DEFAULT`, the original v0 even-spacing rule, so `bubble()`
-# stays generic for any icon list -- it never branches on an icon's name.
+# ---- speech-bubble icon layout: order-aware weighted slots (ruling R11) ---------------------
 #
-# An icon listed here also draws with the bare bubble `key` (no per-index suffix): that is what
-# `speech()` itself did (both `dishes` and `bang` hand-authored their sub-shape keys, e.g.
-# "speechpl0"/"speechex", straight off `key`, never off an icon index), and `Pen`'s hand-drawn
-# wobble is seeded from that exact key string (`Pen.seed`) -- an "ic{i}"-suffixed key reproduces
-# the right shape at the wrong *wobble phase*, which still shows up as a few-pixel outline diff.
-# `dishes`'s and `bang`'s own sub-keys ("pl"/"pr"/"suds" vs "ex") don't collide, so this is safe
-# for the ported pair; unlisted/fallback icons keep the "ic{i}" suffix to avoid colliding.
-BUBBLE_LAYOUT: dict[str, tuple[float, float, float]] = {
-    "dishes": (0.38, 0.62, 124 / 170),
-    "bang": (0.80, 0.52, 267 / 301),
+# Icons lay out left to right in LIST ORDER across the bubble's content span `[0.08w, 0.92w]`.
+# Each icon gets a slot whose width is proportional to its registry `weight` (default 4 for any
+# icon with no entry), and its centre is that slot's centre -- so position depends on where an
+# icon sits in the list, not on its name, and two icons (even the same name twice) never land on
+# the same spot. Per-icon `y_frac`/`size_frac` (of `h`) place and size it vertically, as before
+# ruling R10. `width_per_size` -- the icon's own drawn width per unit of its `size` argument,
+# estimated from its drawing code -- clamps `size` so it can never overflow its own slot
+# (`size = min(size_frac*h, slot_w / width_per_size)`), so adjacent icons can't overlap either.
+# `bubble()` still never branches on an icon's name: all of this is one dict lookup with a
+# default, exactly like R10's registry.
+#
+# `dishes`'s and `bang`'s weights/fractions reproduce the tryout's hand-placed bubble (SCN
+# `speech()` 280-302) exactly for `[dishes, bang]`: weight 5 vs 2 over the 0.84w content span
+# puts dishes' slot centre at `0.08 + 0.6/2 = 0.38w` and bang's at `0.68 + 0.24/2 = 0.80w` --
+# the tryout's own `x+0.38w`/`ex = x+0.8w`. `dishes.width_per_size` (150/124) is its full drawn
+# width -- including the three suds bubbles, whose offsets (SCN 297-299) reach a bit further
+# left (-82) and less far right (+68) than the plate stack alone (+-62) -- over its native size
+# (124, at this box's reference height of 170). `bang.width_per_size` is its bar-plus-dot span:
+# the bar's own x is unshifted, its foot is 4px left, and the dot (5px left, radius 8) reaches
+# from -13 to +3, an ~16px span; since SCN's bar/dot x-offsets are literal pixels rather than
+# scaled by `size` (only their *y* offsets are, `-0.38s`/`+0.08s`/`+0.3s`), this ratio is only
+# exact at this box's reference height (170) -- an accepted approximation per the ruling.
+@dataclass(frozen=True)
+class BubbleIcon:
+    weight: float = 4.0
+    y_frac: float = 0.55
+    size_frac: float = 0.6
+    width_per_size: float = 1.0
+
+
+_BANG_SIZE_FRAC = 267 / 301  # least-squares fit onto bang()'s center+size shape (ruling R10)
+
+BUBBLE_ICONS: dict[str, BubbleIcon] = {
+    "dishes": BubbleIcon(weight=5.0, y_frac=0.62, size_frac=124 / 170, width_per_size=150 / 124),
+    "bang": BubbleIcon(weight=2.0, y_frac=0.52, size_frac=_BANG_SIZE_FRAC,
+                        width_per_size=16 / (_BANG_SIZE_FRAC * 170)),
 }
-_BUBBLE_DEFAULT_SIZE = 0.6
-_BUBBLE_DEFAULT_Y = 0.55
+_DEFAULT_ICON = BubbleIcon()
+_CONTENT_X0, _CONTENT_X1 = 0.08, 0.92
 
 
 def bubble_layout(icons: list[str], w: float, h: float) -> list[tuple[tuple[float, float], float]]:
-    """The `(center, size)` -- relative to the box's own `(0, 0)`-`(w, h)` -- for each icon."""
-    n = len(icons)
-    out = []
-    for i, name in enumerate(icons):
-        x_frac, y_frac, size_frac = BUBBLE_LAYOUT.get(
-            name, (0.1 + 0.8 * (i + 0.5) / n, _BUBBLE_DEFAULT_Y, _BUBBLE_DEFAULT_SIZE))
-        out.append(((w * x_frac, h * y_frac), h * size_frac))
+    """The `(center, size)` -- relative to the box's own `(0, 0)`-`(w, h)` -- for each icon, in
+    left-to-right weighted slots across the content span (ruling R11)."""
+    recipes = [BUBBLE_ICONS.get(name, _DEFAULT_ICON) for name in icons]
+    content_w = (_CONTENT_X1 - _CONTENT_X0) * w
+    total_weight = sum(r.weight for r in recipes) or 1.0
+    out: list[tuple[tuple[float, float], float]] = []
+    x = _CONTENT_X0 * w
+    for r in recipes:
+        slot_w = content_w * r.weight / total_weight
+        size = min(r.size_frac * h, slot_w / r.width_per_size)
+        out.append(((x + slot_w / 2, r.y_frac * h), size))
+        x += slot_w
     return out
+
+
+def bubble_icon_keys(icons: list[str], key: str) -> list[str]:
+    """The draw key for each icon (ruling R11): an icon's FIRST occurrence of its name keeps the
+    bare bubble `key`, matching `speech()`'s own hand-authored sub-keys (e.g. "speechpl0",
+    "speechex"), so `Pen`'s hand-drawn wobble reproduces the tryout's seed (ruling R10). A name
+    repeated later in the list gets `f"{key}ic{i}"` instead, so it doesn't draw with the exact
+    same wobble as its earlier occurrence."""
+    seen: set[str] = set()
+    keys = []
+    for i, name in enumerate(icons):
+        keys.append(key if name not in seen else f"{key}ic{i}")
+        seen.add(name)
+    return keys
 
 
 def bubble(pen, box, tail_to, icons, key="speech"):
@@ -129,8 +169,8 @@ def bubble(pen, box, tail_to, icons, key="speech"):
     pen.fill(body, "white", key)
     pen.stroke(body, key, closed=True, wk=0.8)
     pen.stroke(tail, key + "t", wk=0.8)
-    for i, (name, ((cx, cy), size)) in enumerate(zip(icons, bubble_layout(icons, w, h), strict=True)):
-        icon_key = key if name in BUBBLE_LAYOUT else f"{key}ic{i}"
+    layout, keys = bubble_layout(icons, w, h), bubble_icon_keys(icons, key)
+    for name, ((cx, cy), size), icon_key in zip(icons, layout, keys, strict=True):
         draw_icon(pen, name, (x + cx, y + cy), size, icon_key)
 
 
