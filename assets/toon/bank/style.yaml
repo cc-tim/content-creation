@@ -1,0 +1,23 @@
+picked: {date: "2026-09-26", source: "own-show round 4 — line A (marker); Tim: 'A ≈ C, both acceptable'"}
+line: {name: marker, ink: [0.11, 0.10, 0.10], w: 7.5, amp: 1.7, over: 8, boil: twos}
+palette:
+  paper: [0.957, 0.945, 0.918]
+  skin: [0.985, 0.978, 0.960]
+  wood: [0.79, 0.69, 0.56]
+  chair: [0.52, 0.50, 0.49]
+  metal: [0.80, 0.80, 0.78]
+  rug: [0.88, 0.83, 0.75]
+  blush: [0.84, 0.52, 0.52]
+  mug: [0.70, 0.45, 0.40]
+  red: [0.78, 0.30, 0.25]
+  green: [0.36, 0.58, 0.38]
+  blue: [0.38, 0.50, 0.66]
+  navy: [0.20, 0.25, 0.36]
+  orange: [0.86, 0.52, 0.28]
+  ghost_ink: [0.72, 0.69, 0.64]
+  bulb_on: [0.99, 0.86, 0.42]
+  bulb_off: [0.84, 0.84, 0.82]
+  smoke: [0.55, 0.53, 0.5]
+grain: 0.10
+fps: 24
+drawing_fps: 12

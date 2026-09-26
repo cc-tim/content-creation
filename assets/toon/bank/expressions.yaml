@@ -1,0 +1,9 @@
+neutral:  {picked: {date: "2026-09-26", source: "Tim model sheet"}, eyes: dot, mouth: flat}
+talking:  {picked: {date: "2026-09-26", source: "Tim model sheet"}, eyes: dot, mouth: open}
+happy:    {picked: {date: "2026-09-26", source: "Tim model sheet"}, eyes: closed, mouth: smile}
+focused:  {picked: {date: "2026-09-26", source: "Tim model sheet"}, eyes: dot, mouth: flat, brow: -0.5}
+worried:  {picked: {date: "2026-09-26", source: "Tim model sheet"}, eyes: dot, mouth: wavy, worried: 1.0, brow: 0.4, sweat: 0.6}
+shocked:  {picked: {date: "2026-09-26", source: "Tim model sheet"}, eyes: wide, mouth: o, brow: 1.0, shock: 1.0, sweat: 1.0, hair: 1.0}
+angry:    {picked: {date: "2026-09-26", source: "scene 001 (lioness A)"}, eyes: dot, mouth: open, worried: -1.3, brow: -0.2}
+glum:     {picked: {date: "2026-09-26", source: "scene 001 (dishes)"}, eyes: dot, mouth: flat, worried: 0.8}
+deflated: {picked: {date: "2026-09-26", source: "scene 001 (idea gone)"}, eyes: dot, mouth: wavy, worried: 0.6}

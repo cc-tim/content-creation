@@ -1,0 +1,6 @@
+front34_push:  {picked: {date: "2026-09-26", source: "scene 001 beat 1"}, az: -35, el: 12, dist: 22, target: [0.2, 2.9, 0.2], focal: 3300, focal_to: 3700}
+two_shot:      {picked: {date: "2026-09-26", source: "scene 001 beat 2"}, az: -14, el: 9, dist: 26, target: [-1.0, 2.7, -0.2], focal: 3050, punch: {to: 3200, at: 0.1, over: 0.15}}
+side_truck:    {picked: {date: "2026-09-26", source: "scene 001 beat 3"}, az: -24, az_to: -32, el: 13, dist: 22, target: [0.1, 2.5, 0.5], focal: 3500}
+close_push:    {picked: {date: "2026-09-26", source: "scene 001 beat 4"}, az: -22, el: 8, dist: 22, target: [0.05, 3.75, 0.2], focal: 5000, focal_to: 5500}
+ots_mid:       {picked: {date: "2026-09-26", source: "round 4 over-the-shoulder"}, az: -118, el: 26, dist: 20, target: [-0.1, 2.85, 1.05], focal: 5000, focal_to: 5300}
+screen_insert: {picked: {date: "2026-09-26", source: "round 4 screen insert"}, az: -160, el: 20, dist: 24, target: [0.0, 2.55, 1.86], focal: 16500, focal_to: 17500}

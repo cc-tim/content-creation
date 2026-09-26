@@ -1,0 +1,4 @@
+picked: {date: "2026-09-26", source: "scene 001 — ghosted kitchen (counter, sink, faucet, window, cabinets)"}
+kind: kitchen
+spots:
+  sink: {pos: [0.0, 1.1, 0.0], yaw: 0}

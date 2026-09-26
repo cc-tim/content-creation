@@ -1,0 +1,16 @@
+picked: {date: "2026-09-26", source: "own-show 4d — likeness 2 + short crop A; 'A it is, now my character is settled'"}
+face: {eye: almond, eye_x: 0.33, eye_y: -0.06, glasses_r: 0.24, glasses_rx: 0.25, glasses_ry: 0.21,
+       glasses_flat: 0.35, glasses_wk: 0.38, temple: full, ear: true, ear_r: 0.2, ear_y: -0.1,
+       brow: straight, brow_dy: 0.3, brow_half: 0.13, blush: null, mouth: line, smile: smile,
+       mouth_y: -0.5, nose: button, lips: true, lid: true, jaw: 0.06}
+hair:
+  layers:
+    - line: [0.7, 0.3, -0.2]
+      bumps: [[-0.14, 0.45, 0.74, 0.16], [-0.14, -0.45, 0.74, 0.16], [0.07, -0.08, 0.66, 0.12]]
+      fill: ink
+      fringe: straight
+      spike_len: 0.12
+      spike_deg: 16
+      spike_irr: 0.4
+      spike_lean: 0.65
+body: {shirt: [0.20, 0.25, 0.36], hood: true}

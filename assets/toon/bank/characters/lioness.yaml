@@ -1,0 +1,7 @@
+picked: {date: "2026-09-26", source: "scene 001 option sheet — lioness A (full lioness in an apron)"}
+face: {eye: oval, eye_x: 0.3, eye_y: -0.02, glasses: false, lashes: true, skin: [0.87, 0.68, 0.44],
+       mane: {color: [0.58, 0.36, 0.20], r: 1.17, spike: 0.2, deg: 22},
+       animal_ears: {color: [0.87, 0.68, 0.44], inner: [0.74, 0.50, 0.38]}, muzzle: true,
+       mouth: cat, smile: cat, mouth_y: -0.36, brow: thick, brow_dy: 0.24, blush: null}
+hair: {none: true}
+body: {shirt: [0.55, 0.47, 0.40], hood: false, apron: true}

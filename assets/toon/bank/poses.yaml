@@ -1,0 +1,56 @@
+sit_typing:
+  picked: {date: "2026-09-26", source: "scene 001"}
+  hip: sit
+  lean: 15
+  head_tilt: 8
+  hand_l: [0.2, 2.25, 1.18]
+  hand_r: [-0.22, 2.25, 1.16]
+  foot_l: [0.3, 0.9, 0.62]
+  foot_r: [-0.3, 0.92, 0.58]
+  typing: 1
+sit_shock:
+  picked: {date: "2026-09-26", source: "scene 001"}
+  hip: sit
+  lean: -10
+  head_tilt: -6
+  head_turn: -35
+  hand_l: [0.95, 3.3, 0.02]
+  hand_r: [-0.95, 3.3, 0.02]
+  foot_l: [0.32, 1.0, 0.75]
+  foot_r: [-0.3, 1.02, 0.72]
+  tremble: 1
+stand_rest:
+  picked: {date: "2026-09-26", source: "Tim model sheet"}
+  hip: stand
+  hand_l: [0.55, 1.02, 0.08]
+  hand_r: [-0.55, 1.02, 0.08]
+  foot_l: [0.25, 0.05, 0.05]
+  foot_r: [-0.25, 0.05, 0.05]
+stand_point:
+  picked: {date: "2026-09-26", source: "scene 001 (lioness)"}
+  hip: stand
+  lean: -4
+  head_tilt: -4
+  hand_l: [0.5, 1.25, 0.1]
+  hand_r: [-0.4, 2.55, 1.2]
+  foot_l: [0.25, 0.05, 0.05]
+  foot_r: [-0.25, 0.05, 0.05]
+stand_wash:
+  picked: {date: "2026-09-26", source: "scene 001 (dishes)"}
+  hip: stand
+  lean: 10
+  head_tilt: 16
+  hand_l: [0.28, 1.86, 1.02]
+  hand_r: [-0.24, 1.82, 1.0]
+  foot_l: [0.25, 0.05, 0.05]
+  foot_r: [-0.25, 0.05, 0.05]
+  loop: {hand: r, radius: [0.07, 0.04], hz: 2.5}
+stand_sink_idle:
+  picked: {date: "2026-09-26", source: "scene 001 (idea gone)"}
+  hip: stand
+  lean: 10
+  head_tilt: 4
+  hand_l: [0.28, 1.86, 1.02]
+  hand_r: [-0.24, 1.82, 1.0]
+  foot_l: [0.25, 0.05, 0.05]
+  foot_r: [-0.25, 0.05, 0.05]

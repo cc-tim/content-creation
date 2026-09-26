@@ -1,0 +1,6 @@
+picked: {date: "2026-09-26", source: "scene 001 — ghosted office (wall, door, window, shelf, desk, chair, rug, lamp)"}
+kind: office
+spots:
+  desk_seat: {pos: [0.0, 1.4, 0.0], yaw: 0}
+  doorway: {pos: [-2.4, 1.1, -0.8], yaw: 38}        # cheated toward camera so faces read
+  doorway_out: {pos: [-3.25, 1.1, -2.05], yaw: 38}
