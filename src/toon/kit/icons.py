@@ -6,13 +6,18 @@ out inside a fixed speech-bubble box. `bulb` is split out of SCN 320-326 (the de
 inside `x_card_bulb`). `check` takes its shape from RIG (rig_r4.py) 1170-1173's laptop-screen
 checkmark. `cross`, `laptop`, and `phone` are new minimal wordless glyphs (no plan-code
 original) drawn to the same doodle proportions as the ported icons.
+
+Px contract (ruling R5): every icon's `size` (and `center`) is expected in FINAL render pixels
+-- callers pre-scale their own 1080p literals by `pen.px` before calling in (`x_card` and
+`check_pill` in `kit/graphics.py` already do this). The one deliberate exception is `dishes`,
+which keeps its own explicit `size / 124` ratio rather than an additional `pen.px` factor (see
+the task report).
 """
 from __future__ import annotations
 
-import math
 from collections.abc import Callable
 
-from toon.engine.mathx import circle_pts
+from toon.engine.mathx import circle_pts, rrect
 from toon.engine.palette import BLUE, BULB_OFF, GREEN, RED
 from toon.engine.pen import Pen
 
@@ -66,19 +71,6 @@ def check(pen, center, size, key):
     pen.stroke(pts, key, wk=0.45, color=GREEN)
 
 
-def _rrect(x, y, w, h, r, n=6):
-    """A minimal rounded-rect outline, private to this module.
-
-    Mirrors `graphics.rrect`'s corner-arc construction without importing it, so `icons.py` has
-    no dependency on `kit/graphics.py` (which itself imports `draw_icon` from here).
-    """
-    pts = []
-    for cx, cy, a0 in ((x + w - r, y + r, -90), (x + w - r, y + h - r, 0), (x + r, y + h - r, 90), (x + r, y + r, 180)):
-        pts += [(cx + r * math.cos(math.radians(a0 + 90 * i / n)), cy + r * math.sin(math.radians(a0 + 90 * i / n)))
-                for i in range(n + 1)]
-    return pts
-
-
 def laptop_icon(pen, center, size, key):
     """A minimal laptop outline: a screen rectangle over a base bar."""
     x, y = center
@@ -94,11 +86,14 @@ def phone_icon(pen, center, size, key):
     """A minimal phone: a rounded rect with a home-button dot."""
     x, y = center
     w, h = size * 0.5, size * 0.9
-    body = _rrect(x - w / 2, y - h / 2, w, h, size * 0.12)
+    body = rrect(x - w / 2, y - h / 2, w, h, size * 0.12)
     pen.stroke(body, key, closed=True, wk=0.6)
     pen.solid(circle_pts((x, y + h * 0.32), size * 0.05, 10))
 
 
+# Registry of wordless icons. `size`/`center` are FINAL render pixels (ruling R5) -- callers
+# scale their own 1080p literals by `pen.px` before calling in; `dishes` is the one exception
+# (its own `size / 124` ratio, kept as-is).
 ICONS: dict[str, Callable[[Pen, tuple, float, str], None]] = {
     "dishes": dishes, "bang": bang, "bulb": bulb, "cross": cross, "check": check,
     "laptop": laptop_icon, "phone": phone_icon,
@@ -106,6 +101,8 @@ ICONS: dict[str, Callable[[Pen, tuple, float, str], None]] = {
 
 
 def draw_icon(pen, name, center, size, key):
+    """Draw icon `name` at `center`, sized `size` -- both in FINAL render pixels (ruling R5):
+    the caller has already scaled any 1080p literal by `pen.px` before it reaches here."""
     if name not in ICONS:
         raise ValueError(f"{name!r} is not an icon; animation is wordless — use one of {sorted(ICONS)}")
     ICONS[name](pen, center, size, key)

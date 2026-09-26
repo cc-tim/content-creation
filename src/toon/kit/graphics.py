@@ -10,6 +10,14 @@ wordless pill -- a check-circle plus an icon, no text.
 Every literal pixel size ported here (the bubble corner, the tail width, the ✗ card size and
 corner, the pill height) is scaled by `pen.px` so it stays proportioned at any render
 resolution; sizes derived from a caller-supplied box (`w`, `h`) are left alone.
+
+`rrect` itself is a neutral geometry helper and lives in `toon.engine.mathx` next to
+`circle_pts`/`hull`; it is imported here and re-exported as `graphics.rrect`, which is its
+documented home in the kit's interface.
+
+Px contract (ruling R5): every size/box this module's functions take is expected in FINAL
+render pixels -- callers pre-scale their own 1080p literals by `pen.px` before calling in (see
+`bubble` below for the concrete example).
 """
 from __future__ import annotations
 
@@ -18,7 +26,7 @@ import math
 import numpy as np
 
 from toon.cairo_compat import cairo
-from toon.engine.mathx import circle_pts, e_back, hsign
+from toon.engine.mathx import circle_pts, e_back, hsign, rrect
 from toon.engine.palette import GREEN, ORANGE, RED
 from toon.kit.icons import draw_icon
 
@@ -47,14 +55,6 @@ def speed_lines(pen, center, inner, n=34, key="speed", grow=1.0):
                     (center[0] + math.cos(a) * r1, center[1] + math.sin(a) * r1)], f"{key}{i}", wk=0.4, color=ORANGE)
 
 
-def rrect(x, y, w, h, r, n=6):
-    pts = []
-    for cx, cy, a0 in ((x + w - r, y + r, -90), (x + w - r, y + h - r, 0), (x + r, y + h - r, 90), (x + r, y + r, 180)):
-        pts += [(cx + r * math.cos(math.radians(a0 + 90 * k / n)), cy + r * math.sin(math.radians(a0 + 90 * k / n)))
-                for k in range(n + 1)]
-    return pts
-
-
 def popped(ctx, pivot, k, draw):
     """Pop-in: scale from 0.55 with a little overshoot around pivot; k = 0..1 progress."""
     if k <= 0:
@@ -79,7 +79,13 @@ def anger_mark(pen, c, r, key="anger"):
 
 
 def bubble(pen, box, tail_to, icons, key="speech"):
-    """A speech-bubble body + tail (SCN 280-289) with wordless icons spaced evenly across it."""
+    """A speech-bubble body + tail (SCN 280-289) with wordless icons spaced evenly across it.
+
+    `box` (x, y, w, h) and `tail_to` are expected in FINAL render pixels (ruling R5): the caller
+    scales its own 1080p literals by `pen.px` before calling in -- e.g. the renderer (Task 8)
+    passes `(hp.x + 80*px, hp.y - 330*px, 330*px, 170*px)`, not the bare 1080p numbers. `icons`'
+    per-icon `size` is then derived from `h`, so it inherits that same final-pixel scale.
+    """
     x, y, w, h = box
     body = rrect(x, y, w, h, 28 * pen.px)
     tb = (x + w * 0.22, y + h - 2 * pen.px)

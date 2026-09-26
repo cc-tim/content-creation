@@ -1,4 +1,4 @@
-"""Tiny math: 3D vectors, rotations, interpolation, easing, noise, convex hull."""
+"""Tiny math: 3D vectors, rotations, interpolation, easing, noise, convex hull, 2D shapes."""
 from __future__ import annotations
 
 import math
@@ -98,6 +98,21 @@ def circle_pts(c, r, n=40, rx=None, ry=None, rot=0.0):
         x, y = rx * math.cos(a), ry * math.sin(a)
         out.append((c[0] + x * cr - y * sr, c[1] + x * sr + y * cr))
     return out
+
+
+def rrect(x, y, w, h, r, n=6):
+    """A rounded rectangle's outline, as a flat list of points (four n-segment corner arcs).
+
+    Ported from SCN (scene_lioness.py) 259-264. A neutral geometry helper -- shared by
+    `toon.kit.graphics` (which re-exports it as `graphics.rrect`, its documented home per the
+    kit's interface) and `toon.kit.icons`, so the two kit modules don't duplicate it or need to
+    import from each other.
+    """
+    pts = []
+    for cx, cy, a0 in ((x + w - r, y + r, -90), (x + w - r, y + h - r, 0), (x + r, y + h - r, 90), (x + r, y + r, 180)):
+        pts += [(cx + r * math.cos(math.radians(a0 + 90 * k / n)), cy + r * math.sin(math.radians(a0 + 90 * k / n)))
+                for k in range(n + 1)]
+    return pts
 
 
 EASES = {"linear": e_lin, "smooth": smooth, "out": e_out, "back": e_back}
