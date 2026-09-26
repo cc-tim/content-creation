@@ -78,3 +78,16 @@ def test_camera_punch_and_push():
 def test_the_cut_follows_camera_time_and_clamps_drawing_time():
     fs = state_at(SCENE, BANK, 3.95, 4.0)
     assert fs.shot == 1 and fs.set_id == "kitchen"
+
+
+def test_gesture_loop_rides_on_the_pose():
+    d = copy.deepcopy(BASE)
+    d["shots"][1]["place"]["tim"]["loop"] = True
+    s = load_scene(d, BANK)
+    base = BANK.poses["stand_wash"].hand_r              # (-0.24, 1.82, 1.0), loop r: radius (0.07, 0.04) @ 2.5 Hz
+    a = state_at(s, BANK, 4.0).chars["tim"].pose.hand_r  # phase 4.0*2π*2.5 = 20π → cos 1, sin 0
+    assert a[0] == pytest.approx(base[0] + 0.07)
+    assert a[1] == pytest.approx(base[1])
+    b = state_at(s, BANK, 4.1).chars["tim"].pose.hand_r  # phase 20.5π → cos 0, sin 1
+    assert b[0] == pytest.approx(base[0]) and b[1] == pytest.approx(base[1] + 0.04)
+    assert tuple(state_at(SCENE, BANK, 4.0).chars["tim"].pose.hand_r) == tuple(base)  # loop off: exact pose
