@@ -29,6 +29,14 @@ class PipelineConfig(BaseSettings):
     # Claude
     CLAUDE_MODEL: str = "claude-sonnet-4-20250514"
 
+    # LLM facade (pipeline.llm)
+    LLM_BACKEND: str = "cli"                                  # "cli" (claude -p, subscription) | "api"
+    LLM_MODEL_CREATIVE: str = "claude-opus-5-5"               # analyze, scriptwrite, direct, beats
+    LLM_MODEL_CHECK: str = "claude-haiku-4-5-20251001"        # proofread, QC, alignment, storyteller, mla, style anchor
+    CLAUDE_BIN: str = ""                                      # explicit path to the claude CLI
+    LLM_TIMEOUT_SEC: float = 600.0
+    LLM_MAX_CONCURRENCY: int = 4
+
     # TTS
     TTS_PROVIDER: str = "edge-tts"  # edge-tts | google | openai
     TTS_VOICE_ZH_TW: str = "zh-TW-HsiaoChenNeural"
