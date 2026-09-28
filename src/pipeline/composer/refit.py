@@ -8,6 +8,7 @@ from PIL import Image
 
 from pipeline.composer.base import get_resolution
 from pipeline.composer.book_scene import BookSceneSpec
+from pipeline.utils.paths import resolve_media_path
 
 DEFAULT_THRESHOLD = 0.08
 _GEN_IMAGE_EDIT = Path.home() / ".claude" / "bin" / "gen-image-edit.py"
@@ -128,14 +129,18 @@ def apply_outpaint(
     return out
 
 
-def effective_image_path(visual: dict[str, Any]) -> Path:
-    """Return an existing refit sidecar if present; otherwise return the raw source path."""
+def effective_image_path(visual: dict[str, Any], project_root: Path | None = None) -> Path:
+    """Return the refit sidecar if it exists, otherwise the source image path.
+
+    Both resolve through pipeline.utils.paths.resolve_media_path, the resolver
+    `pipeline validate` uses, so validate and render pick the same file.
+    """
     refit_path = visual.get("refit_path")
     if refit_path:
-        candidate = Path(str(refit_path))
+        candidate = resolve_media_path(str(refit_path), project_root)
         if candidate.exists():
             return candidate
-    return Path(str(visual.get("path", "")))
+    return resolve_media_path(str(visual.get("path", "")), project_root)
 
 
 def aspect_diff(path: Path, target_w: int, target_h: int) -> float:

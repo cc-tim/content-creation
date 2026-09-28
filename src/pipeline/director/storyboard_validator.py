@@ -9,6 +9,7 @@ from PIL import Image, UnidentifiedImageError
 
 from pipeline.composer.base import VISUAL_TYPES
 from pipeline.storyboard import Scene, Storyboard
+from pipeline.utils.paths import resolve_media_path
 
 Severity = Literal["error", "warn"]
 
@@ -661,14 +662,8 @@ def _effective_visual_path(visual: dict[str, Any], project_root: Path) -> Path:
 
 
 def _resolve_path(raw: str, project_root: Path) -> Path:
-    path = Path(raw)
-    if path.is_absolute():
-        return path
-    candidates = [project_root / path, Path.cwd() / path]
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return candidates[0]
+    """Delegate to the one media-path resolver compose and the still-gate also use."""
+    return resolve_media_path(raw, project_root)
 
 
 def _has_image_header(path: Path) -> bool:

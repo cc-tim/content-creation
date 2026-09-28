@@ -43,6 +43,7 @@ def render_scene_still(
     variant: str,
     work_dir: Path,
     theme: dict | None = None,
+    project_root: Path | None = None,
 ) -> Path:
     """Composite one scene to a single PNG in the delivered variant.
 
@@ -53,7 +54,9 @@ def render_scene_still(
     scene_id = scene.get("id", "scene")
     width, height = get_resolution("16:9")
 
-    visual_mp4 = render_scene(scene, _STILL_DURATION_SEC, "16:9", work_dir, theme=theme or {})
+    visual_mp4 = render_scene(
+        scene, _STILL_DURATION_SEC, "16:9", work_dir, theme=theme or {}, project_root=project_root,
+    )
 
     framed = composite_scene_frame(
         visual_mp4,

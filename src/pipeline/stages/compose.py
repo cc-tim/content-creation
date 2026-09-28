@@ -13,6 +13,7 @@ import structlog
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from pipeline.composer.base import get_resolution, render_scene
+from pipeline.composer.clip import _resolve_source_video
 from pipeline.composer.compartment import (
     build_compartment_loop,
     composite_compartment_on_scene,
@@ -464,6 +465,7 @@ def _apply_duplicate_guard(
     source_video: Path | None,
     seen_hashes: set,
     style_descriptor: str,
+    project_root: Path | None = None,
 ) -> tuple[dict[str, Any], set]:
     """Check if *scene* is a duplicate clip. Return (possibly-replaced scene, updated seen_hashes).
 
@@ -473,7 +475,7 @@ def _apply_duplicate_guard(
     visual = scene.get("visual", {})
     if visual.get("type") not in ("clip", "still_frame"):
         return scene, seen_hashes
-    clip_source = _source_for_clip_visual(visual, source_video)
+    clip_source = _resolve_source_video(visual, source_video, project_root)
     if clip_source is None or not clip_source.exists():
         return scene, seen_hashes
 
@@ -506,16 +508,6 @@ def _apply_duplicate_guard(
     else:
         seen_hashes = seen_hashes | {new_hash}
         return scene, seen_hashes
-
-
-def _source_for_clip_visual(visual: dict[str, Any], source_video: Path | None) -> Path | None:
-    raw_path = visual.get("path")
-    if raw_path:
-        path = Path(str(raw_path)).expanduser()
-        if path.is_absolute() or path.exists():
-            return path
-        return Path.cwd() / path
-    return source_video
 
 
 def splice_transitions(
@@ -719,6 +711,7 @@ class ComposeStage(PipelineStage):
 
         scene_dicts = self._precompute_duplicate_guard(
             storyboard, ctx.video_path, style_anchor.style_descriptor,
+            project_root=ctx.work_dir,
         )
 
         # === PARALLEL PHASE: render uncached scenes concurrently ===
@@ -1020,6 +1013,7 @@ class ComposeStage(PipelineStage):
         storyboard: Storyboard,
         source_video: Path | None,
         style_descriptor: str,
+        project_root: Path | None = None,
     ) -> list[dict[str, Any]]:
         """Run duplicate frame detection on all clip/still_frame scenes upfront.
 
@@ -1039,6 +1033,7 @@ class ComposeStage(PipelineStage):
             guarded, seen_clip_hashes = _apply_duplicate_guard(
                 sd, source_video, seen_clip_hashes,
                 style_descriptor=style_descriptor,
+                project_root=project_root,
             )
             scene_dicts.append(guarded)
         return scene_dicts
@@ -1114,6 +1109,7 @@ class ComposeStage(PipelineStage):
                     scenes_dir,
                     source_video=source_video,
                     theme=theme_dict,
+                    project_root=ctx.work_dir,
                 )
             except SceneRenderError:
                 raise
