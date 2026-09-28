@@ -85,6 +85,14 @@ def test_style_anchor_sends_one_image_then_text(tmp_path):
     assert [b["type"] for b in blocks] == ["image", "text"] and c.call_args.kwargs["tier"] == "check"
 
 
+def test_style_anchor_skips_blank_lines_in_the_answer(tmp_path):
+    from pipeline.composer import style_anchor
+
+    frame = _png(tmp_path / "f.jpg")
+    with patch("pipeline.llm.complete", return_value=_res("Medium\n\nSerif typography, warm palette")):
+        assert style_anchor._assess_source(frame) == ("medium", "Serif typography, warm palette")
+
+
 def test_style_anchor_stays_advisory_on_llm_error(tmp_path):
     from pipeline.composer import style_anchor
     from pipeline.llm import LLMError

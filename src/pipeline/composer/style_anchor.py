@@ -85,11 +85,11 @@ def _assess_source(frame_path: Path) -> tuple[str, str]:
              {"type": "text", "text": _ASSESS_PROMPT}],
             tier="check", call_site="style_anchor", max_tokens=200,
         ).text
-        lines = text.strip().splitlines()
-        suitability = lines[0].strip().lower() if lines else "medium"
+        lines = [line.strip() for line in text.strip().splitlines() if line.strip()]
+        suitability = lines[0].lower() if lines else "medium"
         if suitability not in ("high", "medium", "low"):
             suitability = "medium"
-        source_hint = lines[1].strip() if len(lines) > 1 else ""
+        source_hint = lines[1] if len(lines) > 1 else ""
         return suitability, source_hint
     except Exception as exc:
         logger.warning("style_anchor.assess_failed", error=str(exc))
