@@ -105,7 +105,7 @@ trivial amount of subscription quota: 3 Haiku calls.
 | **Sprint 7 — deterministic overflow/clipping (ex-check-4)** — laid-out text bbox vs inner-panel inset fires on s25-style clip | _superseded — covered by the Layer-2 vision pass; the novel text-bbox instrumentation was high-risk/low-verifiability here_ | ⏸️ superseded by Layer-2 |
 | **Sprint 7 — overlay-variant field at gen-time (piece C)** — single-source-of-truth with `context.json` `preferred_variant`, authoritative pre-TTS | `tests/director/still_gate/` (variant) — when built | ⏸️ deferred (the gate currently reads existing `preferred_variant` via `resolve_variant`; moving the decision to gen-time is NOT done — and is one of the fix options for the BLOCKING row above) |
 
-### E5 Sprint 10 — loud-failure sweep, part 1 🟢 (EM REVIEW PASS 2026-09-29, `bb16aa0`)
+### E5 Sprint 10 — loud-failure sweep, part 1 🟢 (EM REVIEW PASS 2026-09-29, `bb16aa0`; merged to master `53b1df3`)
 
 Spec: `docs/superpowers/specs/2026-09-29-e5-loud-failure-sweep-design.md` (§9 acceptance, §10
 tests). Every row was run by the EM at REVIEW on the Mac worktree. The red-first ledger is in
@@ -249,7 +249,7 @@ elsewhere with a counted reason, and minted with `UPDATE_GOLDENS=1` on the hub o
 | Non-goal fence (spec §1): the bank holds only picked items (no campfire, no unpicked items), and `assets/toon/scenes/` holds only `001-lioness-dishes.yaml` (no EP1 scenes) | `tests/unit/toon/test_scene_001.py` + `tests/unit/toon/test_bank.py::test_v0_bank_holds_exactly_the_picked_items` + diff | ✅ (re-checked at REVIEW 3) |
 | Full suite collects and passes with `src/toon` packaged (`cairocffi` in deps, `src/toon` in hatch `packages`); `ruff check src/ tests/` and `mypy src/` clean | `uv run pytest -q` + ruff + mypy | ✅ REVIEW 3 at `2f6fb35`: hub 1380 passed / 22 skipped / 0 failed (its first run hit the unrelated trust-gate flake, see arsenal-state); Mac 1343 / 59 / 0; ruff clean; mypy clean (159 files) on both machines |
 
-## E10 — Claude calls on the subscription 🔵 (REVIEW 2026-09-29 = ADVISE at `f13c783`; merged to master `2add7c2` with F1 `09fa1c6` + F2 `b51efb3`; 🟢 after the EM re-runs and mutation-checks the F1/F2 rows)
+## E10 — Claude calls on the subscription 🟢 (REVIEW 2026-09-29 = ADVISE at `f13c783`; merged to master `2add7c2` with F1 `09fa1c6` + F2 `b51efb3`; EM follow-up on master `53b1df3` = PASS)
 
 Spec: `docs/superpowers/specs/2026-09-29-claude-cli-llm-backend-design.md` (Tim approved the
 written spec: "looks good, proceed"). The rows come from spec §5 (tests) and §6 (done criteria).
@@ -270,7 +270,7 @@ failed. Each mutation was restored, and the scratch source matched HEAD afterwar
 | §5 concurrency cap; default timeouts creative 1200 s / check 600 s, explicit wins (ruling R4) | `tests/unit/test_llm.py` (`test_concurrency_is_capped`, `test_*_default_timeout`, `test_explicit_timeout_*`) | ✅ |
 | §5 binary resolution under a minimal systemd `PATH`: `PIPELINE_CLAUDE_BIN` → `which` → `~/.local/bin/claude` | `tests/unit/test_llm.py::test_resolve_falls_back_to_local_bin` | ✅ |
 | §5 API backend behind the same interface (mocked SDK; the forced tool takes `schema_name`, R4; SDK errors → `LLMError`) | `tests/unit/test_llm.py` (`test_api_backend_*`) | ✅ |
-| §5 call sites mock `pipeline.llm.complete` and assert their tier (all 12) | `tests/unit/test_llm_call_sites.py`, `tests/unit/test_analyze.py`, `tests/unit/test_direct.py`, `tests/unit/test_direct_metadata.py` | ✅ 11 of 12: each tier flip → red. **Site 5 (`direct.metadata`): flipped to `check`, still 38 passed → F2** |
+| §5 call sites mock `pipeline.llm.complete` and assert their tier (all 12) | `tests/unit/test_llm_call_sites.py`, `tests/unit/test_analyze.py`, `tests/unit/test_direct.py`, `tests/unit/test_direct_metadata.py` | ✅ 12 of 12: each tier flip → red. Site 5 (`direct.metadata`) was green under the flip at REVIEW (F2); it went red at the `53b1df3` follow-up |
 | §5 site 5 sends the metadata schema and the `emit_metadata` name | `tests/unit/test_direct_metadata.py::test_write_metadata_creates_file` | ✅ |
 | §5 guard: outside `llm.py` and `utils/anthropic_key.py`, no `anthropic` import, no `messages.create`/`messages.stream`, no `get_anthropic_api_key` | `tests/unit/test_llm_guard.py` | ✅ (mutation → red: `import anthropic` in `cli_proofread.py`) |
 | Suite tripwire: no unit test can reach the real `claude` (R4) | `tests/unit/test_conftest_tripwire.py` + `tests/conftest.py` | ✅ (mutation → red: tripwire removed) |
@@ -282,8 +282,8 @@ failed. Each mutation was restored, and the scratch source matched HEAD afterwar
 | §6.3 hub real calls, at least 3 sites: proofread (check), one creative call, one image site (visual-review or image-alignment) | hub `.worktrees/llm-cli-backend/tmp/claude-cli-backend/` (`evidence.txt`, `em-review-visual.txt`) | ✅ proofread: Haiku, 142.3 s, 14 issues. beats: Opus, 5.3 s. metadata: Opus with a schema, 16.7 s, valid. Image: **EM-run visual-review (site 9)**, 27 frames, 61.9 s, 2 issues parsed. The builder's `style_anchor` call isn't a §6.3 site; see F1 |
 | §6.4 budget tables in README and CLAUDE.md show the subscription; README documents the env settings | diff | ✅ README lacks `PIPELINE_LLM_TIMEOUT_CREATIVE_SEC`, a non-gating doc gap |
 | §6.5 a separate code review happened | SDD ledger `.superpowers/sdd/2026-09-29-claude-cli-llm-backend/progress.md` | ✅ Per-task reviews, then a final Opus review ("with fixes", 2 Important + 11 minor), then a 12-item fix wave, then a scoped re-review ("all addressed") |
-| **F1 (REVIEW finding, gates 🟢):** site 12 `style_anchor` parses the real CLI answer shape. `"Medium\n\nSerif typography, cream background, …"` must give `('medium', 'Serif typography, cream background, …')`, so blank lines are skipped. Today the hint is `""` in 3 of 3 hub runs | `tests/unit/test_llm_call_sites.py::test_style_anchor_skips_blank_lines_in_the_answer` | 🔲 planned |
-| **F2 (REVIEW finding, gates 🟢):** site 5 asserts `tier == "creative"`; the tier-flip mutation goes red | `tests/unit/test_direct_metadata.py::test_write_metadata_creates_file` | 🔲 planned |
+| **F1 (REVIEW finding, gates 🟢):** site 12 `style_anchor` parses the real CLI answer shape. `"Medium\n\nSerif typography, cream background, …"` must give `('medium', 'Serif typography, cream background, …')`, so blank lines are skipped. Today the hint is `""` in 3 of 3 hub runs | `tests/unit/test_llm_call_sites.py::test_style_anchor_skips_blank_lines_in_the_answer` | ✅ fix `09fa1c6`; green on `53b1df3` (mutation → red: the pre-fix parser keeps blank lines; the hint dropped) |
+| **F2 (REVIEW finding, gates 🟢):** site 5 asserts `tier == "creative"`; the tier-flip mutation goes red | `tests/unit/test_direct_metadata.py::test_write_metadata_creates_file` | ✅ `b51efb3`; green on `53b1df3` (mutation → red: site 5 flipped to `check`) |
 
 ## Cross-cutting
 

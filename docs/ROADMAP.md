@@ -16,7 +16,7 @@
 > video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
 > the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-09-29 (REVIEW: **Sprint 10 (E5 loud-failure sweep, part 1) = PASS → 🟢**, `feat/e5-loud-failure-sweep` at `bb16aa0`, merge cleared. The EM ran everything itself: the branch suite gave 1378 passed / 59 skipped, and the merged tree (post-E10 master + branch) gave 1440 / 62; ruff and mypy were clean. 18 of 18 mutations went red, and the A4 smoke was re-run at HEAD with 3 extra live checks. The hub path audit found 0 disagreements. It also found that hub project `1776850327_B`'s final holds 5 black runs (~61 s) and the project was published; see Sprint 10. Parked items are placed in Later, with atomic scene-cache writes at the top.) · Prior: 2026-09-29 (REVIEW: E10 v1 = ADVISE, cleared to merge; it has since merged to master `2add7c2` with F1 and F2). · 2026-09-29 (SPRINT + INTAKE: Sprint 10 greenlit; new infra epic E10). · 2026-09-28 (third REVIEW, master `2f6fb35`: **Sprint 9 (E9 v0) = PASS → 🟢 shipped**). Earlier history: `.agent-memory/engineering-manager/sprint-log.md` and `sprint-log-archive.md`. · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-09-29 (follow-up REVIEW on master `53b1df3`: **E10 v1 = PASS → 🟢**. The F1 and F2 tests are green, 3 of 3 mutations went red, and the full suite gives 1440 / 62. Sprint 10 is merged as `53b1df3`. The Pillow `getdata` deprecation is filed with the dark-image item in Later: removal would silently disable the dark check.) · Prior: 2026-09-29 (REVIEW: **Sprint 10 (E5 loud-failure sweep, part 1) = PASS → 🟢**, `feat/e5-loud-failure-sweep` at `bb16aa0`, merge cleared. The EM ran everything itself: the branch suite gave 1378 passed / 59 skipped, and the merged tree (post-E10 master + branch) gave 1440 / 62; ruff and mypy were clean. 18 of 18 mutations went red, and the A4 smoke was re-run at HEAD with 3 extra live checks. The hub path audit found 0 disagreements. It also found that hub project `1776850327_B`'s final holds 5 black runs (~61 s) and the project was published; see Sprint 10. Parked items are placed in Later, with atomic scene-cache writes at the top.) · Prior: 2026-09-29 (REVIEW: E10 v1 = ADVISE, cleared to merge; it has since merged to master `2add7c2` with F1 and F2). · 2026-09-29 (SPRINT + INTAKE: Sprint 10 greenlit; new infra epic E10). · 2026-09-28 (third REVIEW, master `2f6fb35`: **Sprint 9 (E9 v0) = PASS → 🟢 shipped**). Earlier history: `.agent-memory/engineering-manager/sprint-log.md` and `sprint-log-archive.md`. · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -108,7 +108,7 @@ unchanged by either.)
   (E3 v2), lower-thirds, CapCut subtitles · coarse recompose loop (E6) · `namecard`/`map` and
   `generated_image` silent `text_card` downgrades (E5 part 2) · non-atomic scene-cache writes (an
   interrupted mux costs one refused run; Later, top). *(Claude-backed stages are restored on
-  master: E10 merged at `2add7c2`, 2026-09-29.)*
+  master: E10 merged at `2add7c2` and is 🟢, 2026-09-29.)*
   *(Reconciled 2026-09-29: Ken Burns on stills shipped with E2 camera motion; the E4 Slice 3
   medium-clash refactor shipped in Sprint 6.)*
 
@@ -410,7 +410,7 @@ copy; a project is owned by exactly one machine at a time.**
   does not add to the divergent-state risk; the interim manual-rsync convention still holds.
   **Re-ordered 2026-09-29:** Sprint 10 (E5 loud-failure sweep, Tim-greenlit) and then E10
   (Claude calls on the subscription, which unblocks production) go ahead of item 2.
-  Sprint 10 has shipped and E10 has merged (its 🟢 follow-up is pending). The small E5 part 1b
+  Sprint 10 and E10 have both shipped (🟢). The small E5 part 1b
   slice (atomic scene-cache writes) is recommended just ahead of item 2.
 
 ### E9 — Toon engine & resource bank (own-show character animation)  `[arsenal]`  🟢 *v0 shipped (Sprint 9; EM REVIEW PASS 2026-09-28 after two REWORK rounds); items 2–3 open*
@@ -499,7 +499,7 @@ are YAML files that name bank items and always render the same frames. The pipel
   outline and plot. Composing EP1 scenes is content work (`own-show.md` step 6) and does not
   belong on this roadmap. Scene 001 appears only as v0's worked example and acceptance test.
 
-### E10 — Claude calls on the subscription  `[infra · production unblock]`  🔵 *v1 **merged to master `2add7c2`** (2026-09-29) after EM REVIEW = ADVISE; F1 (`09fa1c6`) and F2 (`b51efb3`) landed with it; flips 🟢 at a short EM follow-up (re-run and mutation-check the two tests; not yet done)*
+### E10 — Claude calls on the subscription  `[infra · production unblock]`  🟢 *v1 shipped: merged to master `2add7c2` (2026-09-29) after EM REVIEW = ADVISE; F1 (`09fa1c6`) and F2 (`b51efb3`) verified at the EM follow-up on master `53b1df3` (both tests green, 3 of 3 mutations red) → **PASS***
 Every Claude-backed step calls the Anthropic API directly through the `anthropic` SDK, and the
 API credit is exhausted (`400 credit balance too low`, found at the Sprint 9 hub smoke,
 2026-09-28). Tim, 2026-09-29, verbatim: "replace with main agent or subagent ability or "claude
@@ -530,8 +530,16 @@ Opus, checks on Haiku". Claude Code CLI 2.1.283 is installed on both machines.
   `print_visual_issues_table` no longer raises. Still open, outside E10: `--project-id` is typed
   `int` in `cli_visual_review.py`, so real string ids only work through `--work-dir`.
 - **Order:** built in parallel with Sprint 10. Merged to master `2add7c2` (2026-09-29), with F1
-  and F2. Sprint 10 passed REVIEW the same day and merges cleanly on top (EM `git merge-tree` +
-  merged-tree suite 1440 passed).
+  and F2. Sprint 10 passed REVIEW the same day and merged on top as `53b1df3`.
+- **Follow-up REVIEW 2026-09-29 (EM, Mac master `53b1df3`) = PASS → 🟢.**
+  - Both F1/F2 tests pass. The E10 targeted suite gives 109 passed. The full suite gives 1440
+    passed / 62 skipped; ruff and mypy are clean (161 files).
+  - Mutations in a `git archive` copy of `53b1df3` all went red:
+    - F1, the pre-fix parser (blank lines kept): red;
+    - F1, the hint dropped: red;
+    - F2, the metadata site flipped to `check`: red. At the first REVIEW this mutation left
+      everything green.
+  - With F2 pinned, all 12 call sites now go red on a tier flip.
 - **REVIEW 2026-09-29 (EM, both machines, `f13c783`) = ADVISE, cleared to merge.**
   - **Done criteria (spec §6):**
     - §6.1: Mac suite 1404 passed / 62 skipped; targeted 108 passed; ruff and mypy clean.
@@ -557,9 +565,9 @@ Opus, checks on Haiku". Claude Code CLI 2.1.283 is installed on both machines.
     - the tripwire removed.
   - **Axis:** neither quality nor runtime (held).
 - **Items:**
-  1. **🔵 v1: the `claude -p` backend and the 12 call-site migrations** (spec §2–§6). Built and
-     cleared to merge. Test-plan rows are under E10.
-  2. **🔲 Before 🟢 (small; the EM re-runs two tests):**
+  1. **🟢 v1: the `claude -p` backend and the 12 call-site migrations** (spec §2–§6). Merged
+     `2add7c2`. Test-plan rows are under E10.
+  2. **🟢 F1 + F2, fixed and verified** (history below; EM follow-up PASS on `53b1df3`):
      - **F1: `style_anchor` loses its style hint on every CLI answer.** Haiku replies
        `"Medium\n\nSerif typography, …"`, 3 of 3 runs on the hub. The unchanged parser takes the
        blank line 2 as the hint, so it is always `""`, and nothing logs it.
@@ -576,7 +584,7 @@ Opus, checks on Haiku". Claude Code CLI 2.1.283 is installed on both machines.
        loudly. Log each call's duration and output tokens, and check whether thinking can be
        turned off for the check tier. Verify the setting against CLI 2.1.283 first (spec §3: "don't
        improvise").
-     - README's env table lacks `PIPELINE_LLM_TIMEOUT_CREATIVE_SEC` (1200 s, ruling R4).
+     - ~~README's env table lacks `PIPELINE_LLM_TIMEOUT_CREATIVE_SEC`~~: done in `b51efb3`.
      - Spec §3 asks for `asyncio.to_thread` at async call sites. `scriptwrite`, `metadata` and
        `style_anchor` still call synchronously from async stages. There is no effect today:
        stages run one at a time, and the dashboard runs jobs off its event loop. Wrap them or
@@ -1103,7 +1111,7 @@ block is the sprint shape. The spec is the design and is not restated here.
 - **Then:** Sprint 10 (E5 loud-failure sweep, part 1). Tim greenlit it on 2026-09-29, ahead
   of E8 item 2, as the EM recommended.
 
-### Sprint 10 — E5 loud-failure sweep, part 1: no silent black scenes + one media-path resolver  `[E5]`  🟢 *shipped: EM REVIEW **PASS** 2026-09-29 on `feat/e5-loud-failure-sweep` at `bb16aa0` (27 commits over master `329ff46`); merge cleared*
+### Sprint 10 — E5 loud-failure sweep, part 1: no silent black scenes + one media-path resolver  `[E5]`  🟢 *shipped: EM REVIEW **PASS** 2026-09-29 on `feat/e5-loud-failure-sweep` at `bb16aa0` (27 commits over master `329ff46`); **merged to master `53b1df3`** (pushed; hub synced; 1440 passed / 62 skipped, ruff and mypy clean)*
 **Spec (build from this):** `docs/superpowers/specs/2026-09-29-e5-loud-failure-sweep-design.md`.
 - **Goal:** a scene that fails to render never reaches a final as black and is never served from
   the scene cache as a black stand-in. Every failure refuses assembly with the step, the reason
@@ -1193,8 +1201,8 @@ block is the sprint shape. The spec is the design and is not restated here.
   - Rebuilding needs the source re-acquired or those five scenes re-authored: a content
     decision for Tim.
   - Also check whether the published cut carries the black.
-- **Then:** E10 🟢 follow-up (F1 and F2 are on master; the EM re-runs the two tests). Next comes
-  the capability slot: **E5 part 1b, atomic scene-cache writes**, a small hardening slice
+- **Then:** the E10 🟢 follow-up is done (PASS on `53b1df3`). Next comes the capability slot:
+  **E5 part 1b, atomic scene-cache writes**, a small hardening slice
   recommended at the head of the queue. Then E8 item 2 (checkout/checkin + hub lock), then E8
   item 3 (draft encoder profile). The E8 item 1 (B) follow-up REVIEW (the s31 tofu) is still
   pending.
@@ -1217,6 +1225,16 @@ block is the sprint shape. The spec is the design and is not restated here.
      - So a dark-retried image costs 2 provider calls on **every** rerun.
      - It also makes image_sequence's `suggested_fix` ("only image N is regenerated") inexact.
      - Fix: look up the light key too, or store the retry under the original key.
+     - **Same function, a silent-off hazard (filed 2026-09-29, E10/Sprint 10 follow-up):**
+       - `_is_too_dark` exists twice, at `composer/image_sequence.py:58` and
+         `composer/image.py:36`. Both call `Image.getdata()`, which Pillow deprecates; it is
+         removed in Pillow 14 (2027-10-15).
+       - Both wrap the call in `except Exception: return False`. `pyproject` pins
+         `pillow>=12.2.0` with no upper bound, so a lock upgrade to Pillow 14 would **silently
+         disable the dark-image check** in both renderers, with nothing logged. Today it is
+         only a `DeprecationWarning` in the suite (the new Sprint 10 tests reach it).
+       - Fix: one shared helper using `ImageStat.Stat(img).mean[0]`, and narrow the except so
+         an API error is loud. Delete the duplicate.
      - Rides with item 1.
   3. **⚪ `compose frame` rebuilds from stale `_visual`/`_overlay` files (E6).** After a refused
      visual step, the previous `{sid}_visual.mp4` stays. `compose frame` re-muxes it into finals,
