@@ -13,8 +13,10 @@ import json, os, sys, time
 log = os.environ["FAKE_CLAUDE_LOG"]
 mode = os.environ.get("FAKE_CLAUDE_MODE", "ok")
 stdin = sys.stdin.read()
+watch_names = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
+               "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_OAUTH_TOKEN"]
 rec = {{"argv": sys.argv[1:], "stdin": stdin, "cwd": os.getcwd(),
-        "has_api_key": "ANTHROPIC_API_KEY" in os.environ, "t0": time.time()}}
+        "env_present": {{n: (n in os.environ) for n in watch_names}}, "t0": time.time()}}
 if mode == "sleep":
     time.sleep(0.3)
 rec["t1"] = time.time()
@@ -30,6 +32,10 @@ if mode == "limit":
     ev(type="result", subtype="success", is_error=True, api_error_status=429,
        result="You've hit your limit · resets 5pm")
     sys.exit(1)
+if mode == "auth":
+    ev(type="result", subtype="success", is_error=True,
+       result="Invalid API key · Please run /login")
+    sys.exit(1)
 if mode == "empty":
     ev(type="result", subtype="success", is_error=False, result="   "); sys.exit(0)
 if mode == "schema":
@@ -39,6 +45,10 @@ if mode == "schema_text_only":
     ev(type="result", subtype="success", is_error=False, result='{{"title": "T2"}}'); sys.exit(0)
 if mode == "schema_garbage":
     ev(type="result", subtype="success", is_error=False, result="not json"); sys.exit(0)
+if mode == "two_results":
+    ev(type="result", subtype="success", is_error=False, result="first")
+    ev(type="result", subtype="success", is_error=False, result="second")
+    sys.exit(0)
 ev(type="result", subtype="success", is_error=False, result="hello")
 '''
 
@@ -97,10 +107,21 @@ def test_content_blocks_pass_through_unchanged(fake_claude):
     assert _message(fake_claude()[0])["content"] == blocks
 
 
-def test_api_key_is_stripped_from_child_env(fake_claude, monkeypatch):
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-should-not-leak")
+_BILLING_SWITCHING_ENV = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
+                          "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX"]
+
+
+@pytest.mark.parametrize("name", _BILLING_SWITCHING_ENV)
+def test_billing_switching_env_is_stripped_from_child_env(fake_claude, monkeypatch, name):
+    monkeypatch.setenv(name, "leaky-value")
     llm.complete("x", tier="check", call_site="t")
-    assert fake_claude()[0]["has_api_key"] is False
+    assert fake_claude()[0]["env_present"][name] is False
+
+
+def test_oauth_token_passes_through_to_child_env(fake_claude, monkeypatch):
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "sk-ant-oat-should-pass-through")
+    llm.complete("x", tier="check", call_site="t")
+    assert fake_claude()[0]["env_present"]["CLAUDE_CODE_OAUTH_TOKEN"] is True
 
 
 def test_json_schema_reads_structured_output(fake_claude, monkeypatch):
@@ -131,6 +152,19 @@ def test_failures_raise_llm_error_with_the_real_reason(fake_claude, monkeypatch,
     assert "proofread" in str(ei.value)
     if mode == "limit":
         assert "429" in str(ei.value) and "quota" in ei.value.hint
+
+
+def test_auth_failure_hints_claude_login(fake_claude, monkeypatch):
+    monkeypatch.setenv("FAKE_CLAUDE_MODE", "auth")
+    with pytest.raises(llm.LLMError, match="Please run /login") as ei:
+        llm.complete("x", tier="check", call_site="t")
+    assert "claude login" in ei.value.hint
+
+
+def test_last_result_event_wins(fake_claude, monkeypatch):
+    monkeypatch.setenv("FAKE_CLAUDE_MODE", "two_results")
+    r = llm.complete("x", tier="check", call_site="t")
+    assert r.text == "second"
 
 
 def test_timeout_raises_llm_error(fake_claude, monkeypatch):

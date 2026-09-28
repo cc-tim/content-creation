@@ -23,6 +23,23 @@ NEUTRAL_SYSTEM = "You are a precise assistant. Follow the user's instructions ex
 _ISOLATION = ("--tools", "", "--setting-sources", "", "--strict-mcp-config",
               "--no-session-persistence", "--disable-slash-commands")
 
+# Every one of these would move billing or routing off the subscription and onto a
+# different, possibly-metered path if it leaked into the `claude -p` child process:
+#   ANTHROPIC_API_KEY        - switches the CLI to pay-per-token API billing
+#   ANTHROPIC_AUTH_TOKEN     - alternate API bearer token, same billing effect as the key above
+#   ANTHROPIC_BASE_URL       - redirects the CLI to a different (possibly billed) endpoint
+#   CLAUDE_CODE_USE_BEDROCK  - routes calls through AWS Bedrock billing instead
+#   CLAUDE_CODE_USE_VERTEX   - routes calls through GCP Vertex AI billing instead
+# CLAUDE_CODE_OAUTH_TOKEN is deliberately excluded: it *is* the subscription login on
+# headless hosts and must reach the child process for `claude -p` to work at all.
+_STRIP_ENV = frozenset({
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "ANTHROPIC_BASE_URL",
+    "CLAUDE_CODE_USE_BEDROCK",
+    "CLAUDE_CODE_USE_VERTEX",
+})
+
 
 @dataclass(frozen=True)
 class LLMResult:
@@ -119,7 +136,7 @@ def _complete_cli(blocks: list[dict[str, Any]], *, model: str, call_site: str, s
     if json_schema is not None:
         argv += ["--json-schema", json.dumps(json_schema)]
     stdin = json.dumps({"type": "user", "message": {"role": "user", "content": blocks}}) + "\n"
-    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    env = {k: v for k, v in os.environ.items() if k not in _STRIP_ENV}
     with _semaphore(config.LLM_MAX_CONCURRENCY), tempfile.TemporaryDirectory(prefix="llm-") as cwd:
         try:
             proc = subprocess.run(argv, input=stdin, capture_output=True, text=True,
