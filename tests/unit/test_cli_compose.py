@@ -194,6 +194,35 @@ def test_frame_accepts_string_project_id(project_dir):
     resolve.assert_called_once_with("20260504-115232-baby-walker-story")
 
 
+def test_restore_invalidates_frame_suffixed_cache_variants(project_dir):
+    """RF11: restore must invalidate every scene_final_cache_paths entry, not just the two
+    unsuffixed finals — otherwise a framed project's compose re-run still cache-hits the
+    frame-suffixed finals and serves the pre-restore image."""
+    scenes_dir = project_dir / "compose" / "scenes"
+    (scenes_dir / "s1_final_open_book_page.mp4").write_bytes(b"framed")
+    (scenes_dir / "s1_final_no_overlay_open_book_page.mp4").write_bytes(b"framed_no_ov")
+    runner = CliRunner()
+
+    with (
+        patch("pipeline.cli_compose._resolve_work_dir", return_value=project_dir),
+        patch(
+            "pipeline.composer.image_history.restore_scene",
+            return_value=scenes_dir / "s1_restore.png",
+        ),
+        patch("pipeline.cli_compose.asyncio.run", side_effect=_close_coro) as mock_run,
+    ):
+        result = runner.invoke(compose_app, [
+            "restore", "--project-id", "9999", "--scene", "s1"
+        ])
+
+    assert result.exit_code == 0, result.output
+    assert not (scenes_dir / "s1_final.mp4").exists()
+    assert not (scenes_dir / "s1_final_no_overlay.mp4").exists()
+    assert not (scenes_dir / "s1_final_open_book_page.mp4").exists()
+    assert not (scenes_dir / "s1_final_no_overlay_open_book_page.mp4").exists()
+    assert mock_run.called
+
+
 def test_book_start_title_reads_explainer_frontmatter(tmp_path: Path) -> None:
     project = tmp_path / "project"
     compose_dir = project / "compose"
