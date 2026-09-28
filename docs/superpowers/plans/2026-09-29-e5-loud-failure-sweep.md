@@ -151,7 +151,7 @@ Fill in the other columns as you go, and commit this file with the task's own co
 
 | ID | Test | Task | Expected red | Observed red | Red commit | Fix commit |
 |----|------|------|--------------|--------------|------------|------------|
-| T8a | `tests/unit/test_media_paths.py` (10 resolver tests) | 1 | collection `ImportError: cannot import name 'paths' from 'pipeline.utils'` | | | |
+| T8a | `tests/unit/test_media_paths.py` (10 resolver tests) | 1 | collection `ImportError: cannot import name 'paths' from 'pipeline.utils'` | `ImportError: cannot import name 'paths' from 'pipeline.utils'` | `8c0791a` | `c1fadac` |
 | T8b | `test_media_paths.py::test_validator_and_renderers_agree_on_project_relative_paths` | 2 | `TypeError: _resolve_source_video() got an unexpected keyword argument 'project_root'` | | | |
 | T9 | `test_compose_v2.py::test_project_relative_clip_renders_from_project_root` | 2 | `AssertionError: the clip was never extracted from the project's file` (log: `compose.scene.visual_failed error='Source video not found for clip in scene s1'`) | | | |
 | T10 | `tests/director/still_gate/test_render.py::test_render_scene_still_forwards_project_root` | 2 | `TypeError: render_scene_still() got an unexpected keyword argument 'project_root'` | | | |
