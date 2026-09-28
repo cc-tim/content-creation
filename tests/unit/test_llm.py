@@ -3,6 +3,7 @@ import stat
 import sys
 import threading
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -209,3 +210,38 @@ def test_unknown_backend_is_loud(monkeypatch):
     monkeypatch.setenv("PIPELINE_LLM_BACKEND", "carrier-pigeon")
     with pytest.raises(llm.LLMError, match="unknown LLM backend"):
         llm.complete("x", tier="check", call_site="t")
+
+
+def _api_env(monkeypatch):
+    monkeypatch.setenv("PIPELINE_LLM_BACKEND", "api")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+
+
+def test_api_backend_text(monkeypatch):
+    _api_env(monkeypatch)
+    resp = MagicMock(content=[MagicMock(type="text", text="hi")])
+    with patch("anthropic.Anthropic") as cls:
+        cls.return_value.messages.create.return_value = resp
+        r = llm.complete("q", tier="creative", call_site="t", system="S", max_tokens=123)
+    kw = cls.return_value.messages.create.call_args.kwargs
+    assert (r.text, r.backend, kw["model"], kw["system"], kw["max_tokens"]) == \
+        ("hi", "api", "claude-opus-5-5", "S", 123)
+    assert kw["messages"] == [{"role": "user", "content": [{"type": "text", "text": "q"}]}]
+
+
+def test_api_backend_schema_uses_forced_tool(monkeypatch):
+    _api_env(monkeypatch)
+    block = MagicMock(type="tool_use", input={"title": "T"})
+    with patch("anthropic.Anthropic") as cls:
+        cls.return_value.messages.create.return_value = MagicMock(content=[block])
+        r = llm.complete("q", tier="check", call_site="t", json_schema={"type": "object"})
+    kw = cls.return_value.messages.create.call_args.kwargs
+    assert r.data == {"title": "T"} and kw["tool_choice"] == {"type": "tool", "name": "emit"}
+
+
+def test_api_backend_errors_are_llm_errors(monkeypatch):
+    _api_env(monkeypatch)
+    with patch("anthropic.Anthropic") as cls:
+        cls.return_value.messages.create.side_effect = RuntimeError("credit balance too low")
+        with pytest.raises(llm.LLMError, match="credit balance too low"):
+            llm.complete("q", tier="check", call_site="t")

@@ -95,7 +95,8 @@ def complete(content: str | list[dict[str, Any]], *, tier: Tier, call_site: str,
                              json_schema=json_schema, timeout=timeout or config.LLM_TIMEOUT_SEC,
                              config=config)
     if config.LLM_BACKEND == "api":
-        raise LLMError(call_site, "api backend not wired yet")  # Task 2 replaces this line
+        return _complete_api(blocks, model=model, call_site=call_site, system=system,
+                             json_schema=json_schema, max_tokens=max_tokens)
     raise LLMError(call_site, f"unknown LLM backend {config.LLM_BACKEND!r}",
                    "set PIPELINE_LLM_BACKEND to cli or api")
 
@@ -164,3 +165,31 @@ def _complete_cli(blocks: list[dict[str, Any]], *, model: str, call_site: str, s
     elif not text.strip():
         raise LLMError(call_site, "claude -p returned an empty result")
     return LLMResult(text=text, data=data, model=model, backend="cli")
+
+
+def _complete_api(blocks: list[dict[str, Any]], *, model: str, call_site: str, system: str | None,
+                  json_schema: dict[str, Any] | None, max_tokens: int) -> LLMResult:
+    import anthropic
+
+    from pipeline.utils.anthropic_key import get_anthropic_api_key
+
+    kwargs: dict[str, Any] = {"model": model, "max_tokens": max_tokens,
+                              "messages": [{"role": "user", "content": blocks}]}
+    if system:
+        kwargs["system"] = system
+    if json_schema is not None:
+        kwargs["tools"] = [{"name": "emit", "description": "Emit the answer as structured JSON.",
+                            "input_schema": json_schema}]
+        kwargs["tool_choice"] = {"type": "tool", "name": "emit"}
+    try:
+        resp = anthropic.Anthropic(api_key=get_anthropic_api_key()).messages.create(**kwargs)
+    except Exception as exc:
+        raise LLMError(call_site, f"anthropic API call failed: {exc}",
+                       "check the API key and credit, or set PIPELINE_LLM_BACKEND=cli") from exc
+    if json_schema is not None:
+        for block in resp.content:
+            if getattr(block, "type", None) == "tool_use":
+                return LLMResult(text=json.dumps(block.input), data=block.input, model=model, backend="api")
+        raise LLMError(call_site, "anthropic API returned no structured output")
+    text = "".join(getattr(b, "text", "") for b in resp.content if getattr(b, "type", "text") == "text")
+    return LLMResult(text=text, data=None, model=model, backend="api")
