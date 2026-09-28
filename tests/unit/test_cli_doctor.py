@@ -197,13 +197,17 @@ def test_check_ffmpeg_accepts_short_fontconfig_spelling(monkeypatch):
 
 # ── check 6: toon ─────────────────────────────────────────────────────────────
 def test_check_toon_fails_with_install_hint_when_cairo_is_missing(monkeypatch):
+    # The injected message must NOT already contain "libcairo" (or "brew install cairo" /
+    # "libcairo2"), or the assertions below would pass even if check_toon's own install hint
+    # were deleted. dlopen's real failure text doesn't name the library either.
     def boom(*a, **k):
-        raise OSError("cannot load library 'libcairo'")
+        raise OSError("dlopen failed")
 
     monkeypatch.setattr("toon.render.frame", boom)
     results = cli_doctor.check_toon()
     assert len(results) == 1
     result = results[0]
     assert result.name == "toon" and result.ok is False
-    assert "libcairo" in result.detail
-    assert "cannot load library" in result.detail  # the caught exception is still visible
+    assert "brew install cairo" in result.detail
+    assert "libcairo2" in result.detail
+    assert "dlopen failed" in result.detail  # the caught exception is still visible
