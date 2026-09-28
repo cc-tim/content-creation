@@ -28,6 +28,7 @@ VISUAL_TYPES = {
     "still_frame",
     "namecard",
     "map",
+    "toon",
 }
 
 # Resolution presets
@@ -467,6 +468,11 @@ def render_scene(
         return render_text_card(
             fallback_visual, duration_sec, width, height, work_dir, scene_id, theme
         )
+
+    elif visual_type == "toon":
+        from pipeline.composer.toon import render_toon_scene
+
+        return render_toon_scene(scene, duration_sec, width, height, work_dir, scene_id)
 
     else:
         raise ValueError(f"Unknown visual type: {visual_type} in scene {scene_id}")
