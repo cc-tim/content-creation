@@ -28,6 +28,7 @@ def _all_pass(monkeypatch):
     monkeypatch.setattr(
         cli_doctor, "check_home_tools", lambda: [CheckResult("home tools", True, "ok")]
     )
+    monkeypatch.setattr(cli_doctor, "check_toon", lambda: [CheckResult("toon", True, "ok")])
 
 
 def test_doctor_registered_and_exit_0_when_all_pass(monkeypatch, tmp_path):
@@ -35,7 +36,7 @@ def test_doctor_registered_and_exit_0_when_all_pass(monkeypatch, tmp_path):
     res = runner.invoke(app, ["doctor", "--out", str(tmp_path)])
     assert res.exit_code == 0, res.output
     lines = [ln for ln in res.output.splitlines() if ln.startswith(("PASS", "FAIL"))]
-    assert len(lines) == 5 and all(ln.startswith("PASS") for ln in lines)
+    assert len(lines) == 6 and all(ln.startswith("PASS") for ln in lines)
     assert str(tmp_path) in res.output
 
 

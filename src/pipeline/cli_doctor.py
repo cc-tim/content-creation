@@ -137,6 +137,23 @@ def check_home_tools() -> list[CheckResult]:
     return results
 
 
+def check_toon() -> list[CheckResult]:
+    try:
+        from toon.bank import load_bank
+        from toon.cairo_compat import cairo
+        from toon.render import frame
+        from toon.scene import load_scene, read_scene
+
+        bank = load_bank()
+        img = frame(load_scene(read_scene("001-lioness-dishes"), bank), bank, 4.7, 320, 180)
+        return [CheckResult("toon", True,
+                            f"cairo {cairo.cairo_version_string()}; bank {len(bank.characters)} characters; "
+                            f"frame {img.shape[1]}x{img.shape[0]}")]
+    except Exception as exc:
+        return [CheckResult("toon", False,
+                            f"{exc!r} — needs libcairo (macOS: brew install cairo; hub: libcairo2)")]
+
+
 def run_checks(out_dir: Path) -> list[CheckResult]:
     groups: list[tuple[str, Callable[[], list[CheckResult]]]] = [
         ("fonts", check_fonts),
@@ -144,6 +161,7 @@ def run_checks(out_dir: Path) -> list[CheckResult]:
         ("ffmpeg", check_ffmpeg),
         ("glyph probes", lambda: check_glyph_probes(out_dir)),
         ("home tools", check_home_tools),
+        ("toon", check_toon),
     ]
     results: list[CheckResult] = []
     for label, fn in groups:
