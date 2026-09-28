@@ -835,12 +835,16 @@ class ComposeStage(PipelineStage):
             if isinstance(maybe, BaseException):
                 sid = storyboard.scenes[i].id
                 logger.error("compose.scene.exception", scene_id=sid, error=str(maybe))
-                failures.append(f"{sid}: {maybe}")
                 if isinstance(maybe, SceneRenderError):
+                    # str(maybe) already leads with "<sid>: " (errors.py's __str__); don't
+                    # prefix it again here.
+                    failures.append(str(maybe))
                     render_failures[sid] = maybe.to_dict()
                 else:
                     # A BaseException _render_one_scene didn't wrap as SceneRenderError:
-                    # not Exception (I1 covers those), e.g. asyncio.CancelledError.
+                    # not Exception (I1 covers those), e.g. asyncio.CancelledError. It has no
+                    # built-in scene prefix, so add one here.
+                    failures.append(f"{sid}: {maybe}")
                     render_failures[sid] = {
                         "scene": sid,
                         "reason": _step_reason("scene", maybe),
