@@ -120,6 +120,12 @@ class Blink(_Strict):
 
 
 class Beat(_Strict):
+    """One timed change within a shot, with exactly one verb.
+
+    `camera: <preset>` is a cut to another bank camera preset at `at`, not a blend: the new
+    preset's own push/truck/punch restarts from the beat, so `over`/`ease` are rejected on it.
+    """
+
     at: float | SentenceAnchor
     over: float = 0.0
     ease: Ease = "smooth"
@@ -373,8 +379,12 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
             p.append(f"{bw}.hide: {b.hide!r} does not match a graphic shown earlier in this shot (shown: {keys})")
         elif isinstance(b.at, float) and shown[b.hide] > b.at:
             p.append(f"{bw}.hide: {b.hide!r} was shown at {shown[b.hide]:g}s, after this hide at {b.at:g}s")
-    elif v == "camera" and b.camera not in bank.cameras:
-        p.append(f"{bw}.camera: unknown camera {b.camera!r}")
+    elif v == "camera":
+        if b.camera not in bank.cameras:
+            p.append(f"{bw}.camera: unknown camera {b.camera!r}")
+        for field in ("over", "ease"):
+            if field in b.model_fields_set:
+                p.append(f"{bw}.{field}: a camera beat is a cut to a new preset; {field} does not apply")
     # Check verb-specific fields on other verbs
     if v != "pose" and b.expr is not None:
         p.append(f"{bw}.expr: only valid with a pose beat")

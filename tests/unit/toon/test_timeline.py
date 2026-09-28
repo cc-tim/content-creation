@@ -89,6 +89,35 @@ def test_a_cut_duration_never_reaches_a_shot_that_starts_after_it():
     assert fs.shot == 2 and fs.set_id == "kitchen"
 
 
+# A camera beat is a cut to another preset (spec §5): front34_push (3300→3700 over the shot),
+# cut at 4.0s of an 8s shot to close_push (5000→5500), whose push runs over the 4s left.
+CUT = {"id": "cut", "duration": 8.0, "cast": {"tim": "tim"},
+       "shots": [{"at": 0.0, "set": "office", "camera": "front34_push",
+                  "place": {"tim": {"spot": "desk_seat", "pose": "sit_typing"}},
+                  "beats": [{"at": 4.0, "camera": "close_push"}]}]}
+
+
+def test_camera_beat_cuts_and_the_new_push_starts_at_the_beat():
+    s = load_scene(copy.deepcopy(CUT), BANK)
+    assert state_at(s, BANK, 2.0, 2.0).cam.focal == pytest.approx(3300 + 400 * 0.15625)  # smooth(.25)
+    assert state_at(s, BANK, 4.0, 4.0).cam.focal == pytest.approx(5000)  # not mid-push
+    assert state_at(s, BANK, 6.0, 6.0).cam.focal == pytest.approx(5250)
+    assert state_at(s, BANK, 8.0, 8.0).cam.focal == pytest.approx(5500)
+
+
+def test_camera_beat_restarts_the_new_presets_punch():
+    d = copy.deepcopy(CUT)
+    d["shots"][0]["beats"][0]["camera"] = "two_shot"  # 3050, punch → 3200 at 0.1 over 0.15
+    s = load_scene(d, BANK)
+    assert state_at(s, BANK, 4.0, 4.0).cam.focal == pytest.approx(3050)
+    assert state_at(s, BANK, 4.25, 4.25).cam.focal == pytest.approx(3200)
+
+
+def test_camera_beat_cuts_on_camera_time_not_drawing_time():
+    s = load_scene(copy.deepcopy(CUT), BANK)
+    assert state_at(s, BANK, 3.95, 4.0).cam.focal == pytest.approx(5000)  # camera on ones
+
+
 def test_gesture_loop_rides_on_the_pose():
     d = copy.deepcopy(BASE)
     d["shots"][1]["place"]["tim"]["loop"] = True

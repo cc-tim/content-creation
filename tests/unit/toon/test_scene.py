@@ -241,6 +241,16 @@ def test_to_is_rejected_on_a_hide_beat():
         load_scene(d, BANK)
 
 
+@pytest.mark.parametrize("field, value", [("over", 0.5), ("ease", "linear")])
+def test_a_camera_beat_is_a_cut_so_over_and_ease_are_rejected(field, value):
+    with pytest.raises(SceneError, match=rf"beats\[0\]\.{field}: a camera beat is a cut"):
+        load_scene(mini(**{"at": 1.0, "camera": "two_shot", field: value}), BANK)
+
+
+def test_a_bare_camera_beat_loads():
+    assert load_scene(mini(**{"at": 1.0, "camera": "two_shot"}), BANK).shots[0].beats[0].verb == "camera"
+
+
 def test_from_is_only_for_bubbles():
     with pytest.raises(SceneError, match=r"beats\[0\]\.show\.from: only valid with a bubble show"):
         load_scene(mini(**{"at": 1.0, "show": {"anger": "tim", "from": "tim"}}), BANK)

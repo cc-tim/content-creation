@@ -116,8 +116,14 @@ def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = 
     graphics: dict[str, GraphicState] = {}
     flickers: dict[str, Flicker | None] = {}
     preset = bank.cameras[shot.camera]
+    rel_cam = t_cam - shot.at
+    cam_from = 0.0  # a camera beat cuts to its preset, whose own move restarts at the beat
 
     for b in sorted(shot.beats, key=lambda x: x.at):
+        if b.verb == "camera":  # the cut lands on camera time (ones), not drawing time (twos)
+            if rel_cam >= float(b.at):
+                preset, cam_from = bank.cameras[b.camera], float(b.at)
+            continue
         k = _progress(b, rel)
         if k is None:
             continue
@@ -158,8 +164,6 @@ def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = 
             graphics[key] = GraphicState(key, b.show, min((rel - at) / dur, 1.0))
         elif v == "hide":
             graphics.pop(b.hide, None)
-        elif v == "camera":
-            preset = bank.cameras[b.camera]
 
     idx = math.floor(t_draw * bank.style.drawing_fps + 1e-9)
     for name, s in props.items():
@@ -177,13 +181,13 @@ def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = 
             x, y, z = getattr(c.pose, attr)
             c.pose = replace(c.pose, **{attr: (x + loop.radius[0] * math.cos(ph), y + loop.radius[1] * math.sin(ph), z)})
 
-    length = shot_length(scene, i)
-    rel_cam = t_cam - shot.at
-    ks = smooth(rel_cam / length) if math.isfinite(length) and length > 0 else 0.0
+    span = shot_length(scene, i) - cam_from       # the preset's move runs from the cut to the shot's end
+    rel_move = rel_cam - cam_from
+    ks = smooth(rel_move / span) if math.isfinite(span) and span > 0 else 0.0
     focal = lerp(preset.focal, preset.focal_to if preset.focal_to is not None else preset.focal, ks)
     az = lerp(preset.az, preset.az_to if preset.az_to is not None else preset.az, ks)
     if preset.punch is not None:
-        pk = e_out(min(max((rel_cam - preset.punch.at) / preset.punch.over, 0.0), 1.0))
+        pk = e_out(min(max((rel_move - preset.punch.at) / preset.punch.over, 0.0), 1.0))
         focal = lerp(focal, preset.punch.to, pk)
     cam = CamState(az, preset.el, preset.dist, tuple(preset.target), focal)
     return FrameState(i, shot.set, door, cam, chars, props, list(graphics.values()), list(shot.fx))
