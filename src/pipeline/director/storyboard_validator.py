@@ -52,7 +52,7 @@ def validate_storyboard(
     for scene in sb.scenes:
         if scene_ids is not None and scene.id not in scene_ids:
             continue
-        issues.extend(_validate_scene(scene, project_root))
+        issues.extend(_validate_scene(scene, project_root, aspect_ratio=sb.aspect_ratio))
     return issues
 
 
@@ -174,6 +174,8 @@ def format_visual_decision_table(
 def _validate_scene(
     scene: Scene,
     project_root: Path,
+    *,
+    aspect_ratio: str = "16:9",
 ) -> list[SceneValidationError]:
     visual = scene.visual or {}
     visual_type = str(visual.get("type") or "text_card")
@@ -206,7 +208,7 @@ def _validate_scene(
     elif visual_type == "chart":
         issues.extend(_validate_chart_visual(scene, visual))
     elif visual_type == "toon":
-        issues.extend(_validate_toon(scene, visual))
+        issues.extend(_validate_toon(scene, visual, aspect_ratio))
     elif visual_type == "namecard" and not str(visual.get("name") or "").strip():
         issues.append(_issue(
             scene,
@@ -421,7 +423,19 @@ def _validate_chart_visual(scene: Scene, visual: dict[str, Any]) -> list[SceneVa
     return out
 
 
-def _validate_toon(scene: Scene, visual: dict) -> list[SceneValidationError]:
+def _validate_toon(scene: Scene, visual: dict, aspect_ratio: str = "16:9") -> list[SceneValidationError]:
+    # compose renders every scene visual at 16:9 and fits it to the canvas, so on a 9:16
+    # storyboard the adapter's own 16:9 guard never fires and the clip is silently
+    # center-cropped. Block it here, at the review gate.
+    aspect = [] if aspect_ratio == "16:9" else [_issue(
+        scene, "error", "visual.type",
+        f"toon renders 16:9 only in v0, but this storyboard is {aspect_ratio} "
+        "(compose would center-crop the clip)",
+        "Use a 16:9 storyboard for toon scenes, or another visual type here.")]
+    return aspect + _validate_toon_scene(scene, visual)
+
+
+def _validate_toon_scene(scene: Scene, visual: dict) -> list[SceneValidationError]:
     # R15: load_scene() itself now validates shot windows against the scene's AUTHORED
     # duration (from the file), not the narration-estimated duration passed here — so the
     # validator and the render path (pipeline.composer.toon.render_toon_scene) can both pass

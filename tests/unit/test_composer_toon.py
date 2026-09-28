@@ -7,6 +7,8 @@ from pipeline.composer.overlay_rules import _TEXT_VISUALS
 from pipeline.director.storyboard_validator import (
     _validate_scene,
     format_visual_decision_table,
+    validate_storyboard,
+    validation_errors,
     visual_decisions_for_storyboard,
 )
 from pipeline.errors import SceneRenderError
@@ -91,6 +93,21 @@ def test_toon_warning_is_picked_up_by_the_warn_severity_collector(tmp_path):
 
     table = format_visual_decision_table(sb, tmp_path)
     assert "Validation warnings: 1" in table
+
+
+def test_validator_refuses_toon_in_a_vertical_storyboard(tmp_path):
+    # compose always renders scene visuals as 16:9 and _fit_to_canvas would silently
+    # center-crop the 16:9 toon clip to 9:16 — the review gate must block it instead.
+    def sb(aspect):
+        return Storyboard(aspect_ratio=aspect, scenes=[
+            Scene(id="s1", section="content", narration="One. Two.", narration_est_sec=13.0,
+                  visual={"type": "toon", "scene": "001-lioness-dishes"}),
+        ])
+
+    errors = validation_errors(validate_storyboard(sb("9:16"), tmp_path))
+    assert [(e.scene_id, e.field) for e in errors] == [("s1", "visual.type")]
+    assert "16:9" in errors[0].issue and "9:16" in errors[0].issue
+    assert validate_storyboard(sb("16:9"), tmp_path) == []
 
 
 def test_render_scene_toon_missing_ffmpeg_is_a_scene_render_error(tmp_path, monkeypatch):
