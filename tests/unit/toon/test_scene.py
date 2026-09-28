@@ -51,12 +51,16 @@ def test_beat_outside_its_shot():
         load_scene(mini(**{"at": 9.0, "door": "open"}), BANK)
 
 
-def test_beat_outside_its_authored_shot_still_raises_even_with_a_duration_override():
-    # R15: a duration override must not mask a structurally broken authored scene — _check()
-    # always validates against the scene's own authored duration (4.0 here), regardless of
-    # what a (longer) override says.
+def test_beat_outside_the_max_of_authored_and_override_still_raises():
+    # R15b superseded R15's stricter claim ("always check the authored duration, ignoring the
+    # override") — a longer override now legitimately stretches the last shot's window (the
+    # last shot "holds"), so a beat within the override but past authored no longer raises
+    # (see test_a_longer_narration_lets_a_sentence_anchor_land_past_the_authored_end). An
+    # override must still not mask a beat that's genuinely out of range of BOTH: _check()
+    # validates against max(authored, override) = max(4.0, 20.0) = 20.0 here, and a beat past
+    # that (25.0) is still a real structural error.
     with pytest.raises(SceneError, match="outside the shot"):
-        load_scene(mini(**{"at": 9.0, "door": "open"}), BANK, duration=20.0)
+        load_scene(mini(**{"at": 25.0, "door": "open"}), BANK, duration=20.0)
 
 
 def test_a_shorter_narration_cuts_the_scene_instead_of_failing_to_load():
@@ -91,6 +95,20 @@ def test_sentence_anchor_resolves_by_character_share():
     s = load_scene(mini(**{"at": {"sentence": 2}, "door": "open"}), BANK,
                    narration="One two. Three four five six.", duration=10.0)
     assert abs(s.shots[0].beats[0].at - 80 / 28) < 1e-9
+
+
+def test_a_longer_narration_lets_a_sentence_anchor_land_past_the_authored_end():
+    # R15b: MINI's authored duration is 4.0s. A much longer narration + override (20.0s)
+    # resolves the second-sentence anchor at 20.0 * 8/28 ~= 5.71s — past the authored end.
+    # _check() must validate against max(authored, override) = 20.0, not 4.0 alone, so the
+    # last (only) shot's window stretches to cover it: "if the narration is longer, the last
+    # shot holds, still boiling" (design spec §5). This must load without error.
+    assert MINI["duration"] == 4.0
+    s = load_scene(mini(**{"at": {"sentence": 2}, "door": "open"}), BANK,
+                   narration="One two. Three four five six.", duration=20.0)
+    resolved_at = s.shots[0].beats[0].at
+    assert resolved_at == pytest.approx(20.0 * 8 / 28)
+    assert resolved_at > MINI["duration"]
 
 
 def test_sentence_anchor_needs_narration():

@@ -341,7 +341,19 @@ def load_scene(data: dict, bank: Bank, narration: str | None = None,
     if duration is not None:
         scene = scene.model_copy(update={"duration": duration})
     scene = _resolve_anchors(scene, narration)
-    problems = _check(scene.model_copy(update={"duration": authored_duration}), bank)
+    # R15b: a *longer* narration must not false-fail a sentence anchor that resolves (against
+    # the override) past the authored end — the spec's "if the narration is longer, the last
+    # shot holds, still boiling" means the last shot's window should stretch to cover it. So
+    # check against whichever is longer. No override at all (duration is None): keep checking
+    # against the authored duration exactly, unchanged. Override given but the scene declares
+    # no authored duration (inline scene): stay unbounded, as before.
+    if duration is None:
+        check_duration = authored_duration
+    elif authored_duration is None:
+        check_duration = None
+    else:
+        check_duration = max(authored_duration, duration)
+    problems = _check(scene.model_copy(update={"duration": check_duration}), bank)
     if problems:
         raise SceneError(problems)
     return scene

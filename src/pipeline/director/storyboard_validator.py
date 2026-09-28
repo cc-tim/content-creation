@@ -439,7 +439,10 @@ def _validate_toon(scene: Scene, visual: dict) -> list[SceneValidationError]:
                        "Fix the scene file; run `uv run pipeline toon validate <scene>`.")]
     if duration is None:
         return []
-    return [_issue(scene, "warning", "visual", w, "Lengthen the narration or tighten the beats.")
+    # R16: severity must be "warn" (Severity = Literal["error", "warn"]) — everything that
+    # collects warnings (e.g. format_visual_decision_table's `issue.get("severity") == "warn"`)
+    # filters on that exact string; "warning" would silently vanish from every warning list.
+    return [_issue(scene, "warn", "visual", w, "Lengthen the narration or tighten the beats.")
             for w in scene_warnings(loaded, duration)]
 
 

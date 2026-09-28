@@ -4,9 +4,13 @@ import pytest
 
 from pipeline.composer import base
 from pipeline.composer.overlay_rules import _TEXT_VISUALS
-from pipeline.director.storyboard_validator import _validate_scene
+from pipeline.director.storyboard_validator import (
+    _validate_scene,
+    format_visual_decision_table,
+    visual_decisions_for_storyboard,
+)
 from pipeline.errors import SceneRenderError
-from pipeline.storyboard import Scene
+from pipeline.storyboard import Scene, Storyboard
 
 
 def _scene(visual, narration="One. Two.", est=13.0):
@@ -69,7 +73,24 @@ def test_validator_accepts_001_and_rejects_words(tmp_path):
 
 def test_validator_warns_when_narration_is_shorter_than_the_scene(tmp_path):
     (issue,) = _validate_scene(_scene({"type": "toon", "scene": "001-lioness-dishes"}, est=8.0), tmp_path)
-    assert issue.severity == "warning" and "cut" in issue.issue
+    assert issue.severity == "warn" and "cut" in issue.issue
+
+
+def test_toon_warning_is_picked_up_by_the_warn_severity_collector(tmp_path):
+    # R16: Severity = Literal["error", "warn"] (storyboard_validator.py:13), and
+    # format_visual_decision_table collects warnings via `issue.get("severity") == "warn"`
+    # (~line 165). A toon "warning" issue would silently vanish from that collection; "warn"
+    # must actually be picked up end to end, not just satisfy _validate_toon's own unit test.
+    sb = Storyboard(scenes=[
+        Scene(id="s1", section="content", narration="One. Two.", narration_est_sec=8.0,
+              visual={"type": "toon", "scene": "001-lioness-dishes"}),
+    ])
+
+    [decision] = visual_decisions_for_storyboard(sb, tmp_path)
+    assert decision["issues"][0]["severity"] == "warn"
+
+    table = format_visual_decision_table(sb, tmp_path)
+    assert "Validation warnings: 1" in table
 
 
 def test_render_scene_toon_missing_ffmpeg_is_a_scene_render_error(tmp_path, monkeypatch):
