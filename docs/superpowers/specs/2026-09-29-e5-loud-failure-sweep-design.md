@@ -1,9 +1,25 @@
 # Sprint 10 — E5 loud-failure sweep, part 1: no silent black scenes + one media-path resolver
 
-**Epic:** E5 (scene validation & loud failure) · **Status:** 🔵 greenlit by Tim 2026-09-29 ("do this
-now"); build next via writing-plans + subagent-driven execution · **Acceptance owner:**
+**Epic:** E5 (scene validation & loud failure) · **Status:** 🟢 shipped (EM REVIEW PASS 2026-09-29);
+greenlit by Tim 2026-09-29 ("do this now"), built via writing-plans + subagent-driven execution · **Acceptance owner:**
 engineering-manager (REVIEW gate) · **Build host:** Mac. No hub step: no goldens, no provider
 calls, no Claude calls.
+
+> **As built (EM REVIEW PASS 2026-09-29, `feat/e5-loud-failure-sweep` at `bb16aa0`).** The plan
+> (`docs/superpowers/plans/2026-09-29-e5-loud-failure-sweep.md`) corrected four errors in this
+> spec against the code; the plan binds where they differ.
+> 1. No CLI has a `--skip-overlays` flag (§5.1). The fix text says to remove or change
+>    `scene.overlay`, then `rescene`.
+> 2. `reburn` never runs ComposeStage, and `produce --start-from compose` makes a Claude QC call
+>    (§9 A4). So smoke run 3 drives `ComposeStage().run` directly.
+> 3. The review rounds added legacy-stand-in handling. A `{sid}_black.mp4` marker is dropped on
+>    cache hit, and `reburn` refuses while one exists. `restore` also uses
+>    `scene_final_cache_paths`.
+> 4. §6's deferral premise for atomic writes, "I1's cleanup covers the failure case", is wrong
+>    for SIGTERM and Ctrl-C.
+>    - Today the cache probe checks both files, so a torn write refuses once and then
+>      re-renders. That is loud, never black.
+>    - Atomic writes are ROADMAP E5 part 1b.
 
 ---
 

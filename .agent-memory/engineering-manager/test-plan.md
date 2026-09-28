@@ -13,11 +13,11 @@ Status legend: `✅ passing` · `❌ failing` · `🔲 planned (test not yet wri
 `⏸️ deferred`. Skill-managed; git-tracked like `charter.md` / `standards.md`.
 
 **Run-all command (smoke before any REVIEW verdict):**
-`uv run pytest tests/unit/test_chart.py tests/unit/test_chart_anim.py tests/unit/test_callout.py tests/unit/test_style_manifest.py tests/director/test_storyboard_validator.py tests/unit/test_cli_validate.py tests/unit/toon tests/unit/test_composer_toon.py -q`
+`uv run pytest tests/unit/test_chart.py tests/unit/test_chart_anim.py tests/unit/test_callout.py tests/unit/test_style_manifest.py tests/director/test_storyboard_validator.py tests/unit/test_cli_validate.py tests/unit/toon tests/unit/test_composer_toon.py tests/unit/test_compose_v2.py tests/unit/test_image_sequence.py tests/unit/test_media_paths.py tests/unit/test_loud_failure_fence.py tests/unit/test_cli_compose.py tests/unit/test_clip_renderer.py tests/director/still_gate -q`
 then `uv run ruff check src/ tests/ && uv run mypy src/`.
 Toon integration (run on the hub for goldens + parity + cadence):
 `uv run pytest --integration tests/integration/toon tests/unit/toon tests/unit/test_composer_toon.py tests/unit/test_cli_doctor.py -q`.
-E10 LLM facade, once `feat/llm-cli-backend` is merged:
+E10 LLM facade (merged to master `2add7c2`, 2026-09-29):
 `uv run pytest tests/unit/test_llm.py tests/unit/test_llm_guard.py tests/unit/test_llm_call_sites.py tests/unit/test_conftest_tripwire.py tests/unit/test_direct_metadata.py tests/unit/test_direct.py tests/unit/test_analyze.py tests/unit/test_config.py tests/unit/test_cli_doctor.py -q`.
 The real-CLI half, `uv run pytest --integration tests/integration/test_llm_cli.py -q`, spends a
 trivial amount of subscription quota: 3 Haiku calls.
@@ -105,30 +105,51 @@ trivial amount of subscription quota: 3 Haiku calls.
 | **Sprint 7 — deterministic overflow/clipping (ex-check-4)** — laid-out text bbox vs inner-panel inset fires on s25-style clip | _superseded — covered by the Layer-2 vision pass; the novel text-bbox instrumentation was high-risk/low-verifiability here_ | ⏸️ superseded by Layer-2 |
 | **Sprint 7 — overlay-variant field at gen-time (piece C)** — single-source-of-truth with `context.json` `preferred_variant`, authoritative pre-TTS | `tests/director/still_gate/` (variant) — when built | ⏸️ deferred (the gate currently reads existing `preferred_variant` via `resolve_variant`; moving the decision to gen-time is NOT done — and is one of the fix options for the BLOCKING row above) |
 
-### E5 Sprint 10 — loud-failure sweep, part 1 🔵 (greenlit 2026-09-29)
+### E5 Sprint 10 — loud-failure sweep, part 1 🟢 (EM REVIEW PASS 2026-09-29, `bb16aa0`)
 
 Spec: `docs/superpowers/specs/2026-09-29-e5-loud-failure-sweep-design.md` (§9 acceptance, §10
-tests). Every row gates PASS. Each test is committed **red on base `3693b09`** before its fix.
-EM probes already showed T1, T2, T5 and T9 red on master (2026-09-29, scratch copy). Add the new
-test files to the run-all command at PASS.
+tests). Every row was run by the EM at REVIEW on the Mac worktree. The red-first ledger is in
+`docs/superpowers/plans/2026-09-29-e5-loud-failure-sweep.md`.
+
+"Mutation → red" means the EM broke that fence in a `git archive` scratch copy of `bb16aa0` and
+the named test failed. 18 of 18 went red; the scratch source matched HEAD afterwards.
 
 | Capability | Test | Status |
 |------------|------|--------|
-| T1: a generic visual failure refuses assembly; the reason names the `visual` step and the exception; no `s1_final*.mp4`, no `s1_black.mp4` | `tests/unit/test_compose_v2.py::test_generic_visual_failure_refuses_assembly_without_black` | 🔲 planned |
-| T2: an overlay-rule collision (`text_top` on a `text_card`, real `check_overlay_allowed`) refuses assembly with the collision reason | `tests/unit/test_compose_v2.py::test_overlay_rule_violation_refuses_assembly` | 🔲 planned |
-| T3: a compartment failure refuses assembly (no silent drop) | `tests/unit/test_compose_v2.py::test_compartment_failure_refuses_assembly` | 🔲 planned |
-| T4: a post-visual failure on a framed scene raises `SceneRenderError` and leaves neither frame-suffixed cache path | `tests/unit/test_compose_v2.py::test_render_one_scene_post_visual_failure_raises_and_leaves_no_cache` | 🔲 planned |
-| T5: an exception escaping `_render_one_scene` leaves no cached black stand-in | `tests/unit/test_compose_v2.py::test_escaped_scene_exception_leaves_no_cached_black` | 🔲 planned |
-| T6: a refused compose re-run doesn't cache-hit; it renders again and refuses again | `tests/unit/test_compose_v2.py::test_refused_compose_rerun_does_not_cache_hit` | 🔲 planned |
-| T7: a failed `image_sequence` image raises `SceneRenderError` naming the image and the provider error; no black lavfi source | `tests/unit/test_image_sequence.py::test_failed_image_raises_scene_render_error_not_black` | 🔲 planned |
-| T8: one media-path resolver (absolute / project / repo / cwd / missing / expanduser / dedupe), and the validator and renderers agree on project-relative clip and image paths | `tests/unit/test_media_paths.py` | 🔲 planned |
-| T9: a project-relative clip renders from the project root end to end (the Sprint 9 smoke defect) | `tests/unit/test_compose_v2.py::test_project_relative_clip_renders_from_project_root` | 🔲 planned |
-| T10: the still-gate forwards `project_root` to `render_scene` | `tests/director/still_gate/test_render.py::test_render_scene_still_forwards_project_root` | 🔲 planned |
-| T11: fence: no `_black_screen` / `_black_clip`; `color=c=black` only inside `_silence_gap` (AST); no `Path.cwd()` in clip / refit / compose / validator | `tests/unit/test_loud_failure_fence.py` | 🔲 planned |
-| Red-first holds: the EM re-adds the black fallback → T1, T2 and T11 go red; restores the cwd resolver → T8 and T9 go red | EM mutation in a `git archive` scratch copy | 🔲 planned |
-| Live fault-injection smoke (Mac, scratch `PIPELINE_OUTPUT_DIR`): assembles with a non-black project-relative clip → a corrupt clip refuses with step, reason and fix, and leaves no `s1_final*` → re-run refuses again → restored file assembles → an overlay collision refuses | manual evidence `tmp/e5-sweep/smoke/` | 🔲 planned |
-| Hub path audit: no clip or article_image path in any hub storyboard resolves differently under the new resolver | EM-run read-only script on the hub | 🔲 planned |
-| Regression suites green (compose_v2, validator, refit, still_gate, cli_compose*, clip_renderer, compose_dup_guard, composer_base, composer_toon, chart); full suite 0 failed; ruff and mypy clean | `uv run pytest -q` + ruff + mypy | 🔲 planned |
+| T1: a generic visual failure refuses assembly; the reason names the `visual` step and the exception; no `s1_final*.mp4`, no `s1_black.mp4` | `tests/unit/test_compose_v2.py::test_generic_visual_failure_refuses_assembly_without_black` | ✅ (mutation → red: black fallback re-added) |
+| T2: an overlay-rule collision (`text_top` on a `text_card`, real `check_overlay_allowed`) refuses assembly with the collision reason | `tests/unit/test_compose_v2.py::test_overlay_rule_violation_refuses_assembly` | ✅ (mutation → red: black fallback re-added) |
+| T3: a compartment failure refuses assembly (no silent drop) | `tests/unit/test_compose_v2.py::test_compartment_failure_refuses_assembly` | ✅ (mutation → red: compartment exception suppressed) |
+| T4: a post-visual failure on a framed scene raises `SceneRenderError` and leaves neither frame-suffixed cache path | `tests/unit/test_compose_v2.py::test_render_one_scene_post_visual_failure_raises_and_leaves_no_cache` | ✅ (mutation → red: black fallback re-added) |
+| T5: an exception escaping `_render_one_scene` leaves no cached black stand-in | `tests/unit/test_compose_v2.py::test_escaped_scene_exception_leaves_no_cached_black` | ✅ (mutation → red: gather loop writes black; gather cleanup removed) |
+| T6: a refused compose re-run doesn't cache-hit; it renders again and refuses again | `tests/unit/test_compose_v2.py::test_refused_compose_rerun_does_not_cache_hit` | ✅ (mutation → red: black fallback re-added) |
+| T7: a failed `image_sequence` image raises `SceneRenderError` naming the image and the provider error; no black lavfi source | `tests/unit/test_image_sequence.py::test_failed_image_raises_scene_render_error_not_black` | ✅ (mutation → red: the failed image silently skipped) |
+| T8: one media-path resolver (absolute / project / repo / cwd / missing / expanduser / dedupe), and the validator and renderers agree on project-relative clip and image paths | `tests/unit/test_media_paths.py` (11 tests) | ✅ (mutation → red: clip cwd resolver restored; refit raw path; no repo-root candidate) |
+| T9: a project-relative clip renders from the project root end to end (the Sprint 9 smoke defect) | `tests/unit/test_compose_v2.py::test_project_relative_clip_renders_from_project_root` | ✅ (mutation → red: clip cwd resolver restored) |
+| T10: the still-gate forwards `project_root` to `render_scene` | `tests/director/still_gate/test_render.py::test_render_scene_still_forwards_project_root` | ✅ (mutation → red: forwarding dropped) |
+| T11: fence: no `_black_screen` / `_black_clip`; `color=c=black` only inside `_silence_gap` (AST); no `Path.cwd()` in clip / refit / compose / validator | `tests/unit/test_loud_failure_fence.py` (3 tests) | ✅ (mutation → red: black fallback re-added; a new black source in `text_card.py`; clip and validator cwd resolvers restored) |
+| Red-first holds: the EM re-adds the black fallback → T1, T2 and T11 go red; restores the cwd resolver → T8 and T9 go red | EM mutation in a `git archive` scratch copy | ✅ Black fallback (P1+P2) → T1, T2, T4, T6, T11b, T11c red. cwd resolver → T8, T9, T11a red. Also: re-run at red commit `a7a113b` → 9 failed; `045c5d6` and `54b3f69` red |
+| Live fault-injection smoke (Mac, scratch `PIPELINE_OUTPUT_DIR`): assembles with a non-black project-relative clip → a corrupt clip refuses with step, reason and fix, and leaves no `s1_final*` → re-run refuses again → restored file assembles → an overlay collision refuses | manual evidence `tmp/e5-sweep/smoke/` (builder, `f4f0854`) + `tmp/e5-sweep/smoke/em-review-bb16aa0/` (EM re-run at HEAD) | ✅ 5 of 5 at `bb16aa0`; s1 luma 124.4 (testsrc bars, eyeballed). The builder's `PIPELINE_CLAUDE_BIN` tripwire was vacuous (the branch predates E10). No Claude call happened by construction: there is no source video |
+| Hub path audit: no clip or article_image path in any hub storyboard resolves differently under the new resolver | EM-run read-only script on the hub (the hub's `git status` was unchanged) | ✅ 18 storyboards in 12 projects; 42 `article_image.path`, 22 `refit_path` and 6 `clip.path` fields; **0 disagreements** for existing files. The 3 `TBD/` placeholders differ only in the path the error names (the validator blocks them) |
+| Regression suites green (compose_v2, validator, refit, still_gate, cli_compose*, clip_renderer, compose_dup_guard, composer_base, composer_toon, chart); full suite 0 failed; ruff and mypy clean | `uv run pytest -q` + ruff + mypy | ✅ Touched suites 157 passed / 8 skipped (environment and golden-policy skips only). Branch 1378 passed / 59 skipped. **Merged tree** (post-E10 master `2add7c2` + branch) 1440 / 62. ruff clean; mypy clean (160 files on the branch, 161 merged) |
+
+**Regressions added by the build's review rounds** (red first, in the ledger; the EM ran and
+mutation-checked each):
+
+| Capability | Test | Status |
+|------------|------|--------|
+| RF1: an unreadable cached scene is deleted and refused as `cached scene` | `tests/unit/test_compose_v2.py::test_unreadable_cached_scene_is_deleted_and_refused` | ✅ |
+| RF2: an ffmpeg failure in the second mux leaves neither cache file; the reason carries the stderr tail | `tests/unit/test_compose_v2.py::test_second_mux_failure_leaves_neither_cache_file` | ✅ (mutation → red: I1 cleanup removed) |
+| RF3: several failed scenes are all named; a good `s10` stays cached | `tests/unit/test_compose_v2.py::test_several_failed_scenes_all_reported_and_good_scene_stays_cached` | ✅ |
+| RF4: a rerun after a failed image regenerates only that image | `tests/unit/test_image_sequence.py::test_rerun_after_failed_image_regenerates_only_that_image` | ✅ (mutation → red: the failed image skipped) |
+| RF5: `storyboard still-gate` with cwd elsewhere renders a project-relative `article_image` | `tests/director/still_gate/test_cli.py::test_still_gate_resolves_project_relative_image_with_cwd_elsewhere` | ✅ (mutation → red: refit raw path; still-gate forwarding dropped) |
+| RF6: a legacy `{sid}_black.mp4` marker is dropped on cache hit; the scene re-renders | `tests/unit/test_compose_v2.py::test_legacy_black_standin_dropped_and_rerendered` | ✅ (mutation → red: marker ignored). Live: EM smoke run 7 |
+| RF7: the cache-hit gate probes **both** cached files; a truncated `no_overlay` file forces a re-render | `tests/unit/test_compose_v2.py::test_unreadable_no_overlay_cache_file_forces_rerender` | ✅ (mutation → red: probe only `scene_final`). Live: EM smoke run 8 |
+| RF8: `reburn` refuses while legacy black markers exist | `tests/unit/test_cli_compose.py::test_reburn_refuses_when_legacy_black_standins_exist` | ✅ (mutation → red: refusal removed). Live: EM smoke run 6; proceeds after the rebuild |
+| RF9: refusal text has no doubled scene-id prefix | `tests/unit/test_compose_v2.py::test_scene_failure_reason_has_no_duplicate_scene_id_prefix` | ✅ (mutation → red) |
+| RF10: image_sequence's `suggested_fix` names the real project id | `tests/unit/test_image_sequence.py::test_failed_image_suggested_fix_uses_real_project_id` | ✅ (mutation → red) |
+| RF11: `restore` invalidates the frame-suffixed cache finals too | `tests/unit/test_cli_compose.py::test_restore_invalidates_frame_suffixed_cache_variants` | ✅ (mutation → red) |
+| C1/C2: a missing clip source raises `SceneRenderError` listing the candidates it tried (was `FileNotFoundError`) | `tests/unit/test_clip_renderer.py` (`test_render_clip_no_source`, `test_render_clip_missing_path_lists_the_candidates_it_tried`) | ✅ |
+| Part 1b (planned, not built): an interrupted scene-cache write never leaves a file where the cache check reads (temp file + `os.replace`) | _(test TBD, e.g. a kill-mid-mux test)_ | 🔲 planned (ROADMAP Later, top) |
 
 ## E6 — Compose efficiency / dashboard 🟡 (partly in flight)
 
@@ -228,7 +249,7 @@ elsewhere with a counted reason, and minted with `UPDATE_GOLDENS=1` on the hub o
 | Non-goal fence (spec §1): the bank holds only picked items (no campfire, no unpicked items), and `assets/toon/scenes/` holds only `001-lioness-dishes.yaml` (no EP1 scenes) | `tests/unit/toon/test_scene_001.py` + `tests/unit/toon/test_bank.py::test_v0_bank_holds_exactly_the_picked_items` + diff | ✅ (re-checked at REVIEW 3) |
 | Full suite collects and passes with `src/toon` packaged (`cairocffi` in deps, `src/toon` in hatch `packages`); `ruff check src/ tests/` and `mypy src/` clean | `uv run pytest -q` + ruff + mypy | ✅ REVIEW 3 at `2f6fb35`: hub 1380 passed / 22 skipped / 0 failed (its first run hit the unrelated trust-gate flake, see arsenal-state); Mac 1343 / 59 / 0; ruff clean; mypy clean (159 files) on both machines |
 
-## E10 — Claude calls on the subscription 🔵 (v1 built on `feat/llm-cli-backend` at `f13c783`; REVIEW 2026-09-29 = ADVISE, cleared to merge; 🟢 after F1 + F2)
+## E10 — Claude calls on the subscription 🔵 (REVIEW 2026-09-29 = ADVISE at `f13c783`; merged to master `2add7c2` with F1 `09fa1c6` + F2 `b51efb3`; 🟢 after the EM re-runs and mutation-checks the F1/F2 rows)
 
 Spec: `docs/superpowers/specs/2026-09-29-claude-cli-llm-backend-design.md` (Tim approved the
 written spec: "looks good, proceed"). The rows come from spec §5 (tests) and §6 (done criteria).
