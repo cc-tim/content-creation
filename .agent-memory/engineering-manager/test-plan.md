@@ -13,8 +13,10 @@ Status legend: `✅ passing` · `❌ failing` · `🔲 planned (test not yet wri
 `⏸️ deferred`. Skill-managed; git-tracked like `charter.md` / `standards.md`.
 
 **Run-all command (smoke before any REVIEW verdict):**
-`uv run pytest tests/unit/test_chart.py tests/unit/test_chart_anim.py tests/unit/test_callout.py tests/unit/test_style_manifest.py tests/director/test_storyboard_validator.py tests/unit/test_cli_validate.py -q`
+`uv run pytest tests/unit/test_chart.py tests/unit/test_chart_anim.py tests/unit/test_callout.py tests/unit/test_style_manifest.py tests/director/test_storyboard_validator.py tests/unit/test_cli_validate.py tests/unit/toon tests/unit/test_composer_toon.py -q`
 then `uv run ruff check src/ tests/ && uv run mypy src/`.
+Toon integration (run on the hub for goldens + parity + cadence):
+`uv run pytest --integration tests/integration/toon tests/unit/toon tests/unit/test_composer_toon.py tests/unit/test_cli_doctor.py -q`.
 
 ## E1 — Charts (static) 🟢
 
@@ -154,55 +156,48 @@ determinism tests everywhere.
 | (B) Mac real-scene: s11/s31/s24 frames show Noto TC glyphs (no tofu, not PingFang), layout matches hub | manual evidence `tmp/e8-fonts/mac/` | 🔲 planned |
 | (B, informational — does not gate) Mac `PIPELINE_GOLDEN_STRICT=1` golden match result | recorded in sprint-log | ⏸️ informational |
 
-## E9 — Toon engine & resource bank 🔵 (Sprint 9 = v0; EM REVIEW 2026-09-28 = REWORK: 3 test gaps, now closed; hub-pass re-REVIEW 2026-09-28 = REWORK: R1 fps judder + R2 doctor hint assertion)
+## E9 — Toon engine & resource bank 🟢 v0 SHIPPED (Sprint 9; EM REVIEW PASS 2026-09-28, master `2f6fb35`, after two REWORK rounds)
 
-Spec: `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md` (§8 is the source for these
-rows; the duration-fence row comes from §5 and the cache row from §6). **One REVIEW, and every
-row gates PASS**, including the hub rows (the EM re-runs them on the hub) and Tim's scene-001
-confirmation. Golden policy follows E8: hub-canonical, compared on linux only via
-`tests/golden_policy.py`, skipped elsewhere with the counted reason, minted with
-`UPDATE_GOLDENS=1` on the hub only. Determinism tests run everywhere and must pass before any
-golden is minted.
+Spec: `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md`. §8 is the source for these
+rows; the duration-fence row comes from §5 and the cache row from §6. The golden policy follows
+E8: goldens are hub-canonical, compared on linux only via `tests/golden_policy.py`, skipped
+elsewhere with a counted reason, and minted with `UPDATE_GOLDENS=1` on the hub only.
 
-**REVIEW 2026-09-28 (Mac, EM-run):** paths below are reconciled to the as-built tests
-(`tests/unit/toon/`, not the planned `tests/toon/`). Status key for this sprint:
-- "green, ✅ at PASS" means the EM ran it green. It flips to ✅ only when the sprint PASSes.
-- ❌ is a REWORK gap.
-- 🔲 hub means the row waits for the hub pass.
-- ⏸️ is a descope that needs Tim's ack.
-
-**Re-REVIEW 2026-09-28 (hub pass, master `af00aa9`, EM-run on both machines):** the three
-REWORK gaps are closed. The EM mutation-checked the draw-order tests: each disabled rule turns
-its test red. Two new gaps remain:
-- **R1:** the compose smoke shows 24→30 fps judder.
-- **R2:** the doctor FAIL-path test doesn't pin the install hint.
-
-The two deferrals are Tim-acked, so they no longer gate.
-
-At PASS, add `tests/unit/toon tests/unit/test_composer_toon.py` to the run-all command.
+**History:**
+- REVIEW 1 (Mac, feature branch) = REWORK: three test gaps.
+- REVIEW 2 (hub pass, `af00aa9`) = REWORK:
+  - R1: 24→30 fps judder in compose;
+  - R2: the doctor-hint assertion.
+- REVIEW 3 (`2f6fb35`, EM-run on both machines) = **PASS**. Every row below is ✅, except
+  two Tim-acked ⏸️ deferrals that don't gate.
+- The R1/R2 fixes were mutation-checked by the EM in a `git archive` scratch copy:
+  - bank fps 24 → the guard and cadence tests go red;
+  - `COMPOSE_FPS` 25 → the guard goes red;
+  - doctor hint deleted → the doctor test goes red;
+  - restored → all green.
 
 | Capability | Test | Status |
 |------------|------|--------|
-| Bank loader: every v0 YAML under `assets/toon/bank/` loads into a typed `Bank`; every item carries `picked:` provenance; a missing or unknown field fails with the file and the field path | `tests/unit/toon/test_bank.py` | green, ✅ at PASS |
-| Scene validation: an unknown bank item / set spot / camera / icon name → error naming the scene file and the path inside it | `tests/unit/toon/test_scene.py` | path: green, ✅ at PASS · scene-file name: ⏸️ deferred to E9 item 2b (Tim acked 2026-09-28; does not gate) |
-| Wordless rule (locale-portability fence in code): any free-text field or unknown field in a scene → error; graphics, bubbles and screens accept icon-registry names only | `tests/unit/toon/test_scene.py` + `tests/unit/toon/test_kit.py::test_engine_and_kit_draw_no_text` | green, ✅ at PASS (a few non-text timing and flicker fields are still ignored; not a wordless breach; E9 item 2a) |
-| Timing: a beat outside its shot → error; `at: {sentence: n}` anchors resolve (narration split into sentences, audio duration shared out by character count) | `tests/unit/toon/test_scene.py` | green, ✅ at PASS |
-| **Two-axes fence (spec §5):** the rendered toon clip lasts exactly as long as the narration. Narration longer → the last shot holds, still boiling. Narration shorter than the last beat → load warning, and the clip is cut at the narration's end. A toon scene cannot extend runtime | `tests/unit/toon/test_scene.py` + `tests/unit/test_composer_toon.py` + `tests/unit/toon/test_render.py::test_clip_has_exact_frame_count_and_cache_hits` (`--integration`) | green, ✅ at PASS |
-| Engine: projection and IK maths; draw-order cases from the tryout (desk between camera and character or not; arms raised behind the head); the per-shot layer override is honoured | `tests/unit/toon/test_engine_math.py` + `tests/unit/toon/test_character.py` + `tests/unit/toon/test_order.py` | green, ✅ at PASS. Draw order: 4 tests (`b0924d4`). EM mutation check 2026-09-28 in a scratch copy: disabling the arm tuck, the desk mid-layer sandwich or the `layer: low` override each turns its test red; restored → green |
-| Determinism: `frame(scene, bank, t)` rendered twice gives identical bytes, and identical bytes again from a worker process; no global random state (boil seeds from item keys + `floor(t·12)`) | `tests/unit/toon/test_render.py` (`test_frame_is_deterministic`, `test_parallel_equals_serial`) + `tests/unit/toon/test_pen.py` | green, ✅ at PASS |
-| Clip cache key (spec §6) covers the scene file, the bank files it uses, the `src/toon` sources and the engine version: editing a used bank YAML or an engine source re-renders | `tests/unit/toon/test_render.py` | green, ✅ at PASS |
-| **Golden frames, hub-only:** a few scene-001 key frames plus the Tim model sheet via `assert_matches_golden`; skipped off-linux with the hub-canonical reason; minted on the hub only, each golden eyeballed, hub cairo version recorded next to the fixtures | `tests/unit/toon/test_goldens.py` + `tests/fixtures/toon/goldens/` | green, ✅ at PASS. Hub compare 4/4 (3 scene-001 frames + the model sheet) with `UPDATE_GOLDENS` unset; libcairo 1.18.0 recorded in `PROVENANCE.md`; the EM eyeballed all four. If R1 goes with option B (drawing rate 15), re-mint and re-compare. Informational: under Mac strict compare, s001@1.5 is off by 1 px / 1 LSB, so `PROVENANCE.md`'s "byte-identical" claim needs correcting |
-| Pipeline adapter: `render_scene` dispatches `toon` for both a `scene:` reference and inline `shots`; any load/render failure raises `SceneRenderError` with a `suggested_fix` (no `text_card` fallback, no cached black stand-in); `toon` is **not** in `overlay_rules._TEXT_VISUALS` (narration subtitle kept) | `tests/unit/test_composer_toon.py` + `tests/unit/test_compose_v2.py::test_scene_render_error_leaves_no_cached_black_fallback` | green, ✅ at PASS |
-| Storyboard validator `toon` branch: a storyboard toon scene with a bad bank name or a free-text field fails at the review gate (`pipeline validate` exit 2) | `tests/unit/test_composer_toon.py` (validator cases) + EM live run | green, ✅ at PASS (EM ran `pipeline validate` on a 3-scene storyboard: exit 2 on a wordless bubble and a bad `boil`; 001 at 13 s clean) |
-| CLI `pipeline toon validate\|render\|sheet` is registered on the pipeline CLI; `validate` exits 0 when clean and non-zero on errors; `sheet` writes the bank review sheets (model sheet, pose and prop contact sheets) | `tests/unit/toon/test_cli.py` | validate/render/sheet (model sheet): green, ✅ at PASS · pose/prop contact sheets: ⏸️ deferred to E9 item 2d (Tim acked 2026-09-28; does not gate) |
-| `pipeline doctor` toon check: cairo loads and a one-frame smoke render works; a missing cairo gives a loud FAIL with a platform `suggested_fix` | `tests/unit/toon/test_cli.py::test_check_toon_passes_here` + `tests/unit/test_cli_doctor.py::test_check_toon_fails_with_install_hint_when_cairo_is_missing` | pass path: green · FAIL path: `ok=False` pinned, **install hint ❌ not pinned** (R2). The test asserts `"libcairo" in detail`, but the injected exception text already contains `libcairo`. The EM deleted the hint from `check_toon` and the test still passed |
-| `pipeline doctor` toon check passes (exit 0) **on both machines** | `tmp/toon-v0/mac/doctor.txt` (EM-run) + `tmp/toon-v0/hub/doctor.txt` (EM runs) | green, ✅ at PASS: Mac 17/17 (cairo 1.18.4), hub 17/17 (cairo 1.18.0), both EM-run 2026-09-28 at `af00aa9` |
-| **Pipeline smoke (hub):** a two-scene storyboard (a `clip` plus a `toon` scene) composes end to end; the final contains both scenes with subtitles, the toon segment matches its narration length, and the 24↔30 fps join doesn't visibly judder | manual evidence hub `tmp/toon-v0/compose-smoke/` + Mac `tmp/toon-v0/compose-smoke/REPORT.md` (plan Task 10 Step 6; replaces the planned `test_toon_compose_smoke.py`) | validate exit 0; compose; duration (toon `s2_final` 13.440 s = narration); zh-TW subtitles kept; no black segment: green · **24↔30 fps judder: ❌** (R1). The EM measured the whole toon segment of the hub final: the raw 24 fps render is clean, and the 30 fps final repeats every 5th frame, so the camera freezes 6×/s |
-| **R1 fps fence:** the toon clip renders at the compose concat rate; a test fails if either rate changes alone | `tests/unit/test_composer_toon.py` (`test_toon_fps_matches_compose_concat`) | 🔲 planned (R1) |
-| **R1 cadence, measurable judder:** a scene-001 shot-1 camera push, rendered by the adapter and run through the concat's `fps=30` normalisation, has no repeated camera step. The test must be red on today's 24 fps | `tests/integration/toon/test_cadence.py` (`--integration`) | 🔲 planned (R1) |
-| **Acceptance: scene 001 (real-scene demo, gating):** `assets/toon/scenes/001-lioness-dishes.yaml` renders a clip that matches `output/own-show/scenes/001-lioness-dishes/animatic_v2_bulb.mp4` in shots, timing and look (key-frame side-by-side), and **Tim confirms it still meets his bar** | `tests/integration/toon/test_parity_001.py` (`--integration`) + `tmp/toon-v0/scene001/side_*.png` + Tim's words in the sprint-log | green, ✅ at PASS. Parity worst 0.0435 (limit 0.5), EM-run 2026-09-28, side-by-sides eyeballed. Tim, 2026-09-28: "looks good", with the trembling caveat, which became boil modes (soft default, his pick) |
-| Non-goal fence (spec §1): the bank holds only picked items (no campfire, no unpicked items), and `assets/toon/scenes/` holds only `001-lioness-dishes.yaml` (no EP1 scenes) | `tests/unit/toon/test_scene_001.py` + `tests/unit/toon/test_bank.py::test_v0_bank_holds_exactly_the_picked_items` + diff | green, ✅ at PASS. Deviations accepted: laptop/mug are set elements, phone deferred, `glum`/`stand_sink_idle` from scene 001 |
-| Full suite collects and passes with `src/toon` packaged (`cairocffi` in deps, `src/toon` in hatch `packages`); `ruff check src/ tests/` and `mypy src/` clean | `uv run pytest -q` + ruff + mypy | green, ✅ at PASS. EM-run 2026-09-28 at `af00aa9`: hub 1379 passed / 21 skipped / 0 failed; Mac 1342 passed / 58 skipped / 0 failed; ruff clean; mypy clean (159 files) on both machines |
+| Bank loader: every v0 YAML under `assets/toon/bank/` loads into a typed `Bank`; every item carries `picked:` provenance; a missing or unknown field fails with the file and the field path | `tests/unit/toon/test_bank.py` | ✅ |
+| Scene validation: an unknown bank item / set spot / camera / icon name → error naming the scene file and the path inside it | `tests/unit/toon/test_scene.py` | path: ✅ · scene-file name: ⏸️ deferred to E9 item 2b (Tim acked 2026-09-28; does not gate) |
+| Wordless rule (locale-portability fence in code): any free-text field or unknown field in a scene → error; graphics, bubbles and screens accept icon-registry names only | `tests/unit/toon/test_scene.py` + `tests/unit/toon/test_kit.py::test_engine_and_kit_draw_no_text` | ✅ (a few non-text timing and flicker fields are still ignored; not a wordless breach; E9 item 2a) |
+| Timing: a beat outside its shot → error; `at: {sentence: n}` anchors resolve (narration split into sentences, audio duration shared out by character count) | `tests/unit/toon/test_scene.py` | ✅ |
+| **Two-axes fence (spec §5):** the rendered toon clip lasts exactly as long as the narration. Narration longer → the last shot holds, still boiling. Narration shorter than the last beat → load warning, and the clip is cut at the narration's end. A toon scene cannot extend runtime | `tests/unit/toon/test_scene.py` + `tests/unit/test_composer_toon.py` + `tests/unit/toon/test_render.py::test_clip_has_exact_frame_count_and_cache_hits` (`--integration`; 38 frames = round(1.25 s × 30)) | ✅ |
+| Engine: projection and IK maths; draw-order cases from the tryout (desk between camera and character or not; arms raised behind the head); the per-shot layer override is honoured | `tests/unit/toon/test_engine_math.py` + `tests/unit/toon/test_character.py` + `tests/unit/toon/test_order.py` | ✅ (draw order mutation-checked 3/3 at REVIEW 2) |
+| Determinism: `frame(scene, bank, t)` rendered twice gives identical bytes, and identical bytes again from a worker process; no global random state (boil seeds from item keys + `floor(t·12)`) | `tests/unit/toon/test_render.py` (`test_frame_is_deterministic`, `test_parallel_equals_serial`) + `tests/unit/toon/test_pen.py` | ✅ (plus: `frame(t)` is byte-identical at bank fps 24 and 30, EM-checked at REVIEW 3) |
+| Clip cache key (spec §6) covers the scene file, the bank files it uses, the `src/toon` sources, the engine version and `fps`: editing a used bank YAML or an engine source re-renders | `tests/unit/toon/test_render.py` | ✅ |
+| **Golden frames, hub-only:** three scene-001 key frames plus the Tim model sheet via `assert_matches_golden`; skipped off-linux with the hub-canonical reason; minted on the hub only and eyeballed; hub cairo version recorded next to the fixtures | `tests/unit/toon/test_goldens.py` + `tests/fixtures/toon/goldens/` | ✅ Hub 4/4 with `UPDATE_GOLDENS` unset, no fixture churn (REVIEW 3). `PROVENANCE.md` corrected: the Mac differs by 1 px / 1 level on `s001_01.50` only (informational) |
+| Pipeline adapter: `render_scene` dispatches `toon` for both a `scene:` reference and inline `shots`; any load/render failure raises `SceneRenderError` with a `suggested_fix` (no `text_card` fallback, no cached black stand-in); `toon` is **not** in `overlay_rules._TEXT_VISUALS` (narration subtitle kept) | `tests/unit/test_composer_toon.py` + `tests/unit/test_compose_v2.py::test_scene_render_error_leaves_no_cached_black_fallback` | ✅ |
+| Storyboard validator `toon` branch: a storyboard toon scene with a bad bank name or a free-text field fails at the review gate (`pipeline validate` exit 2) | `tests/unit/test_composer_toon.py` (validator cases) + EM live run | ✅ |
+| CLI `pipeline toon validate\|render\|sheet` is registered on the pipeline CLI; `validate` exits 0 when clean and non-zero on errors; `sheet` writes the bank review sheets (model sheet, pose and prop contact sheets) | `tests/unit/toon/test_cli.py` | validate/render/sheet (model sheet): ✅ · pose/prop contact sheets: ⏸️ deferred to E9 item 2d (Tim acked 2026-09-28; does not gate) |
+| `pipeline doctor` toon check: cairo loads and a one-frame smoke render works; a missing cairo gives a loud FAIL with a platform `suggested_fix` | `tests/unit/toon/test_cli.py::test_check_toon_passes_here` + `tests/unit/test_cli_doctor.py::test_check_toon_fails_with_install_hint_when_cairo_is_missing` | ✅ (R2 fixed: the test injects `OSError("dlopen failed")` and asserts `brew install cairo` + `libcairo2`; it goes red with the hint deleted) |
+| `pipeline doctor` toon check passes (exit 0) **on both machines** | EM-run doctor, both machines | ✅ Mac 17/17 (cairo 1.18.4), hub 17/17 (cairo 1.18.0), REVIEW 3 at `2f6fb35` |
+| **Pipeline smoke (hub):** a two-scene storyboard (a `clip` plus a `toon` scene) composes end to end; the final contains both scenes with subtitles; the toon segment matches its narration length; the join into compose's concat doesn't judder | manual evidence, hub `tmp/toon-v0/compose-smoke/` (`rescene-30fps.log`, `judder-30fps.txt`) + EM probe `/tmp/em-judder.sh` | ✅ (REVIEW 3) `toon_s2` 30/1, 403 frames = 13.433 s against 13.44 s of narration. EM whole-segment probe: the final tracks the raw cadence step for step (corr 0.93); every moving step keeps ≥72% of its raw size (median 88%); no introduced duplicates; zh-TW subtitles kept |
+| **R1 fps fence:** the toon clip renders at the compose concat rate; a test fails if either rate changes alone | `tests/unit/test_composer_toon.py::test_toon_fps_matches_compose_concat` | ✅ (mutation-checked in both directions) |
+| **R1 cadence, measurable judder:** a scene-001 shot-1 camera push, rendered at the bank fps and run through compose's exact concat normalisation, has no near-duplicate step; red on 24 fps | `tests/integration/toon/test_cadence.py` (`--integration`) | ✅ Green on both machines. EM mutation to 24: red, 8/45 steps at 1, 6, 11, …, 36 (every 5th). Rendered via `render_frames`, not the adapter; the adapter's 30 fps is pinned by the 38-frame count test and the hub smoke's ffprobe |
+| **Acceptance: scene 001 (real-scene demo, gating):** `assets/toon/scenes/001-lioness-dishes.yaml` renders a clip that matches `output/own-show/scenes/001-lioness-dishes/animatic_v2_bulb.mp4` in shots, timing and look (key-frame side-by-side), and **Tim confirms it still meets his bar** | `tests/integration/toon/test_parity_001.py` (`--integration`) + `tmp/toon-v0/scene001/side_*.png` + Tim's words in the sprint-log | ✅ Parity worst **0.058** (12.2 s; limit 0.5), unchanged since `c29fc52`; the earlier "0.0435" was an EM mis-record. Tim 2026-09-28: "looks good" (trembling → soft boil), then picked 30 fps / drawings 12/s |
+| Non-goal fence (spec §1): the bank holds only picked items (no campfire, no unpicked items), and `assets/toon/scenes/` holds only `001-lioness-dishes.yaml` (no EP1 scenes) | `tests/unit/toon/test_scene_001.py` + `tests/unit/toon/test_bank.py::test_v0_bank_holds_exactly_the_picked_items` + diff | ✅ (re-checked at REVIEW 3) |
+| Full suite collects and passes with `src/toon` packaged (`cairocffi` in deps, `src/toon` in hatch `packages`); `ruff check src/ tests/` and `mypy src/` clean | `uv run pytest -q` + ruff + mypy | ✅ REVIEW 3 at `2f6fb35`: hub 1380 passed / 22 skipped / 0 failed (its first run hit the unrelated trust-gate flake, see arsenal-state); Mac 1343 / 59 / 0; ruff clean; mypy clean (159 files) on both machines |
 
 ## Cross-cutting
 
