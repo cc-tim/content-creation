@@ -42,3 +42,26 @@ def test_still_gate_exits_0_when_clean(tmp_path, busy_png, monkeypatch):
     pid = _project(tmp_path, scenes)
     result = runner.invoke(storyboard_app, ["still-gate", pid])
     assert result.exit_code == 0
+
+
+def test_still_gate_resolves_project_relative_image_with_cwd_elsewhere(tmp_path, busy_png, monkeypatch):
+    """A project-relative article_image that `pipeline validate` accepts must render in the
+    still-gate too, whatever the cwd (no [render_error], exit 0)."""
+    import shutil
+
+    monkeypatch.setenv("PIPELINE_OUTPUT_DIR", str(tmp_path))
+    scenes = [
+        {"id": "s1", "section": "h", "visual": {"type": "article_image", "path": "source/busy.png"}, "overlay": None},
+    ]
+    pid = _project(tmp_path, scenes)
+    source_dir = tmp_path / "projects" / pid / "source"
+    source_dir.mkdir()
+    shutil.copyfile(busy_png, source_dir / "busy.png")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    result = runner.invoke(storyboard_app, ["still-gate", pid])
+
+    assert "render_error" not in result.output
+    assert result.exit_code == 0, result.output

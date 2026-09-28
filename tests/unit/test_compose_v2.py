@@ -365,7 +365,7 @@ def test_compose_burn_subtitles_false_returns_plain_variant(monkeypatch, tmp_pat
     monkeypatch.setattr(
         "pipeline.stages.compose.check_ffmpeg_available", lambda: True
     )
-    def _fake_render(scene, duration, aspect_ratio, work_dir, source_video=None, theme=None):
+    def _fake_render(scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None):
         return Path(work_dir) / f"{scene['id']}.mp4"
 
     monkeypatch.setattr("pipeline.stages.compose.render_scene", _fake_render)
@@ -436,7 +436,7 @@ def test_scenes_json_written_by_storyboard_compose(monkeypatch, tmp_path):
         lambda cmd: Path(cmd[-1]).write_bytes(b"mp4"))
     monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
     monkeypatch.setattr("pipeline.stages.compose.render_scene",
-        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None:
+        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None:
             Path(work_dir) / f"{scene['id']}.mp4")
 
     # scenes.json is now derived from the ACTUAL concatenated clip durations.
@@ -615,7 +615,7 @@ def test_preferred_variant_selects_correct_final_path(monkeypatch, tmp_path):
         lambda cmd: Path(cmd[-1]).write_bytes(b"mp4"))
     monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
     monkeypatch.setattr("pipeline.stages.compose.render_scene",
-        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None:
+        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None:
             Path(work_dir) / f"{scene['id']}.mp4")
 
     import asyncio
@@ -666,7 +666,7 @@ def test_compose_forces_no_overlay_when_mla(monkeypatch, tmp_path):
         lambda cmd: Path(cmd[-1]).write_bytes(b"mp4"))
     monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
     monkeypatch.setattr("pipeline.stages.compose.render_scene",
-        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None:
+        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None:
             Path(work_dir) / f"{scene['id']}.mp4")
 
     import asyncio
@@ -732,7 +732,7 @@ def test_compose_mla_does_not_mux_secondary_audio(monkeypatch, tmp_path):
     monkeypatch.setattr("pipeline.stages.compose.run_ffmpeg", capture)
     monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
     monkeypatch.setattr("pipeline.stages.compose.render_scene",
-        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None:
+        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None:
             Path(work_dir) / f"{scene['id']}.mp4")
 
     import asyncio
@@ -894,3 +894,81 @@ async def test_scene_render_error_leaves_no_cached_black_fallback(sample_context
     scenes_dir = sample_context.work_dir / "compose" / "scenes"
     assert sorted(p.name for p in scenes_dir.glob("s1_final*.mp4")) == []
     assert "unknown set" in sample_context.render_failures["s1"]["reason"]
+
+
+# --- E5 loud-failure sweep (docs/superpowers/specs/2026-09-29-e5-loud-failure-sweep-design.md) ---
+
+
+def _write_fake_mp4(cmd):
+    """Stand-in for run_ffmpeg: create the output file ffmpeg would have written."""
+    out = cmd[-1]
+    if isinstance(out, str) and out.endswith(".mp4"):
+        Path(out).write_bytes(b"fake")
+
+
+def _prep_storyboard(ctx, scenes, seg_sec: float = 5.0) -> Path:
+    """Save *scenes* as ctx's storyboard with one fake audio segment per scene.
+
+    Returns compose/scenes/ (created), where scene cache files live."""
+    sb_path = ctx.work_dir / "storyboard.json"
+    Storyboard(scenes=scenes).save(sb_path)
+    ctx.storyboard_path = sb_path
+    audio_dir = ctx.work_dir / "audio"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    ctx.narration_path = audio_dir / "narration.mp3"
+    ctx.narration_path.write_bytes(b"fake")
+    ctx.subtitle_path = audio_dir / "subs.srt"
+    ctx.subtitle_path.write_text("1\n00:00:00,000 --> 00:00:05,000\ntest\n")
+    ctx.segment_timings = []
+    for i, _scene in enumerate(scenes):
+        seg = audio_dir / f"seg_{i:03d}.mp3"
+        seg.write_bytes(b"fake audio")
+        ctx.segment_timings.append({
+            "index": i, "text": "t", "path": str(seg),
+            "start_ms": int(i * seg_sec * 1000), "duration_ms": int(seg_sec * 1000),
+        })
+    scenes_dir = ctx.work_dir / "compose" / "scenes"
+    scenes_dir.mkdir(parents=True, exist_ok=True)
+    return scenes_dir
+
+
+async def test_project_relative_clip_renders_from_project_root(sample_context, tmp_path, monkeypatch):
+    """Sprint 9 hub-smoke defect, end to end: `path: source/clip.mp4` validated clean against
+    the project dir, then compose looked in cwd, hit "Source video not found" and rendered
+    black. Compose (render and duplicate guard) must read the project's file."""
+    clip_file = sample_context.work_dir / "source" / "clip.mp4"
+    clip_file.parent.mkdir(parents=True)
+    clip_file.write_bytes(b"fake clip")
+    _prep_storyboard(sample_context, [
+        Scene(id="s1", section="hook", narration="t", narration_est_sec=5,
+              visual={"type": "clip", "path": "source/clip.mp4", "start_sec": 0, "end_sec": 5}),
+    ])
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    clip_calls: list[list[str]] = []
+
+    def _clip_ffmpeg(cmd):
+        clip_calls.append(list(cmd))
+        _write_fake_mp4(cmd)
+
+    thumb_sources: list[Path] = []
+
+    def _no_thumbnail(source, timestamp, out_path):
+        thumb_sources.append(source)
+        raise RuntimeError("no thumbnails in unit tests")
+
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+        patch("pipeline.stages.compose._extract_clip_thumbnail", side_effect=_no_thumbnail),
+        patch("pipeline.composer.clip._get_source_duration", return_value=10.0),
+        patch("pipeline.composer.clip.run_ffmpeg", side_effect=_clip_ffmpeg),
+    ):
+        await ComposeStage().run(sample_context)
+
+    assert len(clip_calls) == 1, "the clip was never extracted from the project's file"
+    cmd = clip_calls[0]
+    assert cmd[cmd.index("-i") + 1] == str(clip_file)
+    assert thumb_sources == [clip_file]  # the duplicate-frame guard reads the same file

@@ -91,3 +91,30 @@ def test_candidates_that_resolve_to_the_same_file_are_dropped(layout, monkeypatc
     monkeypatch.chdir(repo)  # the usual launcher case: cwd is the repo root
     assert media_path_candidates("raw/x.png", project) == [project / "raw/x.png", repo / "raw/x.png"]
     assert media_path_candidates("raw/x.png", repo) == [repo / "raw/x.png"]
+
+
+def test_validator_and_renderers_agree_on_project_relative_paths(tmp_path, monkeypatch):
+    """`pipeline validate` and the renderers must pick the same file (Sprint 9 hub-smoke
+    defect: the validator found project/source/clip.mp4, the renderer looked in cwd)."""
+    from pipeline.composer import clip, refit
+    from pipeline.director import storyboard_validator as validator
+
+    project = tmp_path / "project"
+    clip_file = _touch(project / "source/clip.mp4")
+    img = _touch(project / "source/img.png")
+    refit_img = _touch(project / "source/img.refit.png")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    clip_visual = {"type": "clip", "path": "source/clip.mp4"}
+    refit_visual = {"type": "article_image", "path": "source/img.png",
+                    "refit_path": "source/img.refit.png"}
+    plain_visual = {"type": "article_image", "path": "source/img.png"}
+
+    assert validator._clip_visual_path(clip_visual, project) == clip_file
+    assert clip._resolve_source_video(clip_visual, None, project_root=project) == clip_file
+    assert validator._effective_visual_path(refit_visual, project) == refit_img
+    assert refit.effective_image_path(refit_visual, project_root=project) == refit_img
+    assert validator._effective_visual_path(plain_visual, project) == img
+    assert refit.effective_image_path(plain_visual, project_root=project) == img
