@@ -175,6 +175,7 @@ Fill in the other columns as you go, and commit this file with the task's own co
 | RF6 | `test_compose_v2.py::test_legacy_black_standin_dropped_and_rerendered` | 3 (fix round 1, Ruling S2) | `assert 0 == 1` (render_scene never called: a legacy `{sid}_black.mp4` marker beside real-looking cached finals still cache-hits) | `assert 0 == 1` | `6d2c4a9` | `a015b85` |
 | RF7 | `test_compose_v2.py::test_unreadable_no_overlay_cache_file_forces_rerender` | final review, item 1 | `DID NOT RAISE <class 'RuntimeError'>` (cache-hit gate never probed `scene_final_no_overlay`) | `DID NOT RAISE <class 'RuntimeError'>` | `045c5d6` | `fa59c91` |
 | RF8 | `test_cli_compose.py::test_reburn_refuses_when_legacy_black_standins_exist` | final review, item 2 | `assert 's1' in <burn output>` fails; `reburn` proceeds to `_burn_subtitle_pass` and errors on the fake `.mp4` input instead of refusing up front | `AssertionError: assert 's1' in 'Burning subtitles: raw_no_overlay.mp4 → final_zh-TW_subtitles_no_overlay.mp4\n'` (reburn attempted the real burn instead of refusing) | `54b3f69` | `66c945c` |
+| RF9 | `test_compose_v2.py::test_scene_failure_reason_has_no_duplicate_scene_id_prefix` | final review, item 3 | `assert 2 == 1` (`str(ei.value).count("s1:")`) — the refusal text reads `s1: s1: visual (text_card) failed: ...` | `assert 2 == 1` | `b6e07ac` | `1582f50` |
 
 ---
 
