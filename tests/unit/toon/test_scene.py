@@ -314,6 +314,20 @@ def test_scene_reference_rejects_any_other_key():
         scene_data_from_visual({"type": "toon", "scene": "001-lioness-dishes", "bogus": 1})
 
 
+def test_the_spec_example_scene_validates():
+    # The design spec's §5 example is what scene authors copy; it must load as written.
+    from pathlib import Path
+
+    import yaml
+
+    from toon.scene import _SceneLoader
+
+    spec = (Path(__file__).resolve().parents[3] / "docs" / "superpowers" / "specs"
+            / "2026-09-27-toon-bank-v0-design.md").read_text()
+    example = spec.split("## 5.")[1].split("```yaml\n")[1].split("```")[0]
+    assert load_scene(yaml.load(example, Loader=_SceneLoader), BANK).id == "001-lioness-dishes"
+
+
 def test_toon_scene_does_not_load_cairo():
     # Spec §3: `scene` knows nothing about cairo (the validator runs where cairo may not load).
     import subprocess

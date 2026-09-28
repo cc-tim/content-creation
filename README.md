@@ -279,10 +279,11 @@ uv run pipeline toon sheet tim [--out DIR]                     # character model
 
 | Topic | Rule |
 |---|---|
-| Storyboard | `"visual": {"type": "toon", "scene": "<id>"}`, or an inline scene. Subtitles stay on. |
+| Storyboard | `"visual": {"type": "toon", "scene": "<id>"}` (may add `"boil"`), or an inline scene. Subtitles stay on. |
+| Re-render | compose's scene cache is file-existence based: after editing a scene file or the bank, run `uv run pipeline compose rescene --project-id <ID> --scene sN`. The toon clip cache itself re-renders on engine, bank or scene changes. |
 | Duration | The scene lasts as long as its narration. Longer narration holds the last shot. Shorter narration warns, then cuts the scene. |
 | Line boil | Bank default is `soft` (`style.yaml` → `boil`). A scene may set `boil: full \| soft \| still`. |
-| Aspect | 16:9 only in v0. |
+| Aspect | 16:9 only in v0. A toon scene on a 9:16 storyboard fails validation. |
 | Needs | libcairo (macOS: `brew install cairo`; hub: `libcairo2`). `pipeline doctor` checks it. |
 | Goldens | Canonical on the hub: `UPDATE_GOLDENS=1 uv run pytest tests/unit/toon/test_goldens.py` there only. |
 

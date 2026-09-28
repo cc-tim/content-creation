@@ -107,35 +107,56 @@ Renders go to `output/own-show/scenes/<nnn-slug>/`. The library entry in
 
 A scene is a list of **shots** (cuts). Each shot declares its set, camera, placements and
 props, then **beats**: timed changes within the shot. Everything is named from the bank.
+The example is the first two shots of `assets/toon/scenes/001-lioness-dishes.yaml`, and it
+validates as written (a unit test loads it).
 
 ```yaml
 id: 001-lioness-dishes
 cast: {tim: tim, lioness: lioness}
 shots:
+  - at: 0.0                  # the first shot starts at 0
+    set: office
+    camera: front34_push     # a bank preset: its push (and any punch-in) is part of the preset
+    place: {tim: {spot: desk_seat, pose: sit_typing, expr: focused}}
+    props: {idea: {kind: idea_bulb, on: tim, b: 1.0}}
   - at: 3.5
     set: office
-    camera: {preset: two_shot, punch: 0.15}
+    camera: two_shot
     place:
       tim:     {spot: desk_seat, pose: sit_typing, expr: focused}
-      lioness: {spot: doorway_out, pose: stand_point, expr: angry, face: tim}
+      lioness: {spot: doorway_out, pose: stand_point, expr: angry, layer: low}
     props:   {idea: {kind: idea_bulb, on: tim, b: 1.0}}
     beats:
       - {at: 0.05, door: open, over: 0.25}
-      - {at: 0.1,  move: lioness, to: doorway, over: 0.6}
-      - {at: 0.12, show: speed_lines, around: lioness}
-      - {at: 0.22, pose: tim, to: sit_shock, expr: shocked, ease: back}
+      - {at: 0.1,  move: lioness, to: doorway, over: 0.6, ease: out, bob: 0.06}
+      - {at: 0.12, show: {speed_lines: lioness}, over: 0.2}
+      - {at: 0.25, pose: tim, to: sit_shock, expr: shocked, over: 0.2, ease: back}
       - {at: 0.35, prop: idea, flicker: true}
-      - {at: 0.8,  show: {bubble: [plates, "!"]}, from: lioness}
+      - {at: 0.8,  show: {bubble: [dishes, bang], from: lioness}}
       - {at: 0.8,  show: {anger: lioness}}
 ```
 
-**Beat verbs (v0):** `pose` (+`expr`, `ease`), `expr`, `move`, `face`, `show` / `hide`
-(graphics and effects, with a pop-in), `prop` (state: `b`, `fade`, `flicker`, `out`), `door`,
-`camera` (move within the shot).
+**Beat verbs (v0).** Every beat has `at` and exactly one verb. `over` and `ease` time a change;
+by default it is instant.
+
+| Verb | Takes | Notes |
+|---|---|---|
+| `pose` | `to:` a pose and/or `expr:` an expression | An expression change alone is a pose beat with only `expr:`. `to:` cannot switch sit ↔ stand; cut to a new shot instead. |
+| `move` | `to:` a set spot, optional `bob` | |
+| `face` | `to:` another placed character | |
+| `show` | one graphic: `{speed_lines: who}`, `{bubble: [icons], from: who}`, `{anger: who}`, `{x_card: icon, at: [x, y]}`, `{check_pill: icon, at: [x, y]}` | Pops in (0.25 s default). `from:` is for bubbles only, and `at:` is for cards only. |
+| `hide` | the graphic's key, `<kind>:<target>` (for example `bubble:lioness`) | Must match a graphic shown earlier in the shot. |
+| `prop` | `to: {b: …}` (idea_bulb brightness), `to: {count: …}` (plate_stack), `flicker`, `blink`, `out` | In v0, brightness `to: {b: …}` over time **is** the fade; there is no separate `fade` state. A plate has no animatable state. |
+| `door` | `open` / `close` | |
+| `camera` | a bank camera preset | A **cut** to that preset at the beat, not a blend. The new preset's own push, truck or punch restarts from the beat. `over` and `ease` are rejected. |
+
+Prop uses are checked per kind as well. An `idea_bulb` needs `on:`, a `plate` needs
+`held_by:`, and a `plate_stack` needs `count:`.
 
 **Rules, enforced when the scene loads:**
 - **Wordless:** graphics, bubbles and screens take icon names from the registry. There is no
-  free-text field. Unknown fields are rejected.
+  free-text field. Unknown fields are rejected, and so are fields that a verb or a prop kind
+  would ignore.
 - **Every name resolves** to a bank item, set spot, camera or icon. Otherwise it fails with the
   file and path.
 - **Limited-motion defaults:** drawings on twos, camera on ones, pop-ins of 0.25 s with
@@ -156,15 +177,17 @@ shots:
 - `render_clip` renders frames in parallel worker processes: 4 cores on the hub, 11 on the
   Mac. At the tryout's rate of about 0.3 s per frame, 13 s at 24 fps takes about 20 s on the
   Mac. Frames stream to ffmpeg (libx264, yuv420p, 1920×1080, 24 fps). The clip is cached by
-  a hash of the scene file, the bank files it uses, and the engine version.
-- Only 16:9 in v0.
+  a hash of the scene, the bank files, the `src/toon` source files and the engine version, so
+  any engine or kit edit re-renders.
+- Only 16:9 in v0. The storyboard validator rejects a `toon` scene on a 9:16 storyboard.
 
 ## 7. Pipeline integration
 
 - `render_scene()` gains `elif visual_type == "toon"`, which calls
   `composer/toon.py:render_toon_scene(scene, duration_sec, aspect_ratio, work_dir)`. The
-  visual either references a scene (`{"type": "toon", "scene": "001-lioness-dishes"}`) or
-  inlines `shots`.
+  visual either references a scene (`{"type": "toon", "scene": "001-lioness-dishes"}`, which
+  may override `boil`; any other key is rejected) or inlines the scene's keys (`cast`,
+  `shots`, …; typos are rejected).
 - The storyboard validator accepts `toon` and runs the scene loader's validation, so bad
   names fail at the review gate, not during composing.
 - Subtitles, music, transitions and publishing are unchanged. Narration comes from TTS or
