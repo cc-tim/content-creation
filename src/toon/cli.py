@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
+import yaml
 from PIL import Image
 
 toon_app = typer.Typer(help="Own-show 2.5D doodle animation: validate, render, model sheets.")
@@ -11,21 +12,22 @@ _REPO = Path(__file__).resolve().parents[2]
 
 
 def _load(scene: str, narration: str | None, duration: float | None):
+    """Bank + validated scene, or ERROR lines and exit 1 — never a traceback."""
     from toon.bank import load_bank
     from toon.scene import load_scene, read_scene
 
-    bank = load_bank()
-    return bank, load_scene(read_scene(scene), bank, narration=narration, duration=duration)
+    try:
+        bank = load_bank()
+        return bank, load_scene(read_scene(scene), bank, narration=narration, duration=duration)
+    except (ValueError, yaml.YAMLError) as exc:  # SceneError and BankError are ValueErrors
+        for line in str(exc).split("; "):
+            typer.echo(f"ERROR  {line}")
+        raise typer.Exit(code=1) from exc
 
 
 @toon_app.command("validate")
 def validate(scene: str = typer.Argument(..., help="scene id or path to a scene YAML")) -> None:
-    try:
-        _, s = _load(scene, None, None)
-    except ValueError as exc:
-        for line in str(exc).split("; "):
-            typer.echo(f"ERROR  {line}")
-        raise typer.Exit(code=1) from exc
+    _, s = _load(scene, None, None)
     typer.echo(f"ok  {s.id}: {len(s.shots)} shots, {sum(len(sh.beats) for sh in s.shots)} beats")
 
 

@@ -450,12 +450,19 @@ def scenes_root() -> Path:
 
 
 def read_scene(ref: str) -> dict:
+    """A scene id (`001-lioness-dishes` → assets/toon/scenes/<id>.yaml) or a path to a YAML file."""
     path = Path(ref)
-    if not (path.suffix in (".yaml", ".yml") and path.exists()):
+    if path.suffix not in (".yaml", ".yml"):
         path = scenes_root() / f"{ref}.yaml"
     if not path.exists():
         raise SceneError([f"scene file not found: {path}"])
-    return yaml.load(path.read_text(), Loader=_SceneLoader)
+    try:
+        data = yaml.load(path.read_text(), Loader=_SceneLoader)
+    except yaml.YAMLError as exc:
+        raise SceneError([f"{path}: not valid YAML: {' '.join(str(exc).split())}"]) from exc
+    if not isinstance(data, dict):
+        raise SceneError([f"{path}: expected a scene mapping (id, cast, shots), got {type(data).__name__}"])
+    return data
 
 
 # Keys the pipeline owns on every storyboard visual — `type` (dispatch), the director's
