@@ -90,7 +90,9 @@ def test_render_clip_clamps_beyond_source(tmp_path):
 def test_render_clip_no_source(tmp_path):
     import pytest
 
-    with pytest.raises(FileNotFoundError):
+    from pipeline.errors import SceneRenderError
+
+    with pytest.raises(SceneRenderError, match="no visual.path and no primary source video"):
         render_clip(
             visual={"type": "clip", "start_sec": 0, "end_sec": 10},
             duration_sec=10.0,
@@ -100,3 +102,29 @@ def test_render_clip_no_source(tmp_path):
             scene_id="s1",
             source_video=None,
         )
+
+
+def test_render_clip_missing_path_lists_the_candidates_it_tried(tmp_path, monkeypatch):
+    import pytest
+
+    from pipeline.errors import SceneRenderError
+
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SceneRenderError) as ei:
+        render_clip(
+            visual={"type": "clip", "path": "source/missing.mp4", "start_sec": 0, "end_sec": 5},
+            duration_sec=5.0,
+            width=1280,
+            height=720,
+            work_dir=tmp_path,
+            scene_id="s4",
+            project_root=project,
+        )
+    err = ei.value
+    assert err.scene == "s4"
+    assert str(project / "source" / "missing.mp4") in err.reason
+    assert str(tmp_path / "source" / "missing.mp4") in err.reason
+    assert "visual.path" in err.suggested_fix
+    assert "--project-id project --scene s4" in err.suggested_fix

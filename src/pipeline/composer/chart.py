@@ -313,9 +313,8 @@ def render_chart(
         image_to_video(composite_png, output, duration_sec, width, height)
     except CalloutPlacementError as e:
         # The precise render-time fence for marker density (pin-down #2): convert
-        # the geometry exception into a loud SceneRenderError so an over-dense
-        # chart fails visibly with a fix hint, rather than degrading to a silent
-        # black-screen scene via compose's generic exception fallback.
+        # the geometry exception into a SceneRenderError with a chart-specific fix
+        # hint, instead of compose's generic `visual (chart) failed` wrap.
         raise SceneRenderError(
             scene=scene_id,
             reason=f"chart callout placement failed: {e}",

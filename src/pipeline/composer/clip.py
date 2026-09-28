@@ -3,16 +3,19 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from pipeline.errors import SceneRenderError
 from pipeline.utils.ffmpeg import run_ffmpeg
+from pipeline.utils.paths import media_path_candidates, resolve_media_path
 
 
-def _resolve_source_video(visual: dict, source_video: Path | None) -> Path | None:
+def _resolve_source_video(
+    visual: dict, source_video: Path | None, project_root: Path | None = None
+) -> Path | None:
+    """The clip's source file: `visual.path` via the shared media resolver, else the
+    project's primary source video."""
     raw_path = visual.get("path")
     if raw_path:
-        path = Path(str(raw_path)).expanduser()
-        if path.is_absolute() or path.exists():
-            return path
-        return Path.cwd() / path
+        return resolve_media_path(str(raw_path), project_root)
     return source_video
 
 
@@ -44,11 +47,27 @@ def render_clip(
     work_dir: Path,
     scene_id: str,
     source_video: Path | None = None,
+    project_root: Path | None = None,
 ) -> Path:
     """Extract a clip from source video. Clamps timestamps to source duration."""
-    clip_source = _resolve_source_video(visual, source_video)
+    clip_source = _resolve_source_video(visual, source_video, project_root)
     if clip_source is None or not clip_source.exists():
-        raise FileNotFoundError(f"Source video not found for clip in scene {scene_id}")
+        raw_path = visual.get("path")
+        if raw_path:
+            tried = ", ".join(str(p) for p in media_path_candidates(str(raw_path), project_root))
+            where = f"visual.path {raw_path!r} not found; tried: {tried}"
+        else:
+            where = "no visual.path and no primary source video"
+        pid = project_root.name if project_root else "<project-id>"
+        raise SceneRenderError(
+            scene=scene_id,
+            reason=f"clip source not found: {where}",
+            suggested_fix=(
+                "Fix visual.path (project-relative, repo-relative or absolute) or re-acquire "
+                f"the primary source video, then `uv run pipeline validate {pid}` and "
+                f"`uv run pipeline compose rescene --project-id {pid} --scene {scene_id}`."
+            ),
+        )
 
     start = float(visual.get("start_sec", 0))
     source_dur = _get_source_duration(clip_source)

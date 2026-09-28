@@ -13,7 +13,12 @@ from pipeline.composer.frame import composite_scene_frame
 from pipeline.config import PipelineConfig
 from pipeline.session_log import SessionEntry, append_session, new_session_id
 from pipeline.stages.base import PipelineContext
-from pipeline.stages.compose import ComposeStage, _burn_subtitle_pass, verify_theme_fonts
+from pipeline.stages.compose import (
+    ComposeStage,
+    _burn_subtitle_pass,
+    scene_final_cache_paths,
+    verify_theme_fonts,
+)
 
 logger = structlog.get_logger()
 compose_app = typer.Typer(name="compose", help="Compose iteration commands")
@@ -52,17 +57,6 @@ def _delete_transition_cache_for_scenes(compose_dir: Path, scene_ids: list[str])
         import shutil
         shutil.rmtree(cache)
         logger.info("rescene.transition_cache_cleared", path=str(cache))
-
-
-def _scene_final_cache_paths(scenes_dir: Path, scene_id: str) -> list[Path]:
-    """Return final scene outputs that can make rescene incorrectly cache-hit."""
-    paths: list[Path] = [
-        scenes_dir / f"{scene_id}_final.mp4",
-        scenes_dir / f"{scene_id}_final_no_overlay.mp4",
-    ]
-    paths.extend(sorted(scenes_dir.glob(f"{scene_id}_final_*.mp4")))
-    paths.extend(sorted(scenes_dir.glob(f"{scene_id}_final_no_overlay_*.mp4")))
-    return list(dict.fromkeys(paths))
 
 
 def _delete_concat_outputs(compose_dir: Path, locale: str) -> list[str]:
@@ -207,7 +201,7 @@ def rescene(
     purge_old(work_dir / "compose" / "scenes")
     scenes_dir = work_dir / "compose" / "scenes"
     for scene_id in scenes:
-        for p in _scene_final_cache_paths(scenes_dir, scene_id):
+        for p in scene_final_cache_paths(scenes_dir, scene_id):
             if p.exists():
                 p.unlink()
                 logger.info("compose.rescene.deleted", path=str(p))
@@ -255,8 +249,26 @@ def reburn(
 ) -> None:
     """Re-burn subtitles from existing raw.mp4 / raw_no_overlay.mp4 without re-rendering scenes."""
     work_dir = _resolve_work_dir(project_id)
+    scenes_dir = work_dir / "compose" / "scenes"
+    # reburn reads raw.mp4 / raw_no_overlay.mp4 straight from disk and never enters
+    # ComposeStage, so _render_one_scene's legacy {sid}_black.mp4 marker check can't protect
+    # it. Refuse before doing any work rather than burning subtitles onto scenes that are
+    # still black stand-ins from the pre-E5-sweep _black_screen fallback.
+    if scenes_dir.exists():
+        black_markers = sorted(
+            p.name.removesuffix("_black.mp4") for p in scenes_dir.glob("*_black.mp4")
+        )
+        if black_markers:
+            ids = ", ".join(black_markers)
+            typer.echo(
+                f"{ids}: these scenes still hold legacy black stand-ins; rebuild them first: "
+                f"`uv run pipeline compose rescene --project-id {project_id} --scene <sid>` "
+                "(one per scene), then reburn",
+                err=True,
+            )
+            raise typer.Exit(code=1)
     from pipeline.composer.image_history import purge_old
-    purge_old(work_dir / "compose" / "scenes")
+    purge_old(scenes_dir)
     ctx = PipelineContext.load(work_dir / "context.json")
     variant = variant or ctx.preferred_variant or "subtitles_no_overlay"
     compose_dir = work_dir / "compose"
@@ -831,9 +843,9 @@ def restore(
         typer.echo(f"No history entries for scene '{scene}'", err=True)
         raise typer.Exit(code=1)
 
-    # Clear scene finals so ComposeStage re-renders this scene
-    for suffix in ("_final.mp4", "_final_no_overlay.mp4"):
-        p = scenes_dir / f"{scene}{suffix}"
+    # Clear scene finals (every frame-suffix variant) so ComposeStage re-renders this scene
+    # instead of cache-hitting a stale frame-suffixed final from before the restore.
+    for p in scene_final_cache_paths(scenes_dir, scene):
         if p.exists():
             p.unlink()
 

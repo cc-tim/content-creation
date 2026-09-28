@@ -21,6 +21,7 @@ from typing import Any
 import structlog
 
 from pipeline.composer.base import image_to_video
+from pipeline.errors import SceneRenderError
 from pipeline.providers.base import ProviderError, try_chain
 from pipeline.providers.gen_image import GenImageProvider
 from pipeline.utils.ffmpeg import run_ffmpeg
@@ -30,6 +31,20 @@ logger = structlog.get_logger()
 
 def _cache_key(prompt: str) -> str:
     return hashlib.md5(prompt.encode()).hexdigest()[:12]
+
+
+def _project_id(work_dir: Path) -> str:
+    """The project id for a suggested_fix's rescene command.
+
+    render_image_sequence's one call site (composer/base.py's render_scene) passes its own
+    work_dir straight through, and that in turn is always ComposeStage's scenes_dir —
+    ctx.work_dir / "compose" / "scenes" — so work_dir.parents[1] is the project dir, matching
+    how _scene_fixes derives the id from ctx.work_dir.name.
+    """
+    try:
+        return work_dir.parents[1].name
+    except IndexError:
+        return "<project-id>"
 
 
 def _size_arg(width: int, height: int) -> str:
@@ -58,7 +73,11 @@ def _fetch_image(
     idx: int,
     width: int,
     height: int,
-) -> Path | None:
+) -> Path:
+    """Return the image for *prompt*: from the prompt-hash cache, else freshly generated.
+
+    Raises ProviderError (with the provider's message) when generation fails.
+    """
     cache_name = _cache_key(prompt)
     cached_png = cache_dir / f"{cache_name}.png"
 
@@ -71,35 +90,20 @@ def _fetch_image(
             return cached_png
 
     provider = GenImageProvider(tier=tier)
-    try:
-        result = try_chain(
-            [provider],
-            prompt=prompt,
-            out_path=cached_png,
-            size=_size_arg(width, height),
-        )
-        logger.info("image_seq.generated", scene=scene_id, idx=idx, provider=result.provider)
-        if _is_too_dark(cached_png):
-            cached_png.unlink()
-            light_prompt = f"{prompt}, white background, bright cream paper, no dark areas"
-            light_png = cache_dir / f"{_cache_key(light_prompt)}.png"
-            try_chain([provider], prompt=light_prompt, out_path=light_png, size=_size_arg(width, height))
-            cached_png = light_png
-        return cached_png
-    except ProviderError as exc:
-        logger.warning("image_seq.generation_failed", scene=scene_id, idx=idx, error=str(exc))
-        return None
-
-
-def _black_clip(work_dir: Path, scene_id: str, idx: int, duration: float, width: int, height: int) -> Path:
-    out = work_dir / f"{scene_id}_seq{idx}_visual.mp4"
-    run_ffmpeg([
-        "ffmpeg", "-y", "-f", "lavfi",
-        "-i", f"color=c=black:s={width}x{height}:d={duration}:r=30",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "23", "-pix_fmt", "yuv420p",
-        str(out),
-    ])
-    return out
+    result = try_chain(
+        [provider],
+        prompt=prompt,
+        out_path=cached_png,
+        size=_size_arg(width, height),
+    )
+    logger.info("image_seq.generated", scene=scene_id, idx=idx, provider=result.provider)
+    if _is_too_dark(cached_png):
+        cached_png.unlink()
+        light_prompt = f"{prompt}, white background, bright cream paper, no dark areas"
+        light_png = cache_dir / f"{_cache_key(light_prompt)}.png"
+        try_chain([provider], prompt=light_prompt, out_path=light_png, size=_size_arg(width, height))
+        cached_png = light_png
+    return cached_png
 
 
 def render_image_sequence(
@@ -133,13 +137,24 @@ def render_image_sequence(
             prompt = f"{prompt}. Style: {image_style}"
 
         tier = img_spec.get("image_tier", "draft")
-        png = _fetch_image(prompt, tier, cache_dir, scene_id, idx, width, height)
+        try:
+            png = _fetch_image(prompt, tier, cache_dir, scene_id, idx, width, height)
+        except ProviderError as exc:
+            logger.error("image_seq.generation_failed", scene=scene_id, idx=idx, error=str(exc))
+            raise SceneRenderError(
+                scene=scene_id,
+                reason=f"image_sequence image {idx} failed to generate: {exc}",
+                suggested_fix=(
+                    "Check `uv run pipeline doctor` (home tool gen-image.py) and the image "
+                    "provider's status, then `uv run pipeline compose rescene --project-id "
+                    f"{_project_id(work_dir)} --scene {scene_id}`. Images that already "
+                    f"succeeded stay cached by prompt hash in {cache_dir}, so only image {idx} "
+                    "is regenerated."
+                ),
+            ) from exc
 
         clip_path = work_dir / f"{scene_id}_seq{idx}_visual.mp4"
-        if png:
-            image_to_video(png, clip_path, clip_dur, width, height)
-        else:
-            clip_path = _black_clip(work_dir, scene_id, idx, clip_dur, width, height)
+        image_to_video(png, clip_path, clip_dur, width, height)
         clip_paths.append(clip_path)
 
     output = work_dir / f"{scene_id}_visual.mp4"

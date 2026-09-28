@@ -5,6 +5,8 @@ import hashlib
 import json
 import re
 import subprocess
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -13,6 +15,7 @@ import structlog
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from pipeline.composer.base import get_resolution, render_scene
+from pipeline.composer.clip import _resolve_source_video
 from pipeline.composer.compartment import (
     build_compartment_loop,
     composite_compartment_on_scene,
@@ -464,6 +467,7 @@ def _apply_duplicate_guard(
     source_video: Path | None,
     seen_hashes: set,
     style_descriptor: str,
+    project_root: Path | None = None,
 ) -> tuple[dict[str, Any], set]:
     """Check if *scene* is a duplicate clip. Return (possibly-replaced scene, updated seen_hashes).
 
@@ -473,7 +477,7 @@ def _apply_duplicate_guard(
     visual = scene.get("visual", {})
     if visual.get("type") not in ("clip", "still_frame"):
         return scene, seen_hashes
-    clip_source = _source_for_clip_visual(visual, source_video)
+    clip_source = _resolve_source_video(visual, source_video, project_root)
     if clip_source is None or not clip_source.exists():
         return scene, seen_hashes
 
@@ -506,16 +510,6 @@ def _apply_duplicate_guard(
     else:
         seen_hashes = seen_hashes | {new_hash}
         return scene, seen_hashes
-
-
-def _source_for_clip_visual(visual: dict[str, Any], source_video: Path | None) -> Path | None:
-    raw_path = visual.get("path")
-    if raw_path:
-        path = Path(str(raw_path)).expanduser()
-        if path.is_absolute() or path.exists():
-            return path
-        return Path.cwd() / path
-    return source_video
 
 
 def splice_transitions(
@@ -595,9 +589,74 @@ def _interleave_pauses(
     return result
 
 
+_CACHED_SCENE_FIX = "The cached scene file was unreadable and has been deleted; re-run compose."
+_OVERLAY_FIX = (
+    "Fix or remove scene.overlay (check overlay.type and text), then "
+    "`uv run pipeline compose rescene --project-id <ID> --scene <sid>`."
+)
+
+
+def scene_final_cache_paths(scenes_dir: Path, scene_id: str) -> list[Path]:
+    """Every scene-final file that makes a scene look cached, frame-suffix variants included.
+
+    One source of truth for compose's failure cleanup and `compose rescene`.
+    """
+    paths: list[Path] = [
+        scenes_dir / f"{scene_id}_final.mp4",
+        scenes_dir / f"{scene_id}_final_no_overlay.mp4",
+    ]
+    paths.extend(sorted(scenes_dir.glob(f"{scene_id}_final_*.mp4")))
+    paths.extend(sorted(scenes_dir.glob(f"{scene_id}_final_no_overlay_*.mp4")))
+    return list(dict.fromkeys(paths))
+
+
+def _scene_fixes(project_id: str, scene_id: str) -> dict[str, str]:
+    """Actionable suggested_fix text for each compose scene step (E5 spec §5.1)."""
+    rescene = f"`uv run pipeline compose rescene --project-id {project_id} --scene {scene_id}`"
+    return {
+        "visual": (
+            f"Run `uv run pipeline validate {project_id}`, fix `scene.visual`, then {rescene}."
+        ),
+        "compartment": f"Fix or remove `scene.compartment`, then {rescene}.",
+        "overlay rule": (
+            "Remove or change `scene.overlay` (title and namecard overlays fit any visual), "
+            f"then {rescene}."
+        ),
+        "frame/mux": f"Inspect the ffmpeg error in the reason, then {rescene}.",
+    }
+
+
+def _step_reason(step: str, exc: BaseException) -> str:
+    """`<step> failed: <ExcType>: <message>`, plus the tail of ffmpeg's stderr if any."""
+    reason = f"{step} failed: {type(exc).__name__}: {exc}"
+    if isinstance(exc, subprocess.CalledProcessError) and exc.stderr:
+        err = exc.stderr if isinstance(exc.stderr, str) else exc.stderr.decode("utf-8", "replace")
+        reason += f" | stderr: {err.strip()[-400:]}"
+    return reason
+
+
+@contextmanager
+def _scene_step(
+    scene_id: str, step: str, suggested_fix: str, *, include_error: bool = False,
+) -> Iterator[None]:
+    """Run one scene-render step. A SceneRenderError passes through unchanged; any other
+    exception becomes a SceneRenderError naming the step. With *include_error*, the
+    error message leads the suggested_fix (it already says what to change)."""
+    try:
+        yield
+    except SceneRenderError:
+        raise
+    except Exception as exc:
+        fix = f"{exc} {suggested_fix}" if include_error else suggested_fix
+        raise SceneRenderError(
+            scene=scene_id, reason=_step_reason(step, exc), suggested_fix=fix,
+        ) from exc
+
+
 @dataclass
 class ComposeSceneResult:
-    """Result of rendering one scene. Failures produce black-screen fallbacks."""
+    """One scene that rendered (or cache-hit) cleanly. A failed scene raises
+    SceneRenderError instead; there is no stand-in result."""
     index: int
     scene_final: Path
     scene_final_no_overlay: Path
@@ -719,6 +778,7 @@ class ComposeStage(PipelineStage):
 
         scene_dicts = self._precompute_duplicate_guard(
             storyboard, ctx.video_path, style_anchor.style_descriptor,
+            project_root=ctx.work_dir,
         )
 
         # === PARALLEL PHASE: render uncached scenes concurrently ===
@@ -766,49 +826,32 @@ class ComposeStage(PipelineStage):
 
         done = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Collect results with fallbacks for failed scenes
+        # A failed scene refuses assembly: record why, and leave no file at any of its
+        # cache paths (every frame-suffix variant), so the next run re-renders it.
         results: list[ComposeSceneResult] = []
         failures: list[str] = []
         render_failures: dict[str, dict[str, str]] = {}
         for i, maybe in enumerate(done):
-            if isinstance(maybe, Exception):
+            if isinstance(maybe, BaseException):
                 sid = storyboard.scenes[i].id
                 logger.error("compose.scene.exception", scene_id=sid, error=str(maybe))
-                failures.append(f"{sid}: {maybe}")
                 if isinstance(maybe, SceneRenderError):
+                    # str(maybe) already leads with "<sid>: " (errors.py's __str__); don't
+                    # prefix it again here.
+                    failures.append(str(maybe))
                     render_failures[sid] = maybe.to_dict()
                 else:
+                    # A BaseException _render_one_scene didn't wrap as SceneRenderError:
+                    # not Exception (I1 covers those), e.g. asyncio.CancelledError. It has no
+                    # built-in scene prefix, so add one here.
+                    failures.append(f"{sid}: {maybe}")
                     render_failures[sid] = {
                         "scene": sid,
-                        "reason": str(maybe),
+                        "reason": _step_reason("scene", maybe),
                         "suggested_fix": "Inspect the scene render logs and fix the visual contract.",
                     }
-                if i < len(audio_segments):
-                    d = audio_segments[i]["duration_ms"] / 1000.0
-                    ap = Path(audio_segments[i]["path"])
-                else:
-                    d = storyboard.scenes[i].narration_est_sec
-                    ap = None
-                sf = scenes_dir / f"{sid}_final.mp4"
-                sf_no = scenes_dir / f"{sid}_final_no_overlay.mp4"
-                if isinstance(maybe, SceneRenderError):
-                    # Loud failure: no black stand-in at the scene-cache paths, or the next
-                    # `produce --start-from compose` would find it "cached" and assemble it.
-                    sf.unlink(missing_ok=True)
-                    sf_no.unlink(missing_ok=True)
-                else:
-                    self._mux(
-                        self._black_screen(scenes_dir, sid, d, width, height),
-                        sf, ap,
-                    )
-                    self._mux(
-                        self._black_screen(scenes_dir, sid, d, width, height),
-                        sf_no, ap,
-                    )
-                results.append(ComposeSceneResult(
-                    index=i, scene_final=sf, scene_final_no_overlay=sf_no,
-                    pause_paths=[], pause_paths_no_overlay=[],
-                ))
+                for cached in scene_final_cache_paths(scenes_dir, sid):
+                    cached.unlink(missing_ok=True)
             else:
                 results.append(maybe)
 
@@ -1020,6 +1063,7 @@ class ComposeStage(PipelineStage):
         storyboard: Storyboard,
         source_video: Path | None,
         style_descriptor: str,
+        project_root: Path | None = None,
     ) -> list[dict[str, Any]]:
         """Run duplicate frame detection on all clip/still_frame scenes upfront.
 
@@ -1039,6 +1083,7 @@ class ComposeStage(PipelineStage):
             guarded, seen_clip_hashes = _apply_duplicate_guard(
                 sd, source_video, seen_clip_hashes,
                 style_descriptor=style_descriptor,
+                project_root=project_root,
             )
             scene_dicts.append(guarded)
         return scene_dicts
@@ -1059,189 +1104,190 @@ class ComposeStage(PipelineStage):
         ctx: PipelineContext,
         audio_segments: list[dict],
     ) -> ComposeSceneResult:
-        """Render one complete scene (visual → compartment → overlay → mux).
+        """Render one complete scene (visual → compartment → overlay → frame/mux).
 
         Runs the synchronous render chain in the shared thread pool so the
         event loop stays free.  Scene-internal steps remain sequential;
         concurrency is across scenes.
 
-        Never raises: failures produce black-screen fallback paths.
+        Returns a result whose two cache files are real renders, or raises
+        SceneRenderError. When it raises, neither cache path the cache check reads
+        exists, so the next run re-renders the scene instead of cache-hitting a
+        stand-in (E5 invariant I1).
         """
         frame_suffix = f"_{frame_style}" if frame_style else ""
         scene_final = scenes_dir / f"{scene.id}_final{frame_suffix}.mp4"
         scene_final_no_overlay = scenes_dir / f"{scene.id}_final_no_overlay{frame_suffix}.mp4"
-
-        # Cache check
-        if scene_final.exists() and scene_final_no_overlay.exists():
-            logger.info("compose.scene.cached", scene_id=scene.id)
-            if i < len(audio_segments):
-                d_check = audio_segments[i]["duration_ms"] / 1000.0
-                actual = _get_duration_sec(scene_final)
-                if actual < d_check - 0.5:
-                    logger.warning(
-                        "compose.scene.duration_mismatch",
-                        scene_id=scene.id,
-                        cached_sec=round(actual, 2),
-                        expected_sec=round(d_check, 2),
-                        hint="Delete cached scene files and rescene to fix subtitle drift",
-                    )
-            pause_paths_c: list[Path] = []
-            if scene.pause_after_sec > 0:
-                pause_paths_c = [
-                    self._silence_gap(scenes_dir, scene.id, scene.pause_after_sec, width, height)
-                ]
-            return ComposeSceneResult(
-                index=i,
-                scene_final=scene_final,
-                scene_final_no_overlay=scene_final_no_overlay,
-                pause_paths=pause_paths_c,
-                pause_paths_no_overlay=list(pause_paths_c),
-            )
-
-        logger.info("compose.scene", scene_id=scene.id, duration=f"{duration:.1f}s")
-
-        loop = asyncio.get_running_loop()
-        executor = get_ffmpeg_executor()
-
-        def _render_sync() -> tuple[Path, Path, Path | None, Path | None]:
-            """Synchronous scene render — runs in thread pool via run_in_executor."""
-            # Step 1: Render visual
-            try:
-                vis = render_scene(
-                    scene_dict,
-                    duration,
-                    "16:9",  # aspect_ratio default; storyboard-driven is 16:9
-                    scenes_dir,
-                    source_video=source_video,
-                    theme=theme_dict,
-                )
-            except SceneRenderError:
-                raise
-            except Exception as e:
-                logger.warning("compose.scene.visual_failed", scene_id=scene.id, error=str(e))
-                vis = self._black_screen(scenes_dir, scene.id, duration, width, height)
-
-            # Frameless scenes: scale the visual to fill the full canvas so every
-            # clip shares the canvas resolution (the open_book_page frame did this
-            # placement for framed scenes; without it, inset-sized refit crops
-            # would break the uniform-dimension concat).
-            if not frame_style:
-                vis = self._fit_to_canvas(
-                    vis, scenes_dir / f"{scene.id}_fullbleed.mp4", width, height
-                )
-
-            # Step 1b: Compartment animation
-            if scene.compartment:
-                try:
-                    comp_vid = build_compartment_loop(
-                        compartment=scene.compartment,
-                        scene_duration_sec=duration,
-                        scene_width=width,
-                        scene_height=height,
-                        work_dir=scenes_dir,
-                        scene_id=scene.id,
-                    )
-                    vis = composite_compartment_on_scene(
-                        scene_video=vis,
-                        compartment_video=comp_vid,
-                        compartment_config=scene.compartment,
-                        scene_width=width,
-                        scene_height=height,
-                        work_dir=scenes_dir,
-                        scene_id=scene.id,
-                    )
-                except Exception as e:
-                    logger.warning(
-                        "compose.scene.compartment_failed", scene_id=scene.id, error=str(e),
-                    )
-
-            # Step 2: Overlay
-            vis_before_overlay = vis
-            check_overlay_allowed(
-                scene=scene_dict,
-                overlay=scene.overlay,
-                visual=scene.visual,
-                burn_subtitles=ctx.burn_subtitles,
-            )
-            if scene.overlay and not ctx.skip_overlays:
-                try:
-                    vis = apply_overlay(
-                        visual_path=vis,
-                        overlay=scene.overlay,
-                        width=width, height=height,
-                        work_dir=scenes_dir,
-                        scene_id=scene.id,
-                        theme=theme_dict,
-                    )
-                except SceneRenderError:
-                    raise
-                except Exception as e:
-                    raise SceneRenderError(
-                        scene=scene.id,
-                        reason=f"overlay failed: {e}",
-                        suggested_fix=(
-                            "Fix or remove scene.overlay (check overlay.type and text), "
-                            "or re-run with --skip-overlays to bypass overlays."
-                        ),
-                    ) from e
-
-            # Step 3: Mux both variants
-            if frame_style:
-                vis = composite_scene_frame(
-                    vis,
-                    scenes_dir / f"{scene.id}_visual{frame_suffix}.mp4",
-                    frame_style=frame_style,
-                    width=width,
-                    height=height,
-                )
-                vis_before_overlay = composite_scene_frame(
-                    vis_before_overlay,
-                    scenes_dir / f"{scene.id}_visual_no_overlay{frame_suffix}.mp4",
-                    frame_style=frame_style,
-                    width=width,
-                    height=height,
-                )
-            self._mux(vis, scene_final, audio_path)
-            no_overlay_vis = vis_before_overlay if scene.overlay else vis
-            self._mux(no_overlay_vis, scene_final_no_overlay, audio_path)
-
-            # Step 4: Pause gap
-            pause: Path | None = None
-            if scene.pause_after_sec > 0:
-                pause = self._silence_gap(
-                    scenes_dir, scene.id, scene.pause_after_sec, width, height,
-                )
-            return scene_final, scene_final_no_overlay, pause, pause
+        fixes = _scene_fixes(ctx.work_dir.name, scene.id)
 
         try:
-            final, final_no_ov, pause, pause_no = await loop.run_in_executor(
-                executor, _render_sync,
-            )
+            # A pre-E5-sweep black stand-in: `_black_screen` was the only writer of this
+            # marker, so its presence means the cache paths beside it are black, not a real
+            # render. Drop the whole cache footprint and fall through to a normal render.
+            black_marker = scenes_dir / f"{scene.id}_black.mp4"
+            if black_marker.exists():
+                black_marker.unlink(missing_ok=True)
+                for cached in scene_final_cache_paths(scenes_dir, scene.id):
+                    cached.unlink(missing_ok=True)
+                logger.info("compose.scene.legacy_black_standin_dropped", scene_id=scene.id)
+
+            # Cache check
+            if scene_final.exists() and scene_final_no_overlay.exists():
+                with _scene_step(scene.id, "cached scene", _CACHED_SCENE_FIX):
+                    logger.info("compose.scene.cached", scene_id=scene.id)
+                    # Both cache files must probe cleanly, regardless of whether an expected
+                    # duration exists (`_mux` writes them non-atomically and second, so a
+                    # SIGTERM can leave `scene_final_no_overlay` truncated while `scene_final`
+                    # still looks valid). A failed probe raises here and is caught by
+                    # `_scene_step`, which takes RF1's drop-both-and-refuse path.
+                    actual = _get_duration_sec(scene_final)
+                    actual_no_overlay = _get_duration_sec(scene_final_no_overlay)
+                    if i < len(audio_segments):
+                        d_check = audio_segments[i]["duration_ms"] / 1000.0
+                        for label, dur in (
+                            ("scene_final", actual),
+                            ("scene_final_no_overlay", actual_no_overlay),
+                        ):
+                            if dur < d_check - 0.5:
+                                logger.warning(
+                                    "compose.scene.duration_mismatch",
+                                    scene_id=scene.id,
+                                    file=label,
+                                    cached_sec=round(dur, 2),
+                                    expected_sec=round(d_check, 2),
+                                    hint="Delete cached scene files and rescene to fix subtitle drift",
+                                )
+                cached_pause: list[Path] = []
+                if scene.pause_after_sec > 0:
+                    with _scene_step(scene.id, "frame/mux", fixes["frame/mux"]):
+                        cached_pause = [self._silence_gap(
+                            scenes_dir, scene.id, scene.pause_after_sec, width, height,
+                        )]
+                return ComposeSceneResult(
+                    index=i,
+                    scene_final=scene_final,
+                    scene_final_no_overlay=scene_final_no_overlay,
+                    pause_paths=cached_pause,
+                    pause_paths_no_overlay=list(cached_pause),
+                )
+
+            logger.info("compose.scene", scene_id=scene.id, duration=f"{duration:.1f}s")
+            visual_type = str((scene_dict.get("visual") or {}).get("type") or "text_card")
+
+            def _render_sync() -> Path | None:
+                """Synchronous scene render (thread pool). Returns the pause clip, if any."""
+                # Step 1: Render visual
+                with _scene_step(scene.id, f"visual ({visual_type})", fixes["visual"]):
+                    vis = render_scene(
+                        scene_dict,
+                        duration,
+                        "16:9",  # aspect_ratio default; storyboard-driven is 16:9
+                        scenes_dir,
+                        source_video=source_video,
+                        theme=theme_dict,
+                        project_root=ctx.work_dir,
+                    )
+
+                # Frameless scenes: scale the visual to fill the full canvas so every
+                # clip shares the canvas resolution (the open_book_page frame did this
+                # placement for framed scenes; without it, inset-sized refit crops
+                # would break the uniform-dimension concat).
+                if not frame_style:
+                    with _scene_step(scene.id, "frame/mux", fixes["frame/mux"]):
+                        vis = self._fit_to_canvas(
+                            vis, scenes_dir / f"{scene.id}_fullbleed.mp4", width, height
+                        )
+
+                # Step 1b: Compartment animation
+                if scene.compartment:
+                    with _scene_step(scene.id, "compartment", fixes["compartment"]):
+                        comp_vid = build_compartment_loop(
+                            compartment=scene.compartment,
+                            scene_duration_sec=duration,
+                            scene_width=width,
+                            scene_height=height,
+                            work_dir=scenes_dir,
+                            scene_id=scene.id,
+                        )
+                        vis = composite_compartment_on_scene(
+                            scene_video=vis,
+                            compartment_video=comp_vid,
+                            compartment_config=scene.compartment,
+                            scene_width=width,
+                            scene_height=height,
+                            work_dir=scenes_dir,
+                            scene_id=scene.id,
+                        )
+
+                # Step 2: Overlay
+                vis_before_overlay = vis
+                with _scene_step(
+                    scene.id, "overlay rule", fixes["overlay rule"], include_error=True,
+                ):
+                    check_overlay_allowed(
+                        scene=scene_dict,
+                        overlay=scene.overlay,
+                        visual=scene.visual,
+                        burn_subtitles=ctx.burn_subtitles,
+                    )
+                if scene.overlay and not ctx.skip_overlays:
+                    with _scene_step(scene.id, "overlay", _OVERLAY_FIX):
+                        vis = apply_overlay(
+                            visual_path=vis,
+                            overlay=scene.overlay,
+                            width=width, height=height,
+                            work_dir=scenes_dir,
+                            scene_id=scene.id,
+                            theme=theme_dict,
+                        )
+
+                # Step 3: Frame + mux both variants; Step 4: pause gap
+                with _scene_step(scene.id, "frame/mux", fixes["frame/mux"]):
+                    if frame_style:
+                        vis = composite_scene_frame(
+                            vis,
+                            scenes_dir / f"{scene.id}_visual{frame_suffix}.mp4",
+                            frame_style=frame_style,
+                            width=width,
+                            height=height,
+                        )
+                        vis_before_overlay = composite_scene_frame(
+                            vis_before_overlay,
+                            scenes_dir / f"{scene.id}_visual_no_overlay{frame_suffix}.mp4",
+                            frame_style=frame_style,
+                            width=width,
+                            height=height,
+                        )
+                    self._mux(vis, scene_final, audio_path)
+                    no_overlay_vis = vis_before_overlay if scene.overlay else vis
+                    self._mux(no_overlay_vis, scene_final_no_overlay, audio_path)
+                    if scene.pause_after_sec > 0:
+                        return self._silence_gap(
+                            scenes_dir, scene.id, scene.pause_after_sec, width, height,
+                        )
+                return None
+
+            loop = asyncio.get_running_loop()
+            pause = await loop.run_in_executor(get_ffmpeg_executor(), _render_sync)
         except Exception as e:
+            # I1: no stand-in and no half-written file may stay where the cache check looks.
+            scene_final.unlink(missing_ok=True)
+            scene_final_no_overlay.unlink(missing_ok=True)
             if isinstance(e, SceneRenderError):
                 raise
-            logger.error("compose.scene.catastrophic_failure", scene_id=scene.id, error=str(e))
-            self._mux(
-                self._black_screen(scenes_dir, scene.id, duration, width, height),
-                scene_final, audio_path,
-            )
-            self._mux(
-                self._black_screen(scenes_dir, scene.id, duration, width, height),
-                scene_final_no_overlay, audio_path,
-            )
-            final = scene_final
-            final_no_ov = scene_final_no_overlay
-            pause = None
-            pause_no = None
+            raise SceneRenderError(
+                scene=scene.id,
+                reason=_step_reason("frame/mux", e),
+                suggested_fix=fixes["frame/mux"],
+            ) from e
 
-        pause_paths_c = [pause] if pause else []
-        pause_paths_no_c = [pause_no] if pause_no else []
+        pause_paths = [pause] if pause else []
         return ComposeSceneResult(
             index=i,
-            scene_final=final,
-            scene_final_no_overlay=final_no_ov,
-            pause_paths=pause_paths_c,
-            pause_paths_no_overlay=pause_paths_no_c,
+            scene_final=scene_final,
+            scene_final_no_overlay=scene_final_no_overlay,
+            pause_paths=pause_paths,
+            pause_paths_no_overlay=list(pause_paths),
         )
 
     @staticmethod
@@ -1488,37 +1534,6 @@ class ComposeStage(PipelineStage):
                 "-i", str(vis), "-c:v", "copy", "-an",
                 str(out),
             ])
-
-    def _black_screen(
-        self,
-        work_dir: Path,
-        scene_id: str,
-        duration: float,
-        width: int,
-        height: int,
-    ) -> Path:
-        """Generate a black screen video segment."""
-        output = work_dir / f"{scene_id}_black.mp4"
-        run_ffmpeg(
-            [
-                "ffmpeg",
-                "-y",
-                "-f",
-                "lavfi",
-                "-i",
-                f"color=c=black:s={width}x{height}:d={duration}:r=30",
-                "-c:v",
-                "libx264",
-                "-preset",
-                "medium",
-                "-crf",
-                "23",
-                "-pix_fmt",
-                "yuv420p",
-                str(output),
-            ]
-        )
-        return output
 
     def _silence_gap(
         self,

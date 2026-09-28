@@ -1,7 +1,7 @@
 """`toon` visual type: render an own-show 2.5D scene (src/toon) as the scene's clip.
 
-Every failure is a SceneRenderError: compose turns other exceptions into a black screen,
-which would hide a broken scene.
+Every failure is a SceneRenderError carrying the toon-specific fix (`pipeline toon
+validate`); compose would otherwise only wrap it generically as `visual (toon) failed`.
 """
 from __future__ import annotations
 

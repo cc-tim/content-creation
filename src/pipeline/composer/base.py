@@ -331,10 +331,12 @@ def render_scene(
     work_dir: Path,
     source_video: Path | None = None,
     theme: dict | None = None,
+    project_root: Path | None = None,
 ) -> Path:
     """Dispatch to the appropriate visual renderer based on scene.visual.type.
 
-    Returns path to the rendered video segment (.mp4).
+    *project_root* is the project dir that relative `clip` / `article_image` / `image`
+    paths resolve against (pipeline.utils.paths). Returns the rendered segment (.mp4).
     """
     visual = scene.get("visual", {})
     visual_type = visual.get("type", "text_card")
@@ -347,7 +349,10 @@ def render_scene(
     if visual_type == "clip":
         from pipeline.composer.clip import render_clip
 
-        return render_clip(visual, duration_sec, width, height, work_dir, scene_id, source_video)
+        return render_clip(
+            visual, duration_sec, width, height, work_dir, scene_id, source_video,
+            project_root=project_root,
+        )
 
     elif visual_type == "text_card":
         from pipeline.composer.text_card import render_text_card
@@ -424,7 +429,7 @@ def render_scene(
     elif visual_type in ("article_image", "image"):
         from pipeline.composer.refit import effective_image_path, target_box
 
-        img_path = effective_image_path(visual)
+        img_path = effective_image_path(visual, project_root)
         if not img_path.exists():
             raise SceneRenderError(
                 scene=scene_id,

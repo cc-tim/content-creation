@@ -371,7 +371,9 @@ def still_gate(
         for scene in scenes:
             sid = scene.get("id", "scene")
             try:
-                tmp_png = render_scene_still(scene, variant=variant, work_dir=work / sid, theme={})
+                tmp_png = render_scene_still(
+                    scene, variant=variant, work_dir=work / sid, theme={}, project_root=pdir,
+                )
             except Exception as exc:  # gate runs before fit-image; an asset may be missing
                 typer.echo(f"  [render_error] {sid}: {exc}", err=True)
                 render_errors.append(sid)
