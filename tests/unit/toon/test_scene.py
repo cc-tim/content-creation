@@ -264,6 +264,46 @@ def test_an_empty_bubble_is_rejected():
         load_scene(mini(**{"at": 1.0, "show": {"bubble": [], "from": "tim"}}), BANK)
 
 
+# -- storyboard visuals: inline scenes pass every scene key through; references take boil only --
+
+def inline_visual(**extra):
+    return {"type": "toon", "cast": {"tim": "tim"}, "shots": copy.deepcopy(MINI["shots"]), **extra}
+
+
+def test_inline_visual_boil_is_honoured():
+    from toon.scene import scene_data_from_visual
+
+    assert load_scene(scene_data_from_visual(inline_visual(boil="full")), BANK).boil == "full"
+
+
+def test_inline_visual_typo_is_rejected():
+    from toon.scene import scene_data_from_visual
+
+    with pytest.raises(SceneError, match=r"cats: Extra inputs are not permitted"):
+        load_scene(scene_data_from_visual(inline_visual(cats={"tim": "tim"})), BANK)
+
+
+def test_inline_visual_ignores_pipeline_owned_keys():
+    from toon.scene import scene_data_from_visual
+
+    v = inline_visual(confidence="high", rationale="the lioness bursts in", edit_mode=False)
+    assert load_scene(scene_data_from_visual(v), BANK).id == "inline"
+
+
+def test_scene_reference_takes_a_boil_override():
+    from toon.scene import scene_data_from_visual
+
+    v = {"type": "toon", "scene": "001-lioness-dishes", "boil": "still", "confidence": "high"}
+    assert load_scene(scene_data_from_visual(v), BANK).boil == "still"
+
+
+def test_scene_reference_rejects_any_other_key():
+    from toon.scene import scene_data_from_visual
+
+    with pytest.raises(SceneError, match=r"visual\.bogus: a scene reference takes only"):
+        scene_data_from_visual({"type": "toon", "scene": "001-lioness-dishes", "bogus": 1})
+
+
 def test_boil_override_defaults_to_none():
     assert load_scene(mini(), BANK).boil is None
 

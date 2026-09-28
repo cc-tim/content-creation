@@ -448,10 +448,25 @@ def read_scene(ref: str) -> dict:
     return yaml.load(path.read_text(), Loader=_SceneLoader)
 
 
+# Keys the pipeline owns on every storyboard visual — `type` (dispatch), the director's
+# `confidence`/`rationale`, compose's `edit_mode` — never part of the toon scene itself.
+PIPELINE_VISUAL_KEYS = frozenset({"type", "confidence", "rationale", "edit_mode"})
+# What a `{scene: <id>}` reference may override on top of the scene file.
+SCENE_REF_OVERRIDES = frozenset({"boil"})
+
+
 def scene_data_from_visual(visual: dict) -> dict:
-    if visual.get("scene"):
-        return read_scene(str(visual["scene"]))
-    if visual.get("shots"):
-        return {"id": visual.get("id", "inline"), "cast": visual.get("cast", {}),
-                "shots": visual["shots"], "duration": visual.get("duration")}
+    """A storyboard `toon` visual → scene data. Inline scenes pass every scene key through, so
+    the scene model's `extra="forbid"` catches typos; references take `boil:` and nothing else."""
+    own = {k: v for k, v in visual.items() if k not in PIPELINE_VISUAL_KEYS}
+    if own.get("scene"):
+        extra = sorted(set(own) - {"scene"} - SCENE_REF_OVERRIDES)
+        if extra:
+            raise SceneError([f"visual.{k}: a scene reference takes only scene: and "
+                              f"{', '.join(sorted(SCENE_REF_OVERRIDES))}: (edit the scene file, "
+                              f"or inline the shots)" for k in extra])
+        data = read_scene(str(own["scene"]))
+        return {**data, **{k: own[k] for k in SCENE_REF_OVERRIDES if k in own}}
+    if own.get("shots"):
+        return {"id": "inline", "cast": {}, **own}
     raise SceneError(["visual: a toon visual needs scene: <id> or inline cast + shots"])
