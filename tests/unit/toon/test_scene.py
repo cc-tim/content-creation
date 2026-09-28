@@ -137,6 +137,118 @@ def test_verb_specific_fields_are_rejected_on_other_verbs():
         load_scene(mini(**{"at": 1.0, "door": "open", "out": True}), BANK)
 
 
+def with_props(**props):
+    d = mini()
+    d["shots"][0]["props"] = props
+    return d
+
+
+# -- props: per-kind requirements (a prop the renderer can't draw must fail at load) --
+
+def test_idea_bulb_needs_on():
+    with pytest.raises(SceneError, match=r"shots\[0\]\.props\.idea\.on: an idea_bulb prop needs on:"):
+        load_scene(with_props(idea={"kind": "idea_bulb", "b": 1.0}), BANK)
+
+
+def test_idea_bulb_rejects_held_by():
+    with pytest.raises(SceneError, match=r"shots\[0\]\.props\.idea\.held_by: not valid on an idea_bulb prop"):
+        load_scene(with_props(idea={"kind": "idea_bulb", "on": "tim", "held_by": "tim"}), BANK)
+
+
+def test_plate_needs_held_by():
+    with pytest.raises(SceneError, match=r"shots\[0\]\.props\.p\.held_by: a plate prop needs held_by:"):
+        load_scene(with_props(p={"kind": "plate"}), BANK)
+
+
+def test_plate_rejects_fields_it_cannot_draw():
+    with pytest.raises(SceneError, match=r"shots\[0\]\.props\.p\.on: not valid on a plate prop"):
+        load_scene(with_props(p={"kind": "plate", "held_by": "tim", "on": "tim"}), BANK)
+    with pytest.raises(SceneError, match=r"shots\[0\]\.props\.p\.b: not valid on a plate prop"):
+        load_scene(with_props(p={"kind": "plate", "held_by": "tim", "b": 0.5}), BANK)
+
+
+def test_plate_stack_needs_count():
+    with pytest.raises(SceneError, match=r"shots\[0\]\.props\.s\.count: a plate_stack prop needs count:"):
+        load_scene(with_props(s={"kind": "plate_stack"}), BANK)
+
+
+def test_plate_stack_rejects_on():
+    with pytest.raises(SceneError, match=r"shots\[0\]\.props\.s\.on: not valid on a plate_stack prop"):
+        load_scene(with_props(s={"kind": "plate_stack", "count": 3, "on": "tim"}), BANK)
+
+
+def test_prop_reference_to_an_unplaced_character_names_the_field():
+    with pytest.raises(SceneError, match=r"shots\[0\]\.props\.idea\.on: 'lioness' is not placed"):
+        load_scene(with_props(idea={"kind": "idea_bulb", "on": "lioness"}), BANK)
+
+
+# -- prop beats: `to:` keys must be a state that prop kind animates --
+
+def test_prop_beat_to_key_unknown_for_the_kind_is_rejected():
+    with pytest.raises(SceneError, match=r"shots\[0\]\.beats\[0\]\.to\.bb: an idea_bulb prop has no 'bb' state"):
+        load_scene(mini(**{"at": 1.0, "prop": "idea", "to": {"bb": 0.3}}), BANK)
+    d = with_props(idea={"kind": "idea_bulb", "on": "tim"}, s={"kind": "plate_stack", "count": 6})
+    d["shots"][0]["beats"].append({"at": 1.0, "prop": "s", "to": {"b": 0.3}})
+    with pytest.raises(SceneError, match=r"shots\[0\]\.beats\[0\]\.to\.b: a plate_stack prop has no 'b' state"):
+        load_scene(d, BANK)
+
+
+def test_a_plate_has_no_animatable_state():
+    d = with_props(p={"kind": "plate", "held_by": "tim"})
+    d["shots"][0]["beats"].append({"at": 1.0, "prop": "p", "to": {"count": 2}})
+    with pytest.raises(SceneError, match=r"shots\[0\]\.beats\[0\]\.to\.count: a plate prop has no 'count' state"):
+        load_scene(d, BANK)
+
+
+def test_prop_beat_known_to_keys_load():
+    d = with_props(idea={"kind": "idea_bulb", "on": "tim"}, s={"kind": "plate_stack", "count": 6})
+    d["shots"][0]["beats"] += [{"at": 1.0, "prop": "idea", "to": {"b": 0.3}},
+                               {"at": 1.0, "prop": "s", "to": {"count": 3}}]
+    assert len(load_scene(d, BANK).shots[0].beats) == 2
+
+
+# -- R6 completion: every remaining ignored field is rejected, naming the path --
+
+@pytest.mark.parametrize("beat, path", [
+    ({"at": 1.0, "door": "open", "to": "doorway"}, r"beats\[0\]\.to: not valid with a door beat"),
+    ({"at": 1.0, "show": {"anger": "tim"}, "to": "tim"}, r"beats\[0\]\.to: not valid with a show beat"),
+    ({"at": 1.0, "camera": "two_shot", "to": "front34_push"}, r"beats\[0\]\.to: not valid with a camera beat"),
+])
+def test_to_is_rejected_on_verbs_that_ignore_it(beat, path):
+    with pytest.raises(SceneError, match=path):
+        load_scene(mini(**beat), BANK)
+
+
+def test_to_is_rejected_on_a_hide_beat():
+    d = mini(**{"at": 0.5, "show": {"anger": "tim"}})
+    d["shots"][0]["beats"].append({"at": 1.0, "hide": "anger:tim", "to": "x"})
+    with pytest.raises(SceneError, match=r"beats\[1\]\.to: not valid with a hide beat"):
+        load_scene(d, BANK)
+
+
+def test_from_is_only_for_bubbles():
+    with pytest.raises(SceneError, match=r"beats\[0\]\.show\.from: only valid with a bubble show"):
+        load_scene(mini(**{"at": 1.0, "show": {"anger": "tim", "from": "tim"}}), BANK)
+
+
+def test_at_is_only_for_cards():
+    with pytest.raises(SceneError, match=r"beats\[0\]\.show\.at: only valid with an x_card or check_pill"):
+        load_scene(mini(**{"at": 1.0, "show": {"speed_lines": "tim", "at": [0.5, 0.5]}}), BANK)
+
+
+def test_graphic_key_is_per_kind():
+    from toon.scene import Show, graphic_key
+
+    assert graphic_key(Show(anger="lioness")) == "anger:lioness"
+    assert graphic_key(Show(bubble=["dishes"], **{"from": "tim"})) == "bubble:tim"
+    assert graphic_key(Show(x_card="bulb", at=(0.5, 0.5))) == "x_card:bulb"
+
+
+def test_an_empty_bubble_is_rejected():
+    with pytest.raises(SceneError, match=r"show\.bubble"):
+        load_scene(mini(**{"at": 1.0, "show": {"bubble": [], "from": "tim"}}), BANK)
+
+
 def test_boil_override_defaults_to_none():
     assert load_scene(mini(), BANK).boil is None
 

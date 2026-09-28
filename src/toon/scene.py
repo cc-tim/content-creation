@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -15,6 +15,14 @@ from toon.kit.icons import ICONS
 Ease = Literal["linear", "smooth", "out", "back"]
 VERBS = ("door", "move", "pose", "face", "prop", "show", "hide", "camera")
 SHOW_KINDS = ("speed_lines", "bubble", "anger", "x_card", "check_pill")
+PROP_USE_FIELDS = ("on", "held_by", "b", "count")
+# Per bank-prop kind: (use fields it needs, use fields it draws, states a `to:` beat animates).
+# Anything else would load cleanly and be silently ignored by the renderer, so it is rejected.
+PROP_KINDS: dict[str, tuple[frozenset[str], frozenset[str], frozenset[str]]] = {
+    "idea_bulb": (frozenset({"on"}), frozenset({"on", "b"}), frozenset({"b"})),
+    "plate": (frozenset({"held_by"}), frozenset({"held_by"}), frozenset()),
+    "plate_stack": (frozenset({"count"}), frozenset({"count"}), frozenset({"count"})),
+}
 
 
 class _SceneLoader(yaml.SafeLoader):
@@ -77,7 +85,7 @@ class Fx(_Strict):
 
 class Show(_Strict):
     speed_lines: str | None = None
-    bubble: list[str] | None = None
+    bubble: Annotated[list[str], Field(min_length=1)] | None = None
     from_: str | None = Field(default=None, alias="from")
     anger: str | None = None
     x_card: str | None = None
@@ -161,7 +169,10 @@ class ToonScene(_Strict):
 
 
 def graphic_key(show: Show) -> str:
-    target = show.speed_lines or show.from_ or show.anger or show.x_card or show.check_pill
+    """`<kind>:<target>` — the name a `hide:` beat uses. Keyed on the show's own kind, so a
+    stray field of another kind can never pick the target."""
+    target = {"speed_lines": show.speed_lines, "bubble": show.from_, "anger": show.anger,
+              "x_card": show.x_card, "check_pill": show.check_pill}[show.kind]
     return f"{show.kind}:{target}"
 
 
@@ -240,11 +251,14 @@ def _check(scene: ToonScene, bank: Bank) -> list[str]:
             if pl.expr not in bank.expressions:
                 p.append(f"{pw}.expr: unknown expression {pl.expr!r}")
         for name, pu in shot.props.items():
+            uw = f"{w}.props.{name}"
             if pu.kind not in bank.props:
-                p.append(f"{w}.props.{name}.kind: unknown prop {pu.kind!r}")
-            for ref in (pu.on, pu.held_by):
+                p.append(f"{uw}.kind: unknown prop {pu.kind!r}")
+            else:
+                p += _check_prop_use(pu, uw, bank.props[pu.kind].kind)
+            for field, ref in (("on", pu.on), ("held_by", pu.held_by)):
                 if ref is not None and ref not in shot.place:
-                    p.append(f"{w}.props.{name}: {ref!r} is not placed in this shot")
+                    p.append(f"{uw}.{field}: {ref!r} is not placed in this shot")
         length = shot_length(scene, i)
         # Collect shown graphics in this shot
         shown: dict[str, float] = {}  # graphic_key -> at time
@@ -259,11 +273,29 @@ def _check(scene: ToonScene, bank: Bank) -> list[str]:
     return p
 
 
+def _a(kind: str) -> str:
+    return f"an {kind}" if kind[0] in "aeiou" else f"a {kind}"
+
+
+def _check_prop_use(pu: PropUse, uw: str, kind: str) -> list[str]:
+    need, draws, _ = PROP_KINDS[kind]
+    p: list[str] = []
+    for field in PROP_USE_FIELDS:
+        value = getattr(pu, field)
+        if value is None and field in need:
+            p.append(f"{uw}.{field}: {_a(kind)} prop needs {field}:")
+        elif value is not None and field not in draws:
+            p.append(f"{uw}.{field}: not valid on {_a(kind)} prop (it takes {sorted(draws)})")
+    return p
+
+
 def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
                  shown: dict[str, float] | None = None) -> list[str]:
     p: list[str] = []
     placed = shot.place
     v = b.verb
+    if v in ("door", "show", "hide", "camera") and b.to is not None:
+        p.append(f"{bw}.to: not valid with a {v} beat")
     if v == "move":
         if b.move not in placed:
             p.append(f"{bw}.move: {b.move!r} is not placed in this shot")
@@ -286,10 +318,18 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
         if b.face not in placed or not isinstance(b.to, str) or b.to not in placed:
             p.append(f"{bw}: face needs two characters placed in this shot")
     elif v == "prop":
-        if b.prop not in shot.props:
+        pu = shot.props.get(b.prop)
+        if pu is None:
             p.append(f"{bw}.prop: unknown prop use {b.prop!r} in this shot")
         if isinstance(b.to, str):
             p.append(f"{bw}.to: prop beats take a mapping like {{b: 0.3}}")
+        elif isinstance(b.to, dict) and pu is not None and pu.kind in bank.props:
+            kind = bank.props[pu.kind].kind
+            states = PROP_KINDS[kind][2]
+            for key in b.to:
+                if key not in states:
+                    p.append(f"{bw}.to.{key}: {_a(kind)} prop has no {key!r} state "
+                             f"(it animates {sorted(states) or 'nothing'})")
         if not (isinstance(b.to, dict) or b.flicker is not None or b.blink or b.out):
             p.append(f"{bw}: a prop beat needs to / flicker / blink / out")
     elif v == "show":
@@ -297,6 +337,10 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
         for ref in (s.speed_lines, s.from_, s.anger):
             if ref is not None and ref not in placed:
                 p.append(f"{bw}.show: {ref!r} is not placed in this shot")
+        if s.from_ is not None and s.kind != "bubble":
+            p.append(f"{bw}.show.from: only valid with a bubble show")
+        if s.at is not None and s.kind not in ("x_card", "check_pill"):
+            p.append(f"{bw}.show.at: only valid with an x_card or check_pill show")
         for icon in (s.bubble or []) + [x for x in (s.x_card, s.check_pill) if x]:
             if icon not in ICONS:
                 p.append(f"{bw}.show: {icon!r} is not an icon — animation is wordless; "
