@@ -173,6 +173,7 @@ Fill in the other columns as you go, and commit this file with the task's own co
 | T11b | `test_loud_failure_fence.py::test_no_black_fallback_helpers_remain` | 4 | `assert not hasattr(<module 'pipeline.composer.image_sequence'>, '_black_clip')` | `assert not hasattr(<module 'pipeline.composer.image_sequence'>, '_black_clip')` | `b08db91` | `f4f0854` |
 | T11c | `test_loud_failure_fence.py::test_black_lavfi_source_only_in_silence_gap` | 4 | `Extra items in the left set: ('composer/image_sequence.py', '_black_clip')` | `Extra items in the left set: ('composer/image_sequence.py', '_black_clip')` | `b08db91` | `f4f0854` |
 | RF6 | `test_compose_v2.py::test_legacy_black_standin_dropped_and_rerendered` | 3 (fix round 1, Ruling S2) | `assert 0 == 1` (render_scene never called: a legacy `{sid}_black.mp4` marker beside real-looking cached finals still cache-hits) | `assert 0 == 1` | `6d2c4a9` | `a015b85` |
+| RF7 | `test_compose_v2.py::test_unreadable_no_overlay_cache_file_forces_rerender` | final review, item 1 | `DID NOT RAISE <class 'RuntimeError'>` (cache-hit gate never probed `scene_final_no_overlay`) | `DID NOT RAISE <class 'RuntimeError'>` | `045c5d6` | `fa59c91` |
 
 ---
 
