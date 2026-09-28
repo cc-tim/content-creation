@@ -96,10 +96,16 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
 3. **⏳ NEEDS TIM:** Tim creates the BytePlus ModelArk account (Taiwan) and provides the API
    key next session. Then: add a BytePlus provider to `~/.claude/bin/gen-video.py` and the key
    to `~/.claude/api-keys.json` → run the ~$1 Seedance restyle test.
-4. Style guide + **bank v0** — architectural (spec first, via brainstorming → spec →
-   plan): promote the throwaway `r4/` rig into a real repo module; bank as data (Tim preset,
-   desk set, laptop/phone, core poses, camera presets incl. OTS + screen insert); scene spec that
-   references bank items by name and renders deterministically.
+4. ~~Style guide + **bank v0**~~: **built** on branch `feat/toon-bank-v0`, with EM REVIEW
+   pending. What it contains:
+   - the `src/toon` engine;
+   - Tim's picks as YAML in `assets/toon/bank/`;
+   - scene 001 as a scene file, pixel-matched to the tryout;
+   - the `toon` storyboard visual type;
+   - `pipeline toon validate|render|sheet`;
+   - line boil set to soft by default.
+
+   Still open, on the hub: golden frames and a compose smoke run. See README → *Toon*.
 5. Retarget critics/evaluators to the audience lens above before scene reviews start.
 6. Tim hands over the latest high-level script → scene breakdown together.
 

@@ -10,7 +10,7 @@ when the rig changes, so the entry records what was decided, not just where the 
 
 | # | Scene | Status | Episode | Files |
 |---|---|---|---|---|
-| 001 | Locked in → the lioness → dishes → the idea fades | tryout · animatic v2 (wordless, bulb) — **meets Tim's expectation** (quality bar) | not assigned | `output/own-show/scenes/001-lioness-dishes/` |
+| 001 | Locked in → the lioness → dishes → the idea fades | tryout · animatic v2 (wordless, bulb) — **meets Tim's expectation** (quality bar) | not assigned | `output/own-show/scenes/001-lioness-dishes/` · engine scene `assets/toon/scenes/001-lioness-dishes.yaml` |
 
 ## 001 · Locked in → the lioness → dishes → the idea fades
 

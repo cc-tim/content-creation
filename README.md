@@ -264,6 +264,28 @@ uv run pipeline doctor [--out tmp/doctor]   # fonts (Noto CJK TC), fontconfig, f
 ```
 Natural-language triggers: "review the rendered video", "check for visual issues", "look at the rendered scenes", "judge the scene image"
 
+### Toon (own-show animation)
+Tim's 2.5D hand-drawn doodle animation for his own hosted videos lives in `src/toon`.
+- **Bank:** Tim's picks, stored as YAML in `assets/toon/bank/`.
+- **Scenes:** `assets/toon/scenes/`.
+- **Wordless:** scenes use icons and pictograms only. Words live in narration and subtitles.
+
+Guideline: `docs/own-show.md` · spec: `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md`.
+```bash
+uv run pipeline toon validate 001-lioness-dishes              # schema, every name resolves, wordless
+uv run pipeline toon render 001-lioness-dishes [--stills 1.5,4.7] [--width 1280 --height 720] [--out DIR]
+uv run pipeline toon sheet tim [--out DIR]                     # character model sheet PNG
+```
+
+| Topic | Rule |
+|---|---|
+| Storyboard | `"visual": {"type": "toon", "scene": "<id>"}`, or an inline scene. Subtitles stay on. |
+| Duration | The scene lasts as long as its narration. Longer narration holds the last shot. Shorter narration warns, then cuts the scene. |
+| Line boil | Bank default is `soft` (`style.yaml` → `boil`). A scene may set `boil: full \| soft \| still`. |
+| Aspect | 16:9 only in v0. |
+| Needs | libcairo (macOS: `brew install cairo`; hub: `libcairo2`). `pipeline doctor` checks it. |
+| Goldens | Canonical on the hub: `UPDATE_GOLDENS=1 uv run pytest tests/unit/toon/test_goldens.py` there only. |
+
 ### Dashboard (always-on)
 
 The dashboard runs as a systemd user service and is permanently accessible at **https://dashboard.keeppro.io** (Google auth required — `t8522192@gmail.com`).
