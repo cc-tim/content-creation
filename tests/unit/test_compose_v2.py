@@ -972,3 +972,263 @@ async def test_project_relative_clip_renders_from_project_root(sample_context, t
     cmd = clip_calls[0]
     assert cmd[cmd.index("-i") + 1] == str(clip_file)
     assert thumb_sources == [clip_file]  # the duplicate-frame guard reads the same file
+
+
+def _text_scene(sid: str = "s1", **kwargs) -> Scene:
+    return Scene(id=sid, section="hook", narration="t", narration_est_sec=5,
+                 visual={"type": "text_card", "text": "Hook"}, **kwargs)
+
+
+def _visual_file(scenes_dir: Path, sid: str = "s1") -> Path:
+    out = scenes_dir / f"{sid}_visual.mp4"
+    out.write_bytes(b"fake visual")
+    return out
+
+
+def _scene_ctx(tmp_path: Path):
+    from pipeline.stages.base import PipelineContext
+
+    return PipelineContext(project_id=1, source_url="x", locale="zh-TW",
+                           work_dir=tmp_path / "proj", burn_subtitles=False)
+
+
+async def _render_s1_directly(stage, ctx, scenes_dir, frame_style):
+    scene = _text_scene()
+    return await stage._render_one_scene(
+        i=0, scene=scene,
+        scene_dict={"id": "s1", "visual": scene.visual, "overlay": None,
+                    "compartment": None, "narration": scene.narration},
+        duration=1.0, audio_path=None, width=1280, height=720, scenes_dir=scenes_dir,
+        source_video=None, theme_dict={}, frame_style=frame_style, ctx=ctx, audio_segments=[],
+    )
+
+
+async def test_generic_visual_failure_refuses_assembly_without_black(sample_context):
+    """P1: any non-SceneRenderError from render_scene used to be swapped for a black screen
+    and assembled. It must refuse assembly with the step, the error and an actionable fix."""
+    scenes_dir = _prep_storyboard(sample_context, [_text_scene()])
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose.render_scene", side_effect=RuntimeError("provider exploded")),
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+        pytest.raises(RuntimeError, match="final assembly refused"),
+    ):
+        await ComposeStage().run(sample_context)
+
+    failure = sample_context.render_failures["s1"]
+    assert "visual (text_card) failed: RuntimeError: provider exploded" in failure["reason"]
+    pid = sample_context.work_dir.name
+    assert f"uv run pipeline validate {pid}" in failure["suggested_fix"]
+    assert f"compose rescene --project-id {pid} --scene s1" in failure["suggested_fix"]
+    assert sorted(p.name for p in scenes_dir.glob("s1_final*.mp4")) == []
+    assert not (scenes_dir / "s1_black.mp4").exists()
+
+
+async def test_overlay_rule_violation_refuses_assembly(sample_context):
+    """P2: check_overlay_allowed raises OverlayCollisionError (a ValueError the validator never
+    checks); it used to fall into the outer black fallback and ship."""
+    scenes_dir = _prep_storyboard(
+        sample_context, [_text_scene(overlay={"type": "text_top", "text": "hi"})],
+    )
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose.render_scene", return_value=_visual_file(scenes_dir)),
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+        pytest.raises(RuntimeError, match="final assembly refused"),
+    ):
+        await ComposeStage().run(sample_context)
+
+    failure = sample_context.render_failures["s1"]
+    assert failure["reason"].startswith("overlay rule failed: OverlayCollisionError:")
+    assert "cannot apply 'text_top' overlay to 'text_card' visual" in failure["reason"]
+    assert "cannot apply 'text_top'" in failure["suggested_fix"]
+    assert "scene.overlay" in failure["suggested_fix"]
+    assert sorted(p.name for p in scenes_dir.glob("s1_final*.mp4")) == []
+
+
+async def test_compartment_failure_refuses_assembly(sample_context):
+    """P4: a compartment build failure used to log a warning and ship the scene without it."""
+    scenes_dir = _prep_storyboard(
+        sample_context, [_text_scene(compartment={"type": "loop", "asset": "missing.png"})],
+    )
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose.render_scene", return_value=_visual_file(scenes_dir)),
+        patch("pipeline.stages.compose.build_compartment_loop",
+              side_effect=RuntimeError("compartment exploded")),
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+        pytest.raises(RuntimeError, match="final assembly refused"),
+    ):
+        await ComposeStage().run(sample_context)
+
+    failure = sample_context.render_failures["s1"]
+    assert failure["reason"] == "compartment failed: RuntimeError: compartment exploded"
+    assert "scene.compartment" in failure["suggested_fix"]
+    assert sorted(p.name for p in scenes_dir.glob("s1_final*.mp4")) == []
+
+
+async def test_render_one_scene_post_visual_failure_raises_and_leaves_no_cache(tmp_path):
+    """P2 at the frame step: _render_one_scene used to mux black to the frame-suffixed cache
+    paths and return normally."""
+    from pipeline.errors import SceneRenderError
+
+    ctx = _scene_ctx(tmp_path)
+    scenes_dir = ctx.work_dir / "compose" / "scenes"
+    scenes_dir.mkdir(parents=True)
+    with (
+        patch("pipeline.stages.compose.render_scene", return_value=_visual_file(scenes_dir)),
+        patch("pipeline.stages.compose.composite_scene_frame",
+              side_effect=RuntimeError("frame exploded")),
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+        pytest.raises(SceneRenderError) as ei,
+    ):
+        await _render_s1_directly(ComposeStage(), ctx, scenes_dir, "open_book_page")
+
+    assert ei.value.reason == "frame/mux failed: RuntimeError: frame exploded"
+    assert not (scenes_dir / "s1_final_open_book_page.mp4").exists()
+    assert not (scenes_dir / "s1_final_no_overlay_open_book_page.mp4").exists()
+
+
+async def test_escaped_scene_exception_leaves_no_cached_black(sample_context):
+    """P3: an exception escaping _render_one_scene used to leave black stand-ins at the
+    unsuffixed cache paths, and never cleaned the frame-suffixed ones."""
+    scenes_dir = _prep_storyboard(sample_context, [_text_scene()])
+    (scenes_dir / "s1_final_open_book_page.mp4").write_bytes(b"stale")  # an earlier framed run
+
+    async def _escaped(self, **kwargs):
+        raise RuntimeError("escaped the scene boundary")
+
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch.object(ComposeStage, "_render_one_scene", _escaped),
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+        pytest.raises(RuntimeError, match="final assembly refused"),
+    ):
+        await ComposeStage().run(sample_context)
+
+    assert sorted(p.name for p in scenes_dir.glob("s1_final*.mp4")) == []
+    assert "escaped the scene boundary" in sample_context.render_failures["s1"]["reason"]
+
+
+async def test_refused_compose_rerun_does_not_cache_hit(sample_context):
+    """P1 + cache: the first failing run used to assemble and cache black, so the second run
+    never retried the visual."""
+    _prep_storyboard(sample_context, [_text_scene()])
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose.render_scene",
+              side_effect=RuntimeError("provider exploded")) as mock_render,
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+    ):
+        for _run in range(2):
+            with pytest.raises(RuntimeError, match="final assembly refused"):
+                await ComposeStage().run(sample_context)
+
+    assert mock_render.call_count == 2
+
+
+# Review Focus (E5 plan): inputs the spec implies that §10's tests do not reach.
+
+
+async def test_unreadable_cached_scene_is_deleted_and_refused(sample_context):
+    """RF1: a cached scene file ffprobe cannot read must not be trusted: refuse with the
+    `cached scene` step, delete both cache files, and re-render on the next run."""
+    import subprocess
+
+    scenes_dir = _prep_storyboard(sample_context, [_text_scene()])
+    (scenes_dir / "s1_final.mp4").write_bytes(b"truncated")
+    (scenes_dir / "s1_final_no_overlay.mp4").write_bytes(b"truncated")
+    unreadable = subprocess.CalledProcessError(1, ["ffprobe"], stderr="moov atom not found")
+
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose._get_duration_sec", side_effect=unreadable),
+        patch("pipeline.stages.compose.render_scene") as mock_render,
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+        pytest.raises(RuntimeError, match="final assembly refused"),
+    ):
+        await ComposeStage().run(sample_context)
+
+    failure = sample_context.render_failures["s1"]
+    assert failure["reason"].startswith("cached scene failed: CalledProcessError:")
+    assert "deleted" in failure["suggested_fix"]
+    assert mock_render.call_count == 0
+    assert sorted(p.name for p in scenes_dir.glob("s1_final*.mp4")) == []
+
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose._get_duration_sec", return_value=5.0),
+        patch("pipeline.stages.compose.render_scene",
+              return_value=_visual_file(scenes_dir)) as mock_render,
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+    ):
+        await ComposeStage().run(sample_context)
+    assert mock_render.call_count == 1
+
+
+async def test_second_mux_failure_leaves_neither_cache_file(tmp_path):
+    """RF2: ffmpeg wrote s1_final.mp4, then died half-way through s1_final_no_overlay.mp4.
+    Neither file may survive (the cache check needs only both to exist), and the reason
+    must carry ffmpeg's own error so the fix is actionable."""
+    import subprocess
+
+    from pipeline.errors import SceneRenderError
+
+    ctx = _scene_ctx(tmp_path)
+    scenes_dir = ctx.work_dir / "compose" / "scenes"
+    scenes_dir.mkdir(parents=True)
+
+    def _dies_on_no_overlay(cmd):
+        out = Path(cmd[-1])
+        out.write_bytes(b"partial")
+        if out.name.startswith("s1_final_no_overlay"):
+            raise subprocess.CalledProcessError(1, cmd, stderr="Error writing trailer: No space left on device")
+
+    with (
+        patch("pipeline.stages.compose.render_scene", return_value=_visual_file(scenes_dir)),
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_dies_on_no_overlay),
+        pytest.raises(SceneRenderError) as ei,
+    ):
+        await _render_s1_directly(ComposeStage(), ctx, scenes_dir, None)
+
+    assert ei.value.reason.startswith("frame/mux failed: CalledProcessError:")
+    assert "No space left on device" in ei.value.reason
+    assert not (scenes_dir / "s1_final.mp4").exists()
+    assert not (scenes_dir / "s1_final_no_overlay.mp4").exists()
+
+
+async def test_several_failed_scenes_all_reported_and_good_scene_stays_cached(sample_context):
+    """RF3: two scenes fail in one run. Both are recorded and named; the good scene s10
+    (whose id starts with a failed one's) keeps its cache, so the rescene is cheap."""
+    scenes = [_text_scene("s1"), _text_scene("s2"), _text_scene("s10")]
+    scenes_dir = _prep_storyboard(sample_context, scenes)
+    failing = {"s1", "s2"}
+    rendered: list[str] = []
+
+    def _render(scene, duration, aspect_ratio, work_dir, source_video=None, theme=None,
+                project_root=None):
+        rendered.append(scene["id"])
+        if scene["id"] in failing:
+            raise RuntimeError(f"provider exploded for {scene['id']}")
+        return _visual_file(Path(work_dir), scene["id"])
+
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose.render_scene", side_effect=_render),
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+        patch("pipeline.stages.compose._get_duration_sec", return_value=5.0),
+    ):
+        with pytest.raises(RuntimeError, match="final assembly refused") as ei:
+            await ComposeStage().run(sample_context)
+        assert "s1: " in str(ei.value) and "s2: " in str(ei.value)
+        assert set(sample_context.render_failures) == {"s1", "s2"}
+        assert (scenes_dir / "s10_final.mp4").exists()
+        assert (scenes_dir / "s10_final_no_overlay.mp4").exists()
+        assert sorted(p.name for p in scenes_dir.glob("s1_final*.mp4")) == []
+        assert sorted(p.name for p in scenes_dir.glob("s2_final*.mp4")) == []
+
+        failing.clear()
+        rendered.clear()
+        await ComposeStage().run(sample_context)
+
+    assert sorted(rendered) == ["s1", "s2"]  # s10 came from its cache
