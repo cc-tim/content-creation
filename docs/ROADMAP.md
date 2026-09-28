@@ -16,7 +16,7 @@
 > video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
 > the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-09-28 (REVIEW: **Sprint 9 (E9 v0) = REWORK**, small. The build is good: scene 001 matches the approved tryout (worst key-frame diff 0.04, limit 0.5); suite 1337 passed / 57 skipped; toon `--integration` 135 passed; ruff and mypy clean; Mac doctor 17/17; a separate code review happened. Three tests are missing: draw order, the doctor's FAIL path, and the model-sheet golden. Merge is cleared once they land. 🟢 waits for the hub pass (goldens, compose smoke, hub doctor), which needs Tim's OK to push. The v0 final review's parked residuals are folded into E9 item 2.) · Prior: 2026-09-27 (INTAKE: **new epic E9 — Toon engine & resource bank** [own-show character animation: deterministic 2.5D hand-drawn cairo rig + YAML bank of Tim's picks + wordless scene files + new `toon` visual type]; spec `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md` Tim-approved 2026-09-27; **v0 = Sprint 9, now the recommended next sprint** (Tim's direction), ahead of E8 item 2; 18 test-plan rows 🔲; non-goal held: no EP1 scene/story composition until Tim gives the outline) · Prior: 2026-09-24 (REVIEW: **Sprint 8 hub (A) gate ADVISE** — all 12 hub rows green [83 unit + 8 render-truth integration + 74 golden, full suite 1224 passed/21 skipped/0 errors, ruff+mypy clean, doctor 16/16, resolver = TC index 3]; merge cleared; E8 item 1 stays 🔵 pending Mac (B)) · Prior: 2026-09-24 (SPRINT: **Sprint 8 = E8 item 1 proposed + Tim-greenlit** — font resolver + Linux-assumption audit; spec `docs/superpowers/specs/2026-09-24-e8-cross-platform-fonts-design.md`; hub/Mac split acceptance; golden policy = hub-canonical, darwin skip; found HK-face `_TC_INDEX` + JP-face outro bugs; E8 item 3 hub encoder corrected to nvenc) · Prior: 2026-09-24 (INTAKE: **new epic E8 — Two-machine workflow & render portability** [Hub Linux box + Workshop M3 Mac]; three items in Tim's order: (1) cross-platform font resolver + Linux-assumption audit [Mac-render blocker; folds `cli_storyboard.py:428` + `output/gallery` path fixes + the silent `load_default()` font fallback], (2) project checkout/checkin + hub ownership lock, (3) draft/preview encode profile [hw encoders, non-publishable flag, bitrate-check aware]. Item 1 recommended as next sprint slot. Iteration-speed axis — neither quality nor runtime.) · Prior: 2026-05-31 (**Sprint 7 SHIPPED 🟢 — EM RE-REVIEW PASS** after one REWORK round — render-truth still-gate, a **two-layer gate** [Tim-approved descope 2026-05-30 + hard constraint: tesseract unprovisioned, no passwordless sudo]: Layer 1 deterministic CLI [`duplicate_frame` phash+colorhash + `blank_substrate` content-INSET; exit 0 clean / 1 tool-error / 2 findings] + Layer 2 scoped in-session vision pass [meaningfulness / wrong-language / clipping] wired into `storyboard-review/SKILL.md`. Deterministic OCR + bbox-overflow SUPERSEDED by Layer 2; variant-at-gen-time [piece C] DEFERRED [principled form of the variant fix]; the blanket "NO model-vision" guard LIFTED for the scoped Layer-2 use only. **REWORK→PASS:** first REVIEW caught the gate defaulting to `plain` [overlays burned] at Phase-3.5, missing the seed reused-map defect; both fixes landed — #1 `resolve_variant` defaults to `no_overlay` [+malformed-context guard], demonstrated firing dup on the defect snapshot via the wired path + regression test; #2 independent code review done, its I-1 render-crash finding fixed [per-scene try/except → exit 1, persisted Layer-2 stills]. EM ran pytest [16 still-gate + 143 regression], ruff, mypy, live I-1 exit-1 check — all clean. Prior 2026-05-30: Sprint 7 GREENLIT; 2026-05-29 still-gate→E5; Sprint 6 REVIEW PASS) · Prior: 2026-05-29 (REVIEW post-hoc: **E7 music/audio-axis** — first E7 sprint, built off-roadmap and merged to master `12bfce3` without a pre-merge gate; EM acceptance verdict **ADVISE, NOT PASS** [engineering clean + invariants held: schema, `composer/music.py` mix engine with an in-code length-clamp two-axes fence, `pipeline compose music` CLI, loud failure, 19 measurable tests + ruff/mypy green — but the music library is **empty**, so the spec's named s19→s23 real-scene intelligibility demo could not run]. E7 item **stays 🔵**; flip to 🟢 needs licensed tracks + the demo + a separate code review + EM re-REVIEW.) · Prior: 2026-05-29 (INTAKE: **locale-portability authoring principle folded** — prefer language-neutral visuals [numeric/chart → image-only → icon/emoji], default unavoidable on-screen text to English/en-US; cross-cutting bar → `standards.md` step 8 + the next `direct.py` sprint, lint-enforcement half → E5 🔵 [NOT next]; orthogonal to both axes; visual-side complement to shipped MLA. Recommended next sprint UNCHANGED.) · Prior: 2026-05-27 (REVIEW PASS: **Sprint 6 (E4 Slice 3) shipped** — niche `visual_style` medium-clash refactor split `medium_hint` / `palette` / `subject_bias` / `universal_rules`, preserved the back-compat composite, and passed EM REVIEW on `feat/niche-visual-style-split`; s25 demo evidence saved under `tmp/niche-visual-style-split/`. Prior: Sprint 6 formally proposed; production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-09-28 (RE-REVIEW after the hub pass: **Sprint 9 (E9 v0) = REWORK again, narrow**. The first REWORK is closed. Draw-order tests bite (EM mutation-checked 3/3). Hub goldens compare 4/4, including the model sheet. Hub suite 1379 passed / 21 skipped. Toon `--integration` 170 passed, parity included. ruff and mypy clean. Doctor 17/17 on both machines. In the compose smoke the toon lasts exactly as long as the narration (13.440 s) with subtitles kept. Two gaps: **R1, 24→30 fps judder**: every 5th output frame repeats during camera moves, which fails the smoke row. Fix: render toon at 30 fps, drawing rate Tim's pick of 12 or 15. **R2:** the doctor FAIL-path test doesn't pin its install hint. Tim acked both v0 deferrals (contact sheets; the scene-file name in `SceneError`). New demand, all E5 follow-ons: a silent black-scene path in compose, the `clip.path` resolution mismatch, and the Haiku visual-QC opt-out. An E5 loud-failure sweep is recommended next after Sprint 9, pending Tim.) · Prior: 2026-09-28 (REVIEW: **Sprint 9 (E9 v0) = REWORK**, small. The build is good: scene 001 matches the approved tryout (worst key-frame diff 0.04, limit 0.5); suite 1337 passed / 57 skipped; toon `--integration` 135 passed; ruff and mypy clean; Mac doctor 17/17; a separate code review happened. Three tests are missing: draw order, the doctor's FAIL path, and the model-sheet golden. Merge is cleared once they land. 🟢 waits for the hub pass (goldens, compose smoke, hub doctor), which needs Tim's OK to push. The v0 final review's parked residuals are folded into E9 item 2.) · Prior: 2026-09-27 (INTAKE: **new epic E9 — Toon engine & resource bank** [own-show character animation: deterministic 2.5D hand-drawn cairo rig + YAML bank of Tim's picks + wordless scene files + new `toon` visual type]; spec `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md` Tim-approved 2026-09-27; **v0 = Sprint 9, now the recommended next sprint** (Tim's direction), ahead of E8 item 2; 18 test-plan rows 🔲; non-goal held: no EP1 scene/story composition until Tim gives the outline) · Prior: 2026-09-24 (REVIEW: **Sprint 8 hub (A) gate ADVISE** — all 12 hub rows green [83 unit + 8 render-truth integration + 74 golden, full suite 1224 passed/21 skipped/0 errors, ruff+mypy clean, doctor 16/16, resolver = TC index 3]; merge cleared; E8 item 1 stays 🔵 pending Mac (B)) · Prior: 2026-09-24 (SPRINT: **Sprint 8 = E8 item 1 proposed + Tim-greenlit** — font resolver + Linux-assumption audit; spec `docs/superpowers/specs/2026-09-24-e8-cross-platform-fonts-design.md`; hub/Mac split acceptance; golden policy = hub-canonical, darwin skip; found HK-face `_TC_INDEX` + JP-face outro bugs; E8 item 3 hub encoder corrected to nvenc) · Prior: 2026-09-24 (INTAKE: **new epic E8 — Two-machine workflow & render portability** [Hub Linux box + Workshop M3 Mac]; three items in Tim's order: (1) cross-platform font resolver + Linux-assumption audit [Mac-render blocker; folds `cli_storyboard.py:428` + `output/gallery` path fixes + the silent `load_default()` font fallback], (2) project checkout/checkin + hub ownership lock, (3) draft/preview encode profile [hw encoders, non-publishable flag, bitrate-check aware]. Item 1 recommended as next sprint slot. Iteration-speed axis — neither quality nor runtime.) · Prior: 2026-05-31 (**Sprint 7 SHIPPED 🟢 — EM RE-REVIEW PASS** after one REWORK round — render-truth still-gate, a **two-layer gate** [Tim-approved descope 2026-05-30 + hard constraint: tesseract unprovisioned, no passwordless sudo]: Layer 1 deterministic CLI [`duplicate_frame` phash+colorhash + `blank_substrate` content-INSET; exit 0 clean / 1 tool-error / 2 findings] + Layer 2 scoped in-session vision pass [meaningfulness / wrong-language / clipping] wired into `storyboard-review/SKILL.md`. Deterministic OCR + bbox-overflow SUPERSEDED by Layer 2; variant-at-gen-time [piece C] DEFERRED [principled form of the variant fix]; the blanket "NO model-vision" guard LIFTED for the scoped Layer-2 use only. **REWORK→PASS:** first REVIEW caught the gate defaulting to `plain` [overlays burned] at Phase-3.5, missing the seed reused-map defect; both fixes landed — #1 `resolve_variant` defaults to `no_overlay` [+malformed-context guard], demonstrated firing dup on the defect snapshot via the wired path + regression test; #2 independent code review done, its I-1 render-crash finding fixed [per-scene try/except → exit 1, persisted Layer-2 stills]. EM ran pytest [16 still-gate + 143 regression], ruff, mypy, live I-1 exit-1 check — all clean. Prior 2026-05-30: Sprint 7 GREENLIT; 2026-05-29 still-gate→E5; Sprint 6 REVIEW PASS) · Prior: 2026-05-29 (REVIEW post-hoc: **E7 music/audio-axis** — first E7 sprint, built off-roadmap and merged to master `12bfce3` without a pre-merge gate; EM acceptance verdict **ADVISE, NOT PASS** [engineering clean + invariants held: schema, `composer/music.py` mix engine with an in-code length-clamp two-axes fence, `pipeline compose music` CLI, loud failure, 19 measurable tests + ruff/mypy green — but the music library is **empty**, so the spec's named s19→s23 real-scene intelligibility demo could not run]. E7 item **stays 🔵**; flip to 🟢 needs licensed tracks + the demo + a separate code review + EM re-REVIEW.) · Prior: 2026-05-29 (INTAKE: **locale-portability authoring principle folded** — prefer language-neutral visuals [numeric/chart → image-only → icon/emoji], default unavoidable on-screen text to English/en-US; cross-cutting bar → `standards.md` step 8 + the next `direct.py` sprint, lint-enforcement half → E5 🔵 [NOT next]; orthogonal to both axes; visual-side complement to shipped MLA. Recommended next sprint UNCHANGED.) · Prior: 2026-05-27 (REVIEW PASS: **Sprint 6 (E4 Slice 3) shipped** — niche `visual_style` medium-clash refactor split `medium_hint` / `palette` / `subject_bias` / `universal_rules`, preserved the back-compat composite, and passed EM REVIEW on `feat/niche-visual-style-split`; s25 demo evidence saved under `tmp/niche-visual-style-split/`. Prior: Sprint 6 formally proposed; production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -375,7 +375,7 @@ copy; a project is owned by exactly one machine at a time.**
   bank and scene files live in git and renders are deterministic and regenerable, so toon work
   does not add to the divergent-state risk; the interim manual-rsync convention still holds.
 
-### E9 — Toon engine & resource bank (own-show character animation)  `[arsenal]`  🔵 *new epic (INTAKE 2026-09-27); v0 (Sprint 9) built on `feat/toon-bank-v0`; EM REVIEW 2026-09-28 = REWORK (3 test gaps) + hub pass pending*
+### E9 — Toon engine & resource bank (own-show character animation)  `[arsenal]`  🔵 *new epic (INTAKE 2026-09-27); v0 (Sprint 9) merged to master; EM REVIEW 2026-09-28 = REWORK (3 test gaps, closed) → hub-pass re-REVIEW 2026-09-28 = REWORK (R1 fps judder, R2 one test assertion)*
 A deterministic **2.5D hand-drawn character-animation** visual type for Tim's own hosted videos
 (`docs/own-show.md` is the top guideline for those videos and overrides the porting defaults).
 A code rig (cairo) draws the frozen character (Tim: likeness 2, short crop A, navy hoodie,
@@ -414,9 +414,12 @@ are YAML files that name bank items and always render the same frames. The pipel
   - Retargeting the audience-lens critics is `own-show.md` step 5 (content/critic work, not
     tracked here).
 - **Items:**
-  1. **🔵 v0: engine + bank + scene file + `toon` visual type** (Sprint 9). Built on
-     `feat/toon-bank-v0`. EM REVIEW 2026-09-28 = **REWORK**: three tests are missing. After them
-     comes a hub pass, then PASS. See Sprint 9.
+  1. **🔵 v0: engine + bank + scene file + `toon` visual type** (Sprint 9). Merged to master
+     (`577b7a5`); hub goldens at `af00aa9`. The hub-pass re-REVIEW 2026-09-28 = **REWORK**:
+     - R1: 24→30 fps judder;
+     - R2: the doctor-hint assertion.
+
+     PASS follows once both land. See Sprint 9.
   2. **🔵 v0 residuals** (parked by the v0 final review, 2026-09-28). The demand is EP1 scene
      authoring. Clear a–c before the first EP1 scene file is written, in this order:
      - **a. Loud-failure debt.** Some fields are still accepted and silently ignored: `ease` on
@@ -428,13 +431,14 @@ are YAML files that name bank items and always render the same frames. The pipel
        - The sentence splitter mishandles 「」 quotes and abbreviations like "U.S.". This
          matters once zh-TW narration drives `at: {sentence: n}`.
        - `SceneError` names the path inside the file but not the scene file; spec §5 says both.
+         Deferred out of v0; Tim acked 2026-09-28.
        - `style.yaml` `line`/`palette` aren't wired into renders. The engine uses constants that
          a test holds equal, so an edit fails CI instead of changing the look.
      - **c. Kit gap with named demand:** the laptop has no ✓/✗ screen states, and EP1's "agent
        errors" beat needs them. This needs Tim's pick (options → pick → freeze).
      - **d. Tooling:**
-       - Pose and prop contact sheets (spec §4). v0's `sheet` writes the model sheet only; the
-         deferral needs Tim's ack.
+       - Pose and prop contact sheets (spec §4). v0's `sheet` writes the model sheet only.
+         Deferred out of v0; Tim acked 2026-09-28.
        - `toon validate --narration/--duration`.
      - **e. Hygiene:**
        - a `PROP_KINDS`↔`PropDef.kind` sync test;
@@ -442,9 +446,8 @@ are YAML files that name bank items and always render the same frames. The pipel
        - render workers reload the bank from disk.
      - **f. Timing:** shot boundaries don't scale with the TTS duration; only the last shot
        holds or is cut. This goes with word-level timing below.
-     - **g. Frame rate:** 24 fps toon clips go into a 30 fps compose concat and may judder. It
-       is eyeballed at the Sprint 9 hub smoke. If it shows, render toon at the compose fps or
-       conform explicitly.
+     - **g. ~~Frame rate~~ → promoted into Sprint 9 as REWORK R1.** The judder showed at the hub
+       smoke (2026-09-28), so it gates v0 rather than waiting as a residual.
   3. **⚪ After v0 (spec §10, unscoped):**
      - word-level timing (Whisper word timestamps)
      - more characters and sets, from Tim's picks only
@@ -732,7 +735,64 @@ for overflow (ex-check-4) was high-risk/low-verifiability.
   picture by up to ~18 s. Both are in arsenal-state "Known capability bugs". None of this
   blocks Sprint 9.
 
-### Sprint 9 — E9 v0: toon engine + resource bank + `toon` visual type  `[E9]`  🔵 *built on `feat/toon-bank-v0` (35 commits on `76aa1cd`) · EM REVIEW 2026-09-28 = **REWORK** (3 test gaps; merge once they land) · hub pass pending (needs push, Tim's OK) · 🟢 only at PASS*
+### Sprint 9 — E9 v0: toon engine + resource bank + `toon` visual type  `[E9]`  🔵 *merged to master `577b7a5`, hub goldens `af00aa9` · EM REVIEW 2026-09-28 = REWORK (3 test gaps, closed) · hub-pass re-REVIEW 2026-09-28 = **REWORK** (R1 fps judder, R2 one test assertion) · 🟢 only at PASS*
+- **EM RE-REVIEW 2026-09-28 (hub pass, master `af00aa9`): REWORK, narrow.**
+  - **The first REWORK is closed:**
+    - Draw-order tests `tests/unit/toon/test_order.py`. The EM disabled each rule in a scratch
+      copy (arm tuck, desk mid-layer sandwich, `layer: low` override); each turned its test red.
+    - The model-sheet golden is minted and compared.
+    - The doctor FAIL-path test exists and pins `ok=False` (but see R2).
+  - **EM-run, hub:**
+    - Goldens 4/4 compared with `UPDATE_GOLDENS` unset. libcairo 1.18.0 is recorded in
+      `PROVENANCE.md`, and the EM eyeballed all four.
+    - Full suite 1379 passed / 21 skipped / 0 failed.
+    - Toon `--integration` plus the composer and doctor tests: 170 passed, parity included.
+    - ruff clean; mypy clean (159 files); `pipeline doctor` 17/17.
+  - **EM-run, Mac:**
+    - Suite 1342 passed / 58 skipped.
+    - Toon `--integration`: 166 passed / 4 skipped (goldens, darwin).
+    - ruff and mypy clean; doctor 17/17.
+  - **Compose smoke** (hub project `9920260928`):
+    - `pipeline validate` exit 0.
+    - The toon `s2_final` lasts 13.440 s, exactly the narration, so the two-axes fence holds.
+      The final runs 17.621 s against 17.592 s of narration; the difference is 30 fps frame
+      padding.
+    - zh-TW subtitles are kept over the toon, and there is no black segment.
+  - **Must fix before PASS:**
+    1. **R1: 24→30 fps judder.** The smoke row names this criterion, and it fails. The EM
+       measured the whole toon segment of the hub final: the raw 24 fps render is clean, and the
+       30 fps final repeats every 5th frame, so camera moves freeze 6×/s. Fix: render toon at
+       the concat rate, 30 fps with the camera on ones. The drawing rate is **Tim's pick**, from
+       a 2-up of the shot-1 camera push:
+       - **A (EM lean): `fps: 30`, `drawing_fps: 12`.** Keeps the drawing and boil rate Tim
+         approved; holds alternate 3/2 frames. `frame(t)` doesn't read `fps`, so the goldens and
+         parity stay valid unchanged.
+       - **B (builder's lean): `fps: 30`, `drawing_fps: 15`.** Even twos, but drawings and boil
+         run 25% faster than the look Tim approved and tuned. Re-mint the goldens on the hub and
+         pin parity to 12.
+       - Not taken: moving the pipeline off 30 fps, which touches every visual type.
+
+       **Acceptance:**
+       - a default-suite test that fails if the toon clip rate and the compose concat rate
+         disagree;
+       - an `--integration` cadence test: a shot-1 push through the concat's `fps=30`
+         normalisation shows no repeated camera step, and the test is red on today's 24 fps;
+       - the hub smoke re-run, with the every-5th repeat gone;
+       - Tim's pick recorded;
+       - goldens re-minted if B;
+       - spec §4/§6 updated;
+       - a separate code review of the fix.
+    2. **R2: pin the doctor install hint.** The test asserts `"libcairo" in detail`, but the
+       injected exception text already contains `libcairo`. With the hint deleted from
+       `check_toon`, the test still passes (EM mutation run). Inject a message without the hint
+       text and assert `brew install cairo` and `libcairo2`.
+  - **Ride-along (not gating):** `PROVENANCE.md` says the Mac renders the goldens
+    byte-identically. Under the EM's strict compare, s001@1.5 differs by 1 px / 1 LSB (cairo
+    1.18.4 vs 1.18.0), and the other three are identical. Correct the sentence.
+  - **Tim acked both v0 deferrals (2026-09-28):** pose/prop contact sheets → E9 item 2d; the
+    scene-file name in `SceneError` → E9 item 2b.
+  - **Path to PASS:** land R1 and R2, then an EM re-REVIEW runs the two new tests, the hub smoke
+    cadence and, if B, the golden compare.
 - **EM REVIEW 2026-09-28: REWORK.**
   - **What holds:**
     - Scene 001 on the engine matches the approved tryout. The worst key-frame mean diff is
@@ -875,8 +935,40 @@ block is the sprint shape. The spec is the design and is not restated here.
   - The spec header still reads "draft for Tim's review". Flip it to approved before the build
     cites it.
 - **Then:** E8 item 2 (checkout/checkin + hub lock) → E8 item 3 (draft encoder profile).
+  **EM recommendation (2026-09-28, pending Tim):** put the small **E5 loud-failure sweep**
+  (Later backlog, ~1 session) ahead of E8 item 2. Today a silent black scene can reach a
+  finished final, which is a quality defect. E8 item 2 is iteration speed. Tim's 2026-09-27
+  order stands unless he agrees.
 
 ### Later / unscoped backlog
+- **E5 loud-failure sweep** `🔵` (EM-recommended next after Sprint 9 PASS, pending Tim; ~1
+  session; quality axis, zero runtime). Silent black scenes can reach a final today. Three
+  paths, one theme:
+  - **a. A visual failure becomes a silent black scene in the final.** Found by the Sprint 9
+    hub smoke, 2026-09-28. `stages/compose.py` `_render_sync` catches any
+    non-`SceneRenderError` from `render_scene` and logs `compose.scene.visual_failed` only as a
+    warning. It then substitutes `_black_screen`, the scene counts as rendered, and the final is
+    **assembled** with a black scene. It should refuse assembly with a `suggested_fix`. Toon is
+    immune because it raises only `SceneRenderError`.
+  - **b. `clip.path` is resolved two ways.** Found by the same smoke. `pipeline validate`
+    resolves a project-relative path against the project root, but
+    `composer/clip.py::_resolve_source_video` resolves it against the process cwd. So a
+    storyboard that validates clean still renders black through (a). Use one resolver for both.
+  - **c. Black stand-ins left at the scene-cache paths.** An exception that escapes the scene
+    render leaves black clips at `{sid}_final*.mp4`. That run refuses assembly, but the next
+    `--start-from compose` finds them "cached". Sprint 9 fixed only the `SceneRenderError` case
+    (`da87cf1`). Found by the v0 final review.
+  - Fold in the `namecard`/`map` silent `text_card` fallback (below) if it fits.
+- **Post-compose Haiku visual-QC opt-out** `🔵` (E5 follow-on; found by the Sprint 9 hub smoke
+  2026-09-28).
+  - `produce` always runs a billed Claude Haiku visual-QC after compose (`cli.py` ~421) and has
+    no skip flag.
+  - When the API call fails, it prints only a parenthetical "(visual review skipped: …)" and
+    reports "Pipeline complete!".
+  - Add an opt-out flag, and make a QC that didn't run say so prominently.
+  - Consider the zero-billing in-session pattern that Layer 2 of the still-gate uses.
+  - The same code path calls `print_visual_issues_table`, which the E8 (B) evidence reports
+    raises TypeError.
 - Animated overlays v2+ (E3): **animated entrance** for the callout primitive + lower-thirds
   + CapCut-style word-by-word subtitles `🔵` — follow-ons to Sprint 5's static v1.
 - Dashboard surfaces (E6): Production Contract panel, recompose buttons, Style panel,
@@ -891,11 +983,10 @@ block is the sprint shape. The spec is the design and is not restated here.
 - Animated reveal for `proportion_blocks` / `timeline` / `comparison` (E2 remaining) `🔵`
 - Stock-footage transition asset path (E6 Phase 5) `🔵`
 - `namecard`/`map` silent `text_card` fallback → loud or scope-validated (E5 follow-on) `🔵`
-- Compose's generic-exception path leaves black stand-in clips at the scene-cache paths
-  (`{sid}_final*.mp4`) after a failure that isn't a `SceneRenderError`. The next
-  `--start-from compose` finds them "cached" and assembles a black scene. Assembly itself is
-  refused. This predates toon; Sprint 9 fixed only the `SceneRenderError` path (`da87cf1`).
-  (E5 follow-on; found by the v0 final review 2026-09-28) `🔵`
+- ~~Compose's generic-exception black stand-ins at the scene-cache paths~~ → folded into the
+  **E5 loud-failure sweep** (item c) at the top of this list. The earlier wording "assembly
+  itself is refused" is true only for exceptions that escape the scene render; path (a) there
+  assembles a black scene silently.
 
 ---
 
