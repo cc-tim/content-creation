@@ -29,7 +29,8 @@ between backends; set `PIPELINE_LLM_BACKEND=api` explicitly to use the Anthropic
 | `PIPELINE_LLM_MODEL_CREATIVE` | `claude-opus-5-5` | Model for creative-tier calls (analyze, scriptwrite, direct, beats) |
 | `PIPELINE_LLM_MODEL_CHECK` | `claude-haiku-4-5-20251001` | Model for check-tier calls (proofread, visual QC, image alignment, storyteller, MLA rewrite, style anchor) |
 | `PIPELINE_CLAUDE_BIN` | unset (auto-resolve) | Explicit path to the `claude` binary; falls back to `PATH`, then `~/.local/bin/claude` |
-| `PIPELINE_LLM_TIMEOUT_SEC` | `600` | Per-call subprocess timeout, in seconds |
+| `PIPELINE_LLM_TIMEOUT_SEC` | `600` | Per-call subprocess timeout, in seconds (check tier) |
+| `PIPELINE_LLM_TIMEOUT_CREATIVE_SEC` | `1200` | Per-call subprocess timeout, in seconds (creative tier — longer generations) |
 | `PIPELINE_LLM_MAX_CONCURRENCY` | `4` | Maximum concurrent `claude -p` processes |
 
 ## The Porting Workflow

@@ -63,6 +63,7 @@ def test_write_metadata_creates_file(
 
     assert complete.call_args.kwargs["json_schema"] == _METADATA_TOOL["input_schema"]
     assert complete.call_args.kwargs["schema_name"] == _METADATA_TOOL["name"]
+    assert complete.call_args.kwargs["tier"] == "creative"
     assert complete.call_args.kwargs["system"]
     assert complete.call_args.args[0]
 
