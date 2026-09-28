@@ -55,6 +55,9 @@ whichever branch merges second does a normal 3-way merge. No other file is share
    `uv run pipeline compose rescene …`". The pre-existing `overlay` step fix keeps its
    `--skip-overlays` text, because `test_overlay_failure_refuses_assembly_and_records_loudly`
    pins it. It is out of scope and is reported to the EM.
+   **Superseded by the final review** (see the "Final review fixes" section below): the final
+   reviewer asked for `_OVERLAY_FIX` to drop `--skip-overlays` too and pinned the new text in
+   the same test, closing the gap this ruling had left open. Commit `357fd3a`.
 3. **`reason` gains an ffmpeg stderr tail.** For a `CalledProcessError`, `_step_reason` appends
    `" | stderr: <last 400 chars>"`. `str(CalledProcessError)` carries no stderr, which would make
    "Inspect the ffmpeg error" non-actionable. Pinned by RF2.
@@ -178,6 +181,39 @@ Fill in the other columns as you go, and commit this file with the task's own co
 | RF9 | `test_compose_v2.py::test_scene_failure_reason_has_no_duplicate_scene_id_prefix` | final review, item 3 | `assert 2 == 1` (`str(ei.value).count("s1:")`) — the refusal text reads `s1: s1: visual (text_card) failed: ...` | `assert 2 == 1` | `b6e07ac` | `1582f50` |
 | RF10 | `test_image_sequence.py::test_failed_image_suggested_fix_uses_real_project_id` | final review, item 4 | `assert '<project-id>' not in suggested_fix` fails: the literal placeholder is present | `AssertionError: assert '<project-id>' not in 'Check ...--project-id <project-id> --scene s3\`. Images that already succeeded ...'` | `100ee24` | `a2ef303` |
 | RF11 | `test_cli_compose.py::test_restore_invalidates_frame_suffixed_cache_variants` | final review, item 5 | `s1_final_open_book_page.mp4` still exists after `restore` | `AssertionError: assert not True … s1_final_open_book_page.mp4 … .exists` | `25669e6` | `bdf798f` |
+
+## Final review fixes
+
+The final reviewer said "Ready to merge" but asked for six more fixes before merge. RF7-RF11
+above follow A1 (test-only red commit, then fix commit). Item 6 is a text-only change with no
+new failure mode to pin red, per the reviewer's explicit exemption:
+
+1. **RF7** — the cache-hit gate (`_render_one_scene`, `compose.py:1130-1150`) probed only
+   `scene_final`, and only when `i < len(audio_segments)`. `_mux` writes
+   `scene_final_no_overlay` second and non-atomically, so a SIGTERM mid-write can leave it
+   truncated while `scene_final` still probes clean, and the scene cache-hits anyway. Both
+   files are now probed unconditionally; a failed probe on either takes RF1's existing
+   drop-both-and-refuse path. `_mux` itself stays non-atomic (parked for the next sprint).
+2. **RF8** — `reburn` (`cli_compose.py`, `reburn`) never enters `ComposeStage`, so
+   `_render_one_scene`'s `{sid}_black.mp4` marker check couldn't protect it. It now refuses up
+   front, listing every scene id with a legacy black marker, before doing any work.
+3. **RF9** — the gather loop's `f"{sid}: {maybe}"` (`compose.py`, ~838) duplicated the prefix
+   `SceneRenderError.__str__` already adds (`errors.py:15`), so refusals read `s1: s1: ...`.
+   Only the non-`SceneRenderError` branch (no built-in prefix) still adds one.
+4. **RF10** — `image_sequence.py`'s `suggested_fix` hardcoded the literal text `"<project-id>"`.
+   Its one call site (`composer/base.py`'s `render_scene`) always passes
+   `work_dir == ctx.work_dir / "compose" / "scenes"`, so `work_dir.parents[1].name` is the real
+   project id — matching how `_scene_fixes` derives it from `ctx.work_dir.name`.
+5. **RF11** — `restore` (`cli_compose.py`, ~829) unlinked only the two unsuffixed finals. It now
+   calls `scene_final_cache_paths`, the same helper `rescene` uses, so a framed project's
+   restore invalidates the frame-suffixed finals too.
+6. **No ledger row** — `_OVERLAY_FIX` (`compose.py`, ~593-596) told users to pass
+   `--skip-overlays`, a flag no CLI has. Text changed to match `_scene_fixes`'s wording
+   (remove/change `scene.overlay`, then `compose rescene`); the pinned assertion in
+   `test_overlay_failure_refuses_assembly_and_records_loudly` was updated in the same commit.
+   Supersedes Ruling 2's "out of scope" call above. Commit `357fd3a`.
+
+Full report: `.superpowers/sdd/2026-09-29-e5-loud-failure-sweep/final-fix-report.md`.
 
 ---
 
