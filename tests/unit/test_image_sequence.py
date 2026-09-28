@@ -61,6 +61,27 @@ def test_failed_image_raises_scene_render_error_not_black(tmp_path, fake_media):
     assert not (tmp_path / "s3_visual.mp4").exists()
 
 
+def test_failed_image_suggested_fix_uses_real_project_id(tmp_path, fake_media):
+    """RF10: render_image_sequence is always called with work_dir == <project>/compose/scenes
+    (base.py's render_scene passes its own work_dir straight through, and compose.py's
+    _render_one_scene calls render_scene(..., scenes_dir, ...) where scenes_dir is
+    ctx.work_dir / "compose" / "scenes"). So work_dir.parents[1].name is the real project id
+    — matching how _scene_fixes derives it from ctx.work_dir.name — and the suggested_fix must
+    use it instead of the literal placeholder '<project-id>'."""
+    project_dir = tmp_path / "1777777777_B"
+    work_dir = project_dir / "compose" / "scenes"
+    work_dir.mkdir(parents=True)
+
+    with pytest.raises(SceneRenderError) as ei:
+        image_sequence.render_image_sequence(VISUAL, 6.0, 1280, 720, work_dir, "s3")
+
+    assert "<project-id>" not in ei.value.suggested_fix
+    assert (
+        f"uv run pipeline compose rescene --project-id {project_dir.name} --scene s3"
+        in ei.value.suggested_fix
+    )
+
+
 def test_rerun_after_failed_image_regenerates_only_that_image(tmp_path, fake_media):
     """Review Focus RF4: the images that succeeded stay cached by prompt hash, so the
     retry the suggested_fix recommends asks the provider for the failed image only."""
