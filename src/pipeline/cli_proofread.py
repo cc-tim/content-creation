@@ -11,8 +11,8 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from pipeline import llm
 from pipeline.config import PipelineConfig
-from pipeline.utils.anthropic_key import get_anthropic_api_key
 
 proofread_app = typer.Typer(help="Proofread storyboard narration and overlay text.")
 _console = Console()
@@ -120,19 +120,12 @@ def _parse_issues(raw: str) -> list[dict]:
 
 def proofread_storyboard(storyboard_path: Path) -> list[dict]:
     """Run Claude Haiku on storyboard text. Returns list of issue dicts (empty = clean)."""
-    import anthropic
-
     guide = _load_guide()
     system = _SYSTEM_PROMPT + (f"\n\n校稿參考資料：\n{guide}" if guide else "")
     review_text = _format_for_review(storyboard_path)
-    client = anthropic.Anthropic(api_key=get_anthropic_api_key())
-    msg = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=2000,
-        system=system,
-        messages=[{"role": "user", "content": review_text}],
-    )
-    raw = msg.content[0].text.strip()
+    raw = llm.complete(
+        review_text, tier="check", call_site="proofread", system=system, max_tokens=2000
+    ).text.strip()
     if raw == "OK":
         return []
     issues = _parse_issues(raw)

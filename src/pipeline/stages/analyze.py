@@ -1,23 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
-import anthropic
 import structlog
 
-from pipeline.config import PipelineConfig
+from pipeline import llm
 from pipeline.knowledge import Knowledge
 from pipeline.stages.base import PipelineContext, PipelineStage
 
 logger = structlog.get_logger()
-
-
-def get_anthropic_client() -> anthropic.Anthropic:
-    """Create Anthropic client from config."""
-    config = PipelineConfig()
-    return anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
-
 
 _SENTENCE_ENDINGS = frozenset([".", "?", "!", "…"])  # . ? ! …
 
@@ -111,9 +104,6 @@ class AnalyzeStage(PipelineStage):
 
         logger.info("analyze.start", transcript_len=len(ctx.transcript_text))
 
-        client = get_anthropic_client()
-        config = PipelineConfig()
-
         # Load structured transcript if available (gives Claude precise timestamps)
         transcript_data: list[dict[str, Any]] | None = None
         if ctx.transcript_path and ctx.transcript_path.exists():
@@ -131,13 +121,8 @@ class AnalyzeStage(PipelineStage):
             transcript_data=transcript_data,
         )
 
-        response = client.messages.create(
-            model=config.CLAUDE_MODEL,
-            max_tokens=4096,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        raw_text = response.content[0].text
+        raw_text = (await asyncio.to_thread(
+            llm.complete, prompt, tier="creative", call_site="analyze", max_tokens=4096)).text
         if raw_text.startswith("```"):
             raw_text = raw_text.split("\n", 1)[1].rsplit("```", 1)[0]
 

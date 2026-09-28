@@ -152,14 +152,14 @@ Full channel config, publish, metadata, and outro details in README.md.
 
 | Service | Budget | Coverage |
 |---------|--------|----------|
-| Claude Sonnet API | ~$10 | ~100 story analyses + scripts |
+| Claude (Opus creative / Haiku checks) via claude -p | $0 marginal | Tim's Claude subscription quota |
 | Edge-TTS | $0 | Unlimited narration (primary) |
 | Google Cloud TTS Neural2 | $0 | 1M chars/month free tier |
 | OpenAI Whisper API | ~$3 | ~500 min transcription |
 | OpenAI TTS | ~$5 | ~333K chars special narration |
 | YouTube Data API | $0 | 10K quota units/day |
 | pytrends | $0 | Free |
-| **Buffer** | ~$32 | Scaling headroom |
+| **Buffer** | ~$42 | Scaling headroom |
 
 ## YouTube Policy Compliance
 

@@ -1,7 +1,6 @@
 """Shared Anthropic API key resolution.
 
-Used by every CLI module that calls the Anthropic API (proofread, mla,
-storyteller, image_alignment, visual_review). Resolution order:
+Used only by the opt-in `api` backend in `pipeline.llm` (PIPELINE_LLM_BACKEND=api). Resolution order:
 1. ANTHROPIC_API_KEY env var
 2. PIPELINE_ANTHROPIC_API_KEY env var
 3. PIPELINE_ANTHROPIC_API_KEY=... line in ./.env

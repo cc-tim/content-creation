@@ -5,7 +5,11 @@ def test_config_defaults():
     config = PipelineConfig(ANTHROPIC_API_KEY="test-key")
     assert config.OUTPUT_DIR.name == "output"
     assert config.TTS_PROVIDER == "edge-tts"
-    assert config.CLAUDE_MODEL == "claude-sonnet-4-20250514"
+    assert (config.LLM_BACKEND, config.LLM_MODEL_CREATIVE, config.LLM_MODEL_CHECK) == (
+        "cli",
+        "claude-opus-5-5",
+        "claude-haiku-4-5-20251001",
+    )
     assert config.MAX_VIDEO_RESOLUTION == "720p"
 
 

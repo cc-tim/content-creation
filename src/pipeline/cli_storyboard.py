@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from pipeline import llm
 from pipeline.config import PipelineConfig
 from pipeline.storyboard import Storyboard
 from pipeline.voices.base import VoiceProfile
@@ -294,10 +295,6 @@ def migrate_storyboard_file(path: Path, primary_locale: str) -> bool:
 
 def _generate_beats(scenes: list[dict]) -> dict[str, str]:
     """Ask Claude for a one-line language-neutral beat per scene."""
-    from pipeline.stages.analyze import get_anthropic_client
-
-    client = get_anthropic_client()
-    config = PipelineConfig()
     scene_lines = "\n".join(
         f"{s['id']} [{s['section']}]: {s['narration'][:200]}" for s in scenes
     )
@@ -307,12 +304,7 @@ def _generate_beats(scenes: list[dict]) -> dict[str, str]:
         "summary of its wording. Return ONLY valid JSON mapping scene id to beat string.\n\n"
         f"{scene_lines}"
     )
-    response = client.messages.create(
-        model=config.CLAUDE_MODEL,
-        max_tokens=4096,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw = response.content[0].text
+    raw = llm.complete(prompt, tier="creative", call_site="storyboard.beats", max_tokens=4096).text
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
     try:

@@ -4,8 +4,7 @@ import json
 
 import structlog
 
-from pipeline.config import PipelineConfig
-from pipeline.stages.analyze import get_anthropic_client
+from pipeline import llm
 from pipeline.stages.base import PipelineContext, PipelineStage
 from pipeline.storyboard import Scene, Storyboard
 
@@ -139,19 +138,12 @@ def _write_narration_for_locale(
     When `primary_narrations` is given (secondary-locale pass), the prompt
     includes per-scene length budgets so the alt track fits the MLA gate.
     """
-    client = get_anthropic_client()
-    config = PipelineConfig()
     prompt = build_scriptwrite_prompt(
         scenes, locale,
         primary_narrations=primary_narrations,
         primary_locale=primary_locale,
     )
-    response = client.messages.create(
-        model=config.CLAUDE_MODEL,
-        max_tokens=16000,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw = response.content[0].text
+    raw = llm.complete(prompt, tier="creative", call_site="scriptwrite", max_tokens=16000).text
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
     try:

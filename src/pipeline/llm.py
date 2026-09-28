@@ -1,0 +1,239 @@
+"""One door for every LLM call in the pipeline.
+
+Default backend: headless `claude -p` on Tim's Claude subscription. Opt-in backend:
+PIPELINE_LLM_BACKEND=api (Anthropic SDK). There is no silent fallback between them.
+Spec: docs/superpowers/specs/2026-09-29-claude-cli-llm-backend-design.md
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+import threading
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Literal
+
+from pipeline.config import PipelineConfig
+
+Tier = Literal["creative", "check"]
+NEUTRAL_SYSTEM = "You are a precise assistant. Follow the user's instructions exactly."
+_ISOLATION = ("--tools", "", "--setting-sources", "", "--strict-mcp-config",
+              "--no-session-persistence", "--disable-slash-commands")
+
+# Every one of these would move billing or routing off the subscription and onto a
+# different, possibly-metered path if it leaked into the `claude -p` child process:
+#   ANTHROPIC_API_KEY        - switches the CLI to pay-per-token API billing
+#   ANTHROPIC_AUTH_TOKEN     - alternate API bearer token, same billing effect as the key above
+#   ANTHROPIC_BASE_URL       - redirects the CLI to a different (possibly billed) endpoint
+#   CLAUDE_CODE_USE_BEDROCK  - routes calls through AWS Bedrock billing instead
+#   CLAUDE_CODE_USE_VERTEX   - routes calls through GCP Vertex AI billing instead
+# CLAUDE_CODE_OAUTH_TOKEN is deliberately excluded: it *is* the subscription login on
+# headless hosts and must reach the child process for `claude -p` to work at all.
+# This explicit set documents the known offenders; the actual strip decision below is
+# prefix-based so a *new* ANTHROPIC_* or CLAUDE_CODE_USE_* var is caught automatically.
+_STRIP_ENV = frozenset({
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "ANTHROPIC_BASE_URL",
+    "CLAUDE_CODE_USE_BEDROCK",
+    "CLAUDE_CODE_USE_VERTEX",
+})
+_STRIP_PREFIXES = ("ANTHROPIC_", "CLAUDE_CODE_USE_")
+_KEEP_ENV = frozenset({"CLAUDE_CODE_OAUTH_TOKEN"})
+
+_QUOTA_HINT_RE = re.compile(r"rate.?limit|\bquota\b|\b429\b|usage limit|hit your limit", re.I)
+_LOGIN_HINT_RE = re.compile(r"/login|\blog ?in\b|oauth|unauthori[sz]ed|\b401\b|invalid api key|credential", re.I)
+
+
+@dataclass(frozen=True)
+class LLMResult:
+    text: str
+    data: Any | None
+    model: str
+    backend: str
+
+
+class LLMError(RuntimeError):
+    def __init__(self, call_site: str, reason: str, hint: str = "") -> None:
+        self.call_site, self.reason, self.hint = call_site, reason, hint
+        super().__init__(str(self))
+
+    def __str__(self) -> str:
+        msg = f"{self.call_site}: {self.reason}"
+        return f"{msg} — {self.hint}" if self.hint else msg
+
+
+_SEMS: dict[int, threading.BoundedSemaphore] = {}
+_SEMS_LOCK = threading.Lock()
+
+
+def _semaphore(n: int) -> threading.BoundedSemaphore:
+    with _SEMS_LOCK:
+        return _SEMS.setdefault(n, threading.BoundedSemaphore(max(1, n)))
+
+
+def model_for(tier: Tier, config: PipelineConfig | None = None) -> str:
+    c = config or PipelineConfig()
+    return c.LLM_MODEL_CREATIVE if tier == "creative" else c.LLM_MODEL_CHECK
+
+
+def resolve_claude_bin(config: PipelineConfig | None = None) -> str | None:
+    c = config or PipelineConfig()
+    if c.CLAUDE_BIN:
+        return c.CLAUDE_BIN if Path(c.CLAUDE_BIN).is_file() else None
+    found = shutil.which("claude")
+    if found:
+        return found
+    local = Path.home() / ".local" / "bin" / "claude"
+    return str(local) if local.is_file() else None
+
+
+def complete(content: str | list[dict[str, Any]], *, tier: Tier, call_site: str,
+             system: str | None = None, json_schema: dict[str, Any] | None = None,
+             max_tokens: int = 4096, timeout: float | None = None,
+             schema_name: str = "emit") -> LLMResult:
+    config = PipelineConfig()
+    model = model_for(tier, config)
+    blocks = [{"type": "text", "text": content}] if isinstance(content, str) else list(content)
+    if config.LLM_BACKEND == "cli":
+        default_timeout = config.LLM_TIMEOUT_CREATIVE_SEC if tier == "creative" else config.LLM_TIMEOUT_SEC
+        return _complete_cli(blocks, model=model, call_site=call_site, system=system,
+                             json_schema=json_schema, timeout=timeout or default_timeout,
+                             config=config)
+    if config.LLM_BACKEND == "api":
+        return _complete_api(blocks, model=model, call_site=call_site, system=system,
+                             json_schema=json_schema, max_tokens=max_tokens, schema_name=schema_name)
+    raise LLMError(call_site, f"unknown LLM backend {config.LLM_BACKEND!r}",
+                   "set PIPELINE_LLM_BACKEND to cli or api")
+
+
+def _hint(reason: str) -> str:
+    if _QUOTA_HINT_RE.search(reason):
+        return "subscription quota or rate limit reached — wait for the reset or set PIPELINE_LLM_BACKEND=api"
+    if _LOGIN_HINT_RE.search(reason):
+        return "run `claude login` on this machine"
+    return ""
+
+
+def _last_result_event(stdout: str) -> dict[str, Any] | None:
+    last = None
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(ev, dict) and ev.get("type") == "result":
+            last = ev
+    return last
+
+
+def _is_billing_env(name: str) -> bool:
+    """True for any env var that could move billing/routing off the subscription."""
+    if name in _KEEP_ENV:
+        return False
+    return name in _STRIP_ENV or name.startswith(_STRIP_PREFIXES)
+
+
+def _decode_tail(data: bytes | str | None, limit: int = 500) -> str:
+    if data is None:
+        return ""
+    if isinstance(data, bytes):
+        data = data.decode("utf-8", "replace")
+    return data.strip()[-limit:]
+
+
+def _complete_cli(blocks: list[dict[str, Any]], *, model: str, call_site: str, system: str | None,
+                  json_schema: dict[str, Any] | None, timeout: float,
+                  config: PipelineConfig) -> LLMResult:
+    binary = resolve_claude_bin(config)
+    if binary is None:
+        if config.CLAUDE_BIN:
+            raise LLMError(call_site, f"claude CLI not found at {config.CLAUDE_BIN} (PIPELINE_CLAUDE_BIN)",
+                           "check the path or unset PIPELINE_CLAUDE_BIN")
+        raise LLMError(call_site, "claude CLI not found",
+                       "install Claude Code or set PIPELINE_CLAUDE_BIN")
+    argv = [binary, "-p", "--input-format", "stream-json", "--output-format", "stream-json",
+            "--verbose", "--model", model, "--system-prompt", system or NEUTRAL_SYSTEM, *_ISOLATION]
+    if json_schema is not None:
+        argv += ["--json-schema", json.dumps(json_schema)]
+    stdin = json.dumps({"type": "user", "message": {"role": "user", "content": blocks}}) + "\n"
+    env = {k: v for k, v in os.environ.items() if not _is_billing_env(k)}
+    with _semaphore(config.LLM_MAX_CONCURRENCY), tempfile.TemporaryDirectory(prefix="llm-") as cwd:
+        try:
+            proc = subprocess.run(argv, input=stdin, capture_output=True, text=True,
+                                  cwd=cwd, env=env, timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            reason = f"claude -p timed out after {timeout:g}s"
+            tail = _decode_tail(exc.stderr)
+            if tail:
+                reason = f"{reason}: {tail}"
+            raise LLMError(call_site, reason,
+                           "retry, or raise PIPELINE_LLM_TIMEOUT_SEC") from exc
+        except OSError as exc:
+            raise LLMError(call_site, f"could not launch {binary}: {exc}",
+                           "check the claude binary / PIPELINE_CLAUDE_BIN") from exc
+    ev = _last_result_event(proc.stdout)
+    if proc.returncode != 0 or ev is None or ev.get("is_error"):
+        err_ev = ev or {}
+        errors = err_ev.get("errors") or []
+        subtype = str(err_ev.get("subtype") or "")
+        reason = (
+            str(err_ev.get("result") or "").strip()
+            or "; ".join(str(e) for e in errors)
+            or subtype
+            or proc.stderr.strip()[-500:]
+            or f"exit code {proc.returncode}"
+        )
+        if subtype and subtype not in reason:
+            reason = f"{reason} ({subtype})"
+        status = err_ev.get("api_error_status")
+        if status:
+            reason = f"{reason} (api status {status})"
+        raise LLMError(call_site, f"claude -p failed: {reason}", _hint(reason))
+    text = str(ev.get("result") or "")
+    data: Any | None = None
+    if json_schema is not None:
+        data = ev.get("structured_output")
+        if data is None:
+            try:
+                data = json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise LLMError(call_site, f"claude -p returned no structured output: {text[:200]!r}") from exc
+    elif not text.strip():
+        raise LLMError(call_site, "claude -p returned an empty result")
+    return LLMResult(text=text, data=data, model=model, backend="cli")
+
+
+def _complete_api(blocks: list[dict[str, Any]], *, model: str, call_site: str, system: str | None,
+                  json_schema: dict[str, Any] | None, max_tokens: int, schema_name: str = "emit") -> LLMResult:
+    import anthropic
+
+    from pipeline.utils.anthropic_key import get_anthropic_api_key
+
+    kwargs: dict[str, Any] = {"model": model, "max_tokens": max_tokens,
+                              "messages": [{"role": "user", "content": blocks}]}
+    if system:
+        kwargs["system"] = system
+    if json_schema is not None:
+        kwargs["tools"] = [{"name": schema_name, "description": "Emit the answer as structured JSON.",
+                            "input_schema": json_schema}]
+        kwargs["tool_choice"] = {"type": "tool", "name": schema_name}
+    try:
+        resp = anthropic.Anthropic(api_key=get_anthropic_api_key()).messages.create(**kwargs)
+    except Exception as exc:
+        raise LLMError(call_site, f"anthropic API call failed: {exc}",
+                       "check the API key and credit, or set PIPELINE_LLM_BACKEND=cli") from exc
+    if json_schema is not None:
+        for block in resp.content:
+            if getattr(block, "type", None) == "tool_use":
+                return LLMResult(text=json.dumps(block.input), data=block.input, model=model, backend="api")
+        raise LLMError(call_site, "anthropic API returned no structured output")
+    text = "".join(getattr(b, "text", "") for b in resp.content if getattr(b, "type", "text") == "text")
+    return LLMResult(text=text, data=None, model=model, backend="api")

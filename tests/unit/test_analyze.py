@@ -1,10 +1,11 @@
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from pipeline.knowledge import Knowledge
+from pipeline.llm import LLMResult
 from pipeline.stages.analyze import (
     AnalyzeStage,
     _format_timestamped_transcript,
@@ -35,15 +36,15 @@ async def test_analyze_outputs_knowledge_json(sample_context, analysis_fixture):
     stage = AnalyzeStage()
     assert stage.name == "analyze"
 
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text=json.dumps(analysis_fixture))]
-
-    with patch("pipeline.stages.analyze.get_anthropic_client") as mock_client_fn:
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_response
-        mock_client_fn.return_value = mock_client
-
+    with patch(
+        "pipeline.llm.complete",
+        return_value=LLMResult(
+            text=json.dumps(analysis_fixture), data=None, model="m", backend="cli"
+        ),
+    ) as complete:
         ctx = await stage.run(sample_context)
+
+    assert complete.call_args.kwargs["tier"] == "creative"
 
     # Layer 1 output
     assert ctx.knowledge_path is not None
@@ -137,16 +138,11 @@ async def test_analyze_uses_structured_transcript_when_available(
 
     captured_prompt: list[str] = []
 
-    def mock_create(**kwargs):
-        captured_prompt.append(kwargs["messages"][0]["content"])
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock(text=json.dumps(analysis_fixture))]
-        return mock_response
+    def fake_complete(*args, **kwargs):
+        captured_prompt.append(args[0])
+        return LLMResult(text=json.dumps(analysis_fixture), data=None, model="m", backend="cli")
 
-    with patch("pipeline.stages.analyze.get_anthropic_client") as mock_client_fn:
-        mock_client = MagicMock()
-        mock_client.messages.create.side_effect = mock_create
-        mock_client_fn.return_value = mock_client
+    with patch("pipeline.llm.complete", side_effect=fake_complete):
         await stage.run(sample_context)
 
     prompt = captured_prompt[0]

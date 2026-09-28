@@ -23,6 +23,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from pipeline import llm
 from pipeline.config import PipelineConfig
 from pipeline.stages.base import PipelineContext
 from pipeline.stages.tts import (
@@ -32,7 +33,6 @@ from pipeline.stages.tts import (
     compute_mla_tolerance_ms,
 )
 from pipeline.storyboard import Scene, Storyboard
-from pipeline.utils.anthropic_key import get_anthropic_api_key
 from pipeline.utils.srt import write_srt
 from pipeline.voices.registry import VoiceRegistry
 
@@ -319,21 +319,13 @@ def parse_rewrite_response(raw: str) -> dict[str, str]:
 def call_haiku_rewrite(
     offenders: list[_Offender],
     primary_locale: str,
-    *,
-    api_key: str | None = None,
 ) -> dict[str, str]:
-    """Ask Claude Haiku to rewrite the offending scenes. Returns {scene_id: text}."""
-    import anthropic
-
-    client = anthropic.Anthropic(api_key=api_key or get_anthropic_api_key())
+    """Ask the check-tier model to rewrite the offending scenes. Returns {scene_id: text}."""
     user_prompt = _build_user_prompt(offenders, primary_locale)
-    msg = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=2000,
-        system=_REBALANCE_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_prompt}],
-    )
-    raw = msg.content[0].text.strip()
+    raw = llm.complete(
+        user_prompt, tier="check", call_site="mla.rewrite",
+        system=_REBALANCE_SYSTEM_PROMPT, max_tokens=2000,
+    ).text.strip()
     return parse_rewrite_response(raw)
 
 
