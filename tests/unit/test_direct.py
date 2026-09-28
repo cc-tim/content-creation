@@ -1,10 +1,11 @@
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from pipeline.knowledge import Knowledge
+from pipeline.llm import LLMResult
 from pipeline.stages.direct import DirectStage, build_direct_prompt
 from pipeline.storyboard import Storyboard
 
@@ -50,15 +51,13 @@ async def test_direct_outputs_storyboard(sample_context, direct_fixture):
     stage = DirectStage()
     assert stage.name == "direct"
 
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text=json.dumps(direct_fixture))]
-
-    with patch("pipeline.stages.direct.get_anthropic_client") as mock_client_fn:
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_response
-        mock_client_fn.return_value = mock_client
-
+    with patch(
+        "pipeline.llm.complete",
+        return_value=LLMResult(text=json.dumps(direct_fixture), data=None, model="m", backend="cli"),
+    ) as complete:
         ctx = await stage.run(sample_context)
+
+    assert complete.call_args.kwargs["tier"] == "creative"
 
     # Storyboard output
     assert ctx.storyboard_path is not None
@@ -89,16 +88,14 @@ async def test_direct_stage_blocks_invalid_storyboard_visual(sample_context, dir
     response["scenes"] = [dict(response["scenes"][0])]
     response["scenes"][0]["visual"] = {"type": "article_image", "path": "missing.jpg"}
 
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text=json.dumps(response))]
-
-    with patch("pipeline.stages.direct.get_anthropic_client") as mock_client_fn:
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_response
-        mock_client_fn.return_value = mock_client
-
-        with pytest.raises(ValueError, match="Storyboard visual validation failed"):
-            await DirectStage().run(sample_context)
+    with (
+        patch(
+            "pipeline.llm.complete",
+            return_value=LLMResult(text=json.dumps(response), data=None, model="m", backend="cli"),
+        ),
+        pytest.raises(ValueError, match="Storyboard visual validation failed"),
+    ):
+        await DirectStage().run(sample_context)
 
 
 async def test_generate_shorts_storyboards(sample_knowledge):
@@ -176,17 +173,17 @@ async def test_generate_shorts_storyboards(sample_knowledge):
         ]
     }
 
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text=json.dumps(mock_response_data))]
-
-    with patch("pipeline.stages.direct.get_anthropic_client") as mock_client_fn:
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_response
-        mock_client_fn.return_value = mock_client
-
+    with patch(
+        "pipeline.llm.complete",
+        return_value=LLMResult(
+            text=json.dumps(mock_response_data), data=None, model="m", backend="cli"
+        ),
+    ) as complete:
         from pipeline.stages.direct import generate_shorts_storyboards
 
         storyboards = await generate_shorts_storyboards(sample_knowledge, "zh-TW", count=2)
+
+    assert complete.call_args.kwargs["tier"] == "creative"
 
     assert len(storyboards) == 2
     assert storyboards[0].format == "short"
@@ -237,22 +234,16 @@ async def test_direct_stage_injects_reference_storyboard(
     sample_context.reference_storyboard_path = ref_path
 
     stage = DirectStage()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text=json.dumps(direct_fixture))]
     captured = {}
 
-    with patch("pipeline.stages.direct.get_anthropic_client") as mock_client_fn:
-        mock_client = MagicMock()
+    def fake_complete(*args, **kwargs):
+        captured["prompt"] = args[0]
+        return LLMResult(text=json.dumps(direct_fixture), data=None, model="m", backend="cli")
 
-        def _create(**kwargs):
-            captured["messages"] = kwargs["messages"]
-            return mock_response
-
-        mock_client.messages.create.side_effect = _create
-        mock_client_fn.return_value = mock_client
+    with patch("pipeline.llm.complete", side_effect=fake_complete):
         await stage.run(sample_context)
 
-    prompt_text = captured["messages"][0]["content"]
+    prompt_text = captured["prompt"]
     assert "REFERENCE STORYBOARD" in prompt_text
     assert "English hook" in prompt_text
 
@@ -284,22 +275,16 @@ async def test_direct_stage_loads_and_injects_strategies(
     monkeypatch.setattr(strategies_mod, "DEFAULT_STRATEGIES_DIR", strat_dir)
 
     stage = DirectStage()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text=json.dumps(direct_fixture))]
     captured = {}
 
-    with patch("pipeline.stages.direct.get_anthropic_client") as mock_client_fn:
-        mock_client = MagicMock()
+    def fake_complete(*args, **kwargs):
+        captured["prompt"] = args[0]
+        return LLMResult(text=json.dumps(direct_fixture), data=None, model="m", backend="cli")
 
-        def _create(**kwargs):
-            captured["messages"] = kwargs["messages"]
-            return mock_response
-
-        mock_client.messages.create.side_effect = _create
-        mock_client_fn.return_value = mock_client
+    with patch("pipeline.llm.complete", side_effect=fake_complete):
         await stage.run(sample_context)
 
-    prompt_text = captured["messages"][0]["content"]
+    prompt_text = captured["prompt"]
     assert "Body of strategy visible in prompt." in prompt_text
 
 
@@ -315,14 +300,10 @@ async def test_direct_handles_missing_title_description(
     response.pop("title", None)
     response.pop("description", None)
 
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text=json.dumps(response))]
-
-    with patch("pipeline.stages.direct.get_anthropic_client") as mock_client_fn:
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_response
-        mock_client_fn.return_value = mock_client
-
+    with patch(
+        "pipeline.llm.complete",
+        return_value=LLMResult(text=json.dumps(response), data=None, model="m", backend="cli"),
+    ):
         ctx = await DirectStage().run(sample_context)
 
     sb = Storyboard.load(ctx.storyboard_path)
@@ -401,13 +382,10 @@ async def test_direct_warns_on_scene_count_drift(
     }))
     sample_context.reference_storyboard_path = ref_path
 
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text=json.dumps(direct_fixture))]
-
-    with patch("pipeline.stages.direct.get_anthropic_client") as mock_client_fn:
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_response
-        mock_client_fn.return_value = mock_client
+    with patch(
+        "pipeline.llm.complete",
+        return_value=LLMResult(text=json.dumps(direct_fixture), data=None, model="m", backend="cli"),
+    ):
         await DirectStage().run(sample_context)
 
     # structlog emits to stdout; caplog does not capture it in this repo's config.

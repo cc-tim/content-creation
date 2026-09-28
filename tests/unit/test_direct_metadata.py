@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
+from pipeline.llm import LLMResult
 from pipeline.publish.channels import ChannelProfile
-from pipeline.stages.direct import write_metadata_for_project
+from pipeline.stages.direct import _METADATA_TOOL, write_metadata_for_project
 
 
 @pytest.fixture
@@ -36,28 +37,21 @@ def test_write_metadata_creates_file(
     work_dir = tmp_path / "project"
     work_dir.mkdir()
 
-    fake_response = MagicMock()
-    fake_response.content = [
-        MagicMock(
-            type="tool_use",
-            input={
-                "title": "T",
-                "description": "D",
-                "tags": ["a"],
-                "category_id": 27,
-                "default_language": "zh-TW",
-                "default_audio_language": "zh-TW",
-                "made_for_kids": False,
-                "altered_or_synthetic_content": "synthetic_voice",
-            },
-        )
-    ]
-    fake_response.stop_reason = "tool_use"
+    tool_input = {
+        "title": "T",
+        "description": "D",
+        "tags": ["a"],
+        "category_id": 27,
+        "default_language": "zh-TW",
+        "default_audio_language": "zh-TW",
+        "made_for_kids": False,
+        "altered_or_synthetic_content": "synthetic_voice",
+    }
 
-    fake_client = MagicMock()
-    fake_client.messages.create.return_value = fake_response
-
-    with patch("pipeline.stages.direct.get_anthropic_client", return_value=fake_client):
+    with patch(
+        "pipeline.llm.complete",
+        return_value=LLMResult(text="", data=tool_input, model="m", backend="cli"),
+    ) as complete:
         path = write_metadata_for_project(
             work_dir=work_dir,
             profile=sample_profile,
@@ -66,6 +60,10 @@ def test_write_metadata_creates_file(
             storyboard_synopsis=storyboard_synopsis,
             knowledge_facts=[],
         )
+
+    assert complete.call_args.kwargs["json_schema"] == _METADATA_TOOL["input_schema"]
+    assert complete.call_args.kwargs["system"]
+    assert complete.call_args.args[0]
 
     assert path.exists()
     payload = json.loads(path.read_text())
@@ -100,7 +98,7 @@ def test_write_metadata_does_not_overwrite_existing(
         encoding="utf-8",
     )
 
-    with patch("pipeline.stages.direct.get_anthropic_client") as get_client:
+    with patch("pipeline.llm.complete") as complete:
         path = write_metadata_for_project(
             work_dir=work_dir,
             profile=sample_profile,
@@ -109,7 +107,7 @@ def test_write_metadata_does_not_overwrite_existing(
             storyboard_synopsis=storyboard_synopsis,
             knowledge_facts=[],
         )
-        get_client.assert_not_called()
+        complete.assert_not_called()
 
     assert json.loads(path.read_text())["title"] == "USER EDITED"
 
@@ -124,28 +122,21 @@ def test_write_metadata_regenerate_forces_overwrite(
     existing = work_dir / "metadata.json"
     existing.write_text('{"title":"OLD"}', encoding="utf-8")
 
-    fake_response = MagicMock()
-    fake_response.content = [
-        MagicMock(
-            type="tool_use",
-            input={
-                "title": "NEW",
-                "description": "D",
-                "tags": [],
-                "category_id": 27,
-                "default_language": "zh-TW",
-                "default_audio_language": "zh-TW",
-                "made_for_kids": False,
-                "altered_or_synthetic_content": "synthetic_voice",
-            },
-        )
-    ]
-    fake_response.stop_reason = "tool_use"
+    tool_input = {
+        "title": "NEW",
+        "description": "D",
+        "tags": [],
+        "category_id": 27,
+        "default_language": "zh-TW",
+        "default_audio_language": "zh-TW",
+        "made_for_kids": False,
+        "altered_or_synthetic_content": "synthetic_voice",
+    }
 
-    fake_client = MagicMock()
-    fake_client.messages.create.return_value = fake_response
-
-    with patch("pipeline.stages.direct.get_anthropic_client", return_value=fake_client):
+    with patch(
+        "pipeline.llm.complete",
+        return_value=LLMResult(text="", data=tool_input, model="m", backend="cli"),
+    ):
         write_metadata_for_project(
             work_dir=work_dir,
             profile=sample_profile,

@@ -26,9 +26,6 @@ class PipelineConfig(BaseSettings):
     OUTPUT_DIR: Path = Path("output")
     VOICES_DIR: Path = Path("voices")
 
-    # Claude
-    CLAUDE_MODEL: str = "claude-sonnet-4-20250514"
-
     # LLM facade (pipeline.llm)
     LLM_BACKEND: str = "cli"                                  # "cli" (claude -p, subscription) | "api"
     LLM_MODEL_CREATIVE: str = "claude-opus-5-5"               # analyze, scriptwrite, direct, beats

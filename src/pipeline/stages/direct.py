@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
 import structlog
 
-from pipeline.config import PipelineConfig
+from pipeline import llm
 from pipeline.knowledge import Knowledge
-from pipeline.stages.analyze import get_anthropic_client
 from pipeline.stages.base import PipelineContext, PipelineStage
 from pipeline.storyboard import Storyboard
 
@@ -308,9 +308,6 @@ async def generate_shorts_storyboards(
     tone: str = "educational",
 ) -> list[Storyboard]:
     """Score facts for standalone interest and generate N short storyboards."""
-    client = get_anthropic_client()
-    config = PipelineConfig()
-
     # Ask Claude to select top facts and generate shorts
     facts_json = json.dumps(
         [{"id": f.id, "text": f.text, "tags": f.tags} for f in knowledge.facts],
@@ -366,13 +363,8 @@ Return ONLY valid JSON:
 FACTS:
 {facts_json}"""
 
-    response = client.messages.create(
-        model=config.CLAUDE_MODEL,
-        max_tokens=8192,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    raw_text = response.content[0].text
+    raw_text = (await asyncio.to_thread(
+        llm.complete, prompt, tier="creative", call_site="direct.shorts", max_tokens=8192)).text
     if raw_text.startswith("```"):
         raw_text = raw_text.split("\n", 1)[1].rsplit("```", 1)[0]
 
@@ -529,25 +521,11 @@ def write_metadata_for_project(
         mla=mla,
     )
 
-    client = get_anthropic_client()
-    config = PipelineConfig()
-
-    response = client.messages.create(
-        model=config.CLAUDE_MODEL,
-        max_tokens=2048,
-        system=system,
-        tools=[_METADATA_TOOL],
-        tool_choice={"type": "tool", "name": "emit_metadata"},
-        messages=[{"role": "user", "content": user}],
-    )
-
-    tool_input: dict | None = None
-    for block in response.content:
-        if getattr(block, "type", None) == "tool_use":
-            tool_input = block.input
-            break
-    if tool_input is None:
-        raise RuntimeError("Claude did not return emit_metadata tool use")
+    result = llm.complete(user, tier="creative", call_site="direct.metadata", system=system,
+                          json_schema=_METADATA_TOOL["input_schema"], max_tokens=2048)
+    if not isinstance(result.data, dict):
+        raise RuntimeError("metadata: model returned no structured metadata")
+    tool_input: dict = dict(result.data)
 
     # Merge default tags (prepend, dedup preserving order)
     merged_tags: list[str] = []
@@ -615,8 +593,6 @@ class DirectStage(PipelineStage):
         intro_template_text = _intro_template_block(niche_template)
 
         knowledge = Knowledge.load(ctx.knowledge_path)
-        client = get_anthropic_client()
-        config = PipelineConfig()
 
         prompt = build_direct_prompt(
             knowledge, ctx.locale, self.fmt, self.tone,
@@ -628,13 +604,8 @@ class DirectStage(PipelineStage):
             niche=ctx.niche,
         )
 
-        response = client.messages.create(
-            model=config.CLAUDE_MODEL,
-            max_tokens=16000,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        raw_text = response.content[0].text
+        raw_text = (await asyncio.to_thread(
+            llm.complete, prompt, tier="creative", call_site="direct", max_tokens=16000)).text
         if raw_text.startswith("```"):
             raw_text = raw_text.split("\n", 1)[1].rsplit("```", 1)[0]
 
