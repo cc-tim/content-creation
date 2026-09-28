@@ -193,3 +193,17 @@ def test_check_ffmpeg_accepts_short_fontconfig_spelling(monkeypatch):
     monkeypatch.setattr(cli_doctor.shutil, "which", lambda n: "/usr/bin/ffmpeg")
     monkeypatch.setattr(cli_doctor.subprocess, "run", _fake_ffmpeg(conf, _FILTERS))
     assert all(r.ok for r in cli_doctor.check_ffmpeg())
+
+
+# ── check 6: toon ─────────────────────────────────────────────────────────────
+def test_check_toon_fails_with_install_hint_when_cairo_is_missing(monkeypatch):
+    def boom(*a, **k):
+        raise OSError("cannot load library 'libcairo'")
+
+    monkeypatch.setattr("toon.render.frame", boom)
+    results = cli_doctor.check_toon()
+    assert len(results) == 1
+    result = results[0]
+    assert result.name == "toon" and result.ok is False
+    assert "libcairo" in result.detail
+    assert "cannot load library" in result.detail  # the caught exception is still visible
