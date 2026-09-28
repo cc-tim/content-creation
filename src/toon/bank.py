@@ -8,6 +8,8 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from toon.engine.look import BODY_KEYS, FACE_KEYS, HAIR_KEYS, HAIR_LAYER_KEYS
+
 Vec3 = tuple[float, float, float]
 
 
@@ -162,13 +164,32 @@ def _table(root: Path, name: str, model: type[BaseModel]) -> dict[str, Any]:
     return {k: _parse(model, v, f"{path.name}:{k}") for k, v in data.items()}
 
 
+def _check_look(path: Path, ch: Character) -> None:
+    """face/hair/body are open dicts merged over the engine defaults, so an unknown key (a typo
+    like `eyex`) would load and silently leave the default in place. Reject it instead."""
+    unknown = [(f"{part}.{k}", keys) for part, keys, data in
+               (("face", FACE_KEYS, ch.face), ("hair", HAIR_KEYS, ch.hair), ("body", BODY_KEYS, ch.body))
+               for k in data if k not in keys]
+    layers = ch.hair.get("layers")
+    if layers is not None and not (isinstance(layers, list) and all(isinstance(x, dict) for x in layers)):
+        raise BankError(f"{path}: hair.layers: expected a list of layer mappings")
+    for i, layer in enumerate(layers or []):
+        unknown += [(f"hair.layers[{i}].{k}", HAIR_LAYER_KEYS) for k in layer if k not in HAIR_LAYER_KEYS]
+    if unknown:
+        raise BankError("; ".join(f"{path}: {where}: unknown key (known: {sorted(keys)})"
+                                  for where, keys in unknown))
+
+
 def load_bank(root: Path | None = None) -> Bank:
     root = root or default_root()
     if not root.is_dir():
         raise BankError(f"bank not found at {root}")
+    characters = _dir(root, "characters", Character)
+    for name, ch in characters.items():
+        _check_look(root / "characters" / f"{name}.yaml", ch)
     return Bank(
         root=root,
-        characters=_dir(root, "characters", Character),
+        characters=characters,
         expressions=_table(root, "expressions.yaml", Expression),
         poses=_table(root, "poses.yaml", PoseDef),
         sets=_dir(root, "sets", SetDef),

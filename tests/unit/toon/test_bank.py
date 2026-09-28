@@ -42,6 +42,24 @@ def test_unknown_field_fails_with_file_and_path(tmp_path):
         load_bank(root)
 
 
+@pytest.mark.parametrize("character, old, new, path", [
+    ("tim", "eye_x: 0.33", "eyex: 0.33", r"tim\.yaml: face\.eyex: unknown key"),
+    ("tim", "hood: true", "hoood: true", r"tim\.yaml: body\.hoood: unknown key"),
+    ("tim", "fringe: straight", "fringee: straight", r"tim\.yaml: hair\.layers\[0\]\.fringee: unknown key"),
+    ("lioness", "hair: {none: true}", "hair: {nope: true}", r"lioness\.yaml: hair\.nope: unknown key"),
+])
+def test_unknown_look_key_fails_with_file_and_path(tmp_path, character, old, new, path):
+    # A renamed key (eye_x → eyex) used to load and silently fall back to the engine default.
+    root = tmp_path / "bank"
+    shutil.copytree(default_root(), root)
+    p = root / "characters" / f"{character}.yaml"
+    text = p.read_text()
+    assert old in text
+    p.write_text(text.replace(old, new, 1))
+    with pytest.raises(BankError, match=path):
+        load_bank(root)
+
+
 def test_missing_bank_dir(tmp_path):
     with pytest.raises(BankError, match="bank not found"):
         load_bank(tmp_path / "nope")

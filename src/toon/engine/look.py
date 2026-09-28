@@ -19,6 +19,13 @@ FACE_DEFAULT: dict[str, Any] = dict(eye="oval", eye_x=0.34, eye_y=-0.03, eye_s=1
 HAIR_DEFAULT: dict[str, Any] = dict(fringe="saw", line=(0.42, 0.30, -0.25), spike_len=0.25, spike_deg=24, spike_irr=0.0,
                     spike_lean=0.6, top_only=False, bumps=(), fill="ink", wk=0.9, fringe_k=1.0)
 BODY_DEFAULT: dict[str, Any] = {"shirt": SHIRT, "hood": False, "apron": False}
+# Every key a look may set: the defaults above, plus keys the head reads with no default
+# (absent = off) -- the face's separate resting `smile` mouth, and the hair preset's structure:
+# `layers` (drawn in order), `none` (no hair), `bun` (x, y, z, radius in head-local units).
+FACE_KEYS = frozenset(FACE_DEFAULT) | {"smile"}
+HAIR_LAYER_KEYS = frozenset(HAIR_DEFAULT)
+HAIR_KEYS = HAIR_LAYER_KEYS | {"layers", "none", "bun"}
+BODY_KEYS = frozenset(BODY_DEFAULT)
 
 
 @dataclass(frozen=True)
