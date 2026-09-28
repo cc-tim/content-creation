@@ -12,11 +12,20 @@ from pipeline.director.storyboard_validator import (
     visual_decisions_for_storyboard,
 )
 from pipeline.errors import SceneRenderError
+from pipeline.stages.compose import COMPOSE_FPS
 from pipeline.storyboard import Scene, Storyboard
+from toon.bank import load_bank
 
 
 def _scene(visual, narration="One. Two.", est=13.0):
     return Scene(id="s1", section="content", narration=narration, narration_est_sec=est, visual=visual)
+
+
+def test_toon_fps_matches_compose_concat():
+    # 24fps toon juddered once compose's concat normalised it onto COMPOSE_FPS (see
+    # tests/integration/toon/test_cadence.py). The bank's fps must match compose's real
+    # concat rate, not a value hardcoded here.
+    assert load_bank().style.fps == COMPOSE_FPS
 
 
 def test_toon_is_a_visual_type_that_keeps_subtitles():
