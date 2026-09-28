@@ -166,7 +166,7 @@ docs/superpowers/specs/  # Design specs
 | YouTube download | **yt-dlp** | Handles subtitles, audio extraction natively |
 | Transcript extraction | **youtube-transcript-api** | Free, no API key, any public video |
 | Transcription fallback | **faster-whisper** | 4x faster than openai-whisper |
-| Story analysis + scriptwriting | **Claude Sonnet API** | Best reasoning for narrative restructuring |
+| Story analysis + scriptwriting | **Claude (Opus) via claude -p on the subscription** | Best reasoning for narrative restructuring; runs on subscription quota |
 | TTS (primary/free) | **edge-tts** | Free, covers zh-TW/ja/es |
 | TTS (premium) | **Google Cloud TTS Neural2** | 1M chars/month free tier |
 | Video composition | **FFmpeg** via ffmpeg-python | Industry standard |
@@ -469,7 +469,7 @@ Natural-language triggers:
 | OpenAI TTS | ~$5 | ~333K chars for special narration |
 | YouTube Data API | $0 | 10K quota units/day |
 | pytrends | $0 | Free Google Trends access |
-| **Buffer** | ~$32 | Scaling headroom |
+| **Buffer** | ~$42 | Scaling headroom |
 
 ## Content Strategy
 

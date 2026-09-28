@@ -230,3 +230,15 @@ def test_check_llm_fails_without_a_binary(monkeypatch, tmp_path):
     monkeypatch.setenv("PIPELINE_CLAUDE_BIN", str(tmp_path / "missing"))
     (r,) = cli_doctor.check_llm()
     assert not r.ok and "PIPELINE_CLAUDE_BIN" in r.detail
+
+
+def test_check_llm_fails_when_version_exits_nonzero(monkeypatch, tmp_path):
+    exe = tmp_path / "claude"
+    exe.write_text("#!/bin/sh\necho boom >&2\nexit 1\n")
+    exe.chmod(0o755)
+    monkeypatch.setenv("PIPELINE_LLM_BACKEND", "cli")
+    monkeypatch.setenv("PIPELINE_CLAUDE_BIN", str(exe))
+    (r,) = cli_doctor.check_llm()
+    assert not r.ok
+    assert "exited 1" in r.detail
+    assert str(exe) in r.detail

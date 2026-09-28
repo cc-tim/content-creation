@@ -167,10 +167,13 @@ def check_llm() -> list[CheckResult]:
         return [CheckResult("llm", False, "backend cli but the claude CLI was not found — "
                                           "install Claude Code or set PIPELINE_CLAUDE_BIN")]
     try:
-        version = subprocess.run([binary, "--version"], capture_output=True, text=True,
-                                 timeout=30).stdout.strip()
+        proc = subprocess.run([binary, "--version"], capture_output=True, text=True, timeout=30)
     except Exception as exc:
         return [CheckResult("llm", False, f"{binary} --version failed: {exc!r}")]
+    if proc.returncode != 0:
+        return [CheckResult("llm", False,
+                            f"{binary} --version exited {proc.returncode}: {proc.stderr[-200:]}")]
+    version = proc.stdout.strip()
     return [CheckResult("llm", True, f"backend cli; {binary} ({version}); {models}")]
 
 
