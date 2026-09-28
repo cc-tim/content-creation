@@ -13,6 +13,7 @@ from pathlib import Path
 
 import numpy as np
 
+import toon
 from toon import ENGINE_VERSION
 from toon.bank import Bank, bank_files, load_bank
 from toon.cairo_compat import cairo
@@ -151,10 +152,18 @@ def render_frames(scene: ToonScene, bank: Bank, times: Iterable[float], width: i
         yield from ex.map(_render_one, times, chunksize=4)
 
 
+# Every engine/kit/scene source is part of the cache key, so a drawing change re-renders even
+# without a manual ENGINE_VERSION bump (compose rescene relies on this cache).
+ENGINE_ROOT = Path(toon.__file__).parent
+
+
 def cache_key(scene: ToonScene, bank: Bank, duration: float, width: int, height: int) -> str:
     h = hashlib.sha256(scene.model_dump_json(by_alias=True).encode())
     for f in bank_files(bank.root):
         h.update(str(f.relative_to(bank.root)).encode())
+        h.update(f.read_bytes())
+    for f in sorted(ENGINE_ROOT.rglob("*.py")):
+        h.update(str(f.relative_to(ENGINE_ROOT)).encode())
         h.update(f.read_bytes())
     h.update(f"{ENGINE_VERSION}|{duration:.4f}|{width}x{height}|{bank.style.fps}".encode())
     return h.hexdigest()[:16]
@@ -175,6 +184,9 @@ def render_clip(scene: ToonScene, bank: Bank, out_path: Path, duration: float,
     stamp = out_path.with_suffix(".key")
     if out_path.exists() and stamp.exists() and stamp.read_text() == key:
         return out_path
+    # Drop the stamp first: a crash between replacing the clip and writing the new stamp must
+    # never pair an old key with a new file.
+    stamp.unlink(missing_ok=True)
     fps = bank.style.fps
     n = round(duration * fps)
     tmp = out_path.with_suffix(".part.mp4")

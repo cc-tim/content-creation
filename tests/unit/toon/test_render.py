@@ -76,6 +76,39 @@ def test_cache_key_changes_when_a_bank_file_changes(tmp_path):
     assert R.cache_key(SCENE, load_bank(root), 8.0, 320, 180) != k1
 
 
+def test_cache_key_changes_when_an_engine_source_byte_changes(tmp_path, monkeypatch):
+    # A kit/engine edit without a manual ENGINE_VERSION bump must still miss the cache, or
+    # `compose rescene` silently serves the old look. Point the key at a temp copy of the
+    # package sources (never edit the real ones).
+    src = tmp_path / "toon"
+    shutil.copytree(R.ENGINE_ROOT, src, ignore=shutil.ignore_patterns("__pycache__"))
+    k_real = R.cache_key(SCENE, BANK, 8.0, 320, 180)
+    monkeypatch.setattr(R, "ENGINE_ROOT", src)
+    k_copy = R.cache_key(SCENE, BANK, 8.0, 320, 180)
+    assert k_copy == k_real  # relative path + bytes: an identical copy keys identically
+    f = src / "kit" / "graphics.py"
+    f.write_bytes(f.read_bytes() + b" ")
+    assert R.cache_key(SCENE, BANK, 8.0, 320, 180) != k_copy
+
+
+def test_the_key_stamp_is_dropped_before_rendering(tmp_path, monkeypatch):
+    # The stamp goes first: a crash between replacing the clip and writing the new stamp must
+    # never leave an old key paired with a new file (or a new key with an old one).
+    out = tmp_path / "x.mp4"
+    out.write_bytes(b"old clip")
+    stamp = out.with_suffix(".key")
+    stamp.write_text("stale-key")
+
+    def boom(*a, **k):
+        raise RuntimeError("worker died")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(R, "render_frames", boom)
+    with pytest.raises(R.ToonRenderError):
+        R.render_clip(SCENE, BANK, out, 1.0, 320, 180)
+    assert not stamp.exists()
+
+
 def test_a_failing_frame_leaves_no_file(tmp_path, monkeypatch):
     def boom(*a, **k):
         raise RuntimeError("worker died")
