@@ -24,3 +24,22 @@ def test_storyboard_beats_use_creative_tier():
     with patch("pipeline.llm.complete", return_value=_res(json.dumps({"s1": "beat"}))) as c:
         out = cli_storyboard._generate_beats([{"id": "s1", "section": "hook", "narration": "n"}])
     assert out == {"s1": "beat"} and c.call_args.kwargs["tier"] == "creative"
+
+
+# ── Step 0: fused decorator line in cli_visual_review.py ────────────────────
+
+
+def test_visual_review_extract_frames_is_registered():
+    from typer.testing import CliRunner
+
+    from pipeline.cli_visual_review import visual_review_app
+
+    res = CliRunner().invoke(visual_review_app, ["extract-frames", "--help"])
+    assert res.exit_code == 0, res.output
+
+
+def test_print_visual_issues_table_does_not_raise():
+    from pipeline.cli_visual_review import print_visual_issues_table
+
+    print_visual_issues_table([{"scene_id": "s1", "severity": "MINOR", "observation": "o",
+                                "suggestion": "s", "reason": "r"}])

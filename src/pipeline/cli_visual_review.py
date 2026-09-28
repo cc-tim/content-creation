@@ -318,7 +318,10 @@ def print_visual_issues_table(
             iss.get("suggestion", ""),
             iss.get("reason", ""),
         )
-    c.print(table)@visual_review_app.command("extract-frames")
+    c.print(table)
+
+
+@visual_review_app.command("extract-frames")
 def extract_frames_cmd(
     work_dir: Annotated[
         Path | None, typer.Option("--work-dir", help="Project directory")
