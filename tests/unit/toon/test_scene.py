@@ -111,6 +111,21 @@ def test_a_longer_narration_lets_a_sentence_anchor_land_past_the_authored_end():
     assert resolved_at > MINI["duration"]
 
 
+@pytest.mark.parametrize("narration, sentences", [
+    ("我……不知道。好。", ["我……不知道。", "好。"]),        # zh-TW ellipsis is a pause, not a break
+    ("Wait... what?", ["Wait...", "what?"]),               # a run of terminators is one break
+    ("3.5 hours.", ["3.5 hours."]),                        # a decimal point is not a break
+    ("One two. Three four five six.", ["One two.", "Three four five six."]),
+    ("他走了。……好。", ["他走了。……", "好。"]),              # a run holding 。 still breaks
+    ("What?! No.", ["What?!", "No."]),
+])
+def test_sentences_count_real_breaks_only(narration, sentences):
+    from toon.scene import split_sentences
+
+    assert split_sentences(narration) == sentences
+    assert len(sentence_starts(narration, 10.0)) == len(sentences)
+
+
 def test_sentence_anchor_needs_narration():
     with pytest.raises(SceneError, match="need the scene's narration"):
         load_scene(mini(**{"at": {"sentence": 1}, "door": "open"}), BANK)

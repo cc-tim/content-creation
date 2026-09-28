@@ -182,11 +182,33 @@ def shot_length(scene: ToonScene, i: int) -> float:
     return scene.duration - scene.shots[i].at if scene.duration is not None else math.inf
 
 
-_SENTENCE = re.compile(r"(?<=[.!?。！？…])\s*")
+_TERMINATORS = re.compile(r"[.!?。！？…]+")
+
+
+def split_sentences(narration: str) -> list[str]:
+    """The narration's sentences, as `at: {sentence: n}` anchors count them.
+
+    A run of terminators is one break ("What?!", "他走了。……"). A lone "." between digits is a
+    decimal point ("3.5"). An ellipsis ("……", "...") followed directly by more text is a pause
+    inside the sentence ("我……不知道。"); followed by a space or the end, it ends the sentence.
+    """
+    text = narration.strip()
+    parts, start = [], 0
+    for m in _TERMINATORS.finditer(text):
+        run, end = m.group(), m.end()
+        nxt = text[end:end + 1]
+        if run == "." and text[m.start() - 1:m.start()].isdigit() and nxt.isdigit():
+            continue
+        if set(run) <= {".", "…"} and run != "." and nxt and not nxt.isspace():
+            continue
+        parts.append(text[start:end])
+        start = end
+    parts.append(text[start:])
+    return [s.strip() for s in parts if s.strip()]
 
 
 def sentence_starts(narration: str, duration: float) -> list[float]:
-    parts = [s for s in _SENTENCE.split(narration.strip()) if s.strip()]
+    parts = split_sentences(narration)
     total = sum(len(s) for s in parts) or 1
     starts, acc = [], 0
     for s in parts:
