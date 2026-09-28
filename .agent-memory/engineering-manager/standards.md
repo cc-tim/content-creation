@@ -61,6 +61,17 @@ until it has ALL of:
    (locale-portability lint, below current priorities). *(Note: animated emoji/iconography
    is NOT a current visual type — flag as possible future E2/E3 demand if a beat names it,
    per arsenal-is-a-variable; do not build pre-emptively.)*
+9. **Frame rate matches compose** (Tim accepted this rule on 2026-09-29: "A new engineering
+   rule -> accept"; it came from Sprint 9 REWORK R1). "Any new visual type that renders its own
+   video must match compose's frame rate, with a test that holds them equal. Goldens can't see
+   judder; only a cadence test through compose's real filter chain can."
+   - The rate is `COMPOSE_FPS` in `stages/compose.py`.
+   - The guard precedent is `tests/unit/test_composer_toon.py::test_toon_fps_matches_compose_concat`.
+     It is a default-suite test and fails when either rate changes alone.
+   - The cadence precedent is `tests/integration/toon/test_cadence.py`. It is red at 24 fps,
+     where every 5th frame is a duplicate.
+   - Goldens and parity sample `frame(t)`, so they pass on a juddering clip.
+   - REVIEW checks both tests for any new self-rendering type.
 
 **Lessons from Sprint 2 (animation):**
 - **Frame generators are PURE.** Contract: `(progress, visual, base_bg, w, h, palette,

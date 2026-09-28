@@ -101,6 +101,31 @@ Toon integration (run on the hub for goldens + parity + cadence):
 | **Sprint 7 — deterministic overflow/clipping (ex-check-4)** — laid-out text bbox vs inner-panel inset fires on s25-style clip | _superseded — covered by the Layer-2 vision pass; the novel text-bbox instrumentation was high-risk/low-verifiability here_ | ⏸️ superseded by Layer-2 |
 | **Sprint 7 — overlay-variant field at gen-time (piece C)** — single-source-of-truth with `context.json` `preferred_variant`, authoritative pre-TTS | `tests/director/still_gate/` (variant) — when built | ⏸️ deferred (the gate currently reads existing `preferred_variant` via `resolve_variant`; moving the decision to gen-time is NOT done — and is one of the fix options for the BLOCKING row above) |
 
+### E5 Sprint 10 — loud-failure sweep, part 1 🔵 (greenlit 2026-09-29)
+
+Spec: `docs/superpowers/specs/2026-09-29-e5-loud-failure-sweep-design.md` (§9 acceptance, §10
+tests). Every row gates PASS. Each test is committed **red on base `3693b09`** before its fix.
+EM probes already showed T1, T2, T5 and T9 red on master (2026-09-29, scratch copy). Add the new
+test files to the run-all command at PASS.
+
+| Capability | Test | Status |
+|------------|------|--------|
+| T1: a generic visual failure refuses assembly; the reason names the `visual` step and the exception; no `s1_final*.mp4`, no `s1_black.mp4` | `tests/unit/test_compose_v2.py::test_generic_visual_failure_refuses_assembly_without_black` | 🔲 planned |
+| T2: an overlay-rule collision (`text_top` on a `text_card`, real `check_overlay_allowed`) refuses assembly with the collision reason | `tests/unit/test_compose_v2.py::test_overlay_rule_violation_refuses_assembly` | 🔲 planned |
+| T3: a compartment failure refuses assembly (no silent drop) | `tests/unit/test_compose_v2.py::test_compartment_failure_refuses_assembly` | 🔲 planned |
+| T4: a post-visual failure on a framed scene raises `SceneRenderError` and leaves neither frame-suffixed cache path | `tests/unit/test_compose_v2.py::test_render_one_scene_post_visual_failure_raises_and_leaves_no_cache` | 🔲 planned |
+| T5: an exception escaping `_render_one_scene` leaves no cached black stand-in | `tests/unit/test_compose_v2.py::test_escaped_scene_exception_leaves_no_cached_black` | 🔲 planned |
+| T6: a refused compose re-run doesn't cache-hit; it renders again and refuses again | `tests/unit/test_compose_v2.py::test_refused_compose_rerun_does_not_cache_hit` | 🔲 planned |
+| T7: a failed `image_sequence` image raises `SceneRenderError` naming the image and the provider error; no black lavfi source | `tests/unit/test_image_sequence.py::test_failed_image_raises_scene_render_error_not_black` | 🔲 planned |
+| T8: one media-path resolver (absolute / project / repo / cwd / missing / expanduser / dedupe), and the validator and renderers agree on project-relative clip and image paths | `tests/unit/test_media_paths.py` | 🔲 planned |
+| T9: a project-relative clip renders from the project root end to end (the Sprint 9 smoke defect) | `tests/unit/test_compose_v2.py::test_project_relative_clip_renders_from_project_root` | 🔲 planned |
+| T10: the still-gate forwards `project_root` to `render_scene` | `tests/director/still_gate/test_render.py::test_render_scene_still_forwards_project_root` | 🔲 planned |
+| T11: fence: no `_black_screen` / `_black_clip`; `color=c=black` only inside `_silence_gap` (AST); no `Path.cwd()` in clip / refit / compose / validator | `tests/unit/test_loud_failure_fence.py` | 🔲 planned |
+| Red-first holds: the EM re-adds the black fallback → T1, T2 and T11 go red; restores the cwd resolver → T8 and T9 go red | EM mutation in a `git archive` scratch copy | 🔲 planned |
+| Live fault-injection smoke (Mac, scratch `PIPELINE_OUTPUT_DIR`): assembles with a non-black project-relative clip → a corrupt clip refuses with step, reason and fix, and leaves no `s1_final*` → re-run refuses again → restored file assembles → an overlay collision refuses | manual evidence `tmp/e5-sweep/smoke/` | 🔲 planned |
+| Hub path audit: no clip or article_image path in any hub storyboard resolves differently under the new resolver | EM-run read-only script on the hub | 🔲 planned |
+| Regression suites green (compose_v2, validator, refit, still_gate, cli_compose*, clip_renderer, compose_dup_guard, composer_base, composer_toon, chart); full suite 0 failed; ruff and mypy clean | `uv run pytest -q` + ruff + mypy | 🔲 planned |
+
 ## E6 — Compose efficiency / dashboard 🟡 (partly in flight)
 
 | Capability | Test | Status |
@@ -198,6 +223,13 @@ elsewhere with a counted reason, and minted with `UPDATE_GOLDENS=1` on the hub o
 | **Acceptance: scene 001 (real-scene demo, gating):** `assets/toon/scenes/001-lioness-dishes.yaml` renders a clip that matches `output/own-show/scenes/001-lioness-dishes/animatic_v2_bulb.mp4` in shots, timing and look (key-frame side-by-side), and **Tim confirms it still meets his bar** | `tests/integration/toon/test_parity_001.py` (`--integration`) + `tmp/toon-v0/scene001/side_*.png` + Tim's words in the sprint-log | ✅ Parity worst **0.058** (12.2 s; limit 0.5), unchanged since `c29fc52`; the earlier "0.0435" was an EM mis-record. Tim 2026-09-28: "looks good" (trembling → soft boil), then picked 30 fps / drawings 12/s |
 | Non-goal fence (spec §1): the bank holds only picked items (no campfire, no unpicked items), and `assets/toon/scenes/` holds only `001-lioness-dishes.yaml` (no EP1 scenes) | `tests/unit/toon/test_scene_001.py` + `tests/unit/toon/test_bank.py::test_v0_bank_holds_exactly_the_picked_items` + diff | ✅ (re-checked at REVIEW 3) |
 | Full suite collects and passes with `src/toon` packaged (`cairocffi` in deps, `src/toon` in hatch `packages`); `ruff check src/ tests/` and `mypy src/` clean | `uv run pytest -q` + ruff + mypy | ✅ REVIEW 3 at `2f6fb35`: hub 1380 passed / 22 skipped / 0 failed (its first run hit the unrelated trust-gate flake, see arsenal-state); Mac 1343 / 59 / 0; ruff clean; mypy clean (159 files) on both machines |
+
+## E10 — Claude calls on the subscription 🔵 (new epic, INTAKE 2026-09-29)
+
+No rows yet. The main session has written the spec,
+`docs/superpowers/specs/2026-09-29-claude-cli-llm-backend-design.md` (commit `e65f8fa`), and it
+is pending Tim's review. Once he approves it, the EM adds rows from spec §5 (tests) and §6 (done
+criteria), and REVIEW gates it per §6.5.
 
 ## Cross-cutting
 

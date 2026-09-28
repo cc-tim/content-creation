@@ -16,7 +16,7 @@
 > video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
 > the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-09-28 (third REVIEW, master `2f6fb35`: **Sprint 9 (E9 v0) = PASS → 🟢 shipped.** R1 fixed: toon renders at 30 fps (camera on ones) with drawings at 12/s, Tim's pick A. `COMPOSE_FPS` is the concat rate, and a guard test pins the bank to it. A cadence test is red at 24 fps (8/45 steps are every-5th duplicates) and green at 30. The EM measured the whole toon segment of the re-composed hub final: it reproduces the raw clip's cadence step for step, with no introduced duplicates. R2 fixed: the doctor test goes red when the hint is deleted (EM mutation run). `frame(t)` is byte-identical at 24 and 30 fps, so the goldens and parity are untouched. Hub full suite 1380 passed / 22 skipped / 0 failed; its first run hit one pre-existing, unrelated flake (dashboard trust-gate). Mac 1343 / 59 / 0. Toon `--integration`: hub 172 passed, Mac 168. ruff and mypy clean; doctor 17/17 on both machines. Next slot is open. EM recommendation: the E5 loud-failure sweep, pending Tim.) · Prior: 2026-09-28 (RE-REVIEW after the hub pass: **Sprint 9 (E9 v0) = REWORK again, narrow**. The first REWORK is closed. Draw-order tests bite (EM mutation-checked 3/3). Hub goldens compare 4/4, including the model sheet. Hub suite 1379 passed / 21 skipped. Toon `--integration` 170 passed, parity included. ruff and mypy clean. Doctor 17/17 on both machines. In the compose smoke the toon lasts exactly as long as the narration (13.440 s) with subtitles kept. Two gaps: **R1, 24→30 fps judder**: every 5th output frame repeats during camera moves, which fails the smoke row. Fix: render toon at 30 fps, drawing rate Tim's pick of 12 or 15. **R2:** the doctor FAIL-path test doesn't pin its install hint. Tim acked both v0 deferrals (contact sheets; the scene-file name in `SceneError`). New demand, all E5 follow-ons: a silent black-scene path in compose, the `clip.path` resolution mismatch, and the Haiku visual-QC opt-out. An E5 loud-failure sweep is recommended next after Sprint 9, pending Tim.) · Prior: 2026-09-28 (REVIEW: **Sprint 9 (E9 v0) = REWORK**, small. The build is good: scene 001 matches the approved tryout (worst key-frame diff 0.04, limit 0.5); suite 1337 passed / 57 skipped; toon `--integration` 135 passed; ruff and mypy clean; Mac doctor 17/17; a separate code review happened. Three tests are missing: draw order, the doctor's FAIL path, and the model-sheet golden. Merge is cleared once they land. 🟢 waits for the hub pass (goldens, compose smoke, hub doctor), which needs Tim's OK to push. The v0 final review's parked residuals are folded into E9 item 2.) · Prior: 2026-09-27 (INTAKE: **new epic E9 — Toon engine & resource bank** [own-show character animation: deterministic 2.5D hand-drawn cairo rig + YAML bank of Tim's picks + wordless scene files + new `toon` visual type]; spec `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md` Tim-approved 2026-09-27; **v0 = Sprint 9, now the recommended next sprint** (Tim's direction), ahead of E8 item 2; 18 test-plan rows 🔲; non-goal held: no EP1 scene/story composition until Tim gives the outline) · Prior: 2026-09-24 (REVIEW: **Sprint 8 hub (A) gate ADVISE** — all 12 hub rows green [83 unit + 8 render-truth integration + 74 golden, full suite 1224 passed/21 skipped/0 errors, ruff+mypy clean, doctor 16/16, resolver = TC index 3]; merge cleared; E8 item 1 stays 🔵 pending Mac (B)) · Prior: 2026-09-24 (SPRINT: **Sprint 8 = E8 item 1 proposed + Tim-greenlit** — font resolver + Linux-assumption audit; spec `docs/superpowers/specs/2026-09-24-e8-cross-platform-fonts-design.md`; hub/Mac split acceptance; golden policy = hub-canonical, darwin skip; found HK-face `_TC_INDEX` + JP-face outro bugs; E8 item 3 hub encoder corrected to nvenc) · Prior: 2026-09-24 (INTAKE: **new epic E8 — Two-machine workflow & render portability** [Hub Linux box + Workshop M3 Mac]; three items in Tim's order: (1) cross-platform font resolver + Linux-assumption audit [Mac-render blocker; folds `cli_storyboard.py:428` + `output/gallery` path fixes + the silent `load_default()` font fallback], (2) project checkout/checkin + hub ownership lock, (3) draft/preview encode profile [hw encoders, non-publishable flag, bitrate-check aware]. Item 1 recommended as next sprint slot. Iteration-speed axis — neither quality nor runtime.) · Prior: 2026-05-31 (**Sprint 7 SHIPPED 🟢 — EM RE-REVIEW PASS** after one REWORK round — render-truth still-gate, a **two-layer gate** [Tim-approved descope 2026-05-30 + hard constraint: tesseract unprovisioned, no passwordless sudo]: Layer 1 deterministic CLI [`duplicate_frame` phash+colorhash + `blank_substrate` content-INSET; exit 0 clean / 1 tool-error / 2 findings] + Layer 2 scoped in-session vision pass [meaningfulness / wrong-language / clipping] wired into `storyboard-review/SKILL.md`. Deterministic OCR + bbox-overflow SUPERSEDED by Layer 2; variant-at-gen-time [piece C] DEFERRED [principled form of the variant fix]; the blanket "NO model-vision" guard LIFTED for the scoped Layer-2 use only. **REWORK→PASS:** first REVIEW caught the gate defaulting to `plain` [overlays burned] at Phase-3.5, missing the seed reused-map defect; both fixes landed — #1 `resolve_variant` defaults to `no_overlay` [+malformed-context guard], demonstrated firing dup on the defect snapshot via the wired path + regression test; #2 independent code review done, its I-1 render-crash finding fixed [per-scene try/except → exit 1, persisted Layer-2 stills]. EM ran pytest [16 still-gate + 143 regression], ruff, mypy, live I-1 exit-1 check — all clean. Prior 2026-05-30: Sprint 7 GREENLIT; 2026-05-29 still-gate→E5; Sprint 6 REVIEW PASS) · Prior: 2026-05-29 (REVIEW post-hoc: **E7 music/audio-axis** — first E7 sprint, built off-roadmap and merged to master `12bfce3` without a pre-merge gate; EM acceptance verdict **ADVISE, NOT PASS** [engineering clean + invariants held: schema, `composer/music.py` mix engine with an in-code length-clamp two-axes fence, `pipeline compose music` CLI, loud failure, 19 measurable tests + ruff/mypy green — but the music library is **empty**, so the spec's named s19→s23 real-scene intelligibility demo could not run]. E7 item **stays 🔵**; flip to 🟢 needs licensed tracks + the demo + a separate code review + EM re-REVIEW.) · Prior: 2026-05-29 (INTAKE: **locale-portability authoring principle folded** — prefer language-neutral visuals [numeric/chart → image-only → icon/emoji], default unavoidable on-screen text to English/en-US; cross-cutting bar → `standards.md` step 8 + the next `direct.py` sprint, lint-enforcement half → E5 🔵 [NOT next]; orthogonal to both axes; visual-side complement to shipped MLA. Recommended next sprint UNCHANGED.) · Prior: 2026-05-27 (REVIEW PASS: **Sprint 6 (E4 Slice 3) shipped** — niche `visual_style` medium-clash refactor split `medium_hint` / `palette` / `subject_bias` / `universal_rules`, preserved the back-compat composite, and passed EM REVIEW on `feat/niche-visual-style-split`; s25 demo evidence saved under `tmp/niche-visual-style-split/`. Prior: Sprint 6 formally proposed; production-project greenlight gate added [sibling `production-projects.md`, childhood-bloating explainer parked/not-greenlit]; E7 Audio arsenal epic created) · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-09-29 (SPRINT + INTAKE: **Sprint 10 = E5 loud-failure sweep, part 1**, Tim-greenlit ("do this now"). Spec `docs/superpowers/specs/2026-09-29-e5-loud-failure-sweep-design.md`. EM probes on master `3693b09` prove four silent paths red today: a generic visual failure, an overlay-rule collision and a project-relative clip each put a **black scene in an assembled final**, and an escaped exception leaves black stand-ins in the scene cache. Part 2 (silent text_card downgrades: `namecard`/`map`, `generated_image` provider failure) is split out, because the director emits `map`/`namecard`. **New infra epic E10: Claude calls on the subscription** (Tim's directive; the main session's spec `docs/superpowers/specs/2026-09-29-claude-cli-llm-backend-design.md` routes the 12 call sites through `claude -p`). Next after Sprint 10 and ahead of E8 item 2, because it unblocks production; it can build in parallel once Tim approves the written spec. Reconciled: stale "known gaps" (Ken Burns and E4 Slice 3 had shipped), the duplicate E5 locale-lint line, and the Later backlog.) · Prior: 2026-09-28 (third REVIEW, master `2f6fb35`: **Sprint 9 (E9 v0) = PASS → 🟢 shipped**; toon at 30 fps with drawings at 12/s, Tim's pick A; guard and cadence tests mutation-checked). Earlier history: `.agent-memory/engineering-manager/sprint-log.md` and `sprint-log-archive.md`. · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -40,11 +40,14 @@ unchanged by either.)
 
 ---
 
-## Current arsenal (baseline, 2026-05-22)
+## Current arsenal (baseline, reconciled 2026-09-29)
 
 - **Visual types:** `generated_image`, `article_image`, `clip`, `slide`, `rich_slide`,
   `chart` (6 static chart_types — Sprint 1 + line in Sprint 2 🟢), `text_card`,
-  `still_frame`
+  `still_frame`, `image_sequence`, `toon` (Sprint 9 🟢). `namecard`/`map` are accepted
+  but render as a `text_card` (see Known gaps).
+- **Camera motion on stills (🟢):** `image_to_video` applies a slow Ken Burns zoom to every
+  still by default; `slow_push_pan`/`ken_burns` are configurable (E2).
 - **Frames:** `open_book_page` (project-level wrap)
 - **Transitions:** `page-turn` (weak — aliased to xfade slideleft), `book-page-turn-v2`
 - **Reveals (Sprint 2 🟢):** animated `line` left-to-right draw (with markers synced
@@ -82,19 +85,24 @@ unchanged by either.)
   (reason + suggested_fix) for a missing-or-corrupt `article_image`/`image` path (the old
   silent `text_card` fallback was removed in 5a33f0a). **`apply_overlay` failures in
   `compose.py` now also raise `SceneRenderError`** (Sprint 5) instead of a silent warning.
-  **Remaining silent degradation:** `namecard`/`map` still fall back to `text_card`
-  (`base.py:413-422`) — a narrow E5 follow-on, not sprint-sized; fix while next in `base.py`.
+  **Still silent (2026-09-29, EM-probed red on master):** any other scene failure (a generic
+  visual error, an overlay-rule collision, a compartment or frame/mux error, a failed
+  `image_sequence` image) becomes a **black scene in the assembled final** and can be served
+  from the scene cache on the next run; project-relative `clip`/`article_image` paths resolve
+  differently in `pipeline validate` and in compose. **Sprint 10 fixes these.** Silent
+  `text_card` downgrades (`namecard`/`map`, `generated_image` provider failure) are E5 part 2.
 - **Toon (Sprint 9 🟢, 2026-09-28):** the `toon` visual type (`composer/toon.py` → `src/toon`)
   renders a wordless YAML scene file from the bank of Tim's picks (`assets/toon/bank/`) as
   deterministic 2.5D hand-drawn animation. It renders at 30 fps (`COMPOSE_FPS`), camera on
   ones, drawings at 12/s, soft line boil by default. Clip length = narration (two-axes fence
   in code). Every failure is a `SceneRenderError`. `pipeline toon validate|render|sheet`; a
   doctor toon check. See E9.
-- **Known gaps (the demand):** Ken Burns on stills · true book-page-turn animation ·
-  animated overlay *entrance* (E3 v2), lower-thirds, CapCut subtitles · niche `visual_style`
-  medium-clash root refactor (E4 Slice 3 — actively producing surreal output on
-  baby-walker, currently masked by the `skip_niche_style` per-scene workaround) · coarse
-  recompose loop · `namecard`/`map` silent `text_card` fallback.
+- **Known gaps (the demand):** true book-page-turn animation · animated overlay *entrance*
+  (E3 v2), lower-thirds, CapCut subtitles · coarse recompose loop (E6) · silent black scenes
+  (Sprint 10) · `namecard`/`map` and `generated_image` silent `text_card` downgrades (E5 part
+  2) · every Claude-backed stage is down while the Anthropic API credit is exhausted (E10).
+  *(Reconciled 2026-09-29: Ken Burns on stills shipped with E2 camera motion; the E4 Slice 3
+  medium-clash refactor shipped in Sprint 6.)*
 
 See `.agent-memory/engineering-manager/arsenal-state.md` for the living inventory.
 
@@ -110,9 +118,10 @@ See `.agent-memory/engineering-manager/arsenal-state.md` for the living inventor
 
 Five are **arsenal-direction** epics (the demand-driven backlog: programmatic charts,
 programmatic animation, animated overlays, the **audio arsenal** (E7), and, newest, the
-**toon engine** for Tim's own hosted shows (E9, 2026-09-27)). Four are **cross-cutting
+**toon engine** for Tim's own hosted shows (E9, 2026-09-27)). Five are **cross-cutting
 infrastructure** that the arsenal needs in order to be traceable, safe, and iterable (E4–E6,
-plus **E8** two-machine workflow & render portability, 2026-09-24).
+**E8** two-machine workflow & render portability, 2026-09-24, and **E10** Claude calls on the
+subscription, 2026-09-29).
 
 ### E1 — Programmatic charts  `[arsenal]`  🟢 *v1 shipped (Sprint 1)*
 Render data as **styled editorial graphics** (warm sepia / book-page feel), never a Plotly
@@ -205,7 +214,7 @@ which scenes it applies to, how to remove it. Surfaces today's *silent globals*
 - **Concrete bug fixed:** niche `visual_style` no longer forces sketch/open-book medium
   contamination onto photo-realistic generated-image prompts.
 
-### E5 — Scene validation & visual-decision checkpoint  `[infra · quality gate]`  🟢 *v1 shipped (Sprints 1, 4); render-truth still-gate shipped (Sprint 7 — two-layer, EM REVIEW PASS 2026-05-31)*
+### E5 — Scene validation & visual-decision checkpoint  `[infra · quality gate]`  🟢 *v1 shipped (Sprints 1, 4); render-truth still-gate shipped (Sprint 7 — two-layer, EM REVIEW PASS 2026-05-31); loud-failure sweep part 1 = Sprint 10 🔵 (greenlit 2026-09-29)*
 Defense-in-depth: a storyboard-write-time validator (per-type checks, taxonomy drift
 detection) + compose-time hard failures replacing the old silent `text_card` fallbacks +
 a `confidence`/`rationale` decision table the user reviews before TTS.
@@ -245,13 +254,17 @@ a `confidence`/`rationale` decision table the user reviews before TTS.
   dup catch demonstrated on the defect snapshot via the wired path. CLI exit codes: 0 clean /
   1 tool-error / 2 findings; the SKILL refuses TTS on any non-zero. **Two-axes:** pure quality-gate
   (visual sub-axis); **ZERO runtime** — it inspects frames, never adds beats.
-- **🔵 Locale-portability lint** — flag scenes with locale-locked (non-English) baked-in
-  on-screen text and surface them in the decision table (visual-side complement to the MLA
-  `--secondary-locale` audio path). Authoring principle in `standards.md` (Anatomy step 8).
-  Ordered below current priorities — NOT next. (INTAKE 2026-05-29.)
-- **Remaining (narrow, not sprint-sized):** `namecard`/`map` still silently fall back to
-  `text_card` in `composer/base.py:413-422` — make loud or scope-validate when next in
-  that file.
+- **🔵 Loud-failure sweep, part 1: Sprint 10** (greenlit 2026-09-29). No silent black scenes
+  in compose or `image_sequence`, and one media-path resolver shared by validate, compose and
+  the still-gate. See Sprint 10.
+- **🔵 Loud-failure sweep, part 2: silent `text_card` downgrades** (split out of Sprint 10).
+  `namecard`/`map` render as a text card (`composer/base.py:461-470`), and a `generated_image`
+  provider failure renders the narration as a text card (`composer/image.py:177-181`); the
+  image edit-mode fallback (`image.py:129-133`) also stays silent. Not sprint 10 material: the
+  director taxonomy emits `map`/`namecard` (`direct.py:216-217, 257`; 6 `map` + 1 `namecard`
+  in hub storyboards), so going loud needs a taxonomy decision (retire `namecard` to
+  `overlay.namecard`; a real `map` type or route to `generated_image`). It rides the next
+  `stages/direct.py`-touching sprint; the provider-failure half is a budget-policy call for Tim.
 - **🔵 Locale-portability lint** (Tim 2026-05-29, designed-not-built, **NOT next** — below
   current priorities): flag scenes whose visual carries **locale-locked (non-English)
   baked-in on-screen text**, surfaced in the decision table, so a video stays portable to
@@ -380,6 +393,8 @@ copy; a project is owned by exactly one machine at a time.**
   **Re-ordered 2026-09-27:** E9 v0 (Sprint 9) goes ahead of item 2 on Tim's direction. Toon
   bank and scene files live in git and renders are deterministic and regenerable, so toon work
   does not add to the divergent-state risk; the interim manual-rsync convention still holds.
+  **Re-ordered 2026-09-29:** Sprint 10 (E5 loud-failure sweep, Tim-greenlit) and then E10
+  (Claude calls on the subscription, which unblocks production) go ahead of item 2.
 
 ### E9 — Toon engine & resource bank (own-show character animation)  `[arsenal]`  🟢 *v0 shipped (Sprint 9; EM REVIEW PASS 2026-09-28 after two REWORK rounds); items 2–3 open*
 A deterministic **2.5D hand-drawn character-animation** visual type for Tim's own hosted videos
@@ -466,6 +481,53 @@ are YAML files that name bank items and always render the same frames. The pipel
 - **Non-goal (Tim, 2026-09-27):** no EP1 scene or story composition until Tim gives the
   outline and plot. Composing EP1 scenes is content work (`own-show.md` step 6) and does not
   belong on this roadmap. Scene 001 appears only as v0's worked example and acceptance test.
+
+### E10 — Claude calls on the subscription  `[infra · production unblock]`  🔵 *new epic (INTAKE 2026-09-29, Tim's directive); v1 spec written by the main session, pending Tim's review of the written spec*
+Every Claude-backed step calls the Anthropic API directly through the `anthropic` SDK, and the
+API credit is exhausted (`400 credit balance too low`, found at the Sprint 9 hub smoke,
+2026-09-28). Tim, 2026-09-29, verbatim: "replace with main agent or subagent ability or "claude
+-p" to do, we have extra quota in subscription". Model pick (Tim, per the spec): "Creative on
+Opus, checks on Haiku". Claude Code CLI 2.1.283 is installed on both machines.
+- **Spec (v1):** `docs/superpowers/specs/2026-09-29-claude-cli-llm-backend-design.md` (commit
+  `e65f8fa`; approved in chat, written spec pending Tim's review). It uses a `pipeline.llm.complete`
+  facade with a `claude -p` backend by default and the SDK as an opt-in `api` backend, and it
+  migrates 12 call sites. Agent mode (main agent or subagent answering a prompt file) is a spec
+  non-goal. The spec, not this entry, is the design.
+- **Demand: production is blocked today.** Down: `analyze`, `scriptwrite`, `direct` (storyboard,
+  shorts, `metadata.json`), storyboard beats, `proofread` at the review gate, `storyteller`,
+  `visual-review` / the post-compose QC, `image-alignment`, the `mla` rewrite and compose's
+  `style_anchor` source assessment. Unaffected: every renderer and the toon engine (E9), which
+  cost $0.
+- **Axis:** neither quality nor runtime. It restores the Claude-backed stages and moves their
+  cost from the API budget (`CLAUDE.md` Budget table, "Claude Sonnet API ~$10") to subscription
+  quota. The creative-tier move from Sonnet to Opus is Tim's model pick; do not cite E10 as a
+  quality-axis gain.
+- **Loud-failure posture (EM note):** the spec raises `LLMError` with the real CLI or quota
+  message, with no silent backend fallback, and **keeps each call site's fatal-vs-advisory
+  behaviour**. So `style_anchor._assess_source` still falls back to `"medium"` and the
+  post-compose QC stays advisory; both now print the real reason. That is Tim's call in the spec,
+  not a gap. The QC **opt-out flag** is not in the spec and stays a Later item.
+- **Cross-links (not merged):** ROADMAP Later "Post-compose Haiku visual-QC opt-out" (same call
+  site). Also arsenal-state's `visual-review` bug, which is in the same module and outside the
+  spec's scope:
+  - Mechanism (EM, 2026-09-29): `cli_visual_review.py:321` reads
+    `c.print(table)@visual_review_app.command("extract-frames")` on one line, so Python parses it
+    as `None @ decorator`.
+  - Result: `print_visual_issues_table` raises `TypeError` right after printing, and
+    `extract-frames` is never registered.
+  - Consequence: once E10 migrates `review_visual_fit`, the produce QC would still end in
+    "(visual review skipped: …)".
+  - **EM recommendation:** fold the one-line fix and a test into E10, or use `image-alignment` for
+    the spec §6.3 image-call evidence.
+- **Order:** **next after Sprint 10**, ahead of E8 item 2. Leverage is the highest on the board
+  (every Claude-backed stage is down), and readiness is high now that the spec is written. It can
+  build **in parallel** with Sprint 10 in its own worktree once Tim approves the written spec. The
+  two share one file, `cli_storyboard.py`, in different functions (the still-gate CLI vs
+  `_generate_beats`).
+- **Items:**
+  1. **🔵 v1: the `claude -p` backend and the 12 call-site migrations** (spec §2–§6). The EM adds
+     test-plan rows from spec §5/§6 once Tim approves the written spec; REVIEW gates it per
+     spec §6.5.
 
 ---
 
@@ -984,34 +1046,66 @@ block is the sprint shape. The spec is the design and is not restated here.
   - The cairocffi loader path on macOS (covered by the doctor check).
   - The spec header still reads "draft for Tim's review". Flip it to approved before the build
     cites it.
-- **Then:** E8 item 2 (checkout/checkin + hub lock) → E8 item 3 (draft encoder profile).
-  **EM recommendation (2026-09-28, pending Tim; Sprint 9 has now PASSED, so the slot is
-  open):** put the small **E5 loud-failure sweep** (Later backlog, ~1 session) ahead of E8
-  item 2. Today a silent black scene can reach a finished final, which is a quality defect.
-  E8 item 2 is iteration speed. Tim's 2026-09-27 order stands unless he agrees. Separately,
-  the E8 item 1 (B) follow-up REVIEW (the s31 tofu) is still pending.
+- **Then:** Sprint 10 (E5 loud-failure sweep, part 1). Tim greenlit it on 2026-09-29, ahead
+  of E8 item 2, as the EM recommended.
+
+### Sprint 10 — E5 loud-failure sweep, part 1: no silent black scenes + one media-path resolver  `[E5]`  🔵 *greenlit 2026-09-29 (Tim: "do this now"); build next*
+**Spec (build from this):** `docs/superpowers/specs/2026-09-29-e5-loud-failure-sweep-design.md`.
+- **Goal:** a scene that fails to render never reaches a final as black and is never served from
+  the scene cache as a black stand-in. Every failure refuses assembly with the step, the reason
+  and a `suggested_fix`. `pipeline validate`, compose and the still-gate resolve media paths the
+  same way.
+- **Demand source:** the Sprint 9 hub smoke (a project-relative clip validated clean, then
+  rendered black in an assembled final); the v0 final review (cached black stand-ins); the Sprint 9
+  REVIEW 2 intake. **EM probes on master `3693b09` (2026-09-29): four draft tests are red today**
+  (generic visual failure, overlay-rule collision, escaped exception, project-relative clip).
+- **Axis:** production quality, defect prevention. **Zero runtime:** a failed scene stops
+  assembly instead of shipping black at the same length. No new capability.
+- **Scope IN:**
+  1. One loud scene boundary in `ComposeStage._render_one_scene`: it raises `SceneRenderError`
+     and leaves no scene-cache file. It covers the visual, compartment, overlay-rule and
+     frame/mux steps and the cache check.
+  2. The gather loop writes no black and deletes a failed scene's cache files through one
+     shared `scene_final_cache_paths` helper (moved from `cli_compose.py`).
+  3. `ComposeStage._black_screen` and `image_sequence._black_clip` are deleted; a failed
+     `image_sequence` image raises.
+  4. A new `utils/paths.py` resolver (project root → repo root → cwd), used by the validator,
+     `clip.py`, `refit.py`, `render_scene`, compose's duplicate guard and the still-gate.
+  5. A fence test: no black-fallback helpers; `color=c=black` only in `_silence_gap`; no
+     `Path.cwd()` outside the resolver.
+- **Scope OUT:** part 2, the silent `text_card` downgrades (E5 🔵); the visual-QC opt-out (Later,
+  cross-linked to E10); `style_anchor`'s advisory default (the E10 spec keeps it); a validator-side overlay-collision check (⚪); atomic
+  scene-cache writes (⚪); the `transitions` resolver and `_REPO_ROOT` duplicates (hygiene);
+  `COMPOSE_FPS` single source (⚪).
+- **Dependencies:** none blocking. No provider or Claude calls, no goldens, no hub step. The
+  exhausted API credit doesn't block it.
+- **Unblocks:** a final can't carry a silent black scene; a storyboard that validates clean
+  renders the paths it validated; the first finals produced after E10 are protected. **Does NOT**
+  add runtime or a capability, and leaves the text_card downgrades to part 2.
+- **Acceptance (spec §9):**
+  - red-first tests T1–T11: a test-only commit, then the fix; the EM mutation-checks them at
+    REVIEW;
+  - full suite, ruff and mypy clean;
+  - a live fault-injection smoke on the Mac in a scratch `PIPELINE_OUTPUT_DIR` (assembles →
+    corrupt clip refuses → re-run refuses again → restored file assembles → overlay collision
+    refuses), evidence in `tmp/e5-sweep/smoke/`;
+  - the EM re-runs the hub path audit (no live project changes resolution);
+  - a separate code review; no scope creep.
+- **Cost:** $0. **Size:** ~1 session (five subagent tasks, spec §11).
+- **Then:** **E10 v1** (Claude calls on the subscription; spec written, can build in parallel
+  once Tim approves it) → E8 item 2 (checkout/checkin + hub lock) → E8 item 3 (draft encoder profile). The
+  E8 item 1 (B) follow-up REVIEW (the s31 tofu) is still pending.
 
 ### Later / unscoped backlog
-- **E5 loud-failure sweep** `🔵` (EM-recommended next, pending Tim; Sprint 9 PASSED
-  2026-09-28; ~1 session; quality axis, zero runtime). Silent black scenes can reach a final today. Three
-  paths, one theme:
-  - **a. A visual failure becomes a silent black scene in the final.** Found by the Sprint 9
-    hub smoke, 2026-09-28. `stages/compose.py` `_render_sync` catches any
-    non-`SceneRenderError` from `render_scene` and logs `compose.scene.visual_failed` only as a
-    warning. It then substitutes `_black_screen`, the scene counts as rendered, and the final is
-    **assembled** with a black scene. It should refuse assembly with a `suggested_fix`. Toon is
-    immune because it raises only `SceneRenderError`.
-  - **b. `clip.path` is resolved two ways.** Found by the same smoke. `pipeline validate`
-    resolves a project-relative path against the project root, but
-    `composer/clip.py::_resolve_source_video` resolves it against the process cwd. So a
-    storyboard that validates clean still renders black through (a). Use one resolver for both.
-  - **c. Black stand-ins left at the scene-cache paths.** An exception that escapes the scene
-    render leaves black clips at `{sid}_final*.mp4`. That run refuses assembly, but the next
-    `--start-from compose` finds them "cached". Sprint 9 fixed only the `SceneRenderError` case
-    (`da87cf1`). Found by the v0 final review.
-  - Fold in the `namecard`/`map` silent `text_card` fallback (below) if it fits.
-- **Post-compose Haiku visual-QC opt-out** `🔵` (E5 follow-on; found by the Sprint 9 hub smoke
-  2026-09-28).
+- **E5 loud-failure sweep** → part 1 is **Sprint 10**. It covers the three recorded paths
+  (visual failure → black, the `clip.path` split, cached black stand-ins) plus three the EM found
+  while scoping: an overlay-rule collision and a frame/mux failure also assemble black (the old
+  "that run refuses assembly" wording was wrong for them), a compartment failure is dropped
+  silently, and a failed `image_sequence` image renders black. Part 2 (silent `text_card`
+  downgrades) is an E5 🔵 item.
+- **Post-compose Haiku visual-QC opt-out** `🔵`, **cross-linked to E10** (same call site). The E10
+  spec keeps the QC advisory and moves it to the subscription; the opt-out flag is not in it, so
+  this line stays. Found by the Sprint 9 hub smoke, 2026-09-28.
   - `produce` always runs a billed Claude Haiku visual-QC after compose (`cli.py` ~421) and has
     no skip flag.
   - When the API call fails, it prints only a parenthetical "(visual review skipped: …)" and
@@ -1023,10 +1117,11 @@ block is the sprint shape. The spec is the design and is not restated here.
 - **Compose frame-rate single source** `⚪` (hygiene; from the Sprint 9 R1 code review,
   2026-09-28). `COMPOSE_FPS` governs only the concat resample. Fresh renders still hardcode
   30: `composer/clip.py` `-r 30`, `composer/compartment.py` `fps=30`, the compose.py
-  black-screen/silence-gap generators, and the dashboard preview transitions. Route them
-  through `COMPOSE_FPS` if the timeline rate ever changes. Related limitation, with no demand
-  yet: a 24p or 25p **source clip** gets the same nearest-frame duplicates in the 30p timeline
-  that toon had. Motion-heavy source footage would stutter; revisit if a real source shows it.
+  silence-gap generator (and `_black_screen`, until Sprint 10 deletes it), and the dashboard
+  preview transitions. Route them through `COMPOSE_FPS` if the timeline rate ever changes.
+  Related limitation, with no demand yet: a 24p or 25p **source clip** gets the same
+  nearest-frame duplicates in the 30p timeline that toon had. Motion-heavy source footage would
+  stutter; revisit if a real source shows it.
 - Animated overlays v2+ (E3): **animated entrance** for the callout primitive + lower-thirds
   + CapCut-style word-by-word subtitles `🔵` — follow-ons to Sprint 5's static v1.
 - Dashboard surfaces (E6): Production Contract panel, recompose buttons, Style panel,
@@ -1037,14 +1132,11 @@ block is the sprint shape. The spec is the design and is not restated here.
   legibility, 2026-05-26). Tim approved the formal audio epic, so this dashboard-surface
   half moved out of the E6 backlog into E7 item 2 alongside its paired asset-registry half.
   See the E7 epic above.
-- Ken Burns on stills; true stock-quality book-page-turn (E2 remaining) `🔵`
+- True stock-quality book-page-turn (E2 remaining) `🔵`. *(Ken Burns on stills shipped with
+  the E2 camera-motion path; struck 2026-09-29.)*
 - Animated reveal for `proportion_blocks` / `timeline` / `comparison` (E2 remaining) `🔵`
 - Stock-footage transition asset path (E6 Phase 5) `🔵`
-- `namecard`/`map` silent `text_card` fallback → loud or scope-validated (E5 follow-on) `🔵`
-- ~~Compose's generic-exception black stand-ins at the scene-cache paths~~ → folded into the
-  **E5 loud-failure sweep** (item c) at the top of this list. The earlier wording "assembly
-  itself is refused" is true only for exceptions that escape the scene render; path (a) there
-  assembles a black scene silently.
+- `namecard`/`map` silent `text_card` fallback → now **E5 part 2** (see E5).
 
 ---
 

@@ -30,9 +30,9 @@ loud failure, two-axes discipline).
 
 ## What I own
 
-- `docs/ROADMAP.md` — system of record (**nine epics**: E1–E6 visual/infra, **E7 audio**,
-  **E8** two-machine workflow, **E9** toon engine for Tim's own show; ordered sprint backlog,
-  status legend).
+- `docs/ROADMAP.md` — system of record (**ten epics**: E1–E6 visual/infra, **E7 audio**,
+  **E8** two-machine workflow, **E9** toon engine for Tim's own show, **E10** Claude calls on
+  the subscription (infra, 2026-09-29); ordered sprint backlog, status legend).
 - `test-plan.md` — the arsenal regression contract I check in REVIEW mode.
 - My memory: this charter, `standards.md`, `arsenal-state.md`, `test-plan.md`, `sprint-log.md`
   (deep history in `sprint-log-archive.md`).
