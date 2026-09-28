@@ -369,7 +369,8 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
             p.append(f"{bw}.show.from: only valid with a bubble show")
         if s.at is not None and s.kind not in ("x_card", "check_pill"):
             p.append(f"{bw}.show.at: only valid with an x_card or check_pill show")
-        for icon in (s.bubble or []) + [x for x in (s.x_card, s.check_pill) if x]:
+        cards = [x for x in (s.x_card, s.check_pill) if x]
+        for icon in [*(s.bubble or []), *cards]:
             if icon not in ICONS:
                 p.append(f"{bw}.show: {icon!r} is not an icon — animation is wordless; "
                          f"use one of {sorted(ICONS)}")
