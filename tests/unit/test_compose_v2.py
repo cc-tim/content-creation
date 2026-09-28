@@ -846,3 +846,51 @@ async def test_overlay_failure_refuses_assembly_and_records_loudly(sample_contex
     failure = sample_context.render_failures["s1"]
     assert "overlay failed" in failure["reason"]
     assert "--skip-overlays" in failure["suggested_fix"]
+
+
+async def test_scene_render_error_leaves_no_cached_black_fallback(sample_context):
+    """A SceneRenderError refuses assembly. It must not ALSO leave a black+audio stand-in at
+    {sid}_final*.mp4: the next `produce --start-from compose` would find that file "cached" and
+    assemble a black scene, defeating the loud failure (e.g. a broken toon scene)."""
+    from pipeline.errors import SceneRenderError
+
+    sb = Storyboard(scenes=[
+        Scene(id="s1", section="hook", narration="test", narration_est_sec=5,
+              visual={"type": "text_card", "text": "Hook", "background": "#1a1a2e"}),
+    ])
+    sb_path = sample_context.work_dir / "storyboard.json"
+    sb.save(sb_path)
+    sample_context.storyboard_path = sb_path
+
+    audio_dir = sample_context.work_dir / "audio"
+    audio_dir.mkdir(parents=True)
+    narration = audio_dir / "narration.mp3"
+    narration.write_bytes(b"fake")
+    sample_context.narration_path = narration
+    subtitle = audio_dir / "subs.srt"
+    subtitle.write_text("1\n00:00:00,000 --> 00:00:05,000\ntest\n")
+    sample_context.subtitle_path = subtitle
+    sample_context.segment_timings = [
+        {"index": 0, "text": "test", "path": str(audio_dir / "seg_000.mp3"),
+         "start_ms": 0, "duration_ms": 5000},
+    ]
+    (audio_dir / "seg_000.mp3").write_bytes(b"fake audio")
+
+    def _fake_ffmpeg(cmd):
+        out = cmd[-1]
+        if isinstance(out, str) and out.endswith(".mp4"):
+            Path(out).write_bytes(b"fake")
+
+    err = SceneRenderError(scene="s1", reason="toon: shots[0].set: unknown set 'moon'",
+                           suggested_fix="Run `uv run pipeline toon validate <scene>`.")
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose.render_scene", side_effect=err),
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_fake_ffmpeg),
+        pytest.raises(RuntimeError, match="final assembly refused"),
+    ):
+        await ComposeStage().run(sample_context)
+
+    scenes_dir = sample_context.work_dir / "compose" / "scenes"
+    assert sorted(p.name for p in scenes_dir.glob("s1_final*.mp4")) == []
+    assert "unknown set" in sample_context.render_failures["s1"]["reason"]

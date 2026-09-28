@@ -785,14 +785,20 @@ class ComposeStage(PipelineStage):
                     ap = None
                 sf = scenes_dir / f"{sid}_final.mp4"
                 sf_no = scenes_dir / f"{sid}_final_no_overlay.mp4"
-                self._mux(
-                    self._black_screen(scenes_dir, sid, d, width, height),
-                    sf, ap,
-                )
-                self._mux(
-                    self._black_screen(scenes_dir, sid, d, width, height),
-                    sf_no, ap,
-                )
+                if isinstance(maybe, SceneRenderError):
+                    # Loud failure: no black stand-in at the scene-cache paths, or the next
+                    # `produce --start-from compose` would find it "cached" and assemble it.
+                    sf.unlink(missing_ok=True)
+                    sf_no.unlink(missing_ok=True)
+                else:
+                    self._mux(
+                        self._black_screen(scenes_dir, sid, d, width, height),
+                        sf, ap,
+                    )
+                    self._mux(
+                        self._black_screen(scenes_dir, sid, d, width, height),
+                        sf_no, ap,
+                    )
                 results.append(ComposeSceneResult(
                     index=i, scene_final=sf, scene_final_no_overlay=sf_no,
                     pause_paths=[], pause_paths_no_overlay=[],
