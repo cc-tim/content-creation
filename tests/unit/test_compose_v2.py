@@ -1280,6 +1280,24 @@ async def test_several_failed_scenes_all_reported_and_good_scene_stays_cached(sa
     assert sorted(rendered) == ["s1", "s2"]  # s10 came from its cache
 
 
+async def test_scene_failure_reason_has_no_duplicate_scene_id_prefix(sample_context):
+    """RF9: SceneRenderError.__str__ already leads with '<scene>: ' (errors.py:15). The
+    gather loop's `f"{sid}: {maybe}"` added a second '<scene>: ' prefix on top of it, so the
+    refusal text read 's1: s1: visual (text_card) failed: ...' instead of 's1: visual ...'."""
+    _prep_storyboard(sample_context, [_text_scene()])
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose.render_scene",
+              side_effect=RuntimeError("provider exploded")),
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+        pytest.raises(RuntimeError, match="final assembly refused") as ei,
+    ):
+        await ComposeStage().run(sample_context)
+
+    assert ": s1: s1:" not in str(ei.value)
+    assert str(ei.value).count("s1:") == 1
+
+
 async def test_legacy_black_standin_dropped_and_rerendered(sample_context):
     """RF6: a pre-E5-sweep black stand-in ({sid}_black.mp4 beside the cache finals) was written
     by the old _black_screen fallback and must never be served from cache. The marker and both
