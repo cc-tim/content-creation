@@ -16,7 +16,7 @@
 > video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
 > the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-09-29 (SPRINT + INTAKE: **Sprint 10 = E5 loud-failure sweep, part 1**, Tim-greenlit ("do this now"). Spec `docs/superpowers/specs/2026-09-29-e5-loud-failure-sweep-design.md`. EM probes on master `3693b09` prove four silent paths red today: a generic visual failure, an overlay-rule collision and a project-relative clip each put a **black scene in an assembled final**, and an escaped exception leaves black stand-ins in the scene cache. Part 2 (silent text_card downgrades: `namecard`/`map`, `generated_image` provider failure) is split out, because the director emits `map`/`namecard`. **New infra epic E10: Claude calls on the subscription** (Tim's directive; the main session's spec `docs/superpowers/specs/2026-09-29-claude-cli-llm-backend-design.md` routes the 12 call sites through `claude -p`). Next after Sprint 10 and ahead of E8 item 2, because it unblocks production; it can build in parallel once Tim approves the written spec. Reconciled: stale "known gaps" (Ken Burns and E4 Slice 3 had shipped), the duplicate E5 locale-lint line, and the Later backlog.) · Prior: 2026-09-28 (third REVIEW, master `2f6fb35`: **Sprint 9 (E9 v0) = PASS → 🟢 shipped**; toon at 30 fps with drawings at 12/s, Tim's pick A; guard and cadence tests mutation-checked). Earlier history: `.agent-memory/engineering-manager/sprint-log.md` and `sprint-log-archive.md`. · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-09-29 (REVIEW: **E10 v1 = ADVISE, cleared to merge** — `feat/llm-cli-backend` at `f13c783`. The EM ran the gates on both machines: Mac suite 1404 passed / 62 skipped, hub 1439 / 27; ruff and mypy clean; doctor 18/18 on both; real-CLI integration 3/3 on both. The EM also made a real visual-review call on the hub (27 frames, 61.9 s, issues parsed), and 11 mutations of the loud-failure fences all went red. E10 stays 🔵 until two small fixes land: F1, `style_anchor` loses its style hint on every CLI answer (3 of 3 runs); F2, the metadata site's tier isn't asserted. See E10.) · Prior: 2026-09-29 (SPRINT + INTAKE: Sprint 10 = E5 loud-failure sweep, part 1, Tim-greenlit; new infra epic E10). · 2026-09-28 (third REVIEW, master `2f6fb35`: **Sprint 9 (E9 v0) = PASS → 🟢 shipped**). Earlier history: `.agent-memory/engineering-manager/sprint-log.md` and `sprint-log-archive.md`. · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -100,7 +100,8 @@ unchanged by either.)
 - **Known gaps (the demand):** true book-page-turn animation · animated overlay *entrance*
   (E3 v2), lower-thirds, CapCut subtitles · coarse recompose loop (E6) · silent black scenes
   (Sprint 10) · `namecard`/`map` and `generated_image` silent `text_card` downgrades (E5 part
-  2) · every Claude-backed stage is down while the Anthropic API credit is exhausted (E10).
+  2) · every Claude-backed stage is down on master while the Anthropic API credit is exhausted
+  (E10 is built and cleared to merge, 2026-09-29; it moves them to the subscription).
   *(Reconciled 2026-09-29: Ken Burns on stills shipped with E2 camera motion; the E4 Slice 3
   medium-clash refactor shipped in Sprint 6.)*
 
@@ -482,14 +483,14 @@ are YAML files that name bank items and always render the same frames. The pipel
   outline and plot. Composing EP1 scenes is content work (`own-show.md` step 6) and does not
   belong on this roadmap. Scene 001 appears only as v0's worked example and acceptance test.
 
-### E10 — Claude calls on the subscription  `[infra · production unblock]`  🔵 *new epic (INTAKE 2026-09-29, Tim's directive); v1 spec written by the main session, pending Tim's review of the written spec*
+### E10 — Claude calls on the subscription  `[infra · production unblock]`  🔵 *v1 built on `feat/llm-cli-backend` (`f13c783`); EM REVIEW 2026-09-29 = **ADVISE, cleared to merge**; flips 🟢 after F1 + F2 (item 2)*
 Every Claude-backed step calls the Anthropic API directly through the `anthropic` SDK, and the
 API credit is exhausted (`400 credit balance too low`, found at the Sprint 9 hub smoke,
 2026-09-28). Tim, 2026-09-29, verbatim: "replace with main agent or subagent ability or "claude
 -p" to do, we have extra quota in subscription". Model pick (Tim, per the spec): "Creative on
 Opus, checks on Haiku". Claude Code CLI 2.1.283 is installed on both machines.
 - **Spec (v1):** `docs/superpowers/specs/2026-09-29-claude-cli-llm-backend-design.md` (commit
-  `e65f8fa`; approved in chat, written spec pending Tim's review). It uses a `pipeline.llm.complete`
+  `e65f8fa`; Tim approved the written spec, "looks good, proceed"). It uses a `pipeline.llm.complete`
   facade with a `claude -p` backend by default and the SDK as an opt-in `api` backend, and it
   migrates 12 call sites. Agent mode (main agent or subagent answering a prompt file) is a spec
   non-goal. The spec, not this entry, is the design.
@@ -507,27 +508,62 @@ Opus, checks on Haiku". Claude Code CLI 2.1.283 is installed on both machines.
   behaviour**. So `style_anchor._assess_source` still falls back to `"medium"` and the
   post-compose QC stays advisory; both now print the real reason. That is Tim's call in the spec,
   not a gap. The QC **opt-out flag** is not in the spec and stays a Later item.
-- **Cross-links (not merged):** ROADMAP Later "Post-compose Haiku visual-QC opt-out" (same call
-  site). Also arsenal-state's `visual-review` bug, which is in the same module and outside the
-  spec's scope:
-  - Mechanism (EM, 2026-09-29): `cli_visual_review.py:321` reads
-    `c.print(table)@visual_review_app.command("extract-frames")` on one line, so Python parses it
-    as `None @ decorator`.
-  - Result: `print_visual_issues_table` raises `TypeError` right after printing, and
-    `extract-frames` is never registered.
-  - Consequence: once E10 migrates `review_visual_fit`, the produce QC would still end in
-    "(visual review skipped: …)".
-  - **EM recommendation:** fold the one-line fix and a test into E10, or use `image-alignment` for
-    the spec §6.3 image-call evidence.
-- **Order:** **next after Sprint 10**, ahead of E8 item 2. Leverage is the highest on the board
-  (every Claude-backed stage is down), and readiness is high now that the spec is written. It can
-  build **in parallel** with Sprint 10 in its own worktree once Tim approves the written spec. The
-  two share one file, `cli_storyboard.py`, in different functions (the still-gate CLI vs
-  `_generate_beats`).
+- **Cross-links:** ROADMAP Later "Post-compose Haiku visual-QC opt-out" (same call site; it
+  stays). The `visual-review` decorator bug (`c.print(table)@visual_review_app.command(...)`) was
+  **folded into E10 and fixed** (`94c24ba`, test `12aed26`): `extract-frames` is registered and
+  `print_visual_issues_table` no longer raises. Still open, outside E10: `--project-id` is typed
+  `int` in `cli_visual_review.py`, so real string ids only work through `--work-dir`.
+- **Order:** built in parallel with Sprint 10. Merge is cleared; Sprint 10 is still building.
+- **REVIEW 2026-09-29 (EM, both machines, `f13c783`) = ADVISE, cleared to merge.**
+  - **Done criteria (spec §6):**
+    - §6.1: Mac suite 1404 passed / 62 skipped; targeted 108 passed; ruff and mypy clean.
+    - §6.2: hub doctor 18/18 with the `llm` check passing (the Mac too); real-CLI integration 3/3
+      on both machines. Hub suite 1439 passed / 27 skipped.
+    - §6.3, the builder's hub calls: proofread (Haiku, 142 s, 14 issues), beats (Opus, 5 s) and
+      metadata (Opus with a JSON schema, 17 s).
+    - §6.3, the image site: the builder called `style_anchor`, which §6.3 doesn't name, so **the
+      EM ran visual-review (site 9) itself**. On a sandbox copy of baby-walker: 27 frames, 61.9 s,
+      2 issues parsed. Evidence on the hub: `.worktrees/llm-cli-backend/tmp/claude-cli-backend/em-review-visual.txt`.
+    - §6.4 budget tables ✓. §6.5: per-task reviews, a final Opus review and a re-review of its
+      fix wave ✓.
+  - **Loud failure holds**, checked by mutation in a `git archive` copy. Each of these went red:
+    - a CLI failure returning empty;
+    - an unknown backend falling back to the CLI;
+    - no billing-env strip;
+    - an `anthropic` import at a call site;
+    - the prompt on argv;
+    - `--strict-mcp-config` dropped;
+    - an empty result accepted;
+    - image blocks dropped;
+    - doctor passing with no binary;
+    - the tripwire removed.
+  - **Axis:** neither quality nor runtime (held).
 - **Items:**
-  1. **🔵 v1: the `claude -p` backend and the 12 call-site migrations** (spec §2–§6). The EM adds
-     test-plan rows from spec §5/§6 once Tim approves the written spec; REVIEW gates it per
-     spec §6.5.
+  1. **🔵 v1: the `claude -p` backend and the 12 call-site migrations** (spec §2–§6). Built and
+     cleared to merge. Test-plan rows are under E10.
+  2. **🔲 Before 🟢 (small; the EM re-runs two tests):**
+     - **F1: `style_anchor` loses its style hint on every CLI answer.** Haiku replies
+       `"Medium\n\nSerif typography, …"`, 3 of 3 runs on the hub. The unchanged parser takes the
+       blank line 2 as the hint, so it is always `""`, and nothing logs it.
+       - Effect: the hint never reaches `style_descriptor` (the lowest-precedence
+         `style_prefix`, used for non-niche projects and dup-guard replacement prompts).
+       - The suitability value still parses.
+       - Fix: skip blank lines when parsing, plus a test pinned on the real answer shape.
+     - **F2: the metadata site (5) doesn't assert its tier.** Flipping it to `check` leaves every
+       test green; the other 11 sites go red. Spec §5 asks for each site's tier.
+  3. **🔵 Follow-ups (not gating):**
+     - **Extended thinking is on.** `claude -p` runs Haiku with thinking on: every check call
+       tested emitted a `thinking` block, 289–806 output tokens for a two-line answer. That
+       explains the 142 s proofread, about a quarter of the 600 s timeout; a timeout raises
+       loudly. Log each call's duration and output tokens, and check whether thinking can be
+       turned off for the check tier. Verify the setting against CLI 2.1.283 first (spec §3: "don't
+       improvise").
+     - README's env table lacks `PIPELINE_LLM_TIMEOUT_CREATIVE_SEC` (1200 s, ruling R4).
+     - Spec §3 asks for `asyncio.to_thread` at async call sites. `scriptwrite`, `metadata` and
+       `style_anchor` still call synchronously from async stages. There is no effect today:
+       stages run one at a time, and the dashboard runs jobs off its event loop. Wrap them or
+       amend the spec wording.
+     - `docs/workflows.html` still says "Claude Sonnet API". Ask Tim before editing it (CLAUDE.md).
 
 ---
 
@@ -1092,9 +1128,9 @@ block is the sprint shape. The spec is the design and is not restated here.
   - the EM re-runs the hub path audit (no live project changes resolution);
   - a separate code review; no scope creep.
 - **Cost:** $0. **Size:** ~1 session (five subagent tasks, spec §11).
-- **Then:** **E10 v1** (Claude calls on the subscription; spec written, can build in parallel
-  once Tim approves it) → E8 item 2 (checkout/checkin + hub lock) → E8 item 3 (draft encoder profile). The
-  E8 item 1 (B) follow-up REVIEW (the s31 tofu) is still pending.
+- **Then:** E8 item 2 (checkout/checkin + hub lock) → E8 item 3 (draft encoder profile). **E10
+  v1** was built in parallel and cleared to merge (REVIEW 2026-09-29, ADVISE); F1 and F2 flip it
+  🟢. The E8 item 1 (B) follow-up REVIEW (the s31 tofu) is still pending.
 
 ### Later / unscoped backlog
 - **E5 loud-failure sweep** → part 1 is **Sprint 10**. It covers the three recorded paths
@@ -1106,14 +1142,14 @@ block is the sprint shape. The spec is the design and is not restated here.
 - **Post-compose Haiku visual-QC opt-out** `🔵`, **cross-linked to E10** (same call site). The E10
   spec keeps the QC advisory and moves it to the subscription; the opt-out flag is not in it, so
   this line stays. Found by the Sprint 9 hub smoke, 2026-09-28.
-  - `produce` always runs a billed Claude Haiku visual-QC after compose (`cli.py` ~421) and has
-    no skip flag.
-  - When the API call fails, it prints only a parenthetical "(visual review skipped: …)" and
+  - `produce` always runs a Claude Haiku visual-QC after compose (`cli.py` ~431) and has no skip
+    flag. After E10 it spends subscription quota, not API credit: about 62 s for 27 frames on
+    baby-walker (EM, 2026-09-29).
+  - When the call fails, it prints only a parenthetical "(visual review skipped: …)" and
     reports "Pipeline complete!".
   - Add an opt-out flag, and make a QC that didn't run say so prominently.
   - Consider the zero-billing in-session pattern that Layer 2 of the still-gate uses.
-  - The same code path calls `print_visual_issues_table`, which the E8 (B) evidence reports
-    raises TypeError.
+  - *(The `print_visual_issues_table` TypeError is fixed in E10, `94c24ba`.)*
 - **Compose frame-rate single source** `⚪` (hygiene; from the Sprint 9 R1 code review,
   2026-09-28). `COMPOSE_FPS` governs only the concat resample. Fresh renders still hardcode
   30: `composer/clip.py` `-r 30`, `composer/compartment.py` `fps=30`, the compose.py

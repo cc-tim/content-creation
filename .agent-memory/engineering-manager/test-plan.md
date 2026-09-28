@@ -17,6 +17,10 @@ Status legend: `✅ passing` · `❌ failing` · `🔲 planned (test not yet wri
 then `uv run ruff check src/ tests/ && uv run mypy src/`.
 Toon integration (run on the hub for goldens + parity + cadence):
 `uv run pytest --integration tests/integration/toon tests/unit/toon tests/unit/test_composer_toon.py tests/unit/test_cli_doctor.py -q`.
+E10 LLM facade, once `feat/llm-cli-backend` is merged:
+`uv run pytest tests/unit/test_llm.py tests/unit/test_llm_guard.py tests/unit/test_llm_call_sites.py tests/unit/test_conftest_tripwire.py tests/unit/test_direct_metadata.py tests/unit/test_direct.py tests/unit/test_analyze.py tests/unit/test_config.py tests/unit/test_cli_doctor.py -q`.
+The real-CLI half, `uv run pytest --integration tests/integration/test_llm_cli.py -q`, spends a
+trivial amount of subscription quota: 3 Haiku calls.
 
 ## E1 — Charts (static) 🟢
 
@@ -224,12 +228,41 @@ elsewhere with a counted reason, and minted with `UPDATE_GOLDENS=1` on the hub o
 | Non-goal fence (spec §1): the bank holds only picked items (no campfire, no unpicked items), and `assets/toon/scenes/` holds only `001-lioness-dishes.yaml` (no EP1 scenes) | `tests/unit/toon/test_scene_001.py` + `tests/unit/toon/test_bank.py::test_v0_bank_holds_exactly_the_picked_items` + diff | ✅ (re-checked at REVIEW 3) |
 | Full suite collects and passes with `src/toon` packaged (`cairocffi` in deps, `src/toon` in hatch `packages`); `ruff check src/ tests/` and `mypy src/` clean | `uv run pytest -q` + ruff + mypy | ✅ REVIEW 3 at `2f6fb35`: hub 1380 passed / 22 skipped / 0 failed (its first run hit the unrelated trust-gate flake, see arsenal-state); Mac 1343 / 59 / 0; ruff clean; mypy clean (159 files) on both machines |
 
-## E10 — Claude calls on the subscription 🔵 (new epic, INTAKE 2026-09-29)
+## E10 — Claude calls on the subscription 🔵 (v1 built on `feat/llm-cli-backend` at `f13c783`; REVIEW 2026-09-29 = ADVISE, cleared to merge; 🟢 after F1 + F2)
 
-No rows yet. The main session has written the spec,
-`docs/superpowers/specs/2026-09-29-claude-cli-llm-backend-design.md` (commit `e65f8fa`), and it
-is pending Tim's review. Once he approves it, the EM adds rows from spec §5 (tests) and §6 (done
-criteria), and REVIEW gates it per §6.5.
+Spec: `docs/superpowers/specs/2026-09-29-claude-cli-llm-backend-design.md` (Tim approved the
+written spec: "looks good, proceed"). The rows come from spec §5 (tests) and §6 (done criteria).
+The EM added them at REVIEW and ran them on both machines at `f13c783`.
+
+"Mutation → red" means the EM broke that fence in a `git archive` scratch copy and the named test
+failed. Each mutation was restored, and the scratch source matched HEAD afterwards.
+
+| Capability | Test | Status |
+|------------|------|--------|
+| §5 argv and isolation: tier → model; `--system-prompt` always passed (a neutral default); `--tools ""`, `--setting-sources ""`, `--strict-mcp-config`, `--no-session-persistence`, `--disable-slash-commands`; prompt via stdin, never argv; cwd a temp dir | `tests/unit/test_llm.py` (`test_text_call_builds_isolated_argv_and_stdin`, `test_creative_tier_uses_opus_and_passes_system`) | ✅ (mutation → red: prompt on argv; `--strict-mcp-config` dropped) |
+| §5 envelope: stream-json parsed, noise lines skipped, the last result event wins | `tests/unit/test_llm.py` (`test_last_result_event_wins` and others) | ✅ |
+| §5 `--json-schema` passed through; `structured_output` read; falls back to parsing the result text; garbage → `LLMError` | `tests/unit/test_llm.py` (`test_json_schema_*`, `schema_garbage`) | ✅ |
+| §5 image calls: the content blocks reach stdin unchanged (image, then text) | `tests/unit/test_llm.py::test_content_blocks_pass_through_unchanged` + image-site tests in `tests/unit/test_llm_call_sites.py` | ✅ (mutation → red: visual-review drops its images) |
+| §5 no silent API billing: `ANTHROPIC_*` and `CLAUDE_CODE_USE_*` stripped from the child env; `CLAUDE_CODE_OAUTH_TOKEN` kept (ruling R2) | `tests/unit/test_llm.py` (`test_billing_switching_env_is_stripped_from_child_env` ×7, `test_oauth_token_passes_through_to_child_env`) | ✅ (mutation → red: no strip, 7 fail) |
+| §5 **loud failure**: `is_error`, non-zero exit, timeout (with the stderr tail), empty result, missing binary (an explicit path is named), launch failure, bad JSON under a schema → `LLMError` quoting the real reason; quota and login hints match whole words | `tests/unit/test_llm.py` (`test_failures_raise_*`, `test_error_reason_survives_*`, `test_timeout_*`, `test_missing_binary_*`, `test_launch_failure_*`, `test_hint_*`) | ✅ (mutation → red: a CLI failure returns empty, 4 fail; an empty result accepted) |
+| §5 **no silent backend fallback**: an unknown backend raises | `tests/unit/test_llm.py::test_unknown_backend_is_loud` | ✅ (mutation → red: an unknown backend falls back to `cli`) |
+| §5 concurrency cap; default timeouts creative 1200 s / check 600 s, explicit wins (ruling R4) | `tests/unit/test_llm.py` (`test_concurrency_is_capped`, `test_*_default_timeout`, `test_explicit_timeout_*`) | ✅ |
+| §5 binary resolution under a minimal systemd `PATH`: `PIPELINE_CLAUDE_BIN` → `which` → `~/.local/bin/claude` | `tests/unit/test_llm.py::test_resolve_falls_back_to_local_bin` | ✅ |
+| §5 API backend behind the same interface (mocked SDK; the forced tool takes `schema_name`, R4; SDK errors → `LLMError`) | `tests/unit/test_llm.py` (`test_api_backend_*`) | ✅ |
+| §5 call sites mock `pipeline.llm.complete` and assert their tier (all 12) | `tests/unit/test_llm_call_sites.py`, `tests/unit/test_analyze.py`, `tests/unit/test_direct.py`, `tests/unit/test_direct_metadata.py` | ✅ 11 of 12: each tier flip → red. **Site 5 (`direct.metadata`): flipped to `check`, still 38 passed → F2** |
+| §5 site 5 sends the metadata schema and the `emit_metadata` name | `tests/unit/test_direct_metadata.py::test_write_metadata_creates_file` | ✅ |
+| §5 guard: outside `llm.py` and `utils/anthropic_key.py`, no `anthropic` import, no `messages.create`/`messages.stream`, no `get_anthropic_api_key` | `tests/unit/test_llm_guard.py` | ✅ (mutation → red: `import anthropic` in `cli_proofread.py`) |
+| Suite tripwire: no unit test can reach the real `claude` (R4) | `tests/unit/test_conftest_tripwire.py` + `tests/conftest.py` | ✅ (mutation → red: tripwire removed) |
+| Folded-in bug fix: visual-review `extract-frames` registered (also through the top-level app); `print_visual_issues_table` doesn't raise | `tests/unit/test_llm_call_sites.py` (`test_visual_review_extract_frames_*`, `test_print_visual_issues_table_does_not_raise`) | ✅ |
+| §5 doctor `check_llm`: backend, resolved binary and `--version`, no model call; FAIL when the binary is missing, `--version` exits non-zero, or the backend is unknown | `tests/unit/test_cli_doctor.py` (`test_check_llm_*`) | ✅ (mutation → red: doctor passes with no binary) |
+| §5 integration: one real Haiku text call, one image call, one schema call | `tests/integration/test_llm_cli.py` (`--integration`) | ✅ 3 passed on the Mac and 3 on the hub (EM-run) |
+| §6.1 Mac: suite, ruff and mypy clean | `uv run pytest -q` + ruff + mypy | ✅ 1404 passed / 62 skipped; targeted 108; ruff clean; mypy clean (160 files) |
+| §6.2 hub: doctor `llm` passes; integration passes | EM-run, hub worktree `f13c783` | ✅ doctor 18/18 on the hub and the Mac. Hub suite 1439 passed / 27 skipped |
+| §6.3 hub real calls, at least 3 sites: proofread (check), one creative call, one image site (visual-review or image-alignment) | hub `.worktrees/llm-cli-backend/tmp/claude-cli-backend/` (`evidence.txt`, `em-review-visual.txt`) | ✅ proofread: Haiku, 142.3 s, 14 issues. beats: Opus, 5.3 s. metadata: Opus with a schema, 16.7 s, valid. Image: **EM-run visual-review (site 9)**, 27 frames, 61.9 s, 2 issues parsed. The builder's `style_anchor` call isn't a §6.3 site; see F1 |
+| §6.4 budget tables in README and CLAUDE.md show the subscription; README documents the env settings | diff | ✅ README lacks `PIPELINE_LLM_TIMEOUT_CREATIVE_SEC`, a non-gating doc gap |
+| §6.5 a separate code review happened | SDD ledger `.superpowers/sdd/2026-09-29-claude-cli-llm-backend/progress.md` | ✅ Per-task reviews, then a final Opus review ("with fixes", 2 Important + 11 minor), then a 12-item fix wave, then a scoped re-review ("all addressed") |
+| **F1 (REVIEW finding, gates 🟢):** site 12 `style_anchor` parses the real CLI answer shape. `"Medium\n\nSerif typography, cream background, …"` must give `('medium', 'Serif typography, cream background, …')`, so blank lines are skipped. Today the hint is `""` in 3 of 3 hub runs | `tests/unit/test_llm_call_sites.py::test_style_anchor_skips_blank_lines_in_the_answer` | 🔲 planned |
+| **F2 (REVIEW finding, gates 🟢):** site 5 asserts `tier == "creative"`; the tier-flip mutation goes red | `tests/unit/test_direct_metadata.py::test_write_metadata_creates_file` | 🔲 planned |
 
 ## Cross-cutting
 
