@@ -4,6 +4,19 @@ import pytest
 
 from pipeline.stages.base import PipelineContext
 
+# Quota tripwire: no unit test may spend real `claude -p` subscription quota by accident,
+# even on a machine where the real binary is installed and on PATH. Every test NOT marked
+# `integration` gets PIPELINE_CLAUDE_BIN pointed at a path that can't exist. Autouse fixtures
+# run before explicitly-requested fixtures of the same scope, so a test's own `fake_claude` (or
+# any other monkeypatch of PIPELINE_CLAUDE_BIN) still wins — it runs after this one.
+_TRIPWIRE_CLAUDE_BIN = "/nonexistent/claude-tripwire"
+
+
+@pytest.fixture(autouse=True)
+def _llm_quota_tripwire(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    if request.node.get_closest_marker("integration") is None:
+        monkeypatch.setenv("PIPELINE_CLAUDE_BIN", _TRIPWIRE_CLAUDE_BIN)
+
 
 @pytest.fixture
 def sample_context(tmp_path: Path) -> PipelineContext:
