@@ -37,4 +37,5 @@ def test_scene_001_matches_tryout_v2():
         side = np.concatenate([old, new], axis=1)
         Image.fromarray(side).save(EVIDENCE / f"side_{t:05.2f}.png")
         worst = max(worst, float(np.abs(new.astype(np.int16) - old.astype(np.int16)).mean()))
-    assert worst <= 4.0, f"worst key-frame mean abs diff {worst:.2f} > 4.0; see {EVIDENCE}"
+    # 0.5, not 4.0: the R10 bubble regression was visible at 0.68 and passed 4.0; worst today 0.058.
+    assert worst <= 0.5, f"worst key-frame mean abs diff {worst:.3f} > 0.5; see {EVIDENCE}"

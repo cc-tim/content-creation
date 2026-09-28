@@ -113,8 +113,11 @@ def test_unknown_icon_is_a_wordless_error():
 
 
 def test_engine_and_kit_draw_no_text():
+    # Wordless: nothing that draws a scene frame may draw text. sheets.py is exempt (its review
+    # sheet labels are allowed).
     root = Path(toon.__file__).parent
-    for f in [*root.glob("engine/*.py"), *root.glob("kit/*.py")]:
+    scene_path = [root / "render.py", root / "timeline.py", root / "scene.py"]
+    for f in [*root.glob("engine/*.py"), *root.glob("kit/*.py"), *scene_path]:
         src = f.read_text()
         assert "show_text" not in src and "text_path" not in src, f
 

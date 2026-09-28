@@ -16,10 +16,13 @@ the task report).
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from toon.engine.mathx import circle_pts, rrect
 from toon.engine.palette import BLUE, BULB_OFF, GREEN, RED
-from toon.engine.pen import Pen
+
+if TYPE_CHECKING:  # the registry is imported by toon.scene, which must stay cairo-free (spec §3)
+    from toon.engine.pen import Pen
 
 
 def dishes(pen, center, size, key):

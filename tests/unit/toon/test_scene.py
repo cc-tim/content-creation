@@ -314,6 +314,17 @@ def test_scene_reference_rejects_any_other_key():
         scene_data_from_visual({"type": "toon", "scene": "001-lioness-dishes", "bogus": 1})
 
 
+def test_toon_scene_does_not_load_cairo():
+    # Spec §3: `scene` knows nothing about cairo (the validator runs where cairo may not load).
+    import subprocess
+    import sys
+
+    code = ("import sys, toon.scene; "
+            "print('cairocffi' in sys.modules, 'toon.cairo_compat' in sys.modules)")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    assert out.stdout.split() == ["False", "False"]
+
+
 def test_boil_override_defaults_to_none():
     assert load_scene(mini(), BANK).boil is None
 
