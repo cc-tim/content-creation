@@ -102,6 +102,31 @@ def test_reburn_calls_burn_pass_for_subs_no_overlay(project_dir):
     assert burned[0][1].name == "final_zh-TW_subtitles_no_overlay.mp4"
 
 
+def test_reburn_refuses_when_legacy_black_standins_exist(project_dir):
+    """RF8: `reburn` never enters ComposeStage, so `_render_one_scene`'s legacy black-marker
+    check can't protect it. A legacy `{sid}_black.mp4` beside the cache finals means those
+    finals are black stand-ins, not real renders — reburn must refuse up front instead of
+    burning subtitles onto them."""
+    scenes_dir = project_dir / "compose" / "scenes"
+    (scenes_dir / "s1_black.mp4").write_bytes(b"legacy black")
+    (scenes_dir / "s5_black.mp4").write_bytes(b"legacy black")
+    runner = CliRunner()
+
+    with patch("pipeline.cli_compose._resolve_work_dir", return_value=project_dir):
+        result = runner.invoke(compose_app, [
+            "reburn", "--project-id", "9999", "--variant", "subtitles_no_overlay"
+        ])
+
+    assert result.exit_code != 0
+    assert "s1" in result.output
+    assert "s5" in result.output
+    assert "legacy black stand-ins" in result.output
+    assert "rebuild them first" in result.output
+    assert "uv run pipeline compose rescene --project-id 9999 --scene" in result.output
+    assert "one per scene" in result.output
+    assert "then reburn" in result.output
+
+
 def test_transitions_rebuild_deletes_transition_and_concat_outputs(project_dir):
     sb = Storyboard(
         scenes=[
