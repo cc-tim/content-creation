@@ -232,6 +232,13 @@ def test_check_llm_fails_without_a_binary(monkeypatch, tmp_path):
     assert not r.ok and "PIPELINE_CLAUDE_BIN" in r.detail
 
 
+def test_check_llm_fails_on_unknown_backend(monkeypatch):
+    monkeypatch.setenv("PIPELINE_LLM_BACKEND", "carrier-pigeon")
+    (r,) = cli_doctor.check_llm()
+    assert not r.ok
+    assert "carrier-pigeon" in r.detail
+
+
 def test_check_llm_fails_when_version_exits_nonzero(monkeypatch, tmp_path):
     exe = tmp_path / "claude"
     exe.write_text("#!/bin/sh\necho boom >&2\nexit 1\n")

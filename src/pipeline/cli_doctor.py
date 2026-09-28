@@ -162,6 +162,9 @@ def check_llm() -> list[CheckResult]:
     models = f"creative={c.LLM_MODEL_CREATIVE} check={c.LLM_MODEL_CHECK}"
     if c.LLM_BACKEND == "api":
         return [CheckResult("llm", True, f"backend api (Anthropic SDK); {models}")]
+    if c.LLM_BACKEND != "cli":
+        return [CheckResult("llm", False,
+                            f"unknown LLM_BACKEND {c.LLM_BACKEND!r} — set PIPELINE_LLM_BACKEND to cli or api")]
     binary = resolve_claude_bin(c)
     if binary is None:
         return [CheckResult("llm", False, "backend cli but the claude CLI was not found — "
