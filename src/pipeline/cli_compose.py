@@ -249,8 +249,26 @@ def reburn(
 ) -> None:
     """Re-burn subtitles from existing raw.mp4 / raw_no_overlay.mp4 without re-rendering scenes."""
     work_dir = _resolve_work_dir(project_id)
+    scenes_dir = work_dir / "compose" / "scenes"
+    # reburn reads raw.mp4 / raw_no_overlay.mp4 straight from disk and never enters
+    # ComposeStage, so _render_one_scene's legacy {sid}_black.mp4 marker check can't protect
+    # it. Refuse before doing any work rather than burning subtitles onto scenes that are
+    # still black stand-ins from the pre-E5-sweep _black_screen fallback.
+    if scenes_dir.exists():
+        black_markers = sorted(
+            p.name.removesuffix("_black.mp4") for p in scenes_dir.glob("*_black.mp4")
+        )
+        if black_markers:
+            ids = ", ".join(black_markers)
+            typer.echo(
+                f"{ids}: these scenes still hold legacy black stand-ins; rebuild them first: "
+                f"`uv run pipeline compose rescene --project-id {project_id} --scene <sid>` "
+                "(one per scene), then reburn",
+                err=True,
+            )
+            raise typer.Exit(code=1)
     from pipeline.composer.image_history import purge_old
-    purge_old(work_dir / "compose" / "scenes")
+    purge_old(scenes_dir)
     ctx = PipelineContext.load(work_dir / "context.json")
     variant = variant or ctx.preferred_variant or "subtitles_no_overlay"
     compose_dir = work_dir / "compose"
