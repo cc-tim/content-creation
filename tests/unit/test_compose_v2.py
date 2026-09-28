@@ -1232,3 +1232,39 @@ async def test_several_failed_scenes_all_reported_and_good_scene_stays_cached(sa
         await ComposeStage().run(sample_context)
 
     assert sorted(rendered) == ["s1", "s2"]  # s10 came from its cache
+
+
+async def test_legacy_black_standin_dropped_and_rerendered(sample_context):
+    """RF6: a pre-E5-sweep black stand-in ({sid}_black.mp4 beside the cache finals) was written
+    by the old _black_screen fallback and must never be served from cache. The marker and both
+    finals are dropped, and the scene re-renders. A normal cache hit (no marker) still skips
+    render_scene entirely."""
+    scenes_dir = _prep_storyboard(sample_context, [_text_scene()])
+    (scenes_dir / "s1_final.mp4").write_bytes(b"legacy black final")
+    (scenes_dir / "s1_final_no_overlay.mp4").write_bytes(b"legacy black no_overlay")
+    (scenes_dir / "s1_black.mp4").write_bytes(b"legacy black")
+
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose._get_duration_sec", return_value=5.0),
+        patch("pipeline.stages.compose.render_scene",
+              return_value=_visual_file(scenes_dir)) as mock_render,
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+    ):
+        await ComposeStage().run(sample_context)
+
+    assert mock_render.call_count == 1
+    assert not (scenes_dir / "s1_black.mp4").exists()
+    assert (scenes_dir / "s1_final.mp4").read_bytes() != b"legacy black final"
+    assert (scenes_dir / "s1_final_no_overlay.mp4").read_bytes() != b"legacy black no_overlay"
+
+    # A normal cache hit, with no marker, still skips render_scene entirely.
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose._get_duration_sec", return_value=5.0),
+        patch("pipeline.stages.compose.render_scene") as mock_render2,
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+    ):
+        await ComposeStage().run(sample_context)
+
+    assert mock_render2.call_count == 0
