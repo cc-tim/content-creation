@@ -3,7 +3,7 @@ import copy
 import pytest
 
 from toon.bank import load_bank
-from toon.scene import load_scene
+from toon.scene import load_scene, read_scene
 from toon.timeline import state_at
 
 BANK = load_bank()
@@ -78,6 +78,15 @@ def test_camera_punch_and_push():
 def test_the_cut_follows_camera_time_and_clamps_drawing_time():
     fs = state_at(SCENE, BANK, 3.95, 4.0)
     assert fs.shot == 1 and fs.set_id == "kitchen"
+
+
+def test_a_cut_duration_never_reaches_a_shot_that_starts_after_it():
+    # R15: 001-lioness-dishes's last shot (index 3, "kitchen") starts at 9.7s. Cut to 8.0s of
+    # narration, render_clip only ever asks state_at() for t in [0, 8.0) — it must resolve to
+    # the last shot that actually starts in range (index 2, also "kitchen"), never shot 3.
+    scene = load_scene(read_scene("001-lioness-dishes"), BANK, duration=8.0)
+    fs = state_at(scene, BANK, 7.99)
+    assert fs.shot == 2 and fs.set_id == "kitchen"
 
 
 def test_gesture_loop_rides_on_the_pose():

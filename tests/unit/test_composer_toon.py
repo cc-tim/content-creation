@@ -31,6 +31,22 @@ def test_render_scene_dispatches_to_toon(tmp_path, monkeypatch):
     assert out.exists() and calls == {"id": "001-lioness-dishes", "duration": 13.0, "size": (1280, 720)}
 
 
+def test_render_scene_toon_with_a_shorter_duration_cuts_instead_of_raising(tmp_path, monkeypatch):
+    # R15: the render path must agree with the validator — a narration/duration shorter than
+    # 001's last shot start (9.7s) is a cut, not a SceneRenderError (design spec §5).
+    calls = {}
+
+    def fake_clip(scene, bank, out, duration, width, height, workers=None):
+        calls.update(id=scene.id, duration=duration, size=(width, height))
+        Path(out).write_bytes(b"x")
+        return Path(out)
+
+    monkeypatch.setattr("toon.render.render_clip", fake_clip)
+    out = base.render_scene({"id": "s1", "narration": "One.", "visual": {"type": "toon", "scene": "001-lioness-dishes"}},
+                            8.0, "16:9", tmp_path)
+    assert out.exists() and calls["duration"] == 8.0
+
+
 def test_unknown_scene_is_a_scene_render_error_not_a_black_screen(tmp_path):
     with pytest.raises(SceneRenderError, match="toon"):
         base.render_scene({"id": "s1", "visual": {"type": "toon", "scene": "nope"}}, 5.0, "16:9", tmp_path)

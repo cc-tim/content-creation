@@ -422,20 +422,18 @@ def _validate_chart_visual(scene: Scene, visual: dict[str, Any]) -> list[SceneVa
 
 
 def _validate_toon(scene: Scene, visual: dict) -> list[SceneValidationError]:
-    # Deliberately do NOT pass the narration-estimated `duration` into load_scene(): its
-    # shot_length() derives the last shot's window from scene.duration, so a narration
-    # estimate shorter than the scene's last shot start (e.g. 8s vs. a shot starting at
-    # 9.7s) would go negative and raise a spurious SceneError instead of the graceful
-    # "the clip will be cut there" scene_warnings() message. Validate against the scene's
-    # own declared duration; check the narration estimate separately via scene_warnings,
-    # matching toon.scene's own verified pattern (see
-    # tests/unit/toon/test_scene.py::test_warns_when_a_beat_lands_after_the_narration).
+    # R15: load_scene() itself now validates shot windows against the scene's AUTHORED
+    # duration (from the file), not the narration-estimated duration passed here — so the
+    # validator and the render path (pipeline.composer.toon.render_toon_scene) can both pass
+    # `duration=duration` and behave identically: a narration shorter than the scene warns
+    # (via scene_warnings below) instead of raising, matching design spec §5 ("Duration").
     try:
         from toon.bank import load_bank
         from toon.scene import load_scene, scene_data_from_visual, scene_warnings
 
         duration = scene.narration_est_sec or None
-        loaded = load_scene(scene_data_from_visual(visual), load_bank(), narration=scene.narration)
+        loaded = load_scene(scene_data_from_visual(visual), load_bank(),
+                            narration=scene.narration, duration=duration)
     except Exception as exc:  # BankError / SceneError / cairo — report, never crash validation
         return [_issue(scene, "error", "visual", f"toon scene invalid: {exc}",
                        "Fix the scene file; run `uv run pipeline toon validate <scene>`.")]

@@ -329,10 +329,19 @@ def load_scene(data: dict, bank: Bank, narration: str | None = None,
         scene = ToonScene.model_validate(data)
     except ValidationError as exc:
         raise SceneError([f"{'.'.join(map(str, e['loc']))}: {e['msg']}" for e in exc.errors()]) from exc
+    # Duration §5: "the scene lasts as long as its narration ... if it is shorter than the
+    # last beat, loading warns and the scene is cut at the narration's end." A narration
+    # shorter than an authored shot's own start (e.g. 8s vs. a shot starting at 9.7s) must
+    # not turn into a structural failure here — that's exactly the "cut" case scene_warnings
+    # exists to report. So the override propagates to anchors/timeline/render (everything
+    # downstream keeps using the narration duration), but _check() validates shot windows
+    # against the scene's AUTHORED duration (from the file, or None for inline scenes) —
+    # the structure the author actually wrote — not the possibly-shorter narration.
+    authored_duration = scene.duration
     if duration is not None:
         scene = scene.model_copy(update={"duration": duration})
     scene = _resolve_anchors(scene, narration)
-    problems = _check(scene, bank)
+    problems = _check(scene.model_copy(update={"duration": authored_duration}), bank)
     if problems:
         raise SceneError(problems)
     return scene

@@ -3,7 +3,7 @@ import copy
 import pytest
 
 from toon.bank import load_bank
-from toon.scene import SceneError, load_scene, scene_warnings, sentence_starts
+from toon.scene import SceneError, load_scene, read_scene, scene_warnings, sentence_starts
 
 BANK = load_bank()
 MINI = {
@@ -49,6 +49,24 @@ def test_free_text_field_is_rejected():
 def test_beat_outside_its_shot():
     with pytest.raises(SceneError, match="outside the shot"):
         load_scene(mini(**{"at": 9.0, "door": "open"}), BANK)
+
+
+def test_beat_outside_its_authored_shot_still_raises_even_with_a_duration_override():
+    # R15: a duration override must not mask a structurally broken authored scene — _check()
+    # always validates against the scene's own authored duration (4.0 here), regardless of
+    # what a (longer) override says.
+    with pytest.raises(SceneError, match="outside the shot"):
+        load_scene(mini(**{"at": 9.0, "door": "open"}), BANK, duration=20.0)
+
+
+def test_a_shorter_narration_cuts_the_scene_instead_of_failing_to_load():
+    # R15 / design spec §5 ("Duration"): a narration shorter than a scene's last shot start
+    # (001-lioness-dishes's last shot starts at 9.7s) must load successfully — shot windows
+    # are checked against the scene's AUTHORED duration, not the override — and the mismatch
+    # surfaces only as a scene_warnings() "cut" warning, computed against the override.
+    s = load_scene(read_scene("001-lioness-dishes"), BANK, duration=8.0)
+    (w,) = scene_warnings(s, 8.0)
+    assert "cut" in w
 
 
 def test_shots_must_increase():
