@@ -1166,6 +1166,52 @@ async def test_unreadable_cached_scene_is_deleted_and_refused(sample_context):
     assert mock_render.call_count == 1
 
 
+async def test_unreadable_no_overlay_cache_file_forces_rerender(sample_context):
+    """RF7: `s1_final.mp4` probes fine but `s1_final_no_overlay.mp4` is truncated/unreadable
+    (an interrupted, non-atomic `_mux` write leaves the no_overlay file bad while the plain
+    final still looks valid). The cache-hit gate must probe BOTH files, not just `scene_final`,
+    and take RF1's path: drop both cache files and refuse, then re-render on the next run."""
+    import subprocess
+
+    scenes_dir = _prep_storyboard(sample_context, [_text_scene()])
+    (scenes_dir / "s1_final.mp4").write_bytes(b"looks-valid")
+    (scenes_dir / "s1_final_no_overlay.mp4").write_bytes(b"garbage")
+    unreadable = subprocess.CalledProcessError(1, ["ffprobe"], stderr="moov atom not found")
+
+    def _duration(path):
+        if Path(path).name.startswith("s1_final_no_overlay"):
+            raise unreadable
+        return 5.0
+
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose._get_duration_sec", side_effect=_duration),
+        patch("pipeline.stages.compose.render_scene") as mock_render,
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+        pytest.raises(RuntimeError, match="final assembly refused"),
+    ):
+        await ComposeStage().run(sample_context)
+
+    failure = sample_context.render_failures["s1"]
+    assert failure["reason"].startswith("cached scene failed: CalledProcessError:")
+    assert "deleted" in failure["suggested_fix"]
+    assert mock_render.call_count == 0
+    assert sorted(p.name for p in scenes_dir.glob("s1_final*.mp4")) == []
+
+    with (
+        patch("pipeline.stages.compose.check_ffmpeg_available", return_value=True),
+        patch("pipeline.stages.compose._get_duration_sec", return_value=5.0),
+        patch("pipeline.stages.compose.render_scene",
+              return_value=_visual_file(scenes_dir)) as mock_render2,
+        patch("pipeline.stages.compose.run_ffmpeg", side_effect=_write_fake_mp4),
+    ):
+        await ComposeStage().run(sample_context)
+
+    assert mock_render2.call_count == 1
+    assert (scenes_dir / "s1_final.mp4").read_bytes() != b"looks-valid"
+    assert (scenes_dir / "s1_final_no_overlay.mp4").read_bytes() != b"garbage"
+
+
 async def test_second_mux_failure_leaves_neither_cache_file(tmp_path):
     """RF2: ffmpeg wrote s1_final.mp4, then died half-way through s1_final_no_overlay.mp4.
     Neither file may survive (the cache check needs only both to exist), and the reason
