@@ -155,8 +155,10 @@ Prop uses are checked per kind as well. An `idea_bulb` needs `on:`, a `plate` ne
 
 **Rules, enforced when the scene loads:**
 - **Wordless:** graphics, bubbles and screens take icon names from the registry. There is no
-  free-text field. Unknown fields are rejected, and so are fields that a verb or a prop kind
-  would ignore.
+  free-text field. Unknown fields are rejected, and so are most fields that a verb or a prop
+  kind would ignore. A few timing and flicker fields are still ignored silently: `ease` on
+  `show`, `over`/`ease` on `hide`, and `flicker`/`blink`/`out` on plates. These are tracked in
+  the roadmap.
 - **Every name resolves** to a bank item, set spot, camera or icon. Otherwise it fails with the
   file and path.
 - **Limited-motion defaults:** drawings on twos, camera on ones, pop-ins of 0.25 s with
