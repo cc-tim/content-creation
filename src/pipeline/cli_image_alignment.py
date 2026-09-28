@@ -29,8 +29,8 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from pipeline import llm
 from pipeline.config import PipelineConfig
-from pipeline.utils.anthropic_key import get_anthropic_api_key
 
 image_alignment_app = typer.Typer(help="Pre-TTS narration↔image alignment check.")
 _console = Console()
@@ -206,20 +206,14 @@ def _parse_issues(raw: str) -> list[dict]:
 
 def check_alignment(work_dir: Path) -> list[dict]:
     """Run the vision pass. Returns issues (empty list when clean)."""
-    import anthropic
-
     items = _collect_pretts_images(work_dir)
     if not items:
         return []
 
-    client = anthropic.Anthropic(api_key=get_anthropic_api_key())
-    msg = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=2000,
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": _build_review_content(items)}],
-    )
-    raw = msg.content[0].text.strip()
+    raw = llm.complete(
+        _build_review_content(items), tier="check", call_site="image_alignment",
+        system=_SYSTEM_PROMPT, max_tokens=2000,
+    ).text.strip()
     if raw == "OK":
         return []
     issues = _parse_issues(raw)

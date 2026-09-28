@@ -13,8 +13,15 @@ from pipeline.niche_templates import NicheTemplate
 logger = structlog.get_logger()
 
 NICHE_ANCHOR_DIR = Path(__file__).parent.parent.parent.parent / "configs" / "niche_anchors"
-_HAIKU_MODEL = "claude-haiku-4-5-20251001"  # update when this model ID retires
 _FALLBACK_STYLE = "clean illustration, simple composition, warm tones, educational, friendly"
+_ASSESS_PROMPT = (
+    "Answer in exactly 2 lines:\n"
+    "Line 1: ONE word — is this source footage high, medium, or low quality "
+    "for reuse? (high=unique clean footage, medium=OK but some repetition, "
+    "low=repetitive panels or talking-head or watermarked)\n"
+    "Line 2: Describe the visual style in 10 words max "
+    "(art medium, line style, palette)."
+)
 
 
 @dataclass
@@ -66,36 +73,19 @@ def _extract_source_frame(source_video: Path, work_dir: Path) -> Path | None:
 
 
 def _assess_source(frame_path: Path) -> tuple[str, str]:
-    """Return (suitability, source_hint). Calls Claude Haiku with vision."""
+    """Return (suitability, source_hint). Calls the check-tier model with vision. Advisory: on any
+    failure (LLMError or otherwise), falls back to ("medium", "") rather than raising."""
     try:
-        import anthropic
-
-        from pipeline.config import PipelineConfig  # noqa: PLC0415
+        from pipeline import llm  # noqa: PLC0415
 
         img_bytes = frame_path.read_bytes()
         b64 = base64.standard_b64encode(img_bytes).decode()
-        client = anthropic.Anthropic(api_key=PipelineConfig().ANTHROPIC_API_KEY)
-        resp = client.messages.create(
-            model=_HAIKU_MODEL,
-            max_tokens=200,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {
-                        "type": "base64", "media_type": "image/jpeg", "data": b64,
-                    }},
-                    {"type": "text", "text": (
-                        "Answer in exactly 2 lines:\n"
-                        "Line 1: ONE word — is this source footage high, medium, or low quality "
-                        "for reuse? (high=unique clean footage, medium=OK but some repetition, "
-                        "low=repetitive panels or talking-head or watermarked)\n"
-                        "Line 2: Describe the visual style in 10 words max "
-                        "(art medium, line style, palette)."
-                    )},
-                ],
-            }],
-        )
-        lines = resp.content[0].text.strip().splitlines()
+        text = llm.complete(
+            [{"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}},
+             {"type": "text", "text": _ASSESS_PROMPT}],
+            tier="check", call_site="style_anchor", max_tokens=200,
+        ).text
+        lines = text.strip().splitlines()
         suitability = lines[0].strip().lower() if lines else "medium"
         if suitability not in ("high", "medium", "low"):
             suitability = "medium"

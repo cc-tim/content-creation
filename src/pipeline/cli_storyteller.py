@@ -11,7 +11,7 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
-from pipeline.utils.anthropic_key import get_anthropic_api_key
+from pipeline import llm
 
 storytell_app = typer.Typer(help="Review narrative flow and scene transitions.")
 _console = Console()
@@ -110,18 +110,10 @@ def print_storytell_table(issues: list[dict[str, str]], console: Console | None 
 
 def storytell_storyboard(storyboard_path: Path) -> list[dict[str, str]]:
     """Run Claude Haiku on storyboard narrations. Returns list of issue dicts."""
-    import anthropic
-
     review_text = _format_for_storytell(storyboard_path)
-    client = anthropic.Anthropic(api_key=get_anthropic_api_key())
-    msg = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=2000,
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": review_text}],
-    )
-    block = msg.content[0]
-    raw = block.text.strip() if hasattr(block, "text") else ""
+    raw = llm.complete(
+        review_text, tier="check", call_site="storyteller", system=_SYSTEM_PROMPT, max_tokens=2000
+    ).text.strip()
     if raw == "OK":
         return []
     issues = _parse_storytell_issues(raw)

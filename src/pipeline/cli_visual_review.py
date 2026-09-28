@@ -21,8 +21,8 @@ from rich import box
 from rich.console import Console
 from rich.table import Table
 
+from pipeline import llm
 from pipeline.config import PipelineConfig
-from pipeline.utils.anthropic_key import get_anthropic_api_key
 
 visual_review_app = typer.Typer(help="Frame extraction and visual QC review.")
 _console = Console()
@@ -215,8 +215,6 @@ def review_visual_fit(
     Issue dict format:
         {scene_id, severity, observation, suggestion, reason}
     """
-    import anthropic
-
     sb_path = storyboard_path or (work_dir / "storyboard.json")
     if not sb_path.exists():
         return [{"scene_id": "?", "severity": "MAJOR",
@@ -253,14 +251,10 @@ def review_visual_fit(
 
     content = _build_review_content(frames, sb_path)
 
-    client = anthropic.Anthropic(api_key=get_anthropic_api_key())
-    msg = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=2000,
-        system=_REVIEW_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": content}],
-    )
-    raw = msg.content[0].text.strip()
+    raw = llm.complete(
+        content, tier="check", call_site="visual_review",
+        system=_REVIEW_SYSTEM_PROMPT, max_tokens=2000,
+    ).text.strip()
     if raw == "OK":
         return []
 
