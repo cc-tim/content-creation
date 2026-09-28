@@ -177,6 +177,7 @@ Fill in the other columns as you go, and commit this file with the task's own co
 | RF8 | `test_cli_compose.py::test_reburn_refuses_when_legacy_black_standins_exist` | final review, item 2 | `assert 's1' in <burn output>` fails; `reburn` proceeds to `_burn_subtitle_pass` and errors on the fake `.mp4` input instead of refusing up front | `AssertionError: assert 's1' in 'Burning subtitles: raw_no_overlay.mp4 → final_zh-TW_subtitles_no_overlay.mp4\n'` (reburn attempted the real burn instead of refusing) | `54b3f69` | `66c945c` |
 | RF9 | `test_compose_v2.py::test_scene_failure_reason_has_no_duplicate_scene_id_prefix` | final review, item 3 | `assert 2 == 1` (`str(ei.value).count("s1:")`) — the refusal text reads `s1: s1: visual (text_card) failed: ...` | `assert 2 == 1` | `b6e07ac` | `1582f50` |
 | RF10 | `test_image_sequence.py::test_failed_image_suggested_fix_uses_real_project_id` | final review, item 4 | `assert '<project-id>' not in suggested_fix` fails: the literal placeholder is present | `AssertionError: assert '<project-id>' not in 'Check ...--project-id <project-id> --scene s3\`. Images that already succeeded ...'` | `100ee24` | `a2ef303` |
+| RF11 | `test_cli_compose.py::test_restore_invalidates_frame_suffixed_cache_variants` | final review, item 5 | `s1_final_open_book_page.mp4` still exists after `restore` | `AssertionError: assert not True … s1_final_open_book_page.mp4 … .exists` | `25669e6` | `bdf798f` |
 
 ---
 
