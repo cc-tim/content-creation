@@ -843,9 +843,9 @@ def restore(
         typer.echo(f"No history entries for scene '{scene}'", err=True)
         raise typer.Exit(code=1)
 
-    # Clear scene finals so ComposeStage re-renders this scene
-    for suffix in ("_final.mp4", "_final_no_overlay.mp4"):
-        p = scenes_dir / f"{scene}{suffix}"
+    # Clear scene finals (every frame-suffix variant) so ComposeStage re-renders this scene
+    # instead of cache-hitting a stale frame-suffixed final from before the restore.
+    for p in scene_final_cache_paths(scenes_dir, scene):
         if p.exists():
             p.unlink()
 
