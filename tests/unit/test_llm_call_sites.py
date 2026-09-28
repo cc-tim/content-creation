@@ -30,12 +30,20 @@ def test_storyboard_beats_use_creative_tier():
 
 
 def test_visual_review_extract_frames_is_registered():
-    from typer.testing import CliRunner
-
     from pipeline.cli_visual_review import visual_review_app
 
-    res = CliRunner().invoke(visual_review_app, ["extract-frames", "--help"])
+    names = [c.name for c in visual_review_app.registered_commands]
+    assert "extract-frames" in names, names
+
+
+def test_visual_review_extract_frames_reachable_via_top_level_app():
+    from typer.testing import CliRunner
+
+    from pipeline.cli import app
+
+    res = CliRunner().invoke(app, ["visual-review", "extract-frames", "--help"])
     assert res.exit_code == 0, res.output
+    assert "extract-frames" in res.output or "Extract a midpoint frame" in res.output, res.output
 
 
 def test_print_visual_issues_table_does_not_raise():
