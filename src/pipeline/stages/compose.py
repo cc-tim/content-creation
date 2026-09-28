@@ -1131,17 +1131,28 @@ class ComposeStage(PipelineStage):
             if scene_final.exists() and scene_final_no_overlay.exists():
                 with _scene_step(scene.id, "cached scene", _CACHED_SCENE_FIX):
                     logger.info("compose.scene.cached", scene_id=scene.id)
+                    # Both cache files must probe cleanly, regardless of whether an expected
+                    # duration exists (`_mux` writes them non-atomically and second, so a
+                    # SIGTERM can leave `scene_final_no_overlay` truncated while `scene_final`
+                    # still looks valid). A failed probe raises here and is caught by
+                    # `_scene_step`, which takes RF1's drop-both-and-refuse path.
+                    actual = _get_duration_sec(scene_final)
+                    actual_no_overlay = _get_duration_sec(scene_final_no_overlay)
                     if i < len(audio_segments):
                         d_check = audio_segments[i]["duration_ms"] / 1000.0
-                        actual = _get_duration_sec(scene_final)
-                        if actual < d_check - 0.5:
-                            logger.warning(
-                                "compose.scene.duration_mismatch",
-                                scene_id=scene.id,
-                                cached_sec=round(actual, 2),
-                                expected_sec=round(d_check, 2),
-                                hint="Delete cached scene files and rescene to fix subtitle drift",
-                            )
+                        for label, dur in (
+                            ("scene_final", actual),
+                            ("scene_final_no_overlay", actual_no_overlay),
+                        ):
+                            if dur < d_check - 0.5:
+                                logger.warning(
+                                    "compose.scene.duration_mismatch",
+                                    scene_id=scene.id,
+                                    file=label,
+                                    cached_sec=round(dur, 2),
+                                    expected_sec=round(d_check, 2),
+                                    hint="Delete cached scene files and rescene to fix subtitle drift",
+                                )
                 cached_pause: list[Path] = []
                 if scene.pause_after_sec > 0:
                     with _scene_step(scene.id, "frame/mux", fixes["frame/mux"]):
