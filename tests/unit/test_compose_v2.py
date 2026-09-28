@@ -845,7 +845,8 @@ async def test_overlay_failure_refuses_assembly_and_records_loudly(sample_contex
     assert "s1" in sample_context.render_failures
     failure = sample_context.render_failures["s1"]
     assert "overlay failed" in failure["reason"]
-    assert "--skip-overlays" in failure["suggested_fix"]
+    assert "--skip-overlays" not in failure["suggested_fix"]  # no CLI has this flag
+    assert "compose rescene --project-id" in failure["suggested_fix"]
 
 
 async def test_scene_render_error_leaves_no_cached_black_fallback(sample_context):

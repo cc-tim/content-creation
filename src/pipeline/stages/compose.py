@@ -591,8 +591,8 @@ def _interleave_pauses(
 
 _CACHED_SCENE_FIX = "The cached scene file was unreadable and has been deleted; re-run compose."
 _OVERLAY_FIX = (
-    "Fix or remove scene.overlay (check overlay.type and text), "
-    "or re-run with --skip-overlays to bypass overlays."
+    "Fix or remove scene.overlay (check overlay.type and text), then "
+    "`uv run pipeline compose rescene --project-id <ID> --scene <sid>`."
 )
 
 
