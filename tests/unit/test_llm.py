@@ -15,11 +15,15 @@ log = os.environ["FAKE_CLAUDE_LOG"]
 mode = os.environ.get("FAKE_CLAUDE_MODE", "ok")
 stdin = sys.stdin.read()
 watch_names = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
-               "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_OAUTH_TOKEN"]
+               "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_OAUTH_TOKEN",
+               "CLAUDE_CODE_USE_FOUNDRY", "ANTHROPIC_MODEL"]
 rec = {{"argv": sys.argv[1:], "stdin": stdin, "cwd": os.getcwd(),
         "env_present": {{n: (n in os.environ) for n in watch_names}}, "t0": time.time()}}
 if mode == "sleep":
     time.sleep(0.3)
+if mode == "sleep_stderr":
+    print("partial output: engine warming up", file=sys.stderr, flush=True)
+    time.sleep(3.0)
 rec["t1"] = time.time()
 with open(log, "a") as f:
     f.write(json.dumps(rec) + "\n")
@@ -29,6 +33,10 @@ print("warning: this is not json")
 ev(type="system", subtype="init")
 if mode == "exit":
     print("boom on stderr", file=sys.stderr); sys.exit(2)
+if mode == "error_subtype":
+    ev(type="result", subtype="error_max_structured_output_retries", is_error=True,
+       errors=["schema validation failed"])
+    sys.exit(1)
 if mode == "limit":
     ev(type="result", subtype="success", is_error=True, api_error_status=429,
        result="You've hit your limit · resets 5pm")
@@ -109,7 +117,8 @@ def test_content_blocks_pass_through_unchanged(fake_claude):
 
 
 _BILLING_SWITCHING_ENV = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
-                          "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX"]
+                          "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX",
+                          "CLAUDE_CODE_USE_FOUNDRY", "ANTHROPIC_MODEL"]
 
 
 @pytest.mark.parametrize("name", _BILLING_SWITCHING_ENV)
@@ -155,11 +164,32 @@ def test_failures_raise_llm_error_with_the_real_reason(fake_claude, monkeypatch,
         assert "429" in str(ei.value) and "quota" in ei.value.hint
 
 
+def test_error_reason_survives_when_result_is_empty_but_subtype_and_errors_exist(fake_claude, monkeypatch):
+    monkeypatch.setenv("FAKE_CLAUDE_MODE", "error_subtype")
+    with pytest.raises(llm.LLMError) as ei:
+        llm.complete("x", tier="check", call_site="t")
+    assert "schema validation failed" in str(ei.value)
+    assert "error_max_structured_output_retries" in str(ei.value)
+
+
 def test_auth_failure_hints_claude_login(fake_claude, monkeypatch):
     monkeypatch.setenv("FAKE_CLAUDE_MODE", "auth")
     with pytest.raises(llm.LLMError, match="Please run /login") as ei:
         llm.complete("x", tier="check", call_site="t")
     assert "claude login" in ei.value.hint
+
+
+@pytest.mark.parametrize("reason", ["Failed to generate a response", "Written by the author of this book"])
+def test_hint_does_not_false_positive_on_substrings(reason):
+    assert llm._hint(reason) == ""
+
+
+def test_hint_quota_for_429_message():
+    assert "quota" in llm._hint("Error: 429 too many requests, rate limit exceeded")
+
+
+def test_hint_login_for_slash_login_message():
+    assert "claude login" in llm._hint("Please run /login to continue")
 
 
 def test_last_result_event_wins(fake_claude, monkeypatch):
@@ -174,10 +204,42 @@ def test_timeout_raises_llm_error(fake_claude, monkeypatch):
         llm.complete("x", tier="check", call_site="t", timeout=0.05)
 
 
+def test_timeout_reason_includes_stderr_tail(fake_claude, monkeypatch):
+    # Generous margin: on macOS, a freshly-written executable's first exec can be slowed by a
+    # Gatekeeper/quarantine check, so the child needs real headroom to start up, flush its
+    # partial stderr, and still be caught mid-sleep well before the 3s the fake script sleeps.
+    monkeypatch.setenv("FAKE_CLAUDE_MODE", "sleep_stderr")
+    with pytest.raises(llm.LLMError, match="engine warming up"):
+        llm.complete("x", tier="check", call_site="t", timeout=1.0)
+
+
 def test_missing_binary_raises_llm_error(monkeypatch, tmp_path):
-    monkeypatch.setenv("PIPELINE_CLAUDE_BIN", str(tmp_path / "nope"))
-    with pytest.raises(llm.LLMError, match="claude CLI not found"):
+    bad_path = tmp_path / "nope"
+    monkeypatch.setenv("PIPELINE_CLAUDE_BIN", str(bad_path))
+    with pytest.raises(llm.LLMError, match="claude CLI not found") as ei:
         llm.complete("x", tier="check", call_site="t")
+    assert str(bad_path) in str(ei.value)
+    assert "PIPELINE_CLAUDE_BIN" in str(ei.value)
+
+
+def test_missing_binary_without_explicit_path_uses_generic_message(monkeypatch, tmp_path):
+    monkeypatch.delenv("PIPELINE_CLAUDE_BIN", raising=False)
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))         # systemd-like PATH without claude
+    monkeypatch.setenv("HOME", str(tmp_path / "home-without-claude"))
+    with pytest.raises(llm.LLMError, match="claude CLI not found") as ei:
+        llm.complete("x", tier="check", call_site="t")
+    assert "install Claude Code" in str(ei.value)
+
+
+def test_launch_failure_raises_llm_error(monkeypatch, tmp_path):
+    exe = tmp_path / "claude"
+    exe.write_text("#!/bin/sh\necho hi\n")   # deliberately not chmod +x -> OSError on exec
+    monkeypatch.setenv("PIPELINE_CLAUDE_BIN", str(exe))
+    monkeypatch.setenv("PIPELINE_LLM_BACKEND", "cli")
+    with pytest.raises(llm.LLMError, match="could not launch") as ei:
+        llm.complete("x", tier="check", call_site="t")
+    assert str(exe) in str(ei.value)
+    assert "PIPELINE_CLAUDE_BIN" in ei.value.hint
 
 
 def test_resolve_falls_back_to_local_bin(monkeypatch, tmp_path):
@@ -206,6 +268,36 @@ def test_concurrency_is_capped(fake_claude, monkeypatch):
     assert len(spans) == 5 and peak <= 2
 
 
+def _capture_run_timeout(monkeypatch):
+    captured: dict[str, float | None] = {}
+    real_run = llm.subprocess.run
+
+    def fake_run(*args, **kwargs):
+        captured["timeout"] = kwargs.get("timeout")
+        return real_run(*args, **kwargs)
+
+    monkeypatch.setattr(llm.subprocess, "run", fake_run)
+    return captured
+
+
+def test_creative_tier_uses_the_longer_default_timeout(fake_claude, monkeypatch):
+    captured = _capture_run_timeout(monkeypatch)
+    llm.complete("x", tier="creative", call_site="t")
+    assert captured["timeout"] == 1200.0
+
+
+def test_check_tier_uses_the_shorter_default_timeout(fake_claude, monkeypatch):
+    captured = _capture_run_timeout(monkeypatch)
+    llm.complete("x", tier="check", call_site="t")
+    assert captured["timeout"] == 600.0
+
+
+def test_explicit_timeout_overrides_the_creative_default(fake_claude, monkeypatch):
+    captured = _capture_run_timeout(monkeypatch)
+    llm.complete("x", tier="creative", call_site="t", timeout=42.0)
+    assert captured["timeout"] == 42.0
+
+
 def test_unknown_backend_is_loud(monkeypatch):
     monkeypatch.setenv("PIPELINE_LLM_BACKEND", "carrier-pigeon")
     with pytest.raises(llm.LLMError, match="unknown LLM backend"):
@@ -229,7 +321,7 @@ def test_api_backend_text(monkeypatch):
     assert kw["messages"] == [{"role": "user", "content": [{"type": "text", "text": "q"}]}]
 
 
-def test_api_backend_schema_uses_forced_tool(monkeypatch):
+def test_api_backend_schema_defaults_to_emit_tool_name(monkeypatch):
     _api_env(monkeypatch)
     block = MagicMock(type="tool_use", input={"title": "T"})
     with patch("anthropic.Anthropic") as cls:
@@ -237,6 +329,20 @@ def test_api_backend_schema_uses_forced_tool(monkeypatch):
         r = llm.complete("q", tier="check", call_site="t", json_schema={"type": "object"})
     kw = cls.return_value.messages.create.call_args.kwargs
     assert r.data == {"title": "T"} and kw["tool_choice"] == {"type": "tool", "name": "emit"}
+    assert kw["tools"][0]["name"] == "emit"
+
+
+def test_api_backend_schema_uses_caller_supplied_tool_name(monkeypatch):
+    _api_env(monkeypatch)
+    block = MagicMock(type="tool_use", input={"title": "T"})
+    with patch("anthropic.Anthropic") as cls:
+        cls.return_value.messages.create.return_value = MagicMock(content=[block])
+        r = llm.complete("q", tier="check", call_site="t", json_schema={"type": "object"},
+                         schema_name="emit_metadata")
+    kw = cls.return_value.messages.create.call_args.kwargs
+    assert r.data == {"title": "T"}
+    assert kw["tools"][0]["name"] == "emit_metadata"
+    assert kw["tool_choice"] == {"type": "tool", "name": "emit_metadata"}
 
 
 def test_api_backend_errors_are_llm_errors(monkeypatch):

@@ -31,7 +31,8 @@ class PipelineConfig(BaseSettings):
     LLM_MODEL_CREATIVE: str = "claude-opus-5-5"               # analyze, scriptwrite, direct, beats
     LLM_MODEL_CHECK: str = "claude-haiku-4-5-20251001"        # proofread, QC, alignment, storyteller, mla, style anchor
     CLAUDE_BIN: str = ""                                      # explicit path to the claude CLI
-    LLM_TIMEOUT_SEC: float = 600.0
+    LLM_TIMEOUT_SEC: float = 600.0                             # check tier default
+    LLM_TIMEOUT_CREATIVE_SEC: float = 1200.0                   # creative tier default (longer generations)
     LLM_MAX_CONCURRENCY: int = 4
 
     # TTS

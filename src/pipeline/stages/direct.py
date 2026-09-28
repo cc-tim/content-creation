@@ -522,7 +522,8 @@ def write_metadata_for_project(
     )
 
     result = llm.complete(user, tier="creative", call_site="direct.metadata", system=system,
-                          json_schema=_METADATA_TOOL["input_schema"], max_tokens=2048)
+                          json_schema=_METADATA_TOOL["input_schema"], schema_name=_METADATA_TOOL["name"],
+                          max_tokens=2048)
     if not isinstance(result.data, dict):
         raise RuntimeError("metadata: model returned no structured metadata")
     tool_input: dict = dict(result.data)
