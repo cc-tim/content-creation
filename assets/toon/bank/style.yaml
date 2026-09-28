@@ -20,5 +20,6 @@ palette:
   bulb_off: [0.84, 0.84, 0.82]
   smoke: [0.55, 0.53, 0.5]
 grain: 0.10
-fps: 24
+# Tim 2026-09-28: picked A (30 fps camera, drawings 12/s) over 30/15; 24 fps juddered in compose's 30 fps concat
+fps: 30
 drawing_fps: 12

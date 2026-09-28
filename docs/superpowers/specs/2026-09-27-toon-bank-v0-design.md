@@ -27,7 +27,9 @@ Then Tim's own videos can use animated scenes as an ordinary pipeline visual typ
 
 - **Look:** frozen character Tim (likeness 2, short crop A, navy hoodie), line A (marker),
   2.5D. Joints, props and camera are 3D, but every line is drawn flat and the linework boils.
-  Drawings are held on twos (12 fps); the camera moves on ones (24 fps). By default the boil
+  Drawings are held at 12/s (about 2.5 frames each); the camera moves on ones at 30 fps, matching
+  compose's concat rate so the clip doesn't judder when concatenated (24 fps juddered; Tim
+  picked 30/12 over 30/15 on 2026-09-28). By default the boil
   is *soft*: the drawing holds and the lines shimmer faintly. `full` (the tryout's look) and
   `still` can be chosen per scene. Tim made this pick on 2026-09-28, at the scene-001
   checkpoint.
@@ -177,8 +179,10 @@ Prop uses are checked per kind as well. An `idea_bulb` needs `on:`, a `plate` ne
   index (`floor(t·12)`), never from global random state. The same inputs give identical bytes
   on the same machine.
 - `render_clip` renders frames in parallel worker processes: 4 cores on the hub, 11 on the
-  Mac. At the tryout's rate of about 0.3 s per frame, 13 s at 24 fps takes about 20 s on the
-  Mac. Frames stream to ffmpeg (libx264, yuv420p, 1920×1080, 24 fps). The clip is cached by
+  Mac. 13 s at 30 fps (390 frames) takes about 12 s wall time on the Mac, cache miss, all
+  cores. Frames stream to ffmpeg (libx264, yuv420p, 1920×1080, 30 fps — matches compose's
+  concat rate, `COMPOSE_FPS` in `pipeline/stages/compose.py`, so clips don't judder when
+  concatenated). The clip is cached by
   a hash of the scene, the bank files, the `src/toon` source files and the engine version, so
   any engine or kit edit re-renders.
 - Only 16:9 in v0. The storyboard validator rejects a `toon` scene on a 9:16 storyboard.

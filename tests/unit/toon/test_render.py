@@ -176,6 +176,6 @@ def test_clip_has_exact_frame_count_and_cache_hits(tmp_path, monkeypatch):
     n = subprocess.run(["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0",
                         "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", str(out)],
                        capture_output=True, text=True, check=True).stdout.strip()
-    assert int(n) == 30
+    assert int(n) == 38  # 1.25s at the bank's 30fps (camera on ones), round(1.25 * 30)
     monkeypatch.setattr(R, "render_frames", lambda *a, **k: (_ for _ in ()).throw(AssertionError("re-rendered")))
     assert R.render_clip(SCENE, BANK, tmp_path / "c.mp4", 1.25, 320, 180) == out
