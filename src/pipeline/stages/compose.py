@@ -839,10 +839,11 @@ class ComposeStage(PipelineStage):
                 if isinstance(maybe, SceneRenderError):
                     render_failures[sid] = maybe.to_dict()
                 else:
-                    # Unreachable while _render_one_scene keeps I1; kept as a defence.
+                    # A BaseException _render_one_scene didn't wrap as SceneRenderError:
+                    # not Exception (I1 covers those), e.g. asyncio.CancelledError.
                     render_failures[sid] = {
                         "scene": sid,
-                        "reason": str(maybe),
+                        "reason": _step_reason("scene", maybe),
                         "suggested_fix": "Inspect the scene render logs and fix the visual contract.",
                     }
                 for cached in scene_final_cache_paths(scenes_dir, sid):
@@ -1116,6 +1117,16 @@ class ComposeStage(PipelineStage):
         fixes = _scene_fixes(ctx.work_dir.name, scene.id)
 
         try:
+            # A pre-E5-sweep black stand-in: `_black_screen` was the only writer of this
+            # marker, so its presence means the cache paths beside it are black, not a real
+            # render. Drop the whole cache footprint and fall through to a normal render.
+            black_marker = scenes_dir / f"{scene.id}_black.mp4"
+            if black_marker.exists():
+                black_marker.unlink(missing_ok=True)
+                for cached in scene_final_cache_paths(scenes_dir, scene.id):
+                    cached.unlink(missing_ok=True)
+                logger.info("compose.scene.legacy_black_standin_dropped", scene_id=scene.id)
+
             # Cache check
             if scene_final.exists() and scene_final_no_overlay.exists():
                 with _scene_step(scene.id, "cached scene", _CACHED_SCENE_FIX):
