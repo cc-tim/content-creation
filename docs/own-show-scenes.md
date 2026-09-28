@@ -34,6 +34,10 @@ when the rig changes, so the entry records what was decided, not just where the 
   point and washing dishes (poses).
 - **Verdict (Tim, 2026-09-26):** "this tryout scene meet my expectation" — use v2 as the
   reference bar for scene quality and the acceptance scene for bank v0.
+- **Engine port (Tim, 2026-09-28):** the scene now also lives as the scene file
+  `assets/toon/scenes/001-lioness-dishes.yaml` on the toon engine, pixel-matched to v2. Tim:
+  "looks good". His one caveat was the constant trembling, so line boil became a setting and
+  soft shimmer is the default.
 - **Files:** `scene_lioness.py` (throwaway; uses the style-tryouts `r4` rig) · step-3 sheets
   `r5_lioness_options.png`, `r5_bulb_options.png`, `r5_idea_options.png`, `r5_thumbs.png` ·
   v1 animatics with on-screen words `r5_animatic_{bulb,fire}.mp4` · **v2 wordless**

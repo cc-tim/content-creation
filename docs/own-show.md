@@ -32,6 +32,10 @@ The porting pipeline keeps its existing rules. (Decided with Tim 2026-09-26.)
   — no words drawn on screen, so a scene works in any language. Laptop/phone screens show icons
   (bars, ✓/✗, progress), bubbles hold pictograms, cards hold icons. Words live only in the
   narration and subtitles, which the pipeline makes per locale.
+- **Line boil = soft shimmer** (Tim, 2026-09-28): full boil re-jitters every line 12×/s, and
+  Tim felt it as constant trembling. The default is now *soft*: the drawing holds its shape and
+  the lines only shimmer faintly. `full` and `still` remain available per scene (bank
+  `style.yaml` → `boil`).
 - **Scene library:** every scene idea or tryout is recorded in
   [`own-show-scenes.md`](own-show-scenes.md) (brief in Tim's words, picks, status), even if it
   never reaches a video; files in `output/own-show/scenes/<nnn-slug>/`.

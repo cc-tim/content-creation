@@ -27,7 +27,10 @@ Then Tim's own videos can use animated scenes as an ordinary pipeline visual typ
 
 - **Look:** frozen character Tim (likeness 2, short crop A, navy hoodie), line A (marker),
   2.5D. Joints, props and camera are 3D, but every line is drawn flat and the linework boils.
-  Drawings are held on twos (12 fps); the camera moves on ones (24 fps).
+  Drawings are held on twos (12 fps); the camera moves on ones (24 fps). By default the boil
+  is *soft*: the drawing holds and the lines shimmer faintly. `full` (the tryout's look) and
+  `still` can be chosen per scene. Tim made this pick on 2026-09-28, at the scene-001
+  checkpoint.
 - **Grammar:** the Hana Explores structure in Tim's doodle look. Sets are ghosted; focus
   characters and props are in colour; graphics pop in; comic emphasis; limited motion.
 - **Wordless:** no words are drawn in the animation. Screens show icons, bubbles hold
@@ -89,7 +92,7 @@ Two kinds of item:
 | `props/` | laptop (icon screen), phone, mug, plate, plate_stack, idea_bulb (brightness, flicker, out + smoke) |
 | `cameras.yaml` | front34_push, two_shot, side_truck, close_push, ots_mid, screen_insert |
 | `icons/` | registry for wordless graphics: plates, suds, `!`, bulb, check, cross, laptop, phone (drawn by kit code) |
-| `style.yaml` | line A settings, palette, ghost ink, paper grain, drawings on twos / camera on ones |
+| `style.yaml` | line A settings, line-boil mode (default `soft`, shimmer 0.3), palette, ghost ink, paper grain, drawings on twos / camera on ones |
 
 **Getting into the bank:** only via Tim's picks (options → pick → freeze), with provenance.
 New *kinds* (for example a map or timeline graphic) need code plus a pick. The bank renders
