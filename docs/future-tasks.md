@@ -39,6 +39,7 @@ Improvements and features to revisit after the v2 compose engine is stable.
 - [ ] **Google Cloud TTS Neural2** — Premium voice option for higher quality narration.
 - [ ] **OpenAI TTS** — Highest naturalness option for special narration needs.
 - [ ] **Whisper fallback** — For videos without subtitles, use OpenAI Whisper API for transcription.
+- [ ] **mypy `arg-type` is disabled project-wide** (`pyproject.toml` `[tool.mypy] disable_error_code`). It hid a real bug in Sprint 9: toon validator warnings used `"warning"` against `Severity = Literal["error", "warn"]`, so they were silently dropped (fixed in `2b441a3`). Options: re-enable it for `src/toon` and `src/pipeline/director` first, or project-wide with targeted ignores at the provider-SDK boundaries. **Tim's call** (found at the E9 v0 build, 2026-09-28).
 - [x] **SFX asset registry / config legibility + cross-project reuse** → **migrated to `docs/ROADMAP.md` E7** (Audio arsenal & SFX legibility, 2026-05-26). Tim approved a formal audio epic, so this audio-arsenal item moved out of the idea bin into E7 (item 1) alongside the paired dashboard layer-visibility half; the EM mandate now formally covers the audio axis. *Tracked in ROADMAP E7 — do not re-add here.*
 
 ## Agent Skills
