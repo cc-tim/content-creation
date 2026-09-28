@@ -96,8 +96,8 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
 3. **⏳ NEEDS TIM:** Tim creates the BytePlus ModelArk account (Taiwan) and provides the API
    key next session. Then: add a BytePlus provider to `~/.claude/bin/gen-video.py` and the key
    to `~/.claude/api-keys.json` → run the ~$1 Seedance restyle test.
-4. ~~Style guide + **bank v0**~~: **built** on branch `feat/toon-bank-v0`, with EM REVIEW
-   pending. What it contains:
+4. ~~Style guide + **bank v0**~~: **built and merged to master** (2026-09-28). The EM cleared
+   the merge after three rework tests. What it contains:
    - the `src/toon` engine;
    - Tim's picks as YAML in `assets/toon/bank/`;
    - scene 001 as a scene file, pixel-matched to the tryout;
@@ -105,7 +105,10 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
    - `pipeline toon validate|render|sheet`;
    - line boil set to soft by default.
 
-   Still open, on the hub: golden frames and a compose smoke run. See README → *Toon*.
+   Still open, on the hub (needs a push first): mint the golden frames, then a compose smoke
+   run (subtitles, and a check for judder where 24 fps joins 30 fps), then an EM re-REVIEW
+   for 🟢. Before the first EP1 scene file, clear E9 residuals a–c in `docs/ROADMAP.md`, which
+   include the laptop ✓/✗ screens. See README → *Toon*.
 5. Retarget critics/evaluators to the audience lens above before scene reviews start.
 6. Tim hands over the latest high-level script → scene breakdown together.
 
