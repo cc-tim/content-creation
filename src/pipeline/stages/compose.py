@@ -46,6 +46,12 @@ from pipeline.utils.fonts import (
 
 logger = structlog.get_logger()
 
+# The fps `_concat_scenes` normalises every segment to before concatenation. A segment
+# rendered at a different fps that doesn't evenly relate to this value will judder once
+# ffmpeg's `fps` filter resamples it onto this grid (see the toon 24->30 fps fix: toon renders
+# at this same rate, assets/toon/bank/style.yaml, so its frames survive the normalisation).
+COMPOSE_FPS = 30
+
 
 def verify_theme_fonts(theme_dict: dict[str, Any]) -> None:
     """Fail fast if fontconfig would substitute the theme font family.
@@ -1587,7 +1593,7 @@ class ComposeStage(PipelineStage):
             v = f"v{i}"
             a = f"a{i}"
             filter_parts.append(
-                f"[{i}:v:0]setpts=PTS-STARTPTS,fps=30,format=yuv420p,setsar=1[{v}]"
+                f"[{i}:v:0]setpts=PTS-STARTPTS,fps={COMPOSE_FPS},format=yuv420p,setsar=1[{v}]"
             )
             filter_parts.append(
                 f"[{i}:a:0]asetpts=PTS-STARTPTS,"
