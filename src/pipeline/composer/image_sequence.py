@@ -33,6 +33,20 @@ def _cache_key(prompt: str) -> str:
     return hashlib.md5(prompt.encode()).hexdigest()[:12]
 
 
+def _project_id(work_dir: Path) -> str:
+    """The project id for a suggested_fix's rescene command.
+
+    render_image_sequence's one call site (composer/base.py's render_scene) passes its own
+    work_dir straight through, and that in turn is always ComposeStage's scenes_dir —
+    ctx.work_dir / "compose" / "scenes" — so work_dir.parents[1] is the project dir, matching
+    how _scene_fixes derives the id from ctx.work_dir.name.
+    """
+    try:
+        return work_dir.parents[1].name
+    except IndexError:
+        return "<project-id>"
+
+
 def _size_arg(width: int, height: int) -> str:
     if width > height:
         return "1792x1024"
@@ -133,8 +147,9 @@ def render_image_sequence(
                 suggested_fix=(
                     "Check `uv run pipeline doctor` (home tool gen-image.py) and the image "
                     "provider's status, then `uv run pipeline compose rescene --project-id "
-                    f"<project-id> --scene {scene_id}`. Images that already succeeded stay "
-                    f"cached by prompt hash in {cache_dir}, so only image {idx} is regenerated."
+                    f"{_project_id(work_dir)} --scene {scene_id}`. Images that already "
+                    f"succeeded stay cached by prompt hash in {cache_dir}, so only image {idx} "
+                    "is regenerated."
                 ),
             ) from exc
 
