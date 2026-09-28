@@ -16,6 +16,22 @@ uv run pipeline --help                     # Show CLI help
 # Restart Claude Code session after installing
 ```
 
+## LLM Backend
+
+Every pipeline LLM call runs through `pipeline.llm.complete`, which by default drives headless
+`claude -p` on Tim's Claude subscription — no Anthropic API key needed. Run `claude login` once
+per machine (Mac + hub) so the CLI has a subscription session. There is no silent fallback
+between backends; set `PIPELINE_LLM_BACKEND=api` explicitly to use the Anthropic SDK instead.
+
+| Env var | Default | Meaning |
+|---------|---------|---------|
+| `PIPELINE_LLM_BACKEND` | `cli` | `cli` (claude -p, subscription) or `api` (Anthropic SDK, opt-in) |
+| `PIPELINE_LLM_MODEL_CREATIVE` | `claude-opus-5-5` | Model for creative-tier calls (analyze, scriptwrite, direct, beats) |
+| `PIPELINE_LLM_MODEL_CHECK` | `claude-haiku-4-5-20251001` | Model for check-tier calls (proofread, visual QC, image alignment, storyteller, MLA rewrite, style anchor) |
+| `PIPELINE_CLAUDE_BIN` | unset (auto-resolve) | Explicit path to the `claude` binary; falls back to `PATH`, then `~/.local/bin/claude` |
+| `PIPELINE_LLM_TIMEOUT_SEC` | `600` | Per-call subprocess timeout, in seconds |
+| `PIPELINE_LLM_MAX_CONCURRENCY` | `4` | Maximum concurrent `claude -p` processes |
+
 ## The Porting Workflow
 
 ```
@@ -446,7 +462,7 @@ Natural-language triggers:
 
 | Service | Monthly budget | What it covers |
 |---------|---------------|----------------|
-| Claude Sonnet API | ~$10 | ~100 story analyses + script adaptations |
+| Claude (Opus creative / Haiku checks) via claude -p | $0 marginal | Tim's Claude subscription quota |
 | Edge-TTS | $0 | Unlimited narration (primary) |
 | Google Cloud TTS Neural2 | $0 | 1M chars/month free tier (premium voice) |
 | OpenAI Whisper API | ~$3 | ~500 min transcription (fallback) |

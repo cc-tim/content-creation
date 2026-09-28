@@ -154,6 +154,26 @@ def check_toon() -> list[CheckResult]:
                             f"{exc!r} — needs libcairo (macOS: brew install cairo; hub: libcairo2)")]
 
 
+def check_llm() -> list[CheckResult]:
+    from pipeline.config import PipelineConfig
+    from pipeline.llm import resolve_claude_bin
+
+    c = PipelineConfig()
+    models = f"creative={c.LLM_MODEL_CREATIVE} check={c.LLM_MODEL_CHECK}"
+    if c.LLM_BACKEND == "api":
+        return [CheckResult("llm", True, f"backend api (Anthropic SDK); {models}")]
+    binary = resolve_claude_bin(c)
+    if binary is None:
+        return [CheckResult("llm", False, "backend cli but the claude CLI was not found — "
+                                          "install Claude Code or set PIPELINE_CLAUDE_BIN")]
+    try:
+        version = subprocess.run([binary, "--version"], capture_output=True, text=True,
+                                 timeout=30).stdout.strip()
+    except Exception as exc:
+        return [CheckResult("llm", False, f"{binary} --version failed: {exc!r}")]
+    return [CheckResult("llm", True, f"backend cli; {binary} ({version}); {models}")]
+
+
 def run_checks(out_dir: Path) -> list[CheckResult]:
     groups: list[tuple[str, Callable[[], list[CheckResult]]]] = [
         ("fonts", check_fonts),
@@ -162,6 +182,7 @@ def run_checks(out_dir: Path) -> list[CheckResult]:
         ("glyph probes", lambda: check_glyph_probes(out_dir)),
         ("home tools", check_home_tools),
         ("toon", check_toon),
+        ("llm", check_llm),
     ]
     results: list[CheckResult] = []
     for label, fn in groups:

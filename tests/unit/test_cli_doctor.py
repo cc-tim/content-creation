@@ -29,6 +29,7 @@ def _all_pass(monkeypatch):
         cli_doctor, "check_home_tools", lambda: [CheckResult("home tools", True, "ok")]
     )
     monkeypatch.setattr(cli_doctor, "check_toon", lambda: [CheckResult("toon", True, "ok")])
+    monkeypatch.setattr(cli_doctor, "check_llm", lambda: [CheckResult("llm", True, "ok")])
 
 
 def test_doctor_registered_and_exit_0_when_all_pass(monkeypatch, tmp_path):
@@ -36,7 +37,7 @@ def test_doctor_registered_and_exit_0_when_all_pass(monkeypatch, tmp_path):
     res = runner.invoke(app, ["doctor", "--out", str(tmp_path)])
     assert res.exit_code == 0, res.output
     lines = [ln for ln in res.output.splitlines() if ln.startswith(("PASS", "FAIL"))]
-    assert len(lines) == 6 and all(ln.startswith("PASS") for ln in lines)
+    assert len(lines) == 7 and all(ln.startswith("PASS") for ln in lines)
     assert str(tmp_path) in res.output
 
 
@@ -211,3 +212,21 @@ def test_check_toon_fails_with_install_hint_when_cairo_is_missing(monkeypatch):
     assert "brew install cairo" in result.detail
     assert "libcairo2" in result.detail
     assert "dlopen failed" in result.detail  # the caught exception is still visible
+
+
+# ── check 7: llm backend ────────────────────────────────────────────────────
+def test_check_llm_passes_with_a_binary(monkeypatch, tmp_path):
+    exe = tmp_path / "claude"
+    exe.write_text("#!/bin/sh\necho '9.9.9 (Claude Code)'\n")
+    exe.chmod(0o755)
+    monkeypatch.setenv("PIPELINE_LLM_BACKEND", "cli")
+    monkeypatch.setenv("PIPELINE_CLAUDE_BIN", str(exe))
+    (r,) = cli_doctor.check_llm()
+    assert r.ok and "9.9.9" in r.detail and "claude-opus-5-5" in r.detail
+
+
+def test_check_llm_fails_without_a_binary(monkeypatch, tmp_path):
+    monkeypatch.setenv("PIPELINE_LLM_BACKEND", "cli")
+    monkeypatch.setenv("PIPELINE_CLAUDE_BIN", str(tmp_path / "missing"))
+    (r,) = cli_doctor.check_llm()
+    assert not r.ok and "PIPELINE_CLAUDE_BIN" in r.detail
