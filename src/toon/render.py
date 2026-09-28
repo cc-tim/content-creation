@@ -52,7 +52,10 @@ def draw_frame(ctx, scene: ToonScene, bank: Bank, fs: FrameState, t_draw: float,
     px = height / 1080
     cam = orbit(fs.cam.az, fs.cam.el, fs.cam.dist, V(*fs.cam.target), fs.cam.focal, width, height)
     zoom = cam.scale(V(0, 2.5, 0.5)) / (100.0 * px)
-    pen, gp = Pen(ctx, boil, zoom=zoom, px=px), Pen(ctx, boil, zoom=zoom, px=px, ghost=True)
+    mode = scene.boil or bank.style.boil.mode
+    shimmer = bank.style.boil.shimmer
+    pen = Pen(ctx, boil, zoom=zoom, px=px, mode=mode, shimmer=shimmer)
+    gp = Pen(ctx, boil, zoom=zoom, px=px, ghost=True, mode=mode, shimmer=shimmer)
     layers = build_set(bank.sets[fs.set_id].kind, pen, gp, cam, t_draw, door=fs.door)
     for fn in layers.back:
         fn()

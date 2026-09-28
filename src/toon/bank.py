@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 Vec3 = tuple[float, float, float]
 
@@ -102,9 +102,15 @@ class CameraPreset(_Strict):
     punch: Punch | None = None
 
 
+class Boil(_Strict):
+    mode: Literal["full", "soft", "still"]
+    shimmer: float = Field(ge=0.0, le=1.0)
+
+
 class Style(_Strict):
     picked: Provenance
     line: dict[str, Any]
+    boil: Boil
     palette: dict[str, Vec3]
     grain: float
     fps: int

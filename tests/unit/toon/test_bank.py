@@ -45,3 +45,18 @@ def test_unknown_field_fails_with_file_and_path(tmp_path):
 def test_missing_bank_dir(tmp_path):
     with pytest.raises(BankError, match="bank not found"):
         load_bank(tmp_path / "nope")
+
+
+def test_style_boil_default_is_soft_shimmer():
+    b = load_bank()
+    assert b.style.boil.mode == "soft"
+    assert b.style.boil.shimmer == pytest.approx(0.3)
+
+
+def test_style_boil_mode_rejects_unknown_value(tmp_path):
+    root = tmp_path / "bank"
+    shutil.copytree(default_root(), root)
+    p = root / "style.yaml"
+    p.write_text(p.read_text().replace("mode: soft", "mode: wobbly"))
+    with pytest.raises(BankError, match=r"style\.yaml: boil\.mode"):
+        load_bank(root)

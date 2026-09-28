@@ -47,3 +47,38 @@ def test_composite_blank_is_paper_and_deterministic():
     assert np.array_equal(a, b)
     rgb = a[..., [2, 1, 0]].reshape(-1, 3)
     assert (rgb <= np.array(PAPER) * 255 + 1).all() and (rgb >= np.array(PAPER) * 255 * 0.94).all()
+
+
+# -- boil modes (Task 9b): full (today's), soft (default: no-boil drawing + per-drawing shimmer),
+# -- still (no-boil drawing, no shimmer) --
+
+def test_pen_defaults_to_full_mode_and_default_shimmer():
+    s, c = _surface()
+    p = Pen(c, 0)
+    assert p.mode == "full"
+    assert p.shimmer == 0.3
+
+
+def _closed_stroke(boil, mode, shimmer=0.3):
+    s, c = _surface()
+    Pen(c, boil, mode=mode, shimmer=shimmer).stroke(
+        [(40, 60), (360, 90), (300, 260), (80, 230)], "loop", closed=True)
+    return np.frombuffer(bytes(s.get_data()), np.uint8).astype(np.int16)
+
+
+def _mean_abs_diff(a, b):
+    return float(np.abs(a - b).mean())
+
+
+def test_still_mode_ignores_boil():
+    assert np.array_equal(_closed_stroke(0, "still"), _closed_stroke(5, "still"))
+
+
+def test_full_mode_boil_changes_the_line_unchanged_from_today():
+    assert not np.array_equal(_closed_stroke(0, "full"), _closed_stroke(5, "full"))
+
+
+def test_soft_mode_shimmers_less_than_full_boil():
+    full_diff = _mean_abs_diff(_closed_stroke(0, "full"), _closed_stroke(5, "full"))
+    soft_diff = _mean_abs_diff(_closed_stroke(0, "soft"), _closed_stroke(5, "soft"))
+    assert 0 < soft_diff < full_diff

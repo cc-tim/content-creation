@@ -26,7 +26,9 @@ def test_scene_001_matches_tryout_v2():
     tryout = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tryout)
     bank = load_bank()
-    scene = load_scene(read_scene("001-lioness-dishes"), bank)
+    # The tryout is full boil; soft shimmer is now the bank default, so pin this comparison to
+    # full explicitly.
+    scene = load_scene(read_scene("001-lioness-dishes"), bank).model_copy(update={"boil": "full"})
     EVIDENCE.mkdir(parents=True, exist_ok=True)
     worst = 0.0
     for t in KEY_TIMES:

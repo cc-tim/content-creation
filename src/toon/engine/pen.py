@@ -19,14 +19,17 @@ LINE_A = dict(ink=(0.11, 0.10, 0.10), w=7.5, amp=1.7, over=8,
 
 
 class Pen:
-    def __init__(self, ctx, boil, zoom=1.0, px=1.0, ghost=False):
+    def __init__(self, ctx, boil, zoom=1.0, px=1.0, ghost=False, mode="full", shimmer=0.3):
         self.c, self.s, self.boil = ctx, LINE_A, boil
         self.zoom = zoom  # line width follows camera zoom only mildly (a drawing, not a render)
         self.px = px  # line width/wobble/overshoot follow render resolution linearly
         self.ghost = ghost  # ghosted set: faint thin lines, pale fills
+        self.mode = mode  # "full": fresh seed every drawing; "soft"/"still": one fixed drawing
+        self.shimmer = shimmer  # "soft" only: faint per-drawing shimmer amplitude, 0..1
 
     def seed(self, key, k=0):
-        return (zlib.crc32(key.encode()) * 31 + self.boil * 7919 + k * 104729) & 0xFFFFFFFF
+        boil = self.boil if self.mode == "full" else 0
+        return (zlib.crc32(key.encode()) * 31 + boil * 7919 + k * 104729) & 0xFFFFFFFF
 
     @property
     def w(self):
@@ -81,6 +84,17 @@ class Pen:
             tl = math.hypot(tx, ty) or 1
             d = amp * (noise1(us[i] * cyc, s) + 0.35 * noise1(us[i] * cyc * 3.7, s + 5))
             out.append((x - ty / tl * d + dx, y + tx / tl * d + dy))
+        if self.mode == "soft" and L >= 1e-6:
+            sb = (zlib.crc32(key.encode()) * 31 + self.boil * 7919 + k * 104729) & 0xFFFFFFFF
+            amp_s = self.s["amp"] * amp_k * self.px * self.shimmer
+            res = []
+            for i, (x, y) in enumerate(out):
+                a, b = out[max(i - 1, 0)], out[min(i + 1, len(out) - 1)]
+                tx, ty = b[0] - a[0], b[1] - a[1]
+                tl = math.hypot(tx, ty) or 1
+                d = amp_s * noise1(us[i] * cyc, sb)
+                res.append((x - ty / tl * d, y + tx / tl * d))
+            out = res
         return out, us, L
 
     def _ribbon(self, pts, us, width, key, k, color, alpha):

@@ -99,3 +99,16 @@ def test_verb_specific_fields_are_rejected_on_other_verbs():
         load_scene(mini(**{"at": 1.0, "door": "open", "expr": "Dishes. Now."}), BANK)
     with pytest.raises(SceneError, match=r"out: only valid with a prop beat"):
         load_scene(mini(**{"at": 1.0, "door": "open", "out": True}), BANK)
+
+
+def test_boil_override_defaults_to_none():
+    assert load_scene(mini(), BANK).boil is None
+
+
+def test_boil_override_accepts_a_known_mode():
+    assert load_scene({**mini(), "boil": "still"}, BANK).boil == "still"
+
+
+def test_boil_override_rejects_an_unknown_mode():
+    with pytest.raises(SceneError, match="boil"):
+        load_scene({**mini(), "boil": "wobbly"}, BANK)

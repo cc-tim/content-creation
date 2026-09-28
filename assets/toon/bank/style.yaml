@@ -1,5 +1,6 @@
 picked: {date: "2026-09-26", source: "own-show round 4 — line A (marker); Tim: 'A ≈ C, both acceptable'"}
-line: {name: marker, ink: [0.11, 0.10, 0.10], w: 7.5, amp: 1.7, over: 8, boil: twos}
+line: {name: marker, ink: [0.11, 0.10, 0.10], w: 7.5, amp: 1.7, over: 8}
+boil: {mode: soft, shimmer: 0.3}  # Tim 2026-09-28: picked C "soft shimmer" over full / slow / still
 palette:
   paper: [0.957, 0.945, 0.918]
   skin: [0.985, 0.978, 0.960]

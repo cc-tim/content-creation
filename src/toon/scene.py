@@ -157,6 +157,7 @@ class ToonScene(_Strict):
     duration: float | None = None
     cast: dict[str, str]
     shots: list[Shot] = Field(min_length=1)
+    boil: Literal["full", "soft", "still"] | None = None  # overrides the bank style's default
 
 
 def graphic_key(show: Show) -> str:

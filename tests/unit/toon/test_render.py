@@ -88,6 +88,53 @@ def test_a_failing_frame_leaves_no_file(tmp_path, monkeypatch):
     assert not list(tmp_path.iterdir())
 
 
+# -- boil modes (Task 9b) --
+# Shot 0 (two_shot camera): the punch settles at rel_cam 0.25 and the first beat fires at rel 1.0,
+# so [6/12, 7/12) is a window where nothing moves (state_at gives byte-identical FrameStates) but
+# the two times still land in different drawings (different `boil`, per twos cadence).
+_HELD_T1, _HELD_T2 = 6 / 12, 7 / 12
+
+# A characterless scene for the byte-identity checks: every character rig has an unconditional
+# "breathing" sway keyed directly off t (toon.engine.rig.rig), so no *placed* character is ever
+# truly still frame-to-frame. Dropping cast/place isolates the set-dressing pen strokes, where
+# "still" boil's byte-identity claim actually lives.
+_STILL_DATA = {"id": "still-test", "duration": 4.0, "cast": {},
+               "shots": [{"at": 0.0, "set": "office", "camera": "two_shot", "place": {}, "beats": []}]}
+_STILL_SCENE = load_scene(_STILL_DATA, BANK)
+
+
+def _with_boil(bank, mode, shimmer=0.3):
+    return bank.model_copy(update={
+        "style": bank.style.model_copy(update={
+            "boil": bank.style.boil.model_copy(update={"mode": mode, "shimmer": shimmer}),
+        }),
+    })
+
+
+def test_soft_boil_varies_less_across_drawings_than_full():
+    full_bank, soft_bank = _with_boil(BANK, "full"), _with_boil(BANK, "soft")
+    full_diff = np.abs(R.frame(SCENE, full_bank, _HELD_T1, 240, 135).astype(np.int16) -
+                       R.frame(SCENE, full_bank, _HELD_T2, 240, 135).astype(np.int16)).mean()
+    soft_diff = np.abs(R.frame(SCENE, soft_bank, _HELD_T1, 240, 135).astype(np.int16) -
+                       R.frame(SCENE, soft_bank, _HELD_T2, 240, 135).astype(np.int16)).mean()
+    assert 0 < soft_diff < full_diff
+
+
+def test_still_boil_is_identical_across_drawings_when_nothing_moves():
+    still_bank = _with_boil(BANK, "still")
+    a = R.frame(_STILL_SCENE, still_bank, _HELD_T1, 240, 135)
+    b = R.frame(_STILL_SCENE, still_bank, _HELD_T2, 240, 135)
+    assert np.array_equal(a, b)
+
+
+def test_scene_boil_override_wins_over_bank_style():
+    full_bank = _with_boil(BANK, "full")
+    still_scene = _STILL_SCENE.model_copy(update={"boil": "still"})
+    a = R.frame(still_scene, full_bank, _HELD_T1, 240, 135)
+    b = R.frame(still_scene, full_bank, _HELD_T2, 240, 135)
+    assert np.array_equal(a, b)
+
+
 @pytest.mark.integration
 def test_clip_has_exact_frame_count_and_cache_hits(tmp_path, monkeypatch):
     import subprocess
