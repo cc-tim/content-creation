@@ -172,7 +172,7 @@ Fill in the other columns as you go, and commit this file with the task's own co
 | RF4 | `test_image_sequence.py::test_rerun_after_failed_image_regenerates_only_that_image` | 4 | `DID NOT RAISE <class 'pipeline.errors.SceneRenderError'>` | | | |
 | T11b | `test_loud_failure_fence.py::test_no_black_fallback_helpers_remain` | 4 | `assert not hasattr(<module 'pipeline.composer.image_sequence'>, '_black_clip')` | | | |
 | T11c | `test_loud_failure_fence.py::test_black_lavfi_source_only_in_silence_gap` | 4 | `Extra items in the left set: ('composer/image_sequence.py', '_black_clip')` | | | |
-| RF6 | `test_compose_v2.py::test_legacy_black_standin_dropped_and_rerendered` | 3 (fix round 1, Ruling S2) | `assert 0 == 1` (render_scene never called: a legacy `{sid}_black.mp4` marker beside real-looking cached finals still cache-hits) | `assert 0 == 1` | | |
+| RF6 | `test_compose_v2.py::test_legacy_black_standin_dropped_and_rerendered` | 3 (fix round 1, Ruling S2) | `assert 0 == 1` (render_scene never called: a legacy `{sid}_black.mp4` marker beside real-looking cached finals still cache-hits) | `assert 0 == 1` | `6d2c4a9` | `a015b85` |
 
 ---
 
