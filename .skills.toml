@@ -2,6 +2,8 @@
 align-guidelines = { sha = "a7daddf9e120", installed = "2026-07-06" }
 evaluate-video = { sha = "d59d01648b30", installed = "2026-07-06" }
 fit-image = { sha = "952f803d3525", installed = "2026-07-06" }
+generate-image = { sha = "07beb3e15296", installed = "2026-09-30" }
+generate-video = { sha = "af1c6862ceb9", installed = "2026-09-30" }
 knowledge = { sha = "bc91b00cff45", installed = "2026-07-06" }
 produce = { sha = "72c119c129d4", installed = "2026-07-06" }
 publish = { sha = "284ad60dc677", installed = "2026-07-06" }
