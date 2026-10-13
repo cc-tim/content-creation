@@ -429,7 +429,7 @@ report to the lead.
 | S12-11A/23p | `test_acting.py` (every frame against `snapshot_oracle.py`, a verbatim transcription of the snapshot's animation), `test_state_symbolic.py` | 5 | `ModuleNotFoundError: toy3d.acting` | 62 × `ModuleNotFoundError: No module named 'toy3d.acting'` (53 failed, 9 errors); `test_every_toy3d_capability_has_a_probe` passes (a table fence, mutation-checked) | `f35942e` | (this commit) |
 | S12-7r/11B/23j | `test_state_goldens.py` (node matrices minted from the snapshot's own scene graph: `tests/toy3d_snapshot.py nodes`), `test_style_wiring.py` | 6 | page stubs | against the committed stub page: 41 errors (`Toy3DRenderError: toy3d page: init failed: toy3d engine: not built yet`), 3 failed (the loud-init messages). Order deviation, recorded honestly: the engine port was written before these tests, then the red was observed against the committed stub | `dcf432d` | `1149dad` |
 | S12-18 | `test_parity_tryout.py` | 7 | scene file missing (the scene landed in task 2: the references are what's missing) | 7 × `FileNotFoundError: …/tryout_ref/PROVENANCE.md`; `AssertionError: assert [] == ['guo@0.714.png', …]` | `6a16ac4` | `b81254a` |
-| S12-12 | `test_goldens.py`, `test_golden_policy.py`, `tests/unit/toy3d/test_sheet.py` | 8 | helper missing | 10 × `ImportError: cannot import name 'assert_close_to_golden'`; `ModuleNotFoundError: No module named 'toy3d.sheet'`; `test_goldens.py` errors at collection on the same import | (this commit) | |
+| S12-12 | `test_goldens.py`, `test_golden_policy.py`, `tests/unit/toy3d/test_sheet.py` | 8 | helper missing | 10 × `ImportError: cannot import name 'assert_close_to_golden'`; `ModuleNotFoundError: No module named 'toy3d.sheet'`; `test_goldens.py` errors at collection on the same import | `cde5f97` | `971d526` (helper, sheet) + (this commit: the hub-minted goldens) |
 | S12-14…17 | composer/CLI/doctor/render/cadence | 9 | no toy3d dispatch | | | |
 
 ### Mutation evidence
@@ -468,3 +468,5 @@ Each guard below was removed (one at a time, `scratchpad/mutate.py`) and its pin
 | 6 | the exposure read; the bloom strength read | `test_style_values_change_pixels` | red (the bloom mutant fails init: the unread fence catches it first) |
 | 6 | a WebGL renderer in state mode | `test_apply_state_creates_no_webgl_context_in_state_mode` | red |
 | 7 | the denoise noise position (skip 11060 → 11061); bloom 0.42 → 0.45 | `test_worked_scene_matches_the_frozen_tryout` | red (both) |
+| 8 | the frame limits widened (p99.9 30, >8 0.003, tile 30) | `test_a_five_degree_shoulder_fails` | red |
+| 8 | the tile metric dropped; UPDATE_GOLDENS allowed off the hub | `test_golden_policy.py` | red (both) |

@@ -46,8 +46,9 @@ def _page(payload):
         yield p
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def page(bank):
+    """Per test: a bank-variant test opens its own page, and two sync Playwrights can't overlap."""
     from toy3d.runtime import bank_payload
 
     with _page(bank_payload(bank)) as p:
