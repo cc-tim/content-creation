@@ -13,7 +13,10 @@ camera: {near: 0.05, far: 60.0}
 post:
   samples: 4                        # MSAA on the half-float render target
   gtao: {radius: 0.32, distance_exponent: 1.4, thickness: 1.2, scale: 1.0, samples: 16, blend: 0.8}
-  denoise: {luma_phi: 10.0, depth_phi: 2.0, normal_phi: 3.0, radius: 6.0, rings: 2, samples: 16}
+  denoise: {luma_phi: 10.0, depth_phi: 2.0, normal_phi: 3.0, radius: 6.0, rings: 2, samples: 16,
+            # its noise texture draws the snapshot's own Math.random stream: mulberry32(stage seed)
+            # after the 11060 draws its build made first (tests/toy3d_snapshot.py random)
+            noise: {seed: 20261013, skip: 11060}}
   bloom: {strength: 0.42, radius: 0.45, threshold: 1.6}
   grade: {vignette: 0.16, grain: 0.0, warm: 0.0}
 materials:

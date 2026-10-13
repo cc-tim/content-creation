@@ -6,3 +6,12 @@ offset: {right: 0.42, up: 0.62}      # from the speaker's head, in camera axes
 bob: {amp: 0.025, rate: 2.2}
 pop: {scale: 1.1}                    # e_back pop over the show beat's over
 bang: {signal: bubble_bang}          # the "!" grows by the speaker's bubble_bang signal
+palette:
+  bubble: "#fdfbf6"
+  plate: "#f3eee4"
+  smudge: ["rgba(150,112,80,0.55)", "rgba(160,160,100,0.5)"]   # the dirt on the top plate
+  crumb: "#9b7356"
+  bang: "#c4614e"
+params:
+  bubble: {clearcoat: 0.4}
+  plate: {roughness: 0.3}

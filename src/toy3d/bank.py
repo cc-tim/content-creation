@@ -38,6 +38,7 @@ def _colour(v: str) -> str:
 
 
 Colour = Annotated[str, AfterValidator(_colour)]
+Palette = dict[str, Colour | tuple[Colour, ...]]   # a list is an ordered pick (books, rug rings, …)
 
 
 class Provenance(_Strict):
@@ -219,7 +220,7 @@ class Character(_Strict):
     scale: float = 1.0
     walk: Walk | None = None
     guoguo: GuoActing | None = None
-    palette: dict[str, Colour] = {}
+    palette: Palette = {}
     params: dict[str, Any] = {}       # the builder's geometry picks (the page reads every key)
 
 
@@ -258,7 +259,7 @@ class SetDef(_Strict):
     spots: dict[str, Spot]
     door: Door
     laptop: Laptop
-    palette: dict[str, Colour] = {}
+    palette: Palette = {}
     params: dict[str, Any] = {}
 
     @model_validator(mode="after")
@@ -315,7 +316,7 @@ class PropDef(_Strict):
     glow: BulbGlow
     rays: BulbRays
     lit_min: float                    # the glass reads lit above this level
-    palette: dict[str, Colour] = {}
+    palette: Palette = {}
     params: dict[str, Any] = {}
 
 
@@ -344,7 +345,7 @@ class Bubble(_Strict):
     bob: Wave
     pop: Pop
     bang: Bang
-    palette: dict[str, Colour] = {}
+    palette: Palette = {}
     params: dict[str, Any] = {}
 
 
@@ -425,6 +426,11 @@ class Gtao(_Strict):
     blend: float
 
 
+class Noise(_Strict):
+    seed: int                         # the denoise noise draws from mulberry32(seed)…
+    skip: int                         # …after this many draws: the snapshot's stream at that pass
+
+
 class Denoise(_Strict):
     luma_phi: float
     depth_phi: float
@@ -432,6 +438,7 @@ class Denoise(_Strict):
     radius: float
     rings: int
     samples: int
+    noise: Noise
 
 
 class Bloom(_Strict):
