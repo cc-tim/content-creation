@@ -47,12 +47,16 @@ def render_toon_scene(scene: dict, duration_sec: float, width: int, height: int,
         engine = toon_scene.engine
         if engine == "toy3d":
             from toy3d import render as toy3d_render
-            from toy3d.bank import load_bank as load_toy3d_bank
+            from toy3d.bank import Toy3DBank
 
-            return toy3d_render.render_clip(toon_scene, load_toy3d_bank(), out, duration_sec, width, height)
+            assert isinstance(catalog, Toy3DBank)  # load_catalog("toy3d"): the bank validated against
+            return toy3d_render.render_clip(toon_scene, catalog, out, duration_sec, width, height)
         if engine != "toon2d":
             raise SceneRenderError(scene=scene_id, reason=f"toon: no renderer for engine {engine!r}",
                                    suggested_fix=_FIX)
+        from toon.bank import Bank
+
+        assert isinstance(catalog, Bank)  # load_catalog("toon2d"): the 2.5D bank adapts as its catalog
         return render.render_clip(toon_scene, catalog, out, duration_sec, width, height)
     except SceneRenderError:
         raise

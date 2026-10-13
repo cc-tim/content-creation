@@ -153,5 +153,5 @@ def load_catalog(engine: str) -> SceneCatalog:
         return load_bank()
     if engine == "toy3d":
         from toy3d.bank import load_bank as load_toy3d_bank
-        return load_toy3d_bank().catalog
+        return load_toy3d_bank()   # the bank is its own catalog, so the renderer reads what was validated
     raise SceneError([f"engine: unknown engine {engine!r} (engines: {', '.join(ENGINES)})"])

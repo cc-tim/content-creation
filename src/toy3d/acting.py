@@ -35,9 +35,8 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
-from toon.engine.mathx import EASES, e_back, e_out, lerp
+from toon.beats import EASES, ActorAt, Change, PropAt, SymbolicState, beats_at, e_back, e_out, lerp
 from toon.scene import ToonScene
-from toon.timeline import ActorAt, Change, PropAt, SymbolicState, beats_at
 from toy3d.bank import (
     Accent,
     Bump,

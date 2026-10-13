@@ -393,10 +393,11 @@ def _check(scene: ToonScene, catalog: SceneCatalog, shot_starts: tuple[float | S
             character = scene.cast.get(who, "")
             if known_set and pl.spot not in spots:
                 p.append(f"{pw}.spot: unknown spot {pl.spot!r} in set {shot.set!r}")
-            if catalog.pose_class(character, pl.pose) is None:
-                p.append(f"{pw}.pose: unknown pose {pl.pose!r}")
-            if pl.expr not in catalog.expressions_of(character):
-                p.append(f"{pw}.expr: unknown expression {pl.expr!r}")
+            if character in catalog.characters:  # an unknown one is reported once, at cast
+                if catalog.pose_class(character, pl.pose) is None:
+                    p.append(f"{pw}.pose: unknown pose {pl.pose!r}")
+                if pl.expr not in catalog.expressions_of(character):
+                    p.append(f"{pw}.expr: unknown expression {pl.expr!r}")
             for f in PLACE_RENDER_FIELDS:
                 if getattr(pl, f) is not None and f not in caps.place_fields:
                     p.append(f"{pw}.{f}: {_not_rendered(caps, f, lambda c, f=f: f in c.place_fields)}")
@@ -514,10 +515,11 @@ def _check_beat(b: Beat, bw: str, scene: ToonScene, shot: Shot, spots, catalog: 
         if not isinstance(b.to, str) or b.to not in spots:
             p.append(f"{bw}.to: unknown spot {b.to!r}")
     elif v == "pose":
+        character = scene.cast.get(b.pose, "")
+        known = character in catalog.characters  # an unknown one is reported once, at cast
         if b.pose not in placed:
             p.append(f"{bw}.pose: {b.pose!r} is not placed in this shot")
-        elif b.to is not None:
-            character = scene.cast.get(b.pose, "")
+        elif b.to is not None and known:
             to_class = catalog.pose_class(character, b.to) if isinstance(b.to, str) else None
             from_class = catalog.pose_class(character, placed[b.pose].pose)
             if to_class is None:
@@ -525,7 +527,7 @@ def _check_beat(b: Beat, bw: str, scene: ToonScene, shot: Shot, spots, catalog: 
             elif from_class is not None and to_class != from_class:
                 p.append(f"{bw}.to: pose {b.to!r} changes hip ({from_class} → {to_class}); "
                          f"cut to a new shot instead")
-        if b.expr is not None and b.expr not in catalog.expressions_of(scene.cast.get(b.pose, "")):
+        if b.expr is not None and known and b.expr not in catalog.expressions_of(character):
             p.append(f"{bw}.expr: unknown expression {b.expr!r}")
         if b.to is None and b.expr is None:
             p.append(f"{bw}: a pose beat needs to: <pose> and/or expr: <expression>")
@@ -578,8 +580,10 @@ def _unread(caps: Capabilities, verb: str, field: str) -> str:
     if any(field in c.beat_fields.get(verb, ()) for c in CAPABILITIES.values()):  # another engine reads it
         return _not_rendered(caps, f"{field} on {_a(verb)} beat", lambda c: field in c.beat_fields.get(verb, ()))
     users = [u for u, fields in caps.beat_fields.items() if field in fields]
-    if not users:
-        return _not_rendered(caps, f"{field} on any beat", lambda c: any(field in fs for fs in c.beat_fields.values()))
+    if not users:  # no engine reads it on this verb, and this engine reads it nowhere: say who does
+        readers = [f"{e} reads it on {' / '.join(_a(u) for u, fs in c.beat_fields.items() if field in fs)} beat"
+                   for e, c in CAPABILITIES.items() if any(field in fs for fs in c.beat_fields.values())]
+        return f"{caps.engine} doesn't render {field}" + (f" ({'; '.join(readers)})" if readers else "")
     return f"only valid with {_a(users[0])} beat" if len(users) == 1 else f"not valid with {_a(verb)} beat"
 
 

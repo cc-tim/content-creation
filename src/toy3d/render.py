@@ -7,6 +7,7 @@ import ast
 import contextlib
 import hashlib
 import io
+import json
 import os
 import subprocess
 import tempfile
@@ -43,8 +44,9 @@ def _module_file(name: str) -> Path | None:
 
 
 def import_closure(files: list[Path]) -> list[Path]:
-    """`files` plus, transitively, every `toon` / `toy3d` module they import (with each enclosing
-    package's `__init__`, which runs on import)."""
+    """`files` plus, transitively, every `toon` / `toy3d` module they import at module level (with
+    each enclosing package's `__init__`, which runs on import). A function-level import (a lazy
+    path or bank lookup) is left out: the key's per-frame specs catch any behaviour it shapes."""
     pending = list(files)
     seen: set[Path] = set()
     while pending:
@@ -53,7 +55,7 @@ def import_closure(files: list[Path]) -> list[Path]:
             continue
         seen.add(f)
         names: set[str] = set()
-        for node in ast.walk(ast.parse(f.read_text())):
+        for node in ast.parse(f.read_text()).body:
             if isinstance(node, ast.Import):
                 names.update(a.name for a in node.names)
             elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
@@ -75,16 +77,30 @@ def acting_sources() -> list[Path]:
 
 
 def _web_sources() -> list[Path]:
-    """The page: stage.html, the engine modules and the vendored three.js (by its SHA256SUMS)."""
+    """The page: stage.html, the engine modules and every vendored three.js file (a local patch
+    re-keys even when its SHA256SUMS wasn't updated)."""
     web = runtime.WEB_ROOT
     return [web / "stage.html", *sorted((web / "engine").rglob("*.js")),
-            web / "vendor" / "three-0.170.0" / "SHA256SUMS"]
+            *sorted(p for p in (web / "vendor").rglob("*") if p.is_file())]
+
+
+def frame_specs(scene: ToonScene, bank: Toy3DBank, duration: float, resolve: Resolve | None = None) -> list[dict]:
+    """Every frame's spec: round(duration × fps) frames at the bank's fps."""
+    resolve = resolve or acting.resolve
+    fps = bank.style.fps
+    return [resolve(scene, bank, i / fps) for i in range(round(duration * fps))]
 
 
 def cache_key(scene: ToonScene, bank: Toy3DBank, duration: float, width: int, height: int,
-              renderer: str, *, build: str = BROWSER_VERSION) -> str:
+              renderer: str, *, build: str = BROWSER_VERSION, specs: list[dict] | None = None,
+              resolve: Resolve | None = None) -> str:
+    """Over every input a frame depends on: the scene, the bank, the page, the Python that shapes
+    each frame (its sources, and each frame's resolved spec), the browser build and the GPU's
+    renderer, the size, the duration and the fps."""
     h = hashlib.sha256(scene.model_dump_json(by_alias=True).encode())
     h.update(bank.model_dump_json(exclude={"root"}).encode())
+    specs = specs if specs is not None else frame_specs(scene, bank, duration, resolve)
+    h.update(json.dumps(specs, sort_keys=True, allow_nan=False).encode())
     for f in _web_sources():
         h.update(f.relative_to(runtime.WEB_ROOT).as_posix().encode())
         h.update(f.read_bytes())
@@ -95,12 +111,12 @@ def cache_key(scene: ToonScene, bank: Toy3DBank, duration: float, width: int, he
     return h.hexdigest()[:16]
 
 
-def _record_key(scene, bank, duration, width, height) -> str | None:
+def _record_key(scene, bank, duration, width, height, specs) -> str | None:
     """The key from this machine's renderer record, if it is for the pinned build."""
     record = runtime.read_renderer_record()
     if record.get("build") != BROWSER_VERSION or not record.get("renderer"):
         return None
-    return cache_key(scene, bank, duration, width, height, record["renderer"])
+    return cache_key(scene, bank, duration, width, height, record["renderer"], specs=specs)
 
 
 def check_frame(png: bytes, i: int, t: float, width: int, height: int) -> None:
@@ -127,12 +143,10 @@ def _tail(f, n: int = 2000) -> str:
     return f.read().decode("utf-8", errors="replace").strip()
 
 
-def _frames(page: Page, scene, bank, resolve: Resolve, n: int, fps: int, width: int,
-            height: int) -> Iterator[bytes]:
-    for i in range(n):
-        t = i / fps
-        png = page.render_state(resolve(scene, bank, t))
-        check_frame(png, i, t, width, height)
+def _frames(page: Page, specs: list[dict], fps: int, width: int, height: int) -> Iterator[bytes]:
+    for i, spec in enumerate(specs):
+        png = page.render_state(spec)
+        check_frame(png, i, i / fps, width, height)
         yield png
 
 
@@ -145,20 +159,18 @@ def render_clip(scene: ToonScene, bank: Toy3DBank, out_path: Path, duration: flo
     def cached(key: str | None) -> bool:
         return key is not None and out_path.exists() and stamp.exists() and stamp.read_text() == key
 
-    if cached(_record_key(scene, bank, duration, width, height)):
+    specs = frame_specs(scene, bank, duration, resolve)
+    if cached(_record_key(scene, bank, duration, width, height, specs)):
         return out_path
-    if resolve is None:
-        resolve = acting.resolve
     factory = page_factory or runtime.open_page
     fps = bank.style.fps
-    n = round(duration * fps)
     tmp = out_path.with_suffix(".part.mp4")
     with factory(width, height, "render") as page:
         page.init(runtime.bank_payload(bank), width, height, "render")
         info = page.info()
         runtime.check_renderer(info["renderer"])
         runtime.write_renderer_record(info)
-        key = cache_key(scene, bank, duration, width, height, info["renderer"], build=info["build"])
+        key = cache_key(scene, bank, duration, width, height, info["renderer"], build=info["build"], specs=specs)
         if cached(key):
             return out_path
         # Drop the stamp first: a crash between replacing the clip and writing the new stamp must
@@ -173,7 +185,7 @@ def render_clip(scene: ToonScene, bank: Toy3DBank, out_path: Path, duration: flo
                  "-f", "mp4", str(tmp)], stdin=subprocess.PIPE, stderr=err)
             assert proc.stdin is not None
             try:
-                for png in _frames(page, scene, bank, resolve, n, fps, width, height):
+                for png in _frames(page, specs, fps, width, height):
                     proc.stdin.write(png)
                 proc.stdin.close()
                 if proc.wait() != 0:

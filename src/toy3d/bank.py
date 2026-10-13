@@ -17,7 +17,7 @@ from typing import Annotated, Any, Literal
 import yaml
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from toon.catalog import TOY3D, Catalog
+from toon.catalog import TOY3D, Capabilities, Catalog
 from toon.scene import Ease
 
 Vec3 = tuple[float, float, float]
@@ -518,9 +518,32 @@ class Toy3DBank(_Strict):
     def expressions(self) -> dict[str, dict[str, Expression]]:
         return {c: f.expressions for c, f in self.expression_files.items()}
 
+    # -- the SceneCatalog protocol (toon.catalog): validation and rendering read this one object --
+
+    @property
+    def capabilities(self) -> Capabilities:
+        return TOY3D
+
+    @property
+    def icons(self) -> frozenset[str]:
+        return frozenset(self.bubble.icons)
+
+    def spots(self, set_name: str) -> frozenset[str]:
+        return frozenset(self.sets[set_name].spots)
+
+    def pose_class(self, character: str, pose: str) -> str | None:
+        p = self.poses.get(character, {}).get(pose)
+        return p.class_ if p is not None else None
+
+    def expressions_of(self, character: str) -> frozenset[str]:
+        return frozenset(self.expressions.get(character, {}))
+
+    def prop_kind(self, prop: str) -> str:
+        return self.props[prop].kind
+
     @property
     def catalog(self) -> Catalog:
-        """This bank's names and the toy3d engine's capabilities, for `toon.scene.load_scene`."""
+        """This bank's names and the toy3d engine's capabilities, as a plain Catalog."""
         return Catalog(
             capabilities=TOY3D,
             characters=frozenset(self.characters),
