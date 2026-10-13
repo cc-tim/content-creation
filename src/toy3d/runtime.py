@@ -114,9 +114,10 @@ def _first_line(exc: BaseException) -> str:
 class PlaywrightPage:
     """`Page` over a Playwright page. Every failure, a JS throw included, is a Toy3DRenderError."""
 
-    def __init__(self, page, errors: list[str]):
+    def __init__(self, page, errors: list[str], build: str):
         self._page = page
         self._errors = errors
+        self._build = build      # the page's user agent is reduced (Chrome/151.0.0.0); the browser knows
 
     def _call(self, what: str, expr: str, arg: Any = None) -> Any:
         try:
@@ -130,7 +131,11 @@ class PlaywrightPage:
                    [bank, {"width": width, "height": height, "mode": mode}])
 
     def info(self) -> dict[str, Any]:
-        return self._call("info", "() => window.toy3d.info()")
+        return {**self._call("info", "() => window.toy3d.info()"), "build": self._build}
+
+    def evaluate(self, expr: str, arg: Any = None) -> Any:
+        """Any page expression, failing like every call (for tests and doctor)."""
+        return self._call("evaluate", expr, arg)
 
     def apply_state(self, spec: dict[str, Any]) -> dict[str, Any]:
         return self._call("applyState", "(s) => window.toy3d.applyState(s)", spec)
@@ -183,8 +188,10 @@ def require_build(executable: Path) -> Path:
 
 
 @contextmanager
-def open_page(width: int, height: int, mode: str = "render") -> Iterator[Page]:
-    """The pinned browser with stage.html loaded at `width`×`height`, ready for `Page.init`."""
+def open_page(width: int, height: int, mode: str = "render", *,
+              init_script: str | None = None) -> Iterator[PlaywrightPage]:
+    """The pinned browser with stage.html loaded at `width`×`height`, ready for `Page.init`.
+    `init_script` runs in the page before stage.html does (tests)."""
     with sync_playwright() as pw:
         exe = require_build(Path(pw.chromium.executable_path))
         browser = pw.chromium.launch(executable_path=str(exe), args=launch_args())
@@ -197,9 +204,11 @@ def open_page(width: int, height: int, mode: str = "render") -> Iterator[Page]:
             page.set_default_timeout(CALL_TIMEOUT_MS)
             errors: list[str] = []
             page.on("pageerror", lambda exc: errors.append(f"page error: {_first_line(exc)}"))
+            if init_script:
+                page.add_init_script(init_script)
             page.route(f"{ORIGIN}/**", _serve(errors))
             page.goto(f"{ORIGIN}/stage.html")
             wait_ready(page, errors)
-            yield PlaywrightPage(page, errors)
+            yield PlaywrightPage(page, errors, browser.version)
         finally:
             browser.close()

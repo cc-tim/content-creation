@@ -125,7 +125,7 @@ def test_page_error_reaches_the_render_error():
     stub = _StubPage([PlaywrightError(
         "Page.evaluate: Error: toy3d init: palette.fur.base: not a colour 'nope'\n    at init (engine/core.js:12:9)")])
     with pytest.raises(Toy3DRenderError) as e:
-        PlaywrightPage(stub, []).init({"style": {}}, 64, 36, "render")
+        PlaywrightPage(stub, [], build="x").init({"style": {}}, 64, 36, "render")
     assert str(e.value) == "toy3d page: init failed: toy3d init: palette.fur.base: not a colour 'nope'"
 
 
@@ -161,9 +161,9 @@ def test_render_state_decodes_the_png_data_url():
 
     png = b"\x89PNG\r\n\x1a\nfake"
     url = "data:image/png;base64," + base64.b64encode(png).decode()
-    assert PlaywrightPage(_StubPage([url]), []).render_state({"frame": 0}) == png
+    assert PlaywrightPage(_StubPage([url]), [], build="x").render_state({"frame": 0}) == png
     with pytest.raises(Toy3DRenderError, match="not a PNG data URL"):
-        PlaywrightPage(_StubPage(["data:image/jpeg;base64,AAAA"]), []).render_state({"frame": 0})
+        PlaywrightPage(_StubPage(["data:image/jpeg;base64,AAAA"]), [], build="x").render_state({"frame": 0})
 
 
 def test_info_names_the_browser_build_the_page_cannot_see():
