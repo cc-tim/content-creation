@@ -45,11 +45,9 @@ def run_preflight(
     allow_fallback_voice: bool = False,
 ) -> None:
     """Validate all local inputs before any API call. Raises PreflightError."""
-    # The audio-side marker survives a TTS run whose context.json was never saved.
-    fallback_voices = {
-        **read_fallback_marker(ctx.work_dir / "audio"),
-        **ctx.tts_fallback_voices,
-    }
+    # The marker next to the audio is the single source of truth: it is written with the
+    # audio it describes, while ctx.tts_fallback_voices (informational) can go stale.
+    fallback_voices = read_fallback_marker(ctx.work_dir / "audio")
     if fallback_voices:
         if not allow_fallback_voice:
             raise PreflightError(
