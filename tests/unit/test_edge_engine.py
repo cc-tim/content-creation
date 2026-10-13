@@ -131,11 +131,12 @@ def test_edge_engine_retries_rate_limited_handshakes(tmp_path, monkeypatch):
     assert sleeps == [1.0, 2.0]
 
 
-@pytest.mark.parametrize("status", [401, 403])
+@pytest.mark.parametrize("status", [401, 403, 404, 410])
 def test_edge_engine_reports_a_refused_request_as_unavailable_at_once(
     tmp_path, monkeypatch, status
 ):
-    """401/403 is the endpoint refusing us: no retry, and a fallback voice may take over."""
+    """401/403 refuse us and 404/410 mean the endpoint moved (as the 403 that started this
+    outage did): no retry, and a fallback voice may take over."""
     import aiohttp
 
     from pipeline.voices.base import VoiceEngineUnavailable
@@ -174,8 +175,11 @@ def _server_disconnected():
         _connector_error,
         _server_disconnected,
         lambda: TimeoutError(),
+        lambda: __import__("aiohttp").ClientOSError(54, "Connection reset by peer"),
+        lambda: __import__("aiohttp").ClientConnectionResetError("Cannot write to closing transport"),
+        lambda: __import__("edge_tts.exceptions").exceptions.WebSocketError("closed mid-stream"),
     ],
-    ids=["500", "502", "connector", "disconnected", "timeout"],
+    ids=["500", "502", "connector", "disconnected", "timeout", "os-error", "reset", "websocket"],
 )
 def test_edge_engine_retries_transient_failures(tmp_path, monkeypatch, make_error):
     calls = _scripted_run(monkeypatch, [make_error(), None])
@@ -212,12 +216,12 @@ def test_edge_engine_reports_unavailable_after_its_retry_budget(
     "make_error",
     [
         lambda: __import__("edge_tts.exceptions").exceptions.NoAudioReceived("No audio"),
-        lambda: _handshake_error(404),
+        lambda: _handshake_error(400),
     ],
-    ids=["no-audio", "404"],
+    ids=["no-audio", "400"],
 )
 def test_edge_engine_lets_other_failures_propagate_unretried(tmp_path, monkeypatch, make_error):
-    """NoAudioReceived is about this text; a 404 is not a classified outage."""
+    """NoAudioReceived is about this text; a 400 is not a classified outage."""
     from pipeline.voices.base import VoiceEngineUnavailable
 
     err = make_error()
@@ -317,3 +321,26 @@ def test_edge_engine_override_does_not_need_the_constants_url(tmp_path, monkeypa
     EdgeEngine().synthesize("一", tmp_path / "a.mp3", _HSIAOCHEN)
 
     assert edge_tts.communicate.WSS_URL.startswith("wss://api.msedgeservices.com/")
+
+
+def test_edge_engine_reports_a_broken_proxy_as_config_not_outage(tmp_path, monkeypatch):
+    """A bad HTTPS_PROXY must not silently swap the narrator for the fallback voice."""
+    from types import SimpleNamespace
+
+    import aiohttp
+
+    from pipeline.voices.base import VoiceEngineUnavailable
+
+    proxy = SimpleNamespace(host="proxy.local", port=3128, ssl=True)
+    err = aiohttp.ClientProxyConnectionError(proxy, OSError(61, "Connection refused"))
+    calls = _scripted_run(monkeypatch, [err, None])
+    sleeps: list[float] = []
+
+    with pytest.raises(RuntimeError) as excinfo:
+        EdgeEngine(sleep=sleeps.append).synthesize("你好", tmp_path / "n.mp3", _HSIAOCHEN)
+
+    assert not isinstance(excinfo.value, VoiceEngineUnavailable)
+    assert "proxy.local:3128" in str(excinfo.value)
+    assert "HTTPS_PROXY" in str(excinfo.value)
+    assert len(calls) == 1
+    assert sleeps == []
