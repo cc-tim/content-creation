@@ -1020,15 +1020,17 @@ def test_workers_use_the_callers_bank(tmp_path):
     shutil.copytree(default_root(), root)
     bank = load_bank(root)
     cams = root / "cameras.yaml"
-    cams.write_text(cams.read_text().replace("focal: 3050", "focal: 1500", 1))  # two_shot: SCENE's shot 0
-    assert load_bank(root).cameras["two_shot"].focal == 1500
+    # two_shot (SCENE's shot 0) holds its azimuth all shot (its punch only moves the focal)
+    cams.write_text(cams.read_text().replace("az: -14,", "az: 30,", 1))
+    assert load_bank(root).cameras["two_shot"].az == 30
     times = [0.5, 1.4]
     parallel = list(R.render_frames(SCENE, bank, times, 320, 180, workers=2))
     assert parallel == [R.frame(SCENE, bank, t, 320, 180).tobytes() for t in times]
 ```
 
 - [ ] **Step 2: Verify red** (`assert [b'...'] == [b'...']`: the workers drew the edited
-  focal). Commit `test(toon): red — render workers reload the bank from disk (S11-11)`.
+  azimuth). Executed note: a first draft edited two_shot's `focal`, which passed on unfixed code
+  because the preset's punch drives the focal to 3200 by t = 0.25 s; the azimuth holds all shot. Commit `test(toon): red — render workers reload the bank from disk (S11-11)`.
 - [ ] **Step 3: Implement** — `_init_worker(scene_json, bank_json, width, height)` builds
   `Bank.model_validate_json(bank_json)`; `render_frames` passes `bank.model_dump_json()`; drop the
   now-unused `load_bank` import.
@@ -1070,5 +1072,5 @@ task's red step (a commit can't record its own SHA).
 | S11-12 | `test_scene.py::test_shot_sentence_anchor_follows_the_narration` | 6 | `shots.1.at: Input should be a valid number` | `SceneError: assets/toon/scenes/001-lioness-dishes.yaml: shots.1.at: Input should be a valid number; … shots.2.at …; … shots.3.at …` | `457a608` | `0403f1f` |
 | S11-13 | `test_scene.py::test_shot_anchors_resolving_out_of_order_fail_loudly` | 6 | `shots.2.at: Input should be a valid number` | `SceneError: shots.1.at: Input should be a valid number; shots.2.at: …` (the first case; a shot can't take an anchor at all) | `457a608` | `0403f1f` |
 | S11-14 | `test_composer_toon.py::test_validator_warns_when_seconds_timed_shots_drift_from_narration` | 7 | `ValueError: not enough values to unpack` | `ValueError: not enough values to unpack (expected 1, got 0)` (no drift warning at 16.2 s) | `78d55be` | `67d0f7b` |
-| S11-9 | `test_cli.py::test_validate_with_narration_prints_the_sentence_table` + `::test_validate_anchored_scene_without_narration_names_the_flag` | 8 | exit 2 `No such option: --narration`; flag not named | exit 2 `No such option: --narration`; without it exit 1 but the ERROR lines only say `sentence anchors need the scene's narration and duration` (no `--narration`) | `c0d2dbc` | |
-| S11-11 | `test_render.py::test_workers_use_the_callers_bank` | 9 | frames differ (workers drew the edited focal) | | | |
+| S11-9 | `test_cli.py::test_validate_with_narration_prints_the_sentence_table` + `::test_validate_anchored_scene_without_narration_names_the_flag` | 8 | exit 2 `No such option: --narration`; flag not named | exit 2 `No such option: --narration`; without it exit 1 but the ERROR lines only say `sentence anchors need the scene's narration and duration` (no `--narration`) | `c0d2dbc` | `ba122e6` |
+| S11-11 | `test_render.py::test_workers_use_the_callers_bank` | 9 | frames differ (workers drew the edited focal) | `AssertionError: assert [b'\xe7\xee…'] == [b'\xe7\xee…']`, index 0 differs (workers drew the on-disk az: 30). The first draft (focal edit) passed unfixed: the punch masks it; replaced before commit | | |

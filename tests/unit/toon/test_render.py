@@ -68,6 +68,21 @@ def test_parallel_equals_serial():
     assert serial == parallel
 
 
+def test_workers_use_the_callers_bank(tmp_path):
+    # Sprint 11 (spec §11.2 e): frames must come from the bank the caller validated (and keyed
+    # the cache on), not from whatever is on disk by the time a worker starts.
+    root = tmp_path / "bank"
+    shutil.copytree(default_root(), root)
+    bank = load_bank(root)
+    cams = root / "cameras.yaml"
+    # two_shot (SCENE's shot 0) holds its azimuth all shot (its punch only moves the focal)
+    cams.write_text(cams.read_text().replace("az: -14,", "az: 30,", 1))
+    assert load_bank(root).cameras["two_shot"].az == 30
+    times = [0.5, 1.4]
+    parallel = list(R.render_frames(SCENE, bank, times, 320, 180, workers=2))
+    assert parallel == [R.frame(SCENE, bank, t, 320, 180).tobytes() for t in times]
+
+
 def test_cache_key_changes_when_a_bank_file_changes(tmp_path):
     root = tmp_path / "bank"
     shutil.copytree(default_root(), root)
