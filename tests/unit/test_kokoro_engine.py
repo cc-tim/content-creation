@@ -130,3 +130,25 @@ def test_kokoro_engine_voices_the_zero_numeral(tmp_path):
     engine.synthesize("二〇二四年", tmp_path / "a.mp3", _profile(sid=3))
 
     assert fake.calls[0][0] == "二零二四年"
+
+
+def _integrated_lufs(path: Path) -> float:
+    import re
+
+    out = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-af", "ebur128", "-f", "null", "-"],
+        capture_output=True, text=True, check=True,
+    )
+    return float(re.findall(r"I:\s+(-?[\d.]+) LUFS", out.stderr)[-1])
+
+
+@pytest.mark.parametrize("seconds", [1.5, 6.0])
+def test_kokoro_engine_output_matches_edge_loudness(tmp_path, seconds):
+    """Kokoro came out ~6 LU under edge (-19 LUFS), below the music bed's sidechain threshold."""
+    quiet = [0.1 * x for x in _tone(seconds)]  # ~-30 LUFS
+    engine = KokoroEngine(model_dir=tmp_path, tts_factory=lambda _dir: _FakeTts(quiet))
+    out = tmp_path / "a.mp3"
+
+    engine.synthesize("你好。", out, _profile(sid=3))
+
+    assert _integrated_lufs(out) == pytest.approx(-19.0, abs=1.5)
