@@ -84,3 +84,26 @@ def test_every_toy3d_capability_is_rendered(state_page, bank, entry):
     a = state_page.apply_state(_spec(_probe_scene(bank, base, {}), bank, t))
     b = state_page.apply_state(_spec(_probe_scene(bank, variant, patch), bank, t))
     assert a != b, f"{entry}: the page applied the same world"
+
+
+def test_no_state_leaks_between_frames(state_page, worked, bank):
+    """Review finding: every frame is a pure function of its spec, whatever the page drew before;
+    the seat Tim turned and pushed must come back when a later shot doesn't place him."""
+    from toon.scene import load_scene
+
+    shot1 = {"at": 0.0, "set": "office", "camera": "beat2",
+             "place": {"tim": {"spot": "desk_seat", "pose": "typing", "expr": "neutral"}},
+             "beats": [{"at": 0.2, "pose": "tim", "to": "turned", "over": 0.3},
+                       {"at": 0.2, "pose": "tim", "to": "pushed", "over": 0.3}]}
+    shot2 = {"at": 2.0, "set": "office", "camera": "beat2",
+             "place": {"lioness": {"spot": "doorway_in", "pose": "stand", "expr": "stern"}}}
+    two = load_scene({"id": "two", "engine": "toy3d", "duration": 4.0,
+                      "cast": {"tim": "tim", "lioness": "lioness"}, "shots": [shot1, shot2]}, bank.catalog)
+    after_nothing = state_page.apply_state(_spec(two, bank, 3.0))
+    state_page.apply_state(_spec(two, bank, 1.0))                     # the chair turned and pushed
+    assert state_page.apply_state(_spec(two, bank, 3.0)) == after_nothing
+    for t in (0.6, 4.0, 2.4, 7.0):                                    # the worked scene, out of order
+        state_page.apply_state(_spec(worked, bank, 5.3))
+        once = state_page.apply_state(_spec(worked, bank, t))
+        state_page.apply_state(_spec(worked, bank, 0.0))
+        assert state_page.apply_state(_spec(worked, bank, t)) == once, t

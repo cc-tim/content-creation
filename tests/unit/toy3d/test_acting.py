@@ -331,3 +331,15 @@ def test_the_laptop_stops_filling_when_the_typist_stops(bank):
     laptop = bank.sets["office"].laptop
     assert resolve(sc, bank, 0.5)["laptop"]["lines"] == laptop.lines + math.floor(0.5 * laptop.rate)
     assert resolve(sc, bank, 3.0)["laptop"]["lines"] == laptop.lines + math.floor(1.0 * laptop.rate)
+
+
+def test_an_expression_beat_during_a_blend_switches_the_face_when_it_starts(bank):
+    """Review finding: an authored `expr` equal to the one the fold inherits (the shock pose still
+    blending) must still switch the face; only an un-authored beat leaves it alone."""
+    from toy3d.acting import resolve
+
+    sc = _scene(bank, [{"at": 1.0, "pose": "tim", "to": "shock", "expr": "shock", "over": 0.5},
+                       {"at": 1.2, "pose": "tim", "expr": "neutral"},
+                       {"at": 2.0, "pose": "tim", "to": "turned", "over": 0.3}])
+    faces = {t: resolve(sc, bank, t)["actors"]["tim"]["face"] for t in (1.1, 1.25, 1.49, 2.1, 2.5)}
+    assert faces == {1.1: "tim_shock", 1.25: "tim_neutral", 1.49: "tim_neutral", 2.1: "tim_neutral", 2.5: "tim_neutral"}
