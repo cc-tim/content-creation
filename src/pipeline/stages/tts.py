@@ -305,11 +305,16 @@ class TtsStage(PipelineStage):
             )
             sb_for_persist.save(ctx.storyboard_path)
 
-        logger.info("tts.complete", segments=len(segments), path=str(narration_path))
+        ctx.tts_fallback_voices = registry.fallbacks_used()
+        _log_complete(
+            "tts.complete", ctx.tts_fallback_voices,
+            segments=len(segments), path=str(narration_path), voice=profile.id,
+        )
 
         # --- Secondary (MLA) pass ---
         if ctx.secondary_locale:
             ctx = await self._run_secondary_tts(ctx, registry, audio_dir, scene_pauses_ms)
+            ctx.tts_fallback_voices = registry.fallbacks_used()
 
         return ctx
 
@@ -376,12 +381,22 @@ class TtsStage(PipelineStage):
             tolerance_ms_override=ctx.mla_drift_tolerance_ms,
         )
 
-        logger.info(
-            "tts.secondary.complete",
-            locale=ctx.secondary_locale,
-            path=str(sec_narration_path),
+        _log_complete(
+            "tts.secondary.complete", registry.fallbacks_used(),
+            locale=ctx.secondary_locale, path=str(sec_narration_path), voice=sec_profile.id,
         )
         return ctx
+
+
+def _log_complete(event: str, fallback_voices: dict[str, str], **fields: Any) -> None:
+    """TTS summary line; a warning naming the fallback voices when any voice switched."""
+    if fallback_voices:
+        logger.warning(
+            event, **fields, fallback_voices=fallback_voices,
+            note="Narrated by FALLBACK voice(s): listen before publishing.",
+        )
+    else:
+        logger.info(event, **fields)
 
 
 def _visual_width(text: str) -> int:
