@@ -136,13 +136,21 @@ def test_a_longer_narration_lets_a_sentence_anchor_land_past_the_authored_end():
     ("El Sr. Pérez llegó. Luego se fue.", ["El Sr. Pérez llegó.", "Luego se fue."]),
     ("Neither did I. We left.", ["Neither did I.", "We left."]),          # "I" is not an initial
     ("We left. Then we moved to the U.S.", ["We left.", "Then we moved to the U.S."]),
+    # es-419 (code review R1 I1): accented words are whole words, not one-letter abbreviations
+    ("Fue un buen día. Luego se fue.", ["Fue un buen día.", "Luego se fue."]),
+    ("Llegó el camión. Todos salieron.", ["Llegó el camión.", "Todos salieron."]),
+    ("Era un niño. Ahora no.", ["Era un niño.", "Ahora no."]),
+    ("Vive en EE. UU. desde 2010. Le gusta.", ["Vive en EE. UU. desde 2010.", "Le gusta."]),
+    ("La Dra. Ruiz y Ud. lo saben. Bien.", ["La Dra. Ruiz y Ud. lo saben.", "Bien."]),
+    ("«Me voy.» Luego se fue.", ["«Me voy.»", "Luego se fue."]),
+    ("他在U.S.工作。很好。", ["他在U.S.工作。", "很好。"]),
 ])
 def test_sentences_count_real_breaks_only(narration, sentences):
     from toon.scene import split_sentences
 
     assert split_sentences(narration) == sentences
     assert len(sentence_starts(narration, 10.0)) == len(sentences)
-    closers = "」』”’）)]】》〉\"'"
+    closers = "」』”’）)]】》〉»›\"'"
     assert not [s for s in split_sentences(narration) if s[0] in closers]
 
 

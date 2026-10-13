@@ -1125,3 +1125,9 @@ S11-17 changes behaviour, so it lands red first.
 | R3 (S11-14) | `test_composer_toon.py::test_validator_warns_when_seconds_timed_shots_drift_from_narration` (+13.4/12.6 none, 13.6/12.4 warn) | M17b (`DRIFT_TOLERANCE = 3.0`): `AssertionError: assert (0 == 1)` at 13.6 s | n/a (pin) | `02658a3` |
 | R4 → S11-17 | `test_scene.py::test_over_values_mean_what_they_render` | `DID NOT RAISE`: door/show/prop with a negative `over` and a `blink` with `over: 0` all load; a show with `over: 0` has k = 0.0 at its start and 0.2 at +50 ms (a 0.25 s pop) | `73c1f0b` | `9bebb74` |
 | M18 (optional) | `test_composer_toon.py::test_render_scene_logs_drift_for_seconds_timed_shots` | M18 (drift log line removed): `ValueError: not enough values to unpack (expected 1, got 0)` | n/a (pin) | `991dcff` |
+
+### R1: separate code review (fresh reviewer, `d1d4ca2..2feed6e`): 0 Critical, 2 Important, 9 Minor
+
+| Item | Test | Observed red | Red commit | Fix commit |
+|------|------|--------------|------------|------------|
+| I1 es-419 splitter | `test_scene.py::test_sentences_count_real_breaks_only` (+7 es-419 / CJK cases) | 6 of 7 red: `['Fue un buen día. Luego se fue.']` (1 sentence), `['Vive en EE.', 'UU.', 'desde 2010.', 'Le gusta.']`, `['«Me voy.', '» Luego se fue.']`; `他在U.S.工作。` green (pins that CJK isn't joined) | | |
