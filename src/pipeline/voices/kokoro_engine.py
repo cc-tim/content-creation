@@ -1,19 +1,31 @@
 from __future__ import annotations
 
 import subprocess
+import unicodedata
 from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+import structlog
 
 from pipeline.voices.base import VoiceEngine, VoiceProfile
 
+logger = structlog.get_logger()
+
 _INSTALL_HINT = "run scripts/install_kokoro_tts.sh (downloads ~350 MB, one time per machine)"
 
-# Characters the zh frontend drops but that have a plain reading.
-_READING_FIXES = str.maketrans({"〇": "零"})
+# Characters the zh frontend drops (〇, fullwidth digits) or spells out by Unicode name
+# (fullwidth letters) but that have a plain reading.
+_READING_FIXES = str.maketrans(
+    {
+        "〇": "零",
+        **{chr(c): chr(c - 0xFEE0) for c in range(0xFF10, 0xFF1A)},  # ０-９
+        **{chr(c): chr(c - 0xFEE0) for c in range(0xFF21, 0xFF3B)},  # Ａ-Ｚ
+        **{chr(c): chr(c - 0xFEE0) for c in range(0xFF41, 0xFF5B)},  # ａ-ｚ
+    }
+)
 
 
 @lru_cache(maxsize=1)
@@ -31,6 +43,34 @@ def _prepare_text(text: str) -> str:
     Taiwan vocabulary (影片, 軟體) is still what gets said. Subtitles keep the original text.
     """
     return _taiwan_to_simplified().convert(text.translate(_READING_FIXES))
+
+
+@lru_cache(maxsize=2)
+def _lexicon_chars(lexicon: Path) -> frozenset[str] | None:
+    """Single characters the zh lexicon can voice; None when there is no lexicon to read."""
+    if not lexicon.is_file():
+        return None
+    with lexicon.open(encoding="utf-8") as f:
+        words = (line.split(maxsplit=1)[0] for line in f if line.strip())
+        return frozenset(word for word in words if len(word) == 1)
+
+
+def _unvoiced_chars(text: str, zh_chars: frozenset[str] | None) -> list[str]:
+    """Characters the frontend will drop or misread, in order of first appearance.
+
+    ASCII goes through the English lexicon / espeak, punctuation and spaces become pauses,
+    and CJK characters are voiced when the zh lexicon has them. Anything else (emoji,
+    symbols, other scripts) is dropped or read out by its English Unicode name.
+    """
+    found: list[str] = []
+    for ch in dict.fromkeys(text):
+        if ch.isascii() or unicodedata.category(ch)[0] in "PZ":
+            continue
+        is_cjk = unicodedata.name(ch, "").startswith("CJK UNIFIED IDEOGRAPH")
+        if is_cjk and (zh_chars is None or ch in zh_chars):
+            continue
+        found.append(ch)
+    return found
 
 
 @lru_cache(maxsize=2)
@@ -136,7 +176,6 @@ class KokoroEngine(VoiceEngine):
         profile: VoiceProfile,
         scene_id: str | None = None,
     ) -> Path:
-        _ = scene_id  # unused: kokoro voices are scene-agnostic
         sid = profile.params.get("sid")
         if sid is None:
             raise ValueError(f"kokoro voice profile {profile.id} is missing params.sid")
@@ -144,7 +183,15 @@ class KokoroEngine(VoiceEngine):
 
         if self._tts is None:
             self._tts = self._tts_factory(self._model_dir)
-        audio = self._tts.generate(_prepare_text(text), sid=int(sid), speed=speed)
+        prepared = _prepare_text(text)
+        unvoiced = _unvoiced_chars(prepared, _lexicon_chars(self._model_dir / "lexicon-zh.txt"))
+        if unvoiced:
+            logger.warning(
+                "tts.kokoro.unvoiced_chars", voice=profile.id, scene_id=scene_id,
+                chars=unvoiced, text=text[:60],
+                note="Kokoro drops or misreads these; reword the narration to avoid them.",
+            )
+        audio = self._tts.generate(prepared, sid=int(sid), speed=speed)
         if len(audio.samples) == 0:
             raise RuntimeError(f"kokoro returned no audio for {profile.id}: {text[:40]!r}")
 
