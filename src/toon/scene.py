@@ -451,8 +451,12 @@ def _check_graphics(shot: Shot, w: str) -> list[str]:
             elif b.hide in gone:
                 p.append(f"{bw}.hide: {b.hide!r} is already hidden by {w}.beats[{gone[b.hide]}]")
             elif b.hide in shows.values():
-                first = min(float(shot.beats[k].at) for k, key in shows.items() if key == b.hide)
-                p.append(f"{bw}.hide: {b.hide!r} was shown at {first:g}s, after this hide at {float(b.at):g}s")
+                first, k = min((float(shot.beats[k].at), k) for k, key in shows.items() if key == b.hide)
+                if first == float(b.at):  # same time: the timeline plays beats as listed
+                    p.append(f"{bw}.hide: {b.hide!r} is shown at {first:g}s by {w}.beats[{k}], listed after "
+                             f"this hide at the same time; list the hide after it")
+                else:
+                    p.append(f"{bw}.hide: {b.hide!r} was shown at {first:g}s, after this hide at {float(b.at):g}s")
             else:
                 p.append(f"{bw}.hide: {b.hide!r} does not match a graphic shown earlier in this shot "
                          f"(shown: {sorted(set(shows.values()))})")
