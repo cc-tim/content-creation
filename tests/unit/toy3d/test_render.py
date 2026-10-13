@@ -19,6 +19,14 @@ HUB_GLES = "ANGLE (NVIDIA Corporation, NVIDIA GeForce GTX 1050/PCIe/SSE2, OpenGL
 W, H = 64, 36
 
 
+@pytest.fixture(autouse=True)
+def _on_the_mac(monkeypatch):
+    """The fake page reports the Mac's Metal renderer; the allow-list judges it as the Mac would."""
+    from toy3d import runtime
+
+    monkeypatch.setattr(runtime, "PLATFORM", "darwin")
+
+
 @pytest.fixture(scope="module")
 def bank():
     from toy3d.bank import load_bank
@@ -140,7 +148,9 @@ def test_a_dying_encode_leaves_no_file_and_no_stamp(scene, bank, tmp_path, monke
 
     dies = tmp_path / "bin" / "ffmpeg"
     dies.parent.mkdir()
-    dies.write_text("#!/bin/sh\nhead -c 64 > /dev/null\necho 'muxer died' >&2\nexit 1\n")
+    # Like a real ffmpeg killed mid-encode: a half-written output file, then a non-zero exit.
+    dies.write_text("#!/bin/sh\nfor a; do last=$a; done\nhead -c 64 > \"$last\"\n"
+                    "echo 'muxer died' >&2\nexit 1\n")
     dies.chmod(dies.stat().st_mode | stat.S_IEXEC)
     monkeypatch.setattr(render, "FFMPEG", str(dies))
     out = tmp_path / "out" / "s.mp4"
@@ -179,12 +189,14 @@ def test_cache_hit_launches_no_browser(scene, bank, tmp_path):
 
 def test_a_different_machine_renderer_misses_the_cache(scene, bank, tmp_path, monkeypatch):
     """Review Focus 5: a clip rendered on the Mac (Metal) is never served as cached on the hub."""
+    from toy3d import runtime
     from toy3d.runtime import renderer_record_path
 
     out = _render(scene, bank, tmp_path / "s.mp4", 0.5)
     record = json.loads(renderer_record_path().read_text())
     assert record["renderer"] == METAL
-    renderer_record_path().write_text(json.dumps({**record, "renderer": HUB_GLES}))   # the hub's record
+    monkeypatch.setattr(runtime, "PLATFORM", "linux")                                    # on the hub
+    renderer_record_path().write_text(json.dumps({**record, "renderer": HUB_GLES}))   # its record
     hub = Factory({"renderer": HUB_GLES})
     _render(scene, bank, out, 0.5, hub)
     assert hub.launches == 1
@@ -254,3 +266,14 @@ def test_acting_sources_cover_toy3d_and_the_toon_modules_it_imports():
     for name in ("scene.py", "catalog.py", "__init__.py"):
         assert toon_dir / name in src
     assert toon_dir / "render.py" not in src                          # the 2.5D drawing never re-keys a toy3d clip
+
+
+def test_import_closure_follows_submodule_imports(tmp_path):
+    import toon
+    from toy3d.render import import_closure
+
+    f = tmp_path / "m.py"
+    f.write_text("from toon.engine import mathx\n")
+    toon_dir = Path(toon.__file__).parent
+    assert set(import_closure([f])) >= {f, toon_dir / "__init__.py", toon_dir / "engine" / "__init__.py",
+                                         toon_dir / "engine" / "mathx.py"}

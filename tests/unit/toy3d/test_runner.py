@@ -122,10 +122,11 @@ class _StubPage:
 def test_page_error_reaches_the_render_error():
     from toy3d.runtime import PlaywrightPage, Toy3DRenderError
 
-    stub = _StubPage([PlaywrightError("Error: toy3d init: palette.fur.base: not a colour 'nope'\n    at init")])
+    stub = _StubPage([PlaywrightError(
+        "Page.evaluate: Error: toy3d init: palette.fur.base: not a colour 'nope'\n    at init (engine/core.js:12:9)")])
     with pytest.raises(Toy3DRenderError) as e:
         PlaywrightPage(stub, []).init({"style": {}}, 64, 36, "render")
-    assert "init" in str(e.value) and "palette.fur.base: not a colour 'nope'" in str(e.value)
+    assert str(e.value) == "toy3d page: init failed: toy3d init: palette.fur.base: not a colour 'nope'"
 
 
 def test_a_page_that_fails_to_load_is_reported_at_once_not_after_the_timeout():
@@ -139,6 +140,8 @@ def test_a_page_that_fails_to_load_is_reported_at_once_not_after_the_timeout():
         original(ms)
         if stub.waits == 2:
             errors.append("404 http://toy3d.local/engine/world.js")
+        if stub.waits > 5:
+            raise AssertionError("still waiting after the page reported an error")
     stub.wait_for_timeout = tick
     with pytest.raises(Toy3DRenderError) as e:
         wait_ready(stub, errors, timeout=600.0)

@@ -411,9 +411,27 @@ report to the lead.
 | S12-22 | `test_symbolic_timeline.py` (inout, since) + conformance (inout on both engines) | 1 | literal error; no `since` | `KeyError: 'inout'` (EASES); `shots.0.beats.0.ease: Input should be 'linear', 'smooth', 'out' or 'back'` on both engines; `ImportError: cannot import name 'DoorAt'` | `61426df` | `de1fddc` |
 | S12-6/20/23a, S12-5 A2 | `tests/unit/toy3d/test_bank.py`, conformance with the real catalog | 2 | `ModuleNotFoundError: toy3d` | 9 × `ModuleNotFoundError: No module named 'toy3d'`; 2 × `SceneError: engine: toy3d has no bank yet`; the conformance suite errors at collection on the same | `c4af74a` | `ca14f7f` |
 | S12-7s/10s | `test_engine_source_fences.py` | 3 | files missing | `FileNotFoundError` on `vendor/three-0.170.0/SHA256SUMS` and `stage.html`; `AssertionError: no engine modules` (×2) | `5e00b45` | `1216373` |
-| S12-8/9/13/14u | `test_runner.py`, `test_render.py` | 4 | `ModuleNotFoundError: toy3d.runtime` | 20 × `ModuleNotFoundError: No module named 'toy3d.runtime'`, 5 × `… 'toy3d.render'`, 4 × `ImportError: cannot import name 'runtime'/'render' from 'toy3d'` (29 failed) | (this commit) | |
+| S12-8/9/13/14u | `test_runner.py`, `test_render.py` | 4 | `ModuleNotFoundError: toy3d.runtime` | 20 × `ModuleNotFoundError: No module named 'toy3d.runtime'`, 5 × `… 'toy3d.render'`, 4 × `ImportError: cannot import name 'runtime'/'render' from 'toy3d'` (29 failed) | `57ccfe8` | (this commit) |
 | S12-11A/23p | `test_acting.py`, `test_state_symbolic.py` | 5 | `ModuleNotFoundError: toy3d.acting` | | | |
 | S12-7r/11B/23j | `test_state_goldens.py`, `test_style_wiring.py` | 6 | page stubs | | | |
 | S12-18 | `test_parity_tryout.py` | 7 | scene file missing | | | |
 | S12-12 | `test_goldens.py`, `test_golden_policy.py` | 8 | helper missing | | | |
 | S12-14…17 | composer/CLI/doctor/render/cadence | 9 | no toy3d dispatch | | | |
+
+### Mutation evidence
+
+Each guard below was removed (one at a time, `scratchpad/mutate.py`) and its pinning test went red.
+
+| Task | Guard removed | Pinning test | Result |
+|------|---------------|--------------|--------|
+| 4 | the uniform-frame check | `test_uniform_frame_fails_loud` | red |
+| 4 | the renderer, or the web sources, in the cache key | `test_cache_key_covers_every_input` | red (both) |
+| 4 | the stamp drop before rendering | `test_a_dying_page_leaves_no_file_and_no_stamp` | red |
+| 4 | the `.part.mp4` cleanup | `test_a_dying_encode_leaves_no_file_and_no_stamp` | red (after the fake ffmpeg was made to leave a half-written file; it was green before) |
+| 4 | `check_renderer` in the runner | `test_a_disallowed_backend_renders_nothing` | red |
+| 4 | the record-keyed cache check, or the record write | `test_cache_hit_launches_no_browser` | red (both) |
+| 4 | the build-present check; the build-version check | `test_missing_build_…`; `test_a_different_browser_build_is_refused` | red (both) |
+| 4 | the Vulkan/SwiftShader/llvmpipe refusal | `test_backend_allow_list_refuses_…` | red |
+| 4 | the early page-error exit in `wait_ready` | `test_a_page_that_fails_to_load_is_reported_at_once_…` | red (was a 600 s timeout; the stub now fails fast) |
+| 4 | submodule and enclosing-package imports in `import_closure` | `test_import_closure_follows_submodule_imports` | red (both; was green before that test) |
+| 4 | `exclude={"root"}` in the key | `test_the_bank_root_is_not_in_the_key` | red |
