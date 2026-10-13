@@ -171,3 +171,16 @@ def test_registry_rejects_cosyvoice_engine(tmp_path):
     registry = VoiceRegistry(tmp_path)
     with pytest.raises(VoiceNotFound, match="unknown engine 'cosyvoice'"):
         registry.resolve("gone")
+
+
+def test_registry_resolves_kokoro_engine(tmp_path):
+    from pipeline.voices.kokoro_engine import KokoroEngine
+
+    (tmp_path / "registry.json").write_text(
+        '{"voices": [{"id": "zh-TW-kokoro-f", "engine": "kokoro", '
+        '"locale": "zh-TW", "params": {"sid": 3}}]}',
+        encoding="utf-8",
+    )
+    engine, profile = VoiceRegistry(tmp_path).resolve("zh-TW-kokoro-f")
+    assert isinstance(engine, KokoroEngine)
+    assert profile.params["sid"] == 3
