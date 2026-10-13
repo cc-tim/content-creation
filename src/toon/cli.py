@@ -15,13 +15,16 @@ _REPO = Path(__file__).resolve().parents[2]
 def _load(scene: str, narration: str | None, duration: float | None):
     """Bank + validated scene, or ERROR lines and exit 1 — never a traceback."""
     from toon.bank import load_bank
-    from toon.scene import NeedsNarration, load_scene, read_scene
+    from toon.scene import NeedsNarration, SceneError, load_scene, read_scene
 
     try:
         bank = load_bank()
         return bank, load_scene(read_scene(scene), bank, narration=narration, duration=duration)
     except (ValueError, yaml.YAMLError) as exc:  # SceneError and BankError are ValueErrors
-        for line in str(exc).split("; "):
+        # A problem's own text may hold "; ", so a SceneError prints its problems one by one.
+        lines = ([f"{exc.source}: {p}" if exc.source else p for p in exc.problems]
+                 if isinstance(exc, SceneError) else str(exc).split("; "))
+        for line in lines:
             typer.echo(f"ERROR  {line}")
         if isinstance(exc, NeedsNarration):
             typer.echo("ERROR  this scene is anchored to sentences: pass --narration TEXT "
@@ -46,7 +49,10 @@ def validate(scene: str = typer.Argument(..., help="scene id or path to a scene 
 
     _, s = _load(scene, narration, duration)
     typer.echo(f"ok  {s.id}: {len(s.shots)} shots, {sum(len(sh.beats) for sh in s.shots)} beats")
-    if narration and s.duration is not None:
+    if narration and s.duration is None:
+        typer.echo("WARN  the scene has no duration: pass --duration SEC (the narration's length) "
+                   "to time its sentences and shots")
+    elif narration:
         typer.echo(f"sentences (narration {s.duration:.2f} s):")
         for n, (t, text) in enumerate(zip(sentence_starts(narration, s.duration), split_sentences(narration),
                                           strict=True), 1):
