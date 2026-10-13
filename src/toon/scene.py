@@ -72,6 +72,10 @@ class SceneError(ValueError):
         super().__init__("; ".join(f"{source}: {p}" if source else p for p in problems))
 
 
+class NeedsNarration(SceneError):
+    """Sentence anchors with no narration (or no duration) to resolve them against."""
+
+
 class SceneData(dict[str, Any]):
     """Scene data plus where it came from, which `load_scene` names in every error."""
 
@@ -321,7 +325,7 @@ def _resolve_anchors(scene: ToonScene, narration: str | None) -> ToonScene:
     anchored += [f"shots[{i}].beats[{j}].at" for i, sh in enumerate(scene.shots)
                  for j, b in enumerate(sh.beats) if isinstance(b.at, SentenceAnchor)]
     if anchored and (not narration or scene.duration is None):
-        raise SceneError([f"{a}: sentence anchors need the scene's narration and duration" for a in anchored])
+        raise NeedsNarration([f"{a}: sentence anchors need the scene's narration and duration" for a in anchored])
     starts = sentence_starts(narration, scene.duration) if anchored else []
     problems: list[str] = []
 
