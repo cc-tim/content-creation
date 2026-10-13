@@ -453,3 +453,33 @@ Where the build went past this section's letter, the plan
   at load on any verb; it used to load and act as instant. `over: 0` on a `show` is an instant
   appear with no pop; it used to load and still pop over 0.25 s. A `show` with no `over` keeps
   the 0.25 s pop. A `blink` needs a positive `over`: one of 0 s or less never showed.
+
+**Code review R1 (fresh reviewer, 2026-10-13): rulings.**
+
+- **Splitter, es-419 (I1).** A word before a "." is Latin letters with accents (`À`–`ɏ`), never
+  CJK: `día.` and `camión.` end sentences, and `他在U.S.工作。` still reads "U" as one letter.
+  The abbreviation list gains `ee`, `uu` (EE. UU.), `dra`, `ud`, `uds`. `»` and `›` close, like
+  `」`.
+- **A retake can push a beat out of its shot (I2).** A beat in seconds inside a shot whose window
+  depends on sentence anchors may fit one narration and not another. It stays a load error,
+  because a mid-video beat is never dropped silently. The error names the shot's anchor and its
+  window at this narration, e.g. `shot 2 {sentence: 2} → 2.50–5.67 s at this narration (9.0 s);
+  anchor the beat (at: {sentence: n, plus: s}) or move it`. `toon validate` prints every shot's
+  `start – end` window, so the margin shows before recording.
+- **An ellipsis, a closing quote, then more text ends the sentence (M8).** `他說：「我不知道……」他沉默了。`
+  gives two, the closer staying left, as Tim's 。」 rule does. Without a closer, `我……不知道。` is
+  still one sentence.
+- **A straight `"` closes only an unmatched opening `"` (M9).** In `他走了。"你好。"` it opens the
+  next sentence. A straight `'` still always closes, because apostrophes make counting unreliable.
+- **No-op beat fields fail (M5, M6).** `out` takes only `true`; `out: false` did nothing. A prop
+  `to: {}` animates nothing and fails. `bob` needs `over`, as `ease` does: without it the move is
+  instant and leaves a fixed lift. Falsy values that do load mean what they render: `over: 0` is
+  instant (a `show` appears at once), `bob: 0` is no lift, and `flicker: false` stops an earlier
+  flicker. The residual lift `bob` leaves at the end of a timed move (scene 001's lioness ends
+  0.025 above `doorway`) is not changed here: fixing it would churn the goldens.
+- **Bank hair (M7).** `layers: []` fails (the drawing would fall back to the top-level hair). The
+  `none:` message says what happens: `none: true` wins and every layer is dropped.
+- **Errors (M3, M10, M11).** `toon validate` prints each problem whole, even when its text holds
+  "; ". `--narration` on a scene with no duration names `--duration` (M4). The still-gate passes
+  the storyboard file, so its toon errors name it as compose's do. A hide listed before a show
+  of its key at the same time says so.
