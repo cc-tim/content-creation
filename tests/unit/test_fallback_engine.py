@@ -150,3 +150,23 @@ def test_registry_leaves_prerecorded_fallback_to_the_prerecorded_engine(tmp_path
     }
     engine, _ = _registry(tmp_path, [prerecorded, _KOKORO]).resolve("tim-zhtw")
     assert isinstance(engine, PrerecordedEngine)
+
+
+# ---- shipped registry ----
+
+_REPO_VOICES = Path(__file__).resolve().parents[2] / "voices"
+
+
+@pytest.mark.parametrize(
+    ("voice_id", "fallback_id"),
+    [
+        ("zh-TW-default-f", "zh-TW-kokoro-f"),
+        ("zh-TW-default-f2", "zh-TW-kokoro-f"),
+        ("zh-TW-default-m", "zh-TW-kokoro-m"),
+    ],
+)
+def test_shipped_zh_tw_edge_voices_fall_back_to_local_kokoro(voice_id, fallback_id):
+    engine, _ = VoiceRegistry(_REPO_VOICES).resolve(voice_id)
+    assert isinstance(engine, FallbackEngine)
+    assert isinstance(engine.fallback, KokoroEngine)
+    assert engine.fallback_profile.id == fallback_id
