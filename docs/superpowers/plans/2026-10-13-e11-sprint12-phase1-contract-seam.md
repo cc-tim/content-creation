@@ -490,8 +490,8 @@ params go red.
 
 | Row | Test | Task | Expected red | Observed red | Red commit | Fix commit |
 |-----|------|------|--------------|--------------|------------|------------|
-| S12-1 | `test_contract_seam.py::test_load_scene_takes_any_catalog`, `::test_scene_module_does_not_import_the_2d_bank`, `::test_a_scene_against_the_other_engines_catalog_fails_once` | 1 | `ModuleNotFoundError: toon.catalog`; fence lists `toon.bank`, `toon.kit.icons` | | | |
-| S12-3 (load) | `test_contract_seam.py::test_engine_key_defaults_and_unknown_fails` | 1 | `ModuleNotFoundError: toon.catalog` | | | |
+| S12-1 | `test_contract_seam.py::test_load_scene_takes_any_catalog`, `::test_scene_module_does_not_import_the_2d_bank`, `::test_a_scene_against_the_other_engines_catalog_fails_once` | 1 | `ModuleNotFoundError: toon.catalog`; fence lists `toon.bank`, `toon.kit.icons` | collection `ModuleNotFoundError: No module named 'toon.catalog'`; the fence's AST scan of `scene.py` finds `['toon.bank', 'toon.kit.icons']` | | |
+| S12-3 (load) | `test_contract_seam.py::test_engine_key_defaults_and_unknown_fails` | 1 | `ModuleNotFoundError: toon.catalog` | collection `ModuleNotFoundError: No module named 'toon.catalog'` | | |
 | S12-3 (dispatch) | `test_composer_toon.py::test_dispatches_by_scene_engine` | 2 | engine mismatch / pydantic literal error instead of the dispatch errors | | | |
 | S12-2 | `test_contract_seam.py::test_field_the_engine_does_not_render_fails_naming_the_engine` + `::test_a_verb_or_prop_kind_the_engine_lacks_fails_naming_the_engine` | 3 | `DID NOT RAISE` | | | |
 | S12-4 | `test_symbolic_timeline.py` | 4 | `ImportError: cannot import name 'beats_at'` | | | |
