@@ -65,10 +65,15 @@ def _default_tts_factory(model_dir: Path) -> Any:
     return _load_sherpa_kokoro(model_dir)
 
 
-def _write_mp3(samples: Any, sample_rate: int, out_path: Path) -> None:
-    """Encode mono float samples as a header-free CBR MP3, like edge-tts writes.
+# Edge's default voice (HsiaoChen) measures -19 LUFS; Kokoro comes out 4-8 LU quieter.
+_TARGET_LUFS = -19.0
 
-    TtsStage joins segment MP3s by byte concatenation, so no Xing/ID3 frames.
+
+def _write_mp3(samples: Any, sample_rate: int, out_path: Path) -> None:
+    """Encode mono float samples as a header-free CBR MP3 at edge-tts loudness.
+
+    TtsStage joins segment MP3s by byte concatenation, so no Xing/ID3 frames. Single-pass
+    loudnorm (as utils/audio.py uses for narration) lands within ~1 LU of the target.
     """
     out_path.parent.mkdir(parents=True, exist_ok=True)
     pcm = np.asarray(samples, dtype="<f4").tobytes()
@@ -76,6 +81,7 @@ def _write_mp3(samples: Any, sample_rate: int, out_path: Path) -> None:
         [
             "ffmpeg", "-y", "-loglevel", "error",
             "-f", "f32le", "-ar", str(sample_rate), "-ac", "1", "-i", "pipe:0",
+            "-af", f"loudnorm=I={_TARGET_LUFS}:TP=-1.5:LRA=11", "-ar", str(sample_rate),
             "-c:a", "libmp3lame", "-b:a", "96k",
             "-write_xing", "0", "-id3v2_version", "0", "-write_id3v1", "0",
             str(out_path),
