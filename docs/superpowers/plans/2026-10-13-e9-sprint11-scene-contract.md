@@ -115,7 +115,7 @@ master `a2e9b55` plus the EM's sprint-definition commit `d1d4ca2`.
   `scene.PROP_BEAT_FLAGS`, `PROP_KINDS[kind]` = 4-tuple `(needs, draws, states, flags)`.
   `Beat.over: float | None`, `Beat.ease: Ease | None`, `Beat.bob: float | None` (None = not given).
 
-- [ ] **Step 1: Write the failing tests** (append to `tests/unit/toon/test_scene.py`; add
+- [x] **Step 1: Write the failing tests** (append to `tests/unit/toon/test_scene.py`; add
   `from toon.timeline import state_at` to its imports)
 
 ```python
@@ -227,7 +227,7 @@ def test_prop_kinds_match_bank_prop_kinds():
     assert set(PROP_KINDS) == set(get_args(PropDef.model_fields["kind"].annotation))
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/unit/toon/test_scene.py tests/unit/toon/test_bank.py -q -k "timing_fields or every_beat_field or prop_beat_flags or prop_kinds_match"`
 Expected: S11-1 red on show-ease / hide / prop / door-ease cases (`DID NOT RAISE`; the two camera
@@ -235,7 +235,7 @@ cases are already green), S11-2 red (`ImportError: cannot import name 'BEAT_FIEL
 (`DID NOT RAISE`) on all six plate/plate_stack cases, S11-10 green. Commit:
 `test(toon): red — beat fields the timeline ignores still load (S11-1..3, S11-10 fence)`.
 
-- [ ] **Step 3: Implement** — in `src/toon/scene.py` replace the `PROP_KINDS` block with:
+- [x] **Step 3: Implement** — in `src/toon/scene.py` replace the `PROP_KINDS` block with:
 
 ```python
 PROP_BEAT_FLAGS = ("flicker", "blink", "out")
@@ -309,14 +309,14 @@ in the prop branch, and end with `p += _check_beat_fields(b, bw, kind)`. `scene_
 `EASES[b.ease or "smooth"]`; `move` uses `(b.bob or 0.0)`; `show` uses
 `dur = b.over if b.over is not None and b.over > 0 else POP`.
 
-- [ ] **Step 4: Run the sprint command** — all green. Commit:
+- [x] **Step 4: Run the sprint command** — all green. Commit:
   `feat(toon): every beat field is read by the timeline or rejected (S11-1..3; 2e camera check)`.
 
 ### Task 2: Hair keys beside `layers:` fail (S11-4)
 
 **Files:** Modify `src/toon/bank.py` (`_check_look`); Test `tests/unit/toon/test_bank.py`.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```python
 @pytest.mark.parametrize("key", ["fill: ink", "fringe: saw", "none: true"])
@@ -341,9 +341,9 @@ def test_a_bun_beside_layers_loads(tmp_path):
     assert load_bank(root).characters["tim"].hair["bun"] == [0.0, 0.5, -0.6, 0.3]
 ```
 
-- [ ] **Step 2: Verify red** (`DID NOT RAISE` ×3; the bun case is green). Commit
+- [x] **Step 2: Verify red** (`DID NOT RAISE` ×3; the bun case is green). Commit
   `test(toon): red — hair keys beside layers load silently (S11-4)`.
-- [ ] **Step 3: Implement** — in `_check_look`, after the per-layer loop:
+- [x] **Step 3: Implement** — in `_check_look`, after the per-layer loop:
 
 ```python
     beside = [f"{path}: hair.{k}: ignored beside hair.layers (only layers and bun are read there)"
@@ -353,7 +353,7 @@ def test_a_bun_beside_layers_loads(tmp_path):
                                      for where, keys in unknown), *beside]))
 ```
 
-- [ ] **Step 4: Green; commit** `fix(toon): hair keys beside layers fail with the file and key (S11-4)`.
+- [x] **Step 4: Green; commit** `fix(toon): hair keys beside layers fail with the file and key (S11-4)`.
 
 ### Task 3: Graphic keys — card `id:`, visible-key collisions (S11-5, S11-6)
 
@@ -364,7 +364,7 @@ def test_a_bun_beside_layers_loads(tmp_path):
 **Interfaces:** Produces `CARD_KINDS = ("x_card", "check_pill")`; `graphic_key(show)` →
 `<kind>:<id or icon>` for cards.
 
-- [ ] **Step 1: Failing tests** — `test_scene.py`:
+- [x] **Step 1: Failing tests** — `test_scene.py`:
 
 ```python
 def test_show_of_a_visible_graphic_key_is_rejected():
@@ -414,9 +414,9 @@ def test_two_cards_one_icon_with_ids_both_show():
         load_scene(not_a_card, BANK)
 ```
 
-- [ ] **Step 2: Verify red** (S11-5 `DID NOT RAISE`; S11-6 `Extra inputs are not permitted` on
+- [x] **Step 2: Verify red** (S11-5 `DID NOT RAISE`; S11-6 `Extra inputs are not permitted` on
   `id`). Commit `test(toon): red — a second card on one icon silently replaces the first (S11-5, S11-6)`.
-- [ ] **Step 3: Implement** — `Show` gains
+- [x] **Step 3: Implement** — `Show` gains
   `id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]*$")  # a card's key; never drawn`.
 
 ```python
@@ -468,13 +468,13 @@ def _check_graphics(shot: Shot, w: str) -> list[str]:
 `shown` parameter and its `hide` branch, and its `show` branch adds
 `if s.id is not None and s.kind not in CARD_KINDS: p.append(f"{bw}.show.id: only valid with an x_card or check_pill show")`.
 
-- [ ] **Step 4: Green; commit** `feat(toon): cards take an id: key; a show over a visible key fails (S11-5, S11-6)`.
+- [x] **Step 4: Green; commit** `feat(toon): cards take an id: key; a show over a visible key fails (S11-5, S11-6)`.
 
 ### Task 4: Sentence splitter — closers attach left, abbreviations (S11-7)
 
 **Files:** Modify `src/toon/scene.py` (`split_sentences`); Test `tests/unit/toon/test_scene.py`.
 
-- [ ] **Step 1: Failing test** — extend `test_sentences_count_real_breaks_only`'s cases with:
+- [x] **Step 1: Failing test** — extend `test_sentences_count_real_breaks_only`'s cases with:
 
 ```python
     ("他說：「我走了。」然後離開。", ["他說：「我走了。」", "然後離開。"]),   # 。」 : the closer stays left
@@ -499,9 +499,9 @@ and add to the test body:
     assert not [s for s in split_sentences(narration) if s[0] in closers]
 ```
 
-- [ ] **Step 2: Verify red** (the 。」 / 「」 / straight-quote / abbreviation cases). Commit
+- [x] **Step 2: Verify red** (the 。」 / 「」 / straight-quote / abbreviation cases). Commit
   `test(toon): red — a closing quote starts the next sentence; "U.S." splits (S11-7)`.
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 # A terminator run, then any closing quotes or brackets right after it: they belong to the
@@ -545,7 +545,7 @@ def split_sentences(narration: str) -> list[str]:
     return [s.strip() for s in parts if s.strip()]
 ```
 
-- [ ] **Step 4: Green; commit** `feat(toon): sentence splitter keeps closing quotes left and skips abbreviations (S11-7)`.
+- [x] **Step 4: Green; commit** `feat(toon): sentence splitter keeps closing quotes left and skips abbreviations (S11-7)`.
 
 ### Task 5: `SceneError` names its source (S11-8)
 
@@ -567,7 +567,7 @@ def split_sentences(narration: str) -> list[str]:
 - `render_scene(..., storyboard_file: Path | None = None)`,
   `render_toon_scene(..., storyboard_file=None)`, `_validate_scene(..., storyboard_file=None)`.
 
-- [ ] **Step 1: Failing tests** — `test_scene.py`:
+- [x] **Step 1: Failing tests** — `test_scene.py`:
 
 ```python
 def test_scene_error_names_its_source(tmp_path):
@@ -622,10 +622,10 @@ def test_render_error_and_validator_name_the_scene_source(tmp_path):
     assert f"{missing} (from {sb_file} scene s3): scene file not found" in e.value.reason
 ```
 
-- [ ] **Step 2: Verify red** (`AttributeError: 'SceneError' object has no attribute 'source'`;
+- [x] **Step 2: Verify red** (`AttributeError: 'SceneError' object has no attribute 'source'`;
   `TypeError: render_scene() got an unexpected keyword argument 'storyboard_file'` / the issue
   lacks the file). Commit `test(toon): red — SceneError never names the scene file (S11-8)`.
-- [ ] **Step 3: Implement** (scene.py):
+- [x] **Step 3: Implement** (scene.py):
 
 ```python
 class SceneError(ValueError):
@@ -677,7 +677,7 @@ builds `origin = f"{source_name(f) if f else 'storyboard'} scene {scene.id}"`; `
 forwards `storyboard_file` to `render_toon_scene`, which builds the same origin; compose passes
 `storyboard_file=ctx.storyboard_path`.
 
-- [ ] **Step 4: Green; commit** `feat(toon): SceneError names the scene file or storyboard scene it came from (S11-8)`.
+- [x] **Step 4: Green; commit** `feat(toon): SceneError names the scene file or storyboard scene it came from (S11-8)`.
 
 ### Task 6: Shot starts follow the narration (S11-12, S11-13)
 
@@ -689,7 +689,7 @@ forwards `storyboard_file` to `render_toon_scene`, which builds the same origin;
 `Shot.at: float | SentenceAnchor`; `anchor_text(at) -> str` (`"{sentence: 3, plus: 2}"` or `"3.5s"`).
 Test helpers `N3` and `anchored_001(plus=2.0)` in `test_scene.py` (imported by later tasks).
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```python
 # Spec §11.3's demo narration (s2 of the Sprint 9 smoke; edge-tts 13.44 s): three sentences.
@@ -748,9 +748,9 @@ def test_shot_anchors_resolving_out_of_order_fail_loudly():
         load_scene(beyond, BANK, narration=N3, duration=13.44)
 ```
 
-- [ ] **Step 2: Verify red** (`shots.1.at: Input should be a valid number`). Commit
+- [x] **Step 2: Verify red** (`shots.1.at: Input should be a valid number`). Commit
   `test(toon): red — shot starts can't follow the narration (S11-12, S11-13)`.
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 class SentenceAnchor(_Strict):
@@ -823,7 +823,7 @@ def _resolve_anchors(scene: ToonScene, narration: str | None) -> ToonScene:
 `shot_index` / `state_at` and render's `frame` use `float(shot.at)` (resolved before they run, as
 `_progress` already assumes for beats).
 
-- [ ] **Step 4: Green; commit** `feat(toon): shots take sentence anchors with plus:, resolved in order or loudly (S11-12, S11-13)`.
+- [x] **Step 4: Green; commit** `feat(toon): shots take sentence anchors with plus:, resolved in order or loudly (S11-12, S11-13)`.
 
 ### Task 7: Drift warning for seconds-timed shots (S11-14)
 
@@ -835,7 +835,7 @@ Test `tests/unit/test_composer_toon.py`.
 `ToonScene.authored_shot_starts: tuple[float | SentenceAnchor, ...]` (set by `load_scene`);
 `DRIFT_TOLERANCE = 0.5`; `drift_warnings(scene, duration) -> list[str]`.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```python
 def test_validator_warns_when_seconds_timed_shots_drift_from_narration(tmp_path):
@@ -858,9 +858,9 @@ def test_validator_warns_when_seconds_timed_shots_drift_from_narration(tmp_path)
     assert "shots 3–4 are in seconds" in w.issue
 ```
 
-- [ ] **Step 2: Verify red** (`ValueError: not enough values to unpack (expected 1, got 0)`).
+- [x] **Step 2: Verify red** (`ValueError: not enough values to unpack (expected 1, got 0)`).
   Commit `test(toon): red — seconds-timed shots drift from a new narration silently (S11-14)`.
-- [ ] **Step 3: Implement** — on `ToonScene`:
+- [x] **Step 3: Implement** — on `ToonScene`:
 
 ```python
     # Set by load_scene, never authored or serialised (so never in the clip's cache key): the
@@ -910,7 +910,7 @@ the drift warnings (fix "Anchor the shots to sentences, `at: {sentence: n}`; che
 the cut issue among the two warnings) and `test_toon_warning_is_picked_up_by_the_warn_severity_collector`
 ("Validation warnings: 2") in the fix commit (Ruling 6).
 
-- [ ] **Step 4: Green; commit** `feat(toon): drift warning when seconds-timed shots won't follow the narration (S11-14)`.
+- [x] **Step 4: Green; commit** `feat(toon): drift warning when seconds-timed shots won't follow the narration (S11-14)`.
 
 ### Task 8: `pipeline toon validate --narration --duration` (S11-9)
 
@@ -920,7 +920,7 @@ the cut issue among the two warnings) and `test_toon_warning_is_picked_up_by_the
 **Interfaces:** `class NeedsNarration(SceneError)` raised by `_resolve_anchors` when anchors
 have no narration or duration.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```python
 def _anchored_file(tmp_path):
@@ -959,9 +959,9 @@ def test_validate_anchored_scene_without_narration_names_the_flag(tmp_path):
     assert "--narration" in res.stdout
 ```
 
-- [ ] **Step 2: Verify red** (exit 2, `No such option: --narration`; exit 1 without the flag
+- [x] **Step 2: Verify red** (exit 2, `No such option: --narration`; exit 1 without the flag
   named). Commit `test(toon): red — toon validate can't show how anchors resolve (S11-9)`.
-- [ ] **Step 3: Implement** — `class NeedsNarration(SceneError): """Sentence anchors with no
+- [x] **Step 3: Implement** — `class NeedsNarration(SceneError): """Sentence anchors with no
   narration (or duration) to resolve them against."""`; `_resolve_anchors` raises it. `cli.py`:
 
 ```python
@@ -1003,14 +1003,14 @@ def validate(scene: str = typer.Argument(..., help="scene id or path to a scene 
             typer.echo(f"WARN  {w}")
 ```
 
-- [ ] **Step 4: Green; commit** `feat(toon): toon validate --narration/--duration prints sentences, shot starts, WARN lines (S11-9)`.
+- [x] **Step 4: Green; commit** `feat(toon): toon validate --narration/--duration prints sentences, shot starts, WARN lines (S11-9)`.
 
 ### Task 9: Render workers use the caller's bank (S11-11)
 
 **Files:** Modify `src/toon/render.py` (`_init_worker`, `render_frames`); Test
 `tests/unit/toon/test_render.py`.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```python
 def test_workers_use_the_callers_bank(tmp_path):
@@ -1028,25 +1028,25 @@ def test_workers_use_the_callers_bank(tmp_path):
     assert parallel == [R.frame(SCENE, bank, t, 320, 180).tobytes() for t in times]
 ```
 
-- [ ] **Step 2: Verify red** (`assert [b'...'] == [b'...']`: the workers drew the edited
+- [x] **Step 2: Verify red** (`assert [b'...'] == [b'...']`: the workers drew the edited
   azimuth). Executed note: a first draft edited two_shot's `focal`, which passed on unfixed code
   because the preset's punch drives the focal to 3200 by t = 0.25 s; the azimuth holds all shot. Commit `test(toon): red — render workers reload the bank from disk (S11-11)`.
-- [ ] **Step 3: Implement** — `_init_worker(scene_json, bank_json, width, height)` builds
+- [x] **Step 3: Implement** — `_init_worker(scene_json, bank_json, width, height)` builds
   `Bank.model_validate_json(bank_json)`; `render_frames` passes `bank.model_dump_json()`; drop the
   now-unused `load_bank` import.
-- [ ] **Step 4: Green; commit** `fix(toon): render workers draw from the caller's bank, not a disk reload (S11-11)`.
+- [x] **Step 4: Green; commit** `fix(toon): render workers draw from the caller's bank, not a disk reload (S11-11)`.
 
 ### Task 10: Docs, regression evidence, hub pass (S11-15, S11-16)
 
 **Files:** Modify spec §5/§11 (Tim's decisions as §11.5; §5's "still ignored silently" sentence,
 the timing bullet, the show/hide rows), `README.md` (toon validate flags), this plan's ledger.
 
-- [ ] **Step 1: Scene 001 byte-identity (Mac).** Export master `a2e9b55` to a scratch dir and
+- [x] **Step 1: Scene 001 byte-identity (Mac).** Export master `a2e9b55` to a scratch dir and
   render scene 001 at t ∈ {0, 1.5, 3.6, 4.0, 4.7, 6.3, 8.0, 9.8, 10.45, 11.5, 12.2} (960×540)
   with master's code and the branch's; compare SHA-256 of each frame. Expected: all equal.
-- [ ] **Step 2: Gates.** `uv run pytest -q`, `uv run ruff check src/ tests/`, `uv run mypy src/`.
-- [ ] **Step 3: Docs commit** `docs(toon): spec §11 records Tim's decisions; §5 and README match Sprint 11`.
-- [ ] **Step 4: Hub pass (isolated).** Bundle the branch, clone it in a scratch dir on the hub
+- [x] **Step 2: Gates.** `uv run pytest -q`, `uv run ruff check src/ tests/`, `uv run mypy src/`.
+- [x] **Step 3: Docs commit** `docs(toon): spec §11 records Tim's decisions; §5 and README match Sprint 11`.
+- [x] **Step 4: Hub pass (isolated).** Bundle the branch, clone it in a scratch dir on the hub
   (never the hub's own checkout), `uv sync`, run
   `uv run pytest --integration tests/integration/toon tests/unit/toon -q` with `UPDATE_GOLDENS`
   unset, and `git status --porcelain tests/fixtures` (no churn). S11-16's real-scene demo runs
@@ -1073,4 +1073,42 @@ task's red step (a commit can't record its own SHA).
 | S11-13 | `test_scene.py::test_shot_anchors_resolving_out_of_order_fail_loudly` | 6 | `shots.2.at: Input should be a valid number` | `SceneError: shots.1.at: Input should be a valid number; shots.2.at: …` (the first case; a shot can't take an anchor at all) | `457a608` | `0403f1f` |
 | S11-14 | `test_composer_toon.py::test_validator_warns_when_seconds_timed_shots_drift_from_narration` | 7 | `ValueError: not enough values to unpack` | `ValueError: not enough values to unpack (expected 1, got 0)` (no drift warning at 16.2 s) | `78d55be` | `67d0f7b` |
 | S11-9 | `test_cli.py::test_validate_with_narration_prints_the_sentence_table` + `::test_validate_anchored_scene_without_narration_names_the_flag` | 8 | exit 2 `No such option: --narration`; flag not named | exit 2 `No such option: --narration`; without it exit 1 but the ERROR lines only say `sentence anchors need the scene's narration and duration` (no `--narration`) | `c0d2dbc` | `ba122e6` |
-| S11-11 | `test_render.py::test_workers_use_the_callers_bank` | 9 | frames differ (workers drew the edited focal) | `AssertionError: assert [b'\xe7\xee…'] == [b'\xe7\xee…']`, index 0 differs (workers drew the on-disk az: 30). The first draft (focal edit) passed unfixed: the punch masks it; replaced before commit | `b23352d` | |
+| S11-11 | `test_render.py::test_workers_use_the_callers_bank` | 9 | frames differ (workers drew the edited focal) | `AssertionError: assert [b'\xe7\xee…'] == [b'\xe7\xee…']`, index 0 differs (workers drew the on-disk az: 30). The first draft (focal edit) passed unfixed: the punch masks it; replaced before commit | `b23352d` | `b36b2a5` |
+
+## Execution notes (2026-10-13)
+
+- **Scene 001 byte-identity (Mac):** master `a2e9b55` (exported, run with the branch's venv) and
+  branch HEAD `b36b2a5` render scene 001 at t ∈ {0, 1.5, 3.6, 4.0, 4.7, 6.3, 8.0, 9.8, 10.45,
+  11.5, 12.2} (960×540) with identical SHA-256 per frame: 11 of 11.
+- **Gates at `b36b2a5` (Mac):** `uv run pytest -q` = 1483 passed, 62 skipped, 0 failed;
+  `uv run ruff check src/ tests/` clean; `uv run mypy src/` clean (161 files). Sprint run command:
+  218 passed, 5 skipped (the 5 are the hub-only goldens and the tryout-gated parity).
+- **Hub pass (S11-15), isolated:** an incremental bundle (`a2e9b55..feat/e9-sprint11`) cloned
+  into `/tmp/e9s11-check/repo` on the hub (origin removed; the hub's own checkout untouched),
+  `uv sync`, then `env -u UPDATE_GOLDENS uv run pytest --integration tests/integration/toon
+  tests/unit/toon -q` = 185 passed, 0 skipped (goldens 4/4, parity, cadence). `git status
+  --porcelain tests/fixtures` empty (no churn). Parity measured separately: per key time
+  `[0.0, 0.0, 0.004, 0.0, 0.0, 0.058]`, worst 0.058. Hub cairo 1.18.0.
+- **edge-tts is down (not this sprint's code):** the locked `edge-tts 7.2.8` gets
+  `WSServerHandshakeError: 403` from `speech.platform.bing.com` on both the Mac and the hub
+  (2026-10-13). Every default-voice TTS run fails until the dependency is bumped. The S11-16
+  demo therefore feeds its two takes through the pipeline's prerecorded narration path.
+- **S11-16 real-scene demo (hub, same isolated clone):** `s11_demo.py` rebuilds the Sprint 9
+  compose smoke per take (s1 a 5 s synthetic `clip`; s2 an inline copy of scene 001 with shots
+  2/3 on sentences 2/3 and shot 4 on `{sentence: 3, plus: 2}`), then runs TTS → compose through
+  the orchestrator (no model call). The takes are the s2 narration spoken by macOS `say -v
+  Meijia` at the default rate (A) and at `-r 95` (B), fed through the prerecorded narration path
+  (edge-tts is down, above). Results:
+
+  | Take | Narration (pipeline) | Toon clip frames (expected) | Resolved cuts (s) | Cut frame expected → measured (toon clip; muxed s2_final) |
+  |---|---|---|---|---|
+  | A | 12.456 s | 374 (374) | 3.460, 7.843, 9.843 | 104→104, 236→236, 296→296; same in s2_final |
+  | B | 14.928 s | 448 (448) | 4.147, 9.399, 11.399 | 125→125, 282→282, 342→342; same in s2_final |
+
+  Every cut lands on the first frame at or after its resolved start (0 frames off). Key frames
+  either side of each cut are eyeballed in `tmp/toon-s11/demo/contact_sheet.png` (worktree,
+  untracked; the hub copy is `/tmp/e9s11-check/repo/tmp/toon-s11/demo/`).
+  **Observation (compose, not toon):** the muxed `s2_final.mp4` video stream is shorter than the
+  toon clip (A: 369 vs 374 frames, 12.300 s video vs 12.393 s audio). The pipeline's narration
+  duration for a prerecorded take is the transcoded MP3's (12.456 s, with encoder padding), while
+  the WAV is 12.393 s; the mux then trims the held last shot. The cuts are unaffected.
