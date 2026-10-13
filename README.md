@@ -299,6 +299,7 @@ uv run pipeline toon sheet tim [--out DIR]                     # character model
 | Topic | Rule |
 |---|---|
 | Storyboard | `"visual": {"type": "toon", "scene": "<id>"}` (may add `"boil"`), or an inline scene. Subtitles stay on. |
+| Engine | A scene's optional `engine:` picks its engine: `toon2d` (default, the 2.5D cairo engine) or `toy3d` (E11, the locked 3D toy look; it renders once Sprint 12 phase 2 lands). A field the engine doesn't render fails at load, naming the engine. There is no fallback between engines. |
 | Re-render | compose's scene cache is file-existence based: after editing a scene file, the bank or `src/toon`, run `uv run pipeline compose rescene --project-id <ID> --scene sN`. The toon clip cache itself re-renders on engine, bank or scene changes. |
 | Duration | The scene lasts as long as its narration. Longer narration holds the last shot. Shorter narration warns, then cuts the scene. |
 | Timing | Shots and beats take `at: {sentence: n, plus: s}` (a storyboard scene, or `toon validate --narration`), so cuts follow a re-recorded narration. Shots left in seconds warn when the narration is more than 0.5 s off the scene's `duration`. |

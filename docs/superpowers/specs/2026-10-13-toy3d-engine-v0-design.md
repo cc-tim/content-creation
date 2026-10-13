@@ -1,7 +1,7 @@
 # Toy3D engine v0: the locked own-show look as a pipeline visual (E11, Sprint 12)
 
-**Status:** proposed by the EM (SPRINT, 2026-10-13). **Not greenlit.** Tim greenlights before any
-build. Roadmap: `docs/ROADMAP.md` → E11 and Sprint 12. Test rows: `.agent-memory/engineering-manager/test-plan.md`
+**Status:** proposed by the EM (SPRINT, 2026-10-13); **greenlit by Tim on 2026-10-13**, with his
+answers to the open questions in §12. Phase 1 (the contract seam) is built on `feat/e11-sprint12`. Roadmap: `docs/ROADMAP.md` → E11 and Sprint 12. Test rows: `.agent-memory/engineering-manager/test-plan.md`
 → E11, S12-1…S12-21.
 
 ## 1. Problem
@@ -203,3 +203,21 @@ the thresholds. Layer B catches the small logic regressions a pixel tolerance co
 - 3D explainer graphics (8);
 - the contract-level items re-homed from E9 item 3 (9);
 - the Style Manifest element (E4) and the dashboard surface (E6).
+
+## 12. Open questions: Tim's answers (2026-10-13)
+
+The roadmap's "Needs Tim before the build" list, answered at greenlight (passed on by the coordinator
+when the build started):
+
+1. **Scope includes the lioness.** The worked scene is the locked r7-3d clip itself, so parity
+   (S12-18) covers all of it.
+2. **GuoGuo freezes into the bank only when Tim approves the v7 tryout render.** Another agent is
+   still tuning him in `r7-3d/`. Everything else is built first, and the builder asks before
+   porting GuoGuo (Phase 2).
+3. **Accepted:** the Python `playwright` dependency (pinned), three.js r170 vendored into git
+   (MIT), and the three-layer tolerant golden policy for GPU renders (§8).
+
+Phase 1 build rulings (protocol satisfied structurally by the 2.5D `Bank`, both capability tables
+in `toon/catalog.py`, the narrow provisional toy3d table, `boil` and `Place.layer`/`loop` as
+engine-relative optional fields, play-ordered changes in `beats_at`) are in the plan:
+`docs/superpowers/plans/2026-10-13-e11-sprint12-phase1-contract-seam.md`, "Rulings".
