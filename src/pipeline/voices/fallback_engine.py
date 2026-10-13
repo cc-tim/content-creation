@@ -4,7 +4,7 @@ from pathlib import Path
 
 import structlog
 
-from pipeline.voices.base import VoiceEngine, VoiceProfile
+from pipeline.voices.base import VoiceEngine, VoiceEngineUnavailable, VoiceProfile
 
 logger = structlog.get_logger()
 
@@ -12,10 +12,11 @@ logger = structlog.get_logger()
 class FallbackEngine(VoiceEngine):
     """Primary engine with a whole-pass fallback voice for when the primary is down.
 
-    One instance serves one TTS pass. If the primary fails before it has produced any
-    audio, the pass switches to the fallback voice for good and logs an error. If the
-    primary fails after it already produced audio, it raises instead: one narration
-    must never mix two voices.
+    One instance serves one TTS pass. Only VoiceEngineUnavailable (the service is down)
+    switches voices; any other failure propagates. If the primary is unavailable before it
+    has produced any audio, the pass switches to the fallback voice for good and logs an
+    error. If it already produced audio, it raises instead: one narration must never mix
+    two voices.
     """
 
     def __init__(
@@ -47,7 +48,7 @@ class FallbackEngine(VoiceEngine):
             )
         try:
             result = self.primary.synthesize(text, out_path, profile, scene_id=scene_id)
-        except Exception as exc:
+        except VoiceEngineUnavailable as exc:
             if self._primary_succeeded:
                 raise RuntimeError(
                     f"TTS voice {profile.id} failed mid-pass at scene {scene_id}: {exc}. "

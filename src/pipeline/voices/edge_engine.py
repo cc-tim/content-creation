@@ -12,7 +12,7 @@ import edge_tts.constants
 import structlog
 from edge_tts.constants import TRUSTED_CLIENT_TOKEN
 
-from pipeline.voices.base import VoiceEngine, VoiceProfile
+from pipeline.voices.base import VoiceEngine, VoiceEngineUnavailable, VoiceProfile
 
 logger = structlog.get_logger()
 
@@ -26,9 +26,18 @@ _SYNTH_WSS_URL = (
     f"?Ocp-Apim-Subscription-Key={TRUSTED_CLIENT_TOKEN}"
 )
 # That endpoint throttles: ~1 in 5 back-to-back requests gets a 429 (no Retry-After) and
-# the next one usually succeeds. 403 is not retried: it means the endpoint refuses us.
-_RETRY_STATUSES = frozenset({429, 503})
+# the next one usually succeeds. 401/403 are not retried: the endpoint refuses us.
+_REFUSED_STATUSES = frozenset({401, 403})
+_RETRY_EXCEPTIONS = (
+    aiohttp.ClientConnectorError,
+    aiohttp.ServerDisconnectedError,
+    asyncio.TimeoutError,
+)
 _RETRY_DELAYS_SEC = (1.0, 2.0, 4.0, 8.0, 16.0)
+
+
+def _is_retryable_status(status: int) -> bool:
+    return status == 429 or 500 <= status < 600
 
 
 def _ensure_synth_endpoint() -> bool:
@@ -69,18 +78,30 @@ class EdgeEngine(VoiceEngine):
             endpoint = edge_tts.communicate.WSS_URL.split("?", 1)[0]
             logger.info("tts.edge.endpoint", endpoint=endpoint, overridden=overridden)
             self._endpoint_logged = True
+        attempts = len(_RETRY_DELAYS_SEC) + 1
         for attempt, delay in enumerate((*_RETRY_DELAYS_SEC, None), start=1):
             try:
                 asyncio.run(self._run(text, voice, out_path))
                 return out_path
             except aiohttp.WSServerHandshakeError as exc:
-                if exc.status not in _RETRY_STATUSES or delay is None:
+                if exc.status in _REFUSED_STATUSES:
+                    raise VoiceEngineUnavailable(
+                        f"edge refused synthesis for {voice} (HTTP {exc.status})"
+                    ) from exc
+                if not _is_retryable_status(exc.status):
                     raise
-                logger.warning(
-                    "tts.edge.retry", voice=voice, status=exc.status,
-                    attempt=attempt, delay_sec=delay,
-                )
-                self._sleep(delay)
+                error: Exception = exc
+            except _RETRY_EXCEPTIONS as exc:
+                error = exc
+            if delay is None:
+                raise VoiceEngineUnavailable(
+                    f"edge unreachable for {voice} after {attempts} attempts: {error!r}"
+                ) from error
+            logger.warning(
+                "tts.edge.retry", voice=voice, error=repr(error),
+                attempt=attempt, delay_sec=delay,
+            )
+            self._sleep(delay)
         raise AssertionError("unreachable")
 
     @staticmethod

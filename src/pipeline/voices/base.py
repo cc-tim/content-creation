@@ -10,6 +10,14 @@ class VoiceNotFound(LookupError):
     """Raised when a requested voice_id does not exist in the registry."""
 
 
+class VoiceEngineUnavailable(RuntimeError):
+    """The engine's service refused us or stayed unreachable after retries.
+
+    The only failure that lets a FallbackEngine switch voices: a different engine may still
+    work. Anything else (a config bug, text the engine can't voice) propagates as is.
+    """
+
+
 @dataclass
 class VoiceProfile:
     id: str
