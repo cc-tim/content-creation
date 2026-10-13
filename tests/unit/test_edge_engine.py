@@ -131,31 +131,105 @@ def test_edge_engine_retries_rate_limited_handshakes(tmp_path, monkeypatch):
     assert sleeps == [1.0, 2.0]
 
 
-def test_edge_engine_does_not_retry_a_refused_request(tmp_path, monkeypatch):
-    """A 403 is the endpoint refusing us: fail at once so a fallback voice can take over."""
+@pytest.mark.parametrize("status", [401, 403])
+def test_edge_engine_reports_a_refused_request_as_unavailable_at_once(
+    tmp_path, monkeypatch, status
+):
+    """401/403 is the endpoint refusing us: no retry, and a fallback voice may take over."""
     import aiohttp
 
-    calls = _scripted_run(monkeypatch, [_handshake_error(403), None])
+    from pipeline.voices.base import VoiceEngineUnavailable
+
+    calls = _scripted_run(monkeypatch, [_handshake_error(status), None])
     sleeps: list[float] = []
 
-    with pytest.raises(aiohttp.WSServerHandshakeError):
+    with pytest.raises(VoiceEngineUnavailable) as excinfo:
         EdgeEngine(sleep=sleeps.append).synthesize("你好", tmp_path / "n.mp3", _HSIAOCHEN)
 
+    assert isinstance(excinfo.value.__cause__, aiohttp.WSServerHandshakeError)
     assert len(calls) == 1
     assert sleeps == []
 
 
-def test_edge_engine_gives_up_after_its_retry_budget(tmp_path, monkeypatch):
+def _connector_error():
+    from types import SimpleNamespace
+
     import aiohttp
 
-    calls = _scripted_run(monkeypatch, [_handshake_error(429)] * 10)
+    key = SimpleNamespace(host="api.msedgeservices.com", port=443, ssl=True)
+    return aiohttp.ClientConnectorError(key, OSError(8, "nodename nor servname provided"))
+
+
+def _server_disconnected():
+    import aiohttp
+
+    return aiohttp.ServerDisconnectedError()
+
+
+@pytest.mark.parametrize(
+    "make_error",
+    [
+        lambda: _handshake_error(500),
+        lambda: _handshake_error(502),
+        _connector_error,
+        _server_disconnected,
+        lambda: TimeoutError(),
+    ],
+    ids=["500", "502", "connector", "disconnected", "timeout"],
+)
+def test_edge_engine_retries_transient_failures(tmp_path, monkeypatch, make_error):
+    calls = _scripted_run(monkeypatch, [make_error(), None])
     sleeps: list[float] = []
 
-    with pytest.raises(aiohttp.WSServerHandshakeError):
+    out = EdgeEngine(sleep=sleeps.append).synthesize("你好", tmp_path / "n.mp3", _HSIAOCHEN)
+
+    assert out.read_bytes() == b"FAKE-MP3"
+    assert len(calls) == 2
+    assert sleeps == [1.0]
+
+
+@pytest.mark.parametrize(
+    "make_error",
+    [lambda: _handshake_error(429), _connector_error],
+    ids=["429", "connector"],
+)
+def test_edge_engine_reports_unavailable_after_its_retry_budget(
+    tmp_path, monkeypatch, make_error
+):
+    from pipeline.voices.base import VoiceEngineUnavailable
+
+    calls = _scripted_run(monkeypatch, [make_error() for _ in range(10)])
+    sleeps: list[float] = []
+
+    with pytest.raises(VoiceEngineUnavailable, match="6 attempts"):
         EdgeEngine(sleep=sleeps.append).synthesize("你好", tmp_path / "n.mp3", _HSIAOCHEN)
 
     assert len(calls) == 6
     assert sleeps == [1.0, 2.0, 4.0, 8.0, 16.0]
+
+
+@pytest.mark.parametrize(
+    "make_error",
+    [
+        lambda: __import__("edge_tts.exceptions").exceptions.NoAudioReceived("No audio"),
+        lambda: _handshake_error(404),
+    ],
+    ids=["no-audio", "404"],
+)
+def test_edge_engine_lets_other_failures_propagate_unretried(tmp_path, monkeypatch, make_error):
+    """NoAudioReceived is about this text; a 404 is not a classified outage."""
+    from pipeline.voices.base import VoiceEngineUnavailable
+
+    err = make_error()
+    calls = _scripted_run(monkeypatch, [err, None])
+    sleeps: list[float] = []
+
+    with pytest.raises(type(err)) as excinfo:
+        EdgeEngine(sleep=sleeps.append).synthesize("你好", tmp_path / "n.mp3", _HSIAOCHEN)
+
+    assert not isinstance(excinfo.value, VoiceEngineUnavailable)
+    assert len(calls) == 1
+    assert sleeps == []
 
 
 def test_edge_engine_logs_the_synthesis_endpoint_once_per_engine(tmp_path, monkeypatch):

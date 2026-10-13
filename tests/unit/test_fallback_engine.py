@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from structlog.testing import capture_logs
 
-from pipeline.voices.base import VoiceEngine, VoiceNotFound, VoiceProfile
+from pipeline.voices.base import VoiceEngine, VoiceEngineUnavailable, VoiceNotFound, VoiceProfile
 from pipeline.voices.edge_engine import EdgeEngine
 from pipeline.voices.fallback_engine import FallbackEngine
 from pipeline.voices.kokoro_engine import KokoroEngine
@@ -55,7 +55,7 @@ def test_fallback_engine_uses_primary_while_it_works(tmp_path):
 
 
 def test_fallback_engine_engages_loudly_when_primary_fails_first(tmp_path):
-    primary = _ScriptedEngine("edge", [RuntimeError("403, message='Invalid response status'")])
+    primary = _ScriptedEngine("edge", [VoiceEngineUnavailable("edge refused synthesis (HTTP 403)")])
     fallback = _ScriptedEngine("kokoro")
     with capture_logs() as logs:
         out = _engine(primary, fallback).synthesize(
@@ -71,7 +71,7 @@ def test_fallback_engine_engages_loudly_when_primary_fails_first(tmp_path):
 
 
 def test_fallback_engine_stays_on_fallback_for_the_rest_of_the_pass(tmp_path):
-    primary = _ScriptedEngine("edge", [RuntimeError("403")])
+    primary = _ScriptedEngine("edge", [VoiceEngineUnavailable("403")])
     fallback = _ScriptedEngine("kokoro")
     engine = _engine(primary, fallback)
     engine.synthesize("一。", tmp_path / "a.mp3", _PRIMARY)
@@ -82,7 +82,7 @@ def test_fallback_engine_stays_on_fallback_for_the_rest_of_the_pass(tmp_path):
 
 
 def test_fallback_engine_refuses_to_mix_voices_mid_pass(tmp_path):
-    primary = _ScriptedEngine("edge", [None, RuntimeError("503")])
+    primary = _ScriptedEngine("edge", [None, VoiceEngineUnavailable("503")])
     fallback = _ScriptedEngine("kokoro")
     engine = _engine(primary, fallback)
     engine.synthesize("一。", tmp_path / "a.mp3", _PRIMARY)
@@ -93,12 +93,27 @@ def test_fallback_engine_refuses_to_mix_voices_mid_pass(tmp_path):
 
 
 def test_fallback_engine_reports_both_failures(tmp_path):
-    primary = _ScriptedEngine("edge", [RuntimeError("403 from bing")])
+    primary = _ScriptedEngine("edge", [VoiceEngineUnavailable("403 from bing")])
     fallback = _ScriptedEngine("kokoro", [FileNotFoundError("Kokoro model not found")])
     with pytest.raises(RuntimeError) as excinfo:
         _engine(primary, fallback).synthesize("一。", tmp_path / "a.mp3", _PRIMARY)
     assert "403 from bing" in str(excinfo.value)
     assert "Kokoro model not found" in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [ValueError("edge voice profile x is missing params.voice"), RuntimeError("No audio")],
+    ids=["config-bug", "text-specific"],
+)
+def test_fallback_engine_lets_unclassified_failures_propagate(tmp_path, error):
+    """Only VoiceEngineUnavailable means the service is down; anything else is a real bug."""
+    primary = _ScriptedEngine("edge", [error])
+    fallback = _ScriptedEngine("kokoro")
+    with capture_logs() as logs, pytest.raises(type(error)):
+        _engine(primary, fallback).synthesize("一。", tmp_path / "a.mp3", _PRIMARY)
+    assert fallback.calls == []
+    assert [e for e in logs if e["event"] == "tts.fallback.engaged"] == []
 
 
 # ---- registry wiring ----
