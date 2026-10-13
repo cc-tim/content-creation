@@ -10,13 +10,18 @@ SHA256="${KOKORO_TTS_SHA256:-a3f4c73d043860e3fd2e5b06f36795eb81de0fc8e8de6df7032
 TARGET="${PIPELINE_TTS_KOKORO_MODEL_DIR:-$HOME/.cache/content-creation/tts/$NAME}"
 TARGET="${TARGET/#\~/$HOME}"
 # Keep in sync with _BUNDLE_FILES / _BUNDLE_DIRS in src/pipeline/voices/kokoro_engine.py.
-REQUIRED=(model.onnx voices.bin tokens.txt lexicon-us-en.txt lexicon-zh.txt
-          date-zh.fst phone-zh.fst number-zh.fst dict espeak-ng-data)
+REQUIRED_FILES=(model.onnx voices.bin tokens.txt lexicon-us-en.txt lexicon-zh.txt
+                date-zh.fst phone-zh.fst number-zh.fst)
+REQUIRED_DIRS=(dict espeak-ng-data)
 
+# Like KokoroEngine's check: every file present and non-empty, every dir present.
 is_complete() {
   local f
-  for f in "${REQUIRED[@]}"; do
-    [ -e "$1/$f" ] || return 1
+  for f in "${REQUIRED_FILES[@]}"; do
+    [ -s "$1/$f" ] || return 1
+  done
+  for f in "${REQUIRED_DIRS[@]}"; do
+    [ -d "$1/$f" ] || return 1
   done
 }
 
