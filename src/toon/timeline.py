@@ -161,9 +161,9 @@ def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = 
             if b.out:
                 s.mode, s.smoke = "out", rel - at
         elif v == "show":
-            dur = b.over if b.over is not None and b.over > 0 else POP
+            pop = POP if b.over is None else b.over  # over: 0 appears at once, no pop
             key = graphic_key(b.show)
-            graphics[key] = GraphicState(key, b.show, min((rel - at) / dur, 1.0))
+            graphics[key] = GraphicState(key, b.show, 1.0 if pop == 0 else min((rel - at) / pop, 1.0))
         elif v == "hide":
             graphics.pop(b.hide, None)
 

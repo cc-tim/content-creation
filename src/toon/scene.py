@@ -154,7 +154,7 @@ class Flicker(_Strict):
 
 class Blink(_Strict):
     b: float
-    over: float
+    over: float = Field(gt=0)  # a blink of 0 s or less would never show
 
 
 class Beat(_Strict):
@@ -166,7 +166,8 @@ class Beat(_Strict):
     """
 
     at: float | SentenceAnchor
-    over: float | None = None   # None: not given (instant; a show pops in over 0.25 s)
+    # None: not given (instant; a show pops in over 0.25 s). 0 is instant, a show included.
+    over: float | None = Field(default=None, ge=0)
     ease: Ease | None = None    # None: not given (smooth)
     door: Literal["open", "close"] | None = None
     move: str | None = None
