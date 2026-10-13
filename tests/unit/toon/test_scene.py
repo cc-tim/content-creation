@@ -144,13 +144,19 @@ def test_a_longer_narration_lets_a_sentence_anchor_land_past_the_authored_end():
     ("La Dra. Ruiz y Ud. lo saben. Bien.", ["La Dra. Ruiz y Ud. lo saben.", "Bien."]),
     ("«Me voy.» Luego se fue.", ["«Me voy.»", "Luego se fue."]),
     ("他在U.S.工作。很好。", ["他在U.S.工作。", "很好。"]),
+    # code review R1 M8: an ellipsis, a closing quote, then more text ends the sentence (Tim's
+    # 。」 rule); without the closer it is still a pause inside the sentence (我……不知道。)
+    ("他說：「我不知道……」他沉默了。", ["他說：「我不知道……」", "他沉默了。"]),
+    # code review R1 M9: a straight " closes only an unmatched opening "; otherwise it opens
+    ('他走了。"你好。"', ["他走了。", '"你好。"']),
+    ('"Go home." "Not yet."', ['"Go home."', '"Not yet."']),
 ])
 def test_sentences_count_real_breaks_only(narration, sentences):
     from toon.scene import split_sentences
 
     assert split_sentences(narration) == sentences
     assert len(sentence_starts(narration, 10.0)) == len(sentences)
-    closers = "」』”’）)]】》〉»›\"'"
+    closers = "」』”’）)]】》〉»›"  # a straight " or ' may open a sentence, so it isn't listed
     assert not [s for s in split_sentences(narration) if s[0] in closers]
 
 
