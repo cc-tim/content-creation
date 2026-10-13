@@ -65,7 +65,7 @@ def test_guo_trace_is_the_snapshots():
     # Phase 2 review M10: the engine programs' channels are the rig's
     ("characters/guoguo.yaml", "channels: [look.dy, hop, sq, land, wob, flap, jig, raise, fidle, bob, body.rz]",
      "channels: [look.dy, hop, sq, land, flap, jig, raise, fidle, bob, body.rz]",
-     r"characters/guoguo\.yaml: guoguo: GuoGuo's program reads \['wob'\], not channels of his rig"),
+     r"characters/guoguo\.yaml: guoguo: GuoGuo's program reads \['wob'\], not channels of the rig"),
 ])
 def test_acting_fields_fail_naming_file_and_path(tmp_path, file, old, new, message):
     from toy3d.bank import BankError, default_root, load_bank
@@ -88,7 +88,7 @@ def test_the_walk_drives_only_rig_channels(tmp_path):
     shutil.copytree(default_root(), root)
     p = root / "characters" / "lioness.yaml"
     p.write_text(p.read_text().replace("channels: [root.ry, hips.py, body.rx, body.rz,", "channels: [root.ry, hips.py, body.rx,", 1))
-    with pytest.raises(BankError, match=r"characters/lioness\.yaml: walk: the walk drives \['body\.rz'\], not channels of her rig"):
+    with pytest.raises(BankError, match=r"characters/lioness\.yaml: walk: the walk drives \['body\.rz'\], not channels of the rig"):
         load_bank(root)
 
 

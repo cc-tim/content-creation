@@ -396,3 +396,24 @@ def test_a_face_turns_the_short_way(bank):
     short = (aim - math.radians(90) + math.pi) % (2 * math.pi) - math.pi
     yaw = resolve(sc, bank, 1.5)["actors"]["lioness"]["root"]["yaw"]
     assert yaw == pytest.approx(math.radians(90) + 0.5 * short) and short > 0
+
+
+def test_an_expression_beat_mid_blend_leaves_the_body_alone(bank):
+    """Phase 2 review I1: a beat without `to` changes the face only, even while a pose blends in."""
+    from toy3d.acting import resolve
+
+    shock = {"at": 1.0, "pose": "tim", "to": "shock", "expr": "shock", "over": 0.5}
+    with_face = resolve(_scene(bank, [shock, {"at": 1.2, "pose": "tim", "expr": "neutral"}]), bank, 1.4)
+    without = resolve(_scene(bank, [shock]), bank, 1.4)
+    assert with_face["actors"]["tim"]["joints"] == without["actors"]["tim"]["joints"]
+    assert with_face["actors"]["tim"]["face"] == "tim_neutral"
+
+
+def test_the_walk_writes_the_channels_the_bank_checks(bank):
+    from toon.beats import Change
+    from toy3d.acting import _walk, _Walked
+    from toy3d.bank import WALK_CHANNELS
+
+    lion = bank.characters["lioness"]
+    m = _Walked(Change("move", "lioness", "doorway_in", None, 0.5, None, 0.3, 0.7), (0, 0, 0), (1, 0, 0), 0)
+    assert set(_walk(lion.walk, lion.scale, m)) == set(WALK_CHANNELS)

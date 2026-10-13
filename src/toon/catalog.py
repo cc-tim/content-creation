@@ -109,6 +109,7 @@ class SceneCatalog(Protocol):
     def pose_class(self, character: str, pose: str) -> str | None: ...   # None: no such pose
     def expressions_of(self, character: str) -> Collection[str]: ...
     def prop_kind(self, prop: str) -> str: ...
+    def scene_problems(self, scene) -> list[str]: ...   # what this engine would draw wrong (names resolve)
 
 
 @dataclass(frozen=True)
@@ -142,6 +143,9 @@ class Catalog:
 
     def prop_kind(self, prop: str) -> str:
         return self.prop_items[prop]
+
+    def scene_problems(self, scene) -> list[str]:
+        return []
 
 
 def load_catalog(engine: str) -> SceneCatalog:

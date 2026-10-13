@@ -435,6 +435,8 @@ def _check(scene: ToonScene, catalog: SceneCatalog, shot_starts: tuple[float | S
                     p.append(f"{bw}.at: {b.at:g}s is outside the shot (0–{length:g}s)")
             p += _check_beat(b, bw, scene, shot, spots, catalog)
         p += _check_graphics(shot, w)
+    if not p:  # every name resolves: what this engine would still draw wrong
+        p += catalog.scene_problems(scene)
     return p
 
 

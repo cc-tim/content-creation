@@ -156,6 +156,9 @@ class Bank(_Strict):
     def prop_kind(self, prop: str) -> str:
         return self.props[prop].kind
 
+    def scene_problems(self, scene) -> list[str]:
+        return []   # the 2.5D engine draws every scene whose names resolve
+
 
 def default_root() -> Path:
     env = os.environ.get("TOON_ASSETS")

@@ -36,8 +36,8 @@ def test_the_worked_placements_load(bank):
 
 def test_a_seated_character_does_not_move(bank):
     (p,) = _problems(bank, beats=[{"at": 1.0, "move": "tim", "to": "turntable", "over": 1.0}])
-    assert p == ("shots[0].beats[0].move: tim sits at 'desk_seat'; a move would leave him sitting on air "
-                 "(cut to a new shot to change where he is)")
+    assert p == ("shots[0].beats[0].move: tim sits at 'desk_seat'; a move would leave them sitting on air "
+                 "(cut to a new shot to change where they are)")
 
 
 def test_nobody_moves_into_a_seat(bank):

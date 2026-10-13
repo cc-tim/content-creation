@@ -11,9 +11,11 @@ The model, per actor, in play order:
 - A move translates the actor (never turns it: P2-R5); a character with a `walk` also walks. The
   walk's terms enter the fold where the move does, so later poses blend them away.
 - Accents add after the fold, timed from their pose's start; flags turn on once their pose is 5% in
-  and stay on. A pose beat whose `to` is the current pose only changes the face. A beat that names
-  an expression switches the face as it starts; one that doesn't leaves the face alone.
-- `face` aims at its target's root where that is at `t` (the snapshot's `aim(lion.root.position)`).
+  and stay on. A pose beat that names a pose blends it in from wherever the fold is (unless it's
+  the pose already heading in); one without `to` only changes the face. A beat that names an
+  expression switches the face as it starts; one that doesn't leaves the face alone.
+- `face` aims at its target's root where that is at `t` (the snapshot's `aim(lion.root.position)`),
+  turning the short way round.
   GuoGuo's look is that aim plus his `look.dy`, split between his body and head when seated.
 - Engine programs (the walk, GuoGuo, the door, the bulb, the bubble, the laptop, the camera) are
   the snapshot's code with their constants in the bank.
@@ -139,7 +141,8 @@ def _facing(sym: SymbolicState, setdef: SetDef, pos: dict[str, list[float]]) -> 
     for c in sym.changes:
         if c.verb == "face":
             me, to = pos[c.who], pos[c.to]
-            yaw[c.who] = lerp(yaw[c.who], math.atan2(to[0] - me[0], to[2] - me[2]), c.k)
+            turn = (math.atan2(to[0] - me[0], to[2] - me[2]) - yaw[c.who] + math.pi) % (2 * math.pi) - math.pi
+            yaw[c.who] = yaw[c.who] + turn * c.k    # the short way round
     return yaw
 
 
@@ -174,17 +177,16 @@ def _next_full(taken: list[_Taken], i: int) -> _Taken | None:
 def _act(actor: ActorAt, ch: Character, poses: dict[str, Pose], sym: SymbolicState, walks: list[_Walked],
          rel: float, t: float) -> _Acted:
     taken = [_Taken(actor.pose, poses[actor.pose], rel, 1.0, -1)]
-    pose = actor.pose                            # beats_at's current pose (its last completed one)
     shown, shown_since = actor.expr, rel         # the face on screen: switches when a beat starts
     for i, c in enumerate(sym.changes):
         if c.verb != "pose" or c.who != actor.name:
             continue
         if c.expr_set and c.expr != shown:   # an authored expression switches the face as its beat starts
             shown, shown_since = c.expr, c.since
-        if c.to != pose:
+        # An authored pose blends in from wherever the fold is, unless it's the one already heading
+        # in; a beat without `to` only changes the face.
+        if c.to_set and c.to != taken[-1].name:
             taken.append(_Taken(c.to, poses[c.to], c.since, c.k, i))
-        if c.k >= 1.0:
-            pose = c.to
     events: list[tuple[int, _Taken | _Walked]] = [(e.order, e) for e in taken]
     if ch.walk is not None:
         events += [(m.order, m) for m in walks]

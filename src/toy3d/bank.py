@@ -541,6 +541,38 @@ class Toy3DBank(_Strict):
     def prop_kind(self, prop: str) -> str:
         return self.props[prop].kind
 
+    def scene_problems(self, scene) -> list[str]:
+        """What toy3d would draw wrong though every name resolves (Phase 2 review I2, M6): a seated
+        character moved, a seat taken by someone with no seat_height, sitting where there's no seat
+        or standing in one, and a partial pose as a placement."""
+        p: list[str] = []
+        for i, shot in enumerate(scene.shots):
+            spots = self.sets[shot.set].spots
+            seats = {n for n, sp in spots.items() if sp.seat is not None}
+            for who, pl in shot.place.items():
+                character = scene.cast[who]
+                ch, pose = self.characters[character], self.poses[character][pl.pose]
+                pw = f"shots[{i}].place.{who}"
+                if pose.partial:
+                    p.append(f"{pw}.pose: {pl.pose!r} is a partial pose (it sets only {sorted(pose.channels)}); "
+                             f"place {who} in a full pose")
+                if pl.spot in seats and ch.seat_height is None:
+                    p.append(f"{pw}.spot: {pl.spot!r} is a seat, and {character} has no seat_height")
+                elif pl.spot in seats and pose.class_ != "sit":
+                    p.append(f"{pw}.pose: {pl.pose!r} stands, and {pl.spot!r} is a seat")
+                elif pl.spot not in seats and ch.seat_height is not None and pose.class_ == "sit":
+                    p.append(f"{pw}.pose: {pl.pose!r} sits, and {pl.spot!r} has no seat")
+            for j, b in enumerate(shot.beats):
+                if b.verb != "move":
+                    continue
+                bw = f"shots[{i}].beats[{j}]"
+                if shot.place[b.move].spot in seats:
+                    p.append(f"{bw}.move: {b.move} sits at {shot.place[b.move].spot!r}; a move would leave them "
+                             f"sitting on air (cut to a new shot to change where they are)")
+                elif b.to in seats:
+                    p.append(f"{bw}.to: {b.to!r} is a seat; place a character in it instead of moving there")
+        return p
+
     @property
     def catalog(self) -> Catalog:
         """This bank's names and the toy3d engine's capabilities, as a plain Catalog."""
@@ -583,6 +615,29 @@ def _dir(root: Path, sub: str, model: type[BaseModel]) -> dict[str, Any]:
     return {f.stem: _parse(root, model, f) for f in sorted((root / sub).glob("*.yaml"))}
 
 
+# The channels the engine programs (toy3d.acting) write and read: a rig must have them.
+WALK_CHANNELS = ("hips.py", "body.rz", "leg_l.j1.rx", "leg_r.j1.rx", "leg_l.j2.rx", "leg_r.j2.rx",
+                 "arm_l.j1.rx", "arm_r.j1.rx")
+GUO_SIGNALS = ("look.dy", "hop", "sq", "land", "wob", "flap", "jig", "raise", "fidle", "bob", "body.rz")
+
+
+def _check_programs(name: str, ch: Character) -> None:
+    for program, needs, what in (("walk", WALK_CHANNELS if ch.walk else (), "the walk drives"),
+                                 ("guoguo", GUO_SIGNALS if ch.guoguo else (), "GuoGuo's program reads")):
+        missing = [c for c in needs if c not in ch.rig.channels]
+        if missing:
+            raise BankError(f"characters/{name}.yaml: {program}: {what} {missing}, not channels of the rig")
+
+
+def _check_decals(name: str, exprs: ExpressionFile) -> None:
+    """A face that draws decals draws one for every expression (else the last one would stay)."""
+    if any(e.decal for e in exprs.expressions.values()):
+        for ename, e in exprs.expressions.items():
+            if not e.decal:
+                raise BankError(f"expressions/{name}.yaml: expressions.{ename}: no decal ({name}'s other "
+                                f"expressions draw one)")
+
+
 def _check_rig_channels(character: str, rig: Rig, poses: PoseFile) -> None:
     """Every channel a pose sets, loops or accents must be one the character's rig has."""
     known = set(rig.channels)
@@ -616,7 +671,9 @@ def load_bank(root: Path | None = None) -> Toy3DBank:
         if set(files) != set(characters):
             raise BankError(f"{kind}/: one file per character ({sorted(characters)}), got {sorted(files)}")
     for name, ch in characters.items():
+        _check_programs(name, ch)
         _check_rig_channels(name, ch.rig, pose_files[name])
+        _check_decals(name, expression_files[name])
     trace_path = root / "guo_trace.json"
     try:
         trace = json.loads(trace_path.read_text())
