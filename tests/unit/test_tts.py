@@ -448,7 +448,7 @@ def test_secondary_tts_reads_narration_alt():
         Scene(id="s2", section="context", narration="主要二", narration_est_sec=5.0,
               narration_alt={}),
     ]
-    # Mirror the segment-collection logic from _run_secondary_tts.
+    # Mirror the segment-collection logic from _synthesize_secondary.
     en_segments = [s.narration_alt.get("en", "") for s in scenes]
     assert en_segments == ["english one", ""]
 
