@@ -8,7 +8,6 @@ from pathlib import Path
 import aiohttp
 import edge_tts
 import edge_tts.communicate
-import edge_tts.constants
 import structlog
 from edge_tts.constants import TRUSTED_CLIENT_TOKEN
 
@@ -40,15 +39,24 @@ def _is_retryable_status(status: int) -> bool:
     return status == 429 or 500 <= status < 600
 
 
+_override_applied = False
+
+
 def _ensure_synth_endpoint() -> bool:
-    """Point edge_tts at the working endpoint; True while this module's override is in use."""
-    if _LEGACY_SYNTH_HOST in edge_tts.communicate.WSS_URL:
+    """Point edge_tts at the working endpoint; True while this module's override is in use.
+
+    Steps aside (False) when edge_tts.communicate has no WSS_URL: a release that renamed it
+    has its own endpoint handling.
+    """
+    global _override_applied
+    url = getattr(edge_tts.communicate, "WSS_URL", None)
+    if url is None:
+        return False
+    if _LEGACY_SYNTH_HOST in url:
         edge_tts.communicate.WSS_URL = _SYNTH_WSS_URL
-    # edge_tts.constants keeps the release's own URL, so a fixed release reads False here.
-    return (
-        edge_tts.communicate.WSS_URL == _SYNTH_WSS_URL
-        and _LEGACY_SYNTH_HOST in edge_tts.constants.WSS_URL
-    )
+        _override_applied = True
+        return True
+    return _override_applied and url == _SYNTH_WSS_URL
 
 
 class EdgeEngine(VoiceEngine):
@@ -75,7 +83,8 @@ class EdgeEngine(VoiceEngine):
         overridden = _ensure_synth_endpoint()
         if not self._endpoint_logged:
             # Without the query string: it carries the client token.
-            endpoint = edge_tts.communicate.WSS_URL.split("?", 1)[0]
+            url = getattr(edge_tts.communicate, "WSS_URL", None)
+            endpoint = url.split("?", 1)[0] if url else None
             logger.info("tts.edge.endpoint", endpoint=endpoint, overridden=overridden)
             self._endpoint_logged = True
         attempts = len(_RETRY_DELAYS_SEC) + 1
