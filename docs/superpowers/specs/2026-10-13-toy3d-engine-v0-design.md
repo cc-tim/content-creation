@@ -211,11 +211,44 @@ when the build started):
 
 1. **Scope includes the lioness.** The worked scene is the locked r7-3d clip itself, so parity
    (S12-18) covers all of it.
-2. **GuoGuo freezes into the bank only when Tim approves the v7 tryout render.** Another agent is
-   still tuning him in `r7-3d/`. Everything else is built first, and the builder asks before
-   porting GuoGuo (Phase 2).
+2. **GuoGuo freezes into the bank only when Tim approves the v7 tryout render.** Another agent was
+   still tuning him in `r7-3d/`, so everything else is built first.
+   - **Update: GuoGuo frozen at v7 (Tim, 2026-10-13).** Tim approved the v7 render, so GuoGuo is
+     ported with the rest; no further gate.
+   - The frozen design is Tim's hand-puppet plush:
+     - black head down to the flipper-top line all round, with a yellow V-bib;
+     - flush blue bead eyes with big pupils, near the beak;
+     - a long beak tilted about 14° down, with an orange lower-mandible stripe;
+     - large orange cheek patches, a white front and a grey back;
+     - sideways, white-fronted paddle flippers;
+     - longer legs with black feet;
+     - shell fur.
+   - Two poses: **standing** (the design views) and **seated on the shelf** in rooms (a pyramid
+     silhouette; his reactions play seated).
+   - Tim's hair stays **H3**.
 3. **Accepted:** the Python `playwright` dependency (pinned), three.js r170 vendored into git
    (MIT), and the three-layer tolerant golden policy for GPU renders (§8).
+
+**Pick provenance: the frozen snapshot.** Every Phase 2 port (Tim, GuoGuo, the lioness, the room,
+the camera and look A) comes from the immutable snapshot
+`output/projects/20260724-hybrid-ai-agent-controller/style-tryouts/r7-3d/frozen-v7-20261013/`, not
+the live tryout folder.
+- Source: `scene.js`, `stage.html`, `render.mjs`, `README.md`, `guo_trace.json` and the overlay
+  scripts.
+- Reference renders: the `A_guo_*` design views, `A_guo_seated.png`, `A_twoshot.png`,
+  `A_closeup.png` and `A_wide.png`.
+- **`locked_clip_v7.mp4` is the locked clip for the parity row (S12-18).**
+- Its `SHA256SUMS` (itself sha256 `d9c61f636be2ee9adc537f2367224ebdf18bc2898fcec595fa2ca79f32715d75`;
+  all 26 entries verified on the Mac, 2026-10-13) is the provenance that every bank item's
+  `picked:` cites. Key entries:
+
+  | File | sha256 |
+  |---|---|
+  | `scene.js` | `4dbdf8e4e4fbccaf63a56dc05bba25ce6f2448fb2cc2e18c6da5650a4b000356` |
+  | `stage.html` | `0ee482aeac4bf999155a43be335ad38b0c1bd2b54d3cfbf8f75bc304cae3f8b2` |
+  | `render.mjs` | `c036c2f295aca73ec83752729bffbe3f27c2f3b9d3f2975f1a73b812bb424952` |
+  | `guo_trace.json` | `c15df598781f350a850255b278210cd3d5bc312322944e3bf932d8633df8abaf` |
+  | `locked_clip_v7.mp4` | `79bc8fc16dba95726d03f68409dde01c733e8b026f198c4bc4c7aa086a4afe0d` |
 
 Phase 1 build rulings (protocol satisfied structurally by the 2.5D `Bank`, both capability tables
 in `toon/catalog.py`, the narrow provisional toy3d table, `boil` and `Place.layer`/`loop` as
