@@ -1,6 +1,7 @@
 # Toon engine + resource bank v0 — design
 
-**Status:** approved by Tim (2026-09-27) · roadmap: epic **E9**, **Sprint 9** (`docs/ROADMAP.md`)
+**Status:** approved by Tim (2026-09-27) · roadmap: epic **E9**, **Sprint 9** (`docs/ROADMAP.md`) ·
+**Addendum §11** (2026-10-13): Sprint 11, finishing own-show step 3 (E9 item 2), Tim-greenlit
 **Guideline:** [`docs/own-show.md`](../../own-show.md) (top guideline for Tim's own videos) ·
 scene library: [`docs/own-show-scenes.md`](../../own-show-scenes.md)
 **Designed with Tim:** approach (part 1), bank (part 2) and scene file (part 3) approved in
@@ -94,7 +95,7 @@ Two kinds of item:
 | `props/` | laptop (icon screen), phone, mug, plate, plate_stack, idea_bulb (brightness, flicker, out + smoke) |
 | `cameras.yaml` | front34_push, two_shot, side_truck, close_push, ots_mid, screen_insert |
 | `icons/` | registry for wordless graphics: plates, suds, `!`, bulb, check, cross, laptop, phone (drawn by kit code) |
-| `style.yaml` | line A settings, line-boil mode (default `soft`, shimmer 0.3), palette, ghost ink, paper grain, drawings on twos / camera on ones |
+| `style.yaml` | line A settings, line-boil mode (default `soft`, shimmer 0.3), palette, ghost ink, paper grain, drawings at 12/s (`drawing_fps`) / camera on ones at 30 fps (`fps`) |
 
 **Getting into the bank:** only via Tim's picks (options → pick → freeze), with provenance.
 New *kinds* (for example a map or timeline graphic) need code plus a pick. The bank renders
@@ -163,7 +164,7 @@ Prop uses are checked per kind as well. An `idea_bulb` needs `on:`, a `plate` ne
   the roadmap.
 - **Every name resolves** to a bank item, set spot, camera or icon. Otherwise it fails with the
   file and path.
-- **Limited-motion defaults:** drawings on twos, camera on ones, pop-ins of 0.25 s with
+- **Limited-motion defaults:** drawings at 12/s (about 2.5 frames each at 30 fps), camera on ones, pop-ins of 0.25 s with
   overshoot. A beat can override them.
 - **Timing:** `at` is seconds within the shot. Inside a pipeline storyboard, a beat may say
   `at: {sentence: n}`. v0 resolves that by splitting the scene's narration into sentences and
@@ -237,3 +238,180 @@ Word-level timing (Whisper word timestamps) · more characters and sets from Tim
 explainer graphics kinds (map, timeline, arrows between cards) · host A-roll ↔ toon transitions ·
 Shorts / vertical framing · the Seedance accent-shot test · the audience-lens critics
 (own-show next step 5).
+
+## 11. Addendum: Sprint 11, finishing step 3 (E9 item 2), 2026-10-13
+
+**Status:** Tim greenlit it on 2026-10-13 ("for step three, could you complete?"). The EM
+proposed it in SPRINT mode. Roadmap: E9 item 2, **Sprint 11**. This section amends §4–§8 where
+it says so. Everything else above still holds.
+
+**Context.** Step 1 (style) is open again. Tim rejected the v0 doodle look on 2026-09-28, and on
+2026-10-13 he also rejected the editorial cut-paper candidate (branch
+`art/toon-editorial-tryout`, deleted, never merged). A tryout of a "totally different style" on
+scene 001 runs in parallel. **The v0 bank stays the implemented baseline until Tim picks.**
+
+So Sprint 11 builds only the **scene contract** half of step 3: what a scene file may say, how
+it is timed against narration, and how it fails. That half holds for any look the engine draws
+from bank names. The items that depend on the look are held (§11.4).
+
+### 11.1 Scope
+
+| Item | Sprint 11 | Why |
+|---|---|---|
+| 2a: silently ignored fields fail at load | **IN** | scene contract; loud failure |
+| 2b: two cards with one icon collide on one key | **IN** | scene contract |
+| 2b: sentence splitter (「」 quotes, "U.S.") | **IN** | timing; zh-TW narration drives anchors |
+| 2b: `SceneError` names the scene file | **IN** | closes the v0 deferral Tim acked |
+| 2b: `style.yaml` `line`/`palette` wired into renders | **HELD** | look-dependent (§11.4) |
+| 2c: laptop ✓/✗ screen states | **HELD** | needs Tim's pick in the new look |
+| 2d: `toon validate --narration/--duration` | **IN** | authoring tool for anchors |
+| 2d: pose and prop contact sheets | **HELD** | review sheets for the next picks; look-dependent |
+| 2e: hygiene (`PROP_KINDS` sync, camera `over`/`ease` check, workers reload the bank) | **IN** | correctness |
+| 2f: shot starts follow the narration | **IN**, sentence-level | §11.2 f; word-level stays E9 item 3 |
+| 2g: "on twos" wording | **done** in this edit (§4, §5) | — |
+
+### 11.2 Design
+
+**a. No silently ignored field.**
+- `Beat.over` and `Beat.ease` become optional, where `None` means "not given". The timeline
+  applies the defaults: `over` 0, `ease` smooth, and a 0.25 s pop for `show`.
+- Rule: every field set on a beat must be read by the timeline for that verb (and, for `prop`,
+  that prop kind). Otherwise the scene fails to load, with the path.
+- Starting table. The builder confirms it against `timeline.py` and pins it in one table-driven
+  test:
+
+  | Verb | `over` | `ease` |
+  |---|---|---|
+  | `door`, `move`, `pose`, `face` | yes | yes |
+  | `prop` | only with `to:` | only with `to:` |
+  | `show` | yes (the pop length) | no |
+  | `hide`, `camera` | no | no |
+
+- `PROP_KINDS` gains a fourth entry: the beat flags each kind honours. Only `idea_bulb` takes
+  `flicker`, `blink` and `out`. So a `plate` or `plate_stack` beat with one of them fails.
+- Bank: when a character's `hair` has `layers:`, any top-level hair key that the layered drawing
+  path doesn't read fails with a `BankError` naming the file and the key.
+
+**b1. Graphic keys.**
+- Cards (`x_card`, `check_pill`) take an optional `id:`, a slug (`^[a-z][a-z0-9_]*$`). It is
+  never drawn, so the wordless rule still holds. The key becomes `<kind>:<id or icon>`.
+- A `show` whose key is still visible in the shot fails, naming both beats. Showing it again
+  after a `hide` is fine.
+
+**b2. Sentence splitter** (`split_sentences`, pure). The v0 rules stay: a run of terminators is
+one break, decimals don't break, and an ellipsis followed directly by text doesn't break. Added:
+- **Closing quotes attach to the left.** A terminator still ends a sentence inside quotes,
+  because TTS pauses there and anchors are about timing, not grammar. Any closing quotes or
+  brackets right after it (」 』 ” ） ) ’) belong to the sentence they close, so no sentence
+  starts with a closer. For example:
+  - 他說：「我走了。」然後離開。 gives 他說：「我走了。」 and 然後離開。 (today the second is
+    」然後離開。).
+  - 「走吧！」「好。」 gives 2 sentences.
+  - A narration quoted as a whole, 「A。B。」, still gives 2, so anchors can address the
+    sentences inside a quoted line.
+- **Abbreviations.** A "." doesn't end a sentence when it follows a one-letter word (U.S., J. K.,
+  e.g., a.m.) or a word in a short list kept next to the splitter: Mr, Mrs, Ms, Dr, Prof, St,
+  vs, etc, Sr, Sra, Srta. The list covers en and es-419. At the end of the text it still ends
+  the sentence.
+- The known cost: "…moved to the U.S. Then…" merges into one sentence. `toon validate
+  --narration` prints the split (d), so the author sees how anchors count.
+
+**b3. `SceneError` names its source.**
+- `SceneError(problems, source=None)` reads `<source>: <problem>` for each problem.
+- `read_scene` attaches the scene file. `load_scene(..., source=...)` takes it from the caller:
+  - a scene file gives its repo-relative path;
+  - an inline storyboard visual gives `<storyboard file> scene <sid>`;
+  - a `scene:` reference gives `<scene file> (from <storyboard file> scene <sid>)`.
+- `pipeline validate` and compose's `SceneRenderError` reason both carry it.
+
+**d. `pipeline toon validate <scene> [--narration TEXT] [--duration SEC]`.**
+- `--duration` defaults to the scene's own `duration`.
+- It resolves the anchors and prints a sentence table (n, start in seconds, the sentence), each
+  shot's resolved start, and warnings as `WARN` lines.
+- Exit 0 when clean (warnings allowed), 1 on errors.
+- A scene with anchors and no `--narration` exits 1 with a message that names the flag.
+
+**e. Hygiene.**
+- A test holds `PROP_KINDS` keys equal to the `PropDef.kind` literals.
+- The camera `over`/`ease` check uses `is not None`; it no longer reads `model_fields_set`. This
+  falls out of (a).
+- Render workers get the caller's `Bank` (serialised) instead of reloading it from disk. The
+  frames then come from the bank that was validated and hashed into the cache key.
+
+**f. Shot starts follow the narration, without word-level timing.**
+- **The defect:** shot starts are absolute seconds. When the narration length changes (a TTS
+  draft, then Tim's recorded voice, then a re-take), every cut stays put, and only the last shot
+  holds or is cut.
+- **The fix:** `Shot.at` accepts the same anchor as a beat, `{sentence: n}`. The anchor gains
+  `plus: s` (seconds after the sentence start, ≥ 0, default 0), on shots and beats alike.
+- Resolution order:
+  1. Shot anchors become absolute times: start of sentence n + `plus`.
+  2. Beat anchors resolve relative to their shot's resolved start.
+  3. The first shot must resolve to 0. After resolution, shot starts must strictly increase.
+     Otherwise loading fails, naming each shot, its anchor and its resolved time.
+- Beats given in seconds stay shot-relative. **Nothing is stretched uniformly:** a stretch would
+  silently re-time comic timing the author wrote.
+- **Drift warning.** A warning, not an error, because a scene timed in seconds is legitimate. It
+  fires when all of these hold:
+  - the scene has an authored `duration`;
+  - some later shot starts at an absolute time;
+  - the narration differs from the authored duration by more than 0.5 s.
+
+  Text: "shots 2–4 are in seconds and won't follow the narration (authored 13.0 s, narration
+  16.2 s); anchor them with `at: {sentence: n}`".
+- **The seam:** every anchor resolves through `sentence_starts(narration, duration)`. Word-level
+  timing (E9 item 3) later swaps in measured starts there, and no scene file changes.
+- **Why word-level timing isn't pulled in:**
+  - It needs a new provider or dependency (the Whisper API, or a local model) and a per-scene
+    timing artifact.
+  - It needs zh-TW character alignment.
+  - No named beat needs sync inside a sentence yet.
+
+  Sentence anchors fix the defect itself. The approximation (character share of the scene's
+  measured duration) can put a cut a few hundred ms off against a real voice. `plus:` and the
+  validate table make that visible and adjustable.
+- **Cache:** the resolved scene and the duration are both in the clip's cache key, so a new
+  narration re-renders.
+
+### 11.3 Done criteria
+
+- The `test-plan.md` rows **S11-1 … S11-16** (E9 section) all pass, at a single REVIEW.
+- Each behaviour change lands red first: a test-only commit, then the fix (Sprint 10 precedent).
+  The EM mutation-checks the fences.
+- **Scene 001 is unchanged:**
+  - hub goldens 4/4 with `UPDATE_GOLDENS` unset and no fixture churn;
+  - parity worst ≤ 0.058;
+  - the determinism tests pass.
+
+  Scene 001 uses none of the newly rejected fields (EM probe, 2026-10-13). Its clip cache key
+  changes once, because `over`/`ease` serialise differently; that is expected.
+- **The non-goal fence holds:**
+  - `assets/toon/scenes/` holds only `001-lioness-dishes.yaml`;
+  - the bank gains no item;
+  - anchored test scenes live under `tests/fixtures/toon/`.
+- **Real-scene demo, hub:** a throwaway smoke project rebuilt from the Sprint 9 recipe
+  (`tmp/toon-v0/compose-smoke/REPORT.md`: s2's three-sentence zh-TW narration). The original
+  project `9920260928` is gone from the hub (EM check, 2026-10-13), and the report is only on
+  the Mac (untracked). The s2 narration, three sentences, without the report's wrapping
+  quotes: `提姆靈光一閃，想到一個好點子。獅子太太氣沖沖衝進來，要他馬上去洗碗。提姆只好站到水槽前，看著靈感一點點熄滅。`
+  (edge-tts 13.44 s).
+  - The visual is an inline, sentence-anchored copy of scene 001: shots 2 and 3 on sentences 2
+    and 3, and shot 4 on `{sentence: 3, plus: …}`.
+  - It runs against two real narration takes of different length: the existing 13.44 s edge-tts
+    take, and a second voice or rate.
+  - Check that each cut lands within one frame of its resolved start, and that the clip lasts
+    exactly as long as the narration.
+  - Evidence goes in `tmp/toon-s11/demo/`. This is not an EP1 scene.
+- Full suite, ruff and mypy clean. A separate code review has happened.
+
+### 11.4 Held until Tim picks the new style
+
+| Item | Comes back when |
+|---|---|
+| 2c laptop ✓/✗ screen states | after the pick: options → Tim picks → freeze, drawn in the picked look |
+| 2b `style.yaml` `line`/`palette` wiring | first item of the restyle sprint, if the pick stays on this engine. Until then, the equality test keeps an edit loud |
+| 2d pose and prop contact sheets | with the restyle. Built now, they would show a rejected look and churn goldens |
+| §2 "Look" and the §4 bank table | rewritten when the pick lands |
+
+**Risk.** Some of this would be stranded if the new style leaves scene files behind, for example
+a pure AI-video look. The scene contract is built to outlive the drawing code, not that pivot.

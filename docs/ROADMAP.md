@@ -16,7 +16,7 @@
 > video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
 > the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-09-29 (follow-up REVIEW on master `53b1df3`: **E10 v1 = PASS → 🟢**. The F1 and F2 tests are green, 3 of 3 mutations went red, and the full suite gives 1440 / 62. Sprint 10 is merged as `53b1df3`. The Pillow `getdata` deprecation is filed with the dark-image item in Later: removal would silently disable the dark check.) · Prior: 2026-09-29 (REVIEW: **Sprint 10 (E5 loud-failure sweep, part 1) = PASS → 🟢**, `feat/e5-loud-failure-sweep` at `bb16aa0`, merge cleared. The EM ran everything itself: the branch suite gave 1378 passed / 59 skipped, and the merged tree (post-E10 master + branch) gave 1440 / 62; ruff and mypy were clean. 18 of 18 mutations went red, and the A4 smoke was re-run at HEAD with 3 extra live checks. The hub path audit found 0 disagreements. It also found that hub project `1776850327_B`'s final holds 5 black runs (~61 s) and the project was published; see Sprint 10. Parked items are placed in Later, with atomic scene-cache writes at the top.) · Prior: 2026-09-29 (REVIEW: E10 v1 = ADVISE, cleared to merge; it has since merged to master `2add7c2` with F1 and F2). · 2026-09-29 (SPRINT + INTAKE: Sprint 10 greenlit; new infra epic E10). · 2026-09-28 (third REVIEW, master `2f6fb35`: **Sprint 9 (E9 v0) = PASS → 🟢 shipped**). Earlier history: `.agent-memory/engineering-manager/sprint-log.md` and `sprint-log-archive.md`. · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-10-13 (SPRINT: **Sprint 11 = E9 item 2, finishing own-show step 3**, Tim-greenlit: "for step three, could you complete?". Only the style-independent scene-contract residuals are built. Laptop ✓/✗ screens, `style.yaml` wiring and contact sheets are held, because Tim reopened step 1 (style). Spec addendum: toon spec §11. Test-plan rows S11-1…S11-16. Sprint 11 goes ahead of E5 part 1b.) · Prior: 2026-09-29 (follow-up REVIEW on master `53b1df3`: **E10 v1 = PASS → 🟢**. The F1 and F2 tests are green, 3 of 3 mutations went red, and the full suite gives 1440 / 62. Sprint 10 is merged as `53b1df3`. The Pillow `getdata` deprecation is filed with the dark-image item in Later: removal would silently disable the dark check.) · Prior: 2026-09-29 (REVIEW: **Sprint 10 (E5 loud-failure sweep, part 1) = PASS → 🟢**, `feat/e5-loud-failure-sweep` at `bb16aa0`, merge cleared. The EM ran everything itself: the branch suite gave 1378 passed / 59 skipped, and the merged tree (post-E10 master + branch) gave 1440 / 62; ruff and mypy were clean. 18 of 18 mutations went red, and the A4 smoke was re-run at HEAD with 3 extra live checks. The hub path audit found 0 disagreements. It also found that hub project `1776850327_B`'s final holds 5 black runs (~61 s) and the project was published; see Sprint 10. Parked items are placed in Later, with atomic scene-cache writes at the top.) · Prior: 2026-09-29 (REVIEW: E10 v1 = ADVISE, cleared to merge; it has since merged to master `2add7c2` with F1 and F2). · 2026-09-29 (SPRINT + INTAKE: Sprint 10 greenlit; new infra epic E10). · 2026-09-28 (third REVIEW, master `2f6fb35`: **Sprint 9 (E9 v0) = PASS → 🟢 shipped**). Earlier history: `.agent-memory/engineering-manager/sprint-log.md` and `sprint-log-archive.md`. · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -412,8 +412,10 @@ copy; a project is owned by exactly one machine at a time.**
   (Claude calls on the subscription, which unblocks production) go ahead of item 2.
   Sprint 10 and E10 have both shipped (🟢). The small E5 part 1b
   slice (atomic scene-cache writes) is recommended just ahead of item 2.
+  **Re-ordered 2026-10-13:** Sprint 11 (E9 item 2, Tim-greenlit) goes first, then E5 part 1b,
+  then item 2.
 
-### E9 — Toon engine & resource bank (own-show character animation)  `[arsenal]`  🟢 *v0 shipped (Sprint 9; EM REVIEW PASS 2026-09-28 after two REWORK rounds); items 2–3 open*
+### E9 — Toon engine & resource bank (own-show character animation)  `[arsenal]`  🟢 *v0 shipped (Sprint 9; EM REVIEW PASS 2026-09-28 after two REWORK rounds); item 2 = **Sprint 11** (Tim-greenlit 2026-10-13, style-independent part only); item 3 open; **style reopened** (see below)*
 A deterministic **2.5D hand-drawn character-animation** visual type for Tim's own hosted videos
 (`docs/own-show.md` is the top guideline for those videos and overrides the porting defaults).
 A code rig (cairo) draws the frozen character (Tim: likeness 2, short crop A, navy hoodie,
@@ -451,12 +453,21 @@ are YAML files that name bank items and always render the same frames. The pipel
     `pipeline doctor`.
   - Retargeting the audience-lens critics is `own-show.md` step 5 (content/critic work, not
     tracked here).
+- **Style reopened (own-show step 1).** Tim rejected the v0 doodle look on 2026-09-28. On
+  2026-10-13 he also rejected the editorial cut-paper candidate (branch
+  `art/toon-editorial-tryout`, deleted, never merged). A tryout of a "totally different style"
+  on scene 001 runs in parallel. **The v0 bank stays the implemented baseline until Tim picks.**
+  Work that depends on the look waits for that pick. Scene-contract work (what a scene file
+  says, its timing, its failures) does not. Source: the coordinator's dispatch, 2026-10-13.
 - **Items:**
   1. **🟢 v0: engine + bank + scene file + `toon` visual type** (Sprint 9). Shipped on master
      `2f6fb35`; EM REVIEW PASS 2026-09-28. It renders at 30 fps with drawings at 12/s (Tim's
      pick A), which matches compose's concat rate. See Sprint 9.
-  2. **🔵 v0 residuals** (parked by the v0 final review, 2026-09-28). The demand is EP1 scene
-     authoring. Clear a–c before the first EP1 scene file is written, in this order:
+  2. **🔵 v0 residuals → Sprint 11** (parked by the v0 final review, 2026-09-28; **Tim greenlit
+     finishing step 3 on 2026-10-13**). The demand is EP1 scene authoring. Sprint 11 builds the
+     style-independent part: a, the 2b splitter / card key / `SceneError` file name, the 2d
+     `validate` flags, e and f. **Held until Tim's style pick:** c (laptop ✓/✗), the 2b
+     `style.yaml` wiring and the 2d contact sheets. Scope table: spec §11.1. The items as filed:
      - **a. Loud-failure debt.** Some fields are still accepted and silently ignored: `ease` on
        `show`, `over`/`ease` on `hide`, `flicker`/`blink`/`out` on plates, and top-level hair
        keys beside `layers:`. Spec §5 documents them; they should fail at load (standards:
@@ -480,11 +491,12 @@ are YAML files that name bank items and always render the same frames. The pipel
        - the camera `over`/`ease` rejection relies on `model_fields_set`;
        - render workers reload the bank from disk.
      - **f. Timing:** shot boundaries don't scale with the TTS duration; only the last shot
-       holds or is cut. This goes with word-level timing below.
+       holds or is cut. **Sprint 11 fixes it without word-level timing:** shots take
+       `at: {sentence: n, plus: s}`, plus a drift warning (spec §11.2 f). Word-level timing
+       stays in item 3 and later swaps in behind the same `sentence_starts` seam.
      - **g. ~~Frame rate~~ → fixed in Sprint 9 as REWORK R1** (30 fps, drawings 12/s; guard +
-       cadence tests). Wording left over: spec §4's `style.yaml` row and §5's "limited-motion
-       defaults" still say "drawings on twos". At 30 fps that is 12/s, about 2.5 frames per
-       drawing; §2 and §6 carry the right numbers. Fix it on the next spec edit.
+       cadence tests). ~~The leftover "on twos" wording in spec §4/§5~~ was fixed in the
+       Sprint 11 spec edit (2026-10-13).
   3. **⚪ After v0 (spec §10, unscoped):**
      - word-level timing (Whisper word timestamps)
      - more characters and sets, from Tim's picks only
@@ -1203,9 +1215,79 @@ block is the sprint shape. The spec is the design and is not restated here.
   - Also check whether the published cut carries the black.
 - **Then:** the E10 🟢 follow-up is done (PASS on `53b1df3`). Next comes the capability slot:
   **E5 part 1b, atomic scene-cache writes**, a small hardening slice
-  recommended at the head of the queue. Then E8 item 2 (checkout/checkin + hub lock), then E8
+  recommended at the head of the queue. **Superseded 2026-10-13:** Tim greenlit Sprint 11
+  (E9 item 2) for the slot, and E5 part 1b follows it. Then E8 item 2 (checkout/checkin + hub lock), then E8
   item 3 (draft encoder profile). The E8 item 1 (B) follow-up REVIEW (the s31 tofu) is still
   pending.
+
+### Sprint 11 — E9 item 2: finishing own-show step 3 (scene contract: loud failures, splitter, source names, sentence-anchored shots)  `[E9]`  🔵 *greenlit by Tim 2026-10-13; not built*
+**Spec (build from this):** `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md` §11 (the
+addendum). This block is the sprint shape.
+- **Greenlight:** Tim, 2026-10-13: "for step three, could you complete?" Own-show step 3 is
+  "scene scripts reference bank elements by name and render consistently by construction".
+- **Goal:** a scene file either means exactly what it renders or fails at load, naming its file.
+  Its shot cuts follow the narration when the narration's length changes.
+- **Demand source:** `docs/own-show.md` step 3; the E9 item 2 residuals parked by the v0 final
+  review (2026-09-28); the two v0 deferrals Tim acked. **EM probes on master `a2e9b55`
+  (2026-10-13), all wrong today:**
+  - `ease` on a `show`, `over` on a `hide` and `flicker` on a `plate` all load silently;
+  - a second `x_card: bulb` silently replaces the first;
+  - 「我走了。」然後離開。 splits into a fragment that starts with 」, and "The U.S. economy grew."
+    becomes 3 sentences;
+  - `SceneError` never names the file;
+  - `shots[i].at` can't take a sentence anchor.
+- **Axis:** production quality (visual) via defect prevention. **Zero runtime:** the duration =
+  narration fence is untouched. Sentence anchors move cuts *inside* the narration and never
+  lengthen a scene.
+- **Scope IN** (spec §11.1–§11.2). One worktree; red-first commits, then the fix commits:
+  1. **2a, no silently ignored field:**
+     - `Beat.over`/`ease` become optional;
+     - one per-verb table of the fields the timeline reads;
+     - prop-kind beat flags;
+     - hair keys beside `layers:` rejected.
+  2. **2b correctness:**
+     - optional card `id:` and visible-key collision errors;
+     - the splitter: closing quotes attach to the left, abbreviations;
+     - `SceneError(problems, source)` through `read_scene`, `load_scene`, the validator and the
+       composer.
+  3. **2d:** `pipeline toon validate --narration --duration`, printing the sentence table and
+     the resolved shot starts.
+  4. **2e:** the `PROP_KINDS` sync test; the camera check uses `is not None`; workers get the
+     caller's `Bank`.
+  5. **2f:** `Shot.at` takes `{sentence: n, plus: s}`. Shot anchors resolve first, an
+     out-of-order result fails loudly, and a drift warning fires for seconds-timed shots.
+- **Scope OUT / held:**
+  - **Held until Tim's style pick** (spec §11.4): 2c laptop ✓/✗ screens, the 2b `style.yaml`
+    `line`/`palette` wiring, and the 2d pose and prop contact sheets. They become the first
+    slice of the restyle sprint.
+  - **Word-level timing** stays E9 item 3. Sentence anchors fix the defect, and the
+    `sentence_starts` seam is where it plugs in later.
+  - A uniform stretch of seconds-timed shots is rejected: it would silently re-time authored
+    comic timing.
+  - EP1 scenes or story (the non-goal stands; `own-show.md` step 6).
+  - New bank items; a `direct.py` taxonomy entry; Style Manifest / dashboard surfaces.
+- **Dependencies:** none blocking. Master has the v0 engine, and the cairo runtime is on both
+  machines. The demo rebuilds a throwaway smoke project from the Sprint 9 recipe
+  (`tmp/toon-v0/compose-smoke/REPORT.md`), because `9920260928` is gone from the hub. **Push
+  master before any hub row.**
+- **Unblocks:** authoring the first EP1 scene file against a contract that can't silently drop a
+  field. Re-recording narration (TTS draft → Tim's voice) moves the cuts with it instead of
+  stranding them. **Does NOT** add runtime, give a new look, add bank items or compose any EP1
+  scene.
+- **Acceptance:** test-plan rows **S11-1…S11-16** (E9 section), all gating at a single REVIEW:
+  - red first, with the EM mutation-checking the fences;
+  - **scene 001 byte-identical**: hub goldens 4/4 with no churn, parity ≤ 0.058;
+  - the non-goal fence holds;
+  - the hub real-scene demo: two narration takes, cuts on their resolved starts;
+  - `uv run pytest -q`, `ruff check src/ tests/` and `mypy src/` clean;
+  - a separate code review has happened.
+- **Cost:** $0. Local cairo and ffmpeg; the demo's second take is free edge-tts.
+- **Size:** ~1.5 sessions, plus a short hub pass (goldens compare, parity, demo).
+- **Needs Tim before the build starts:** see the sprint-log entry for 2026-10-13. Briefly:
+  confirm the held set; accept sentence anchors in place of word-level timing; the zh-TW quote
+  convention (default: a terminator inside 「」 still breaks; the closer stays with its sentence).
+- **Then:** E5 part 1b (atomic scene-cache writes, with the dark-retry cache key), then E8
+  item 2. The held E9 items return as the restyle sprint once Tim picks a style.
 
 ### Later / unscoped backlog
 - **E5 loud-failure sweep** → part 1 🟢 shipped (Sprint 10). Part 2 (silent `text_card`
@@ -1245,6 +1327,12 @@ block is the sprint shape. The spec is the design and is not restated here.
      - `TimeoutExpired` gets no stderr tail;
      - the overlay-rule `suggested_fix` repeats the collision message the reason already
        carries. The spec asked for that, but it is noisy.
+- **⚪ Prerecorded narration silently falls back to TTS (E5; own-show relevant, filed
+  2026-10-13).** In `stages/tts.py` `_synthesize_pass`, a scene whose `narration_source`
+  names a missing recording only logs `tts.prerecorded.missing_file_falling_back_to_default`
+  and synthesises TTS instead. Tim's own-show narration is his recorded voice, so a moved
+  file would ship a synthetic voice without anyone deciding to. Make it loud: raise with the
+  path and a `suggested_fix`, or require an explicit opt-in to fall back. Rides with E5 part 2.
 - **Post-compose Haiku visual-QC opt-out** `🔵`, **cross-linked to E10** (same call site). The E10
   spec keeps the QC advisory and moves it to the subscription; the opt-out flag is not in it, so
   this line stays. Found by the Sprint 9 hub smoke, 2026-09-28.
