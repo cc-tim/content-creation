@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 import re
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -64,9 +64,20 @@ _SceneLoader.yaml_implicit_resolvers = {
 
 
 class SceneError(ValueError):
-    def __init__(self, problems: list[str]):
-        self.problems = problems
-        super().__init__("; ".join(problems))
+    """Problems with a scene, each `<path>: <message>`. `source` names where the scene came
+    from (a scene file, or a storyboard scene) and prefixes every problem."""
+
+    def __init__(self, problems: list[str], source: str | None = None):
+        self.problems, self.source = problems, source
+        super().__init__("; ".join(f"{source}: {p}" if source else p for p in problems))
+
+
+class SceneData(dict[str, Any]):
+    """Scene data plus where it came from, which `load_scene` names in every error."""
+
+    def __init__(self, data: dict, source: str | None):
+        super().__init__(data)
+        self.source = source
 
 
 class _Strict(BaseModel):
@@ -480,7 +491,19 @@ def _check_beat_fields(b: Beat, bw: str, kind: str | None) -> list[str]:
 
 
 def load_scene(data: dict, bank: Bank, narration: str | None = None,
-               duration: float | None = None) -> ToonScene:
+               duration: float | None = None, source: str | None = None) -> ToonScene:
+    """Validate scene data against the bank, resolving sentence anchors. Every SceneError names
+    `source`, which defaults to the data's own (`read_scene`, `scene_data_from_visual`)."""
+    source = source if source is not None else getattr(data, "source", None)
+    try:
+        return _load(data, bank, narration, duration)
+    except SceneError as exc:
+        if source is None or exc.source is not None:
+            raise
+        raise type(exc)(exc.problems, source=source) from exc
+
+
+def _load(data: dict, bank: Bank, narration: str | None, duration: float | None) -> ToonScene:
     try:
         scene = ToonScene.model_validate(data)
     except ValidationError as exc:
@@ -529,20 +552,36 @@ def scenes_root() -> Path:
     return default_root().parent / "scenes"
 
 
-def read_scene(ref: str) -> dict:
+_REPO = Path(__file__).resolve().parents[2]
+
+
+def source_name(path: Path) -> str:
+    """A file as errors name it: repo-relative inside the repo, else as given."""
+    try:
+        return str(Path(path).resolve().relative_to(_REPO))
+    except ValueError:
+        return str(path)
+
+
+def scene_path(ref: str) -> Path:
     """A scene id (`001-lioness-dishes` → assets/toon/scenes/<id>.yaml) or a path to a YAML file."""
     path = Path(ref)
-    if path.suffix not in (".yaml", ".yml"):
-        path = scenes_root() / f"{ref}.yaml"
+    return path if path.suffix in (".yaml", ".yml") else scenes_root() / f"{ref}.yaml"
+
+
+def read_scene(ref: str) -> SceneData:
+    """A scene file's data, which remembers the file (`load_scene` names it in every error)."""
+    path = scene_path(ref)
+    src = source_name(path)
     if not path.exists():
-        raise SceneError([f"scene file not found: {path}"])
+        raise SceneError(["scene file not found"], source=src)
     try:
         data = yaml.load(path.read_text(), Loader=_SceneLoader)
     except yaml.YAMLError as exc:
-        raise SceneError([f"{path}: not valid YAML: {' '.join(str(exc).split())}"]) from exc
+        raise SceneError([f"not valid YAML: {' '.join(str(exc).split())}"], source=src) from exc
     if not isinstance(data, dict):
-        raise SceneError([f"{path}: expected a scene mapping (id, cast, shots), got {type(data).__name__}"])
-    return data
+        raise SceneError([f"expected a scene mapping (id, cast, shots), got {type(data).__name__}"], source=src)
+    return SceneData(data, src)
 
 
 # Keys the pipeline owns on every storyboard visual — `type` (dispatch), the director's
@@ -552,18 +591,29 @@ PIPELINE_VISUAL_KEYS = frozenset({"type", "confidence", "rationale", "edit_mode"
 SCENE_REF_OVERRIDES = frozenset({"boil"})
 
 
-def scene_data_from_visual(visual: dict) -> dict:
+def scene_data_from_visual(visual: dict, origin: str | None = None) -> SceneData:
     """A storyboard `toon` visual → scene data. Inline scenes pass every scene key through, so
-    the scene model's `extra="forbid"` catches typos; references take `boil:` and nothing else."""
+    the scene model's `extra="forbid"` catches typos; references take `boil:` and nothing else.
+
+    `origin` names the storyboard scene (`<storyboard file> scene <sid>`). The data's source is
+    then the origin itself for an inline scene, or `<scene file> (from <origin>)` for a reference.
+    """
     own = {k: v for k, v in visual.items() if k not in PIPELINE_VISUAL_KEYS}
     if own.get("scene"):
+        ref = str(own["scene"])
         extra = sorted(set(own) - {"scene"} - SCENE_REF_OVERRIDES)
         if extra:
             raise SceneError([f"visual.{k}: a scene reference takes only scene: and "
                               f"{', '.join(sorted(SCENE_REF_OVERRIDES))}: (edit the scene file, "
-                              f"or inline the shots)" for k in extra])
-        data = read_scene(str(own["scene"]))
-        return {**data, **{k: own[k] for k in SCENE_REF_OVERRIDES if k in own}}
+                              f"or inline the shots)" for k in extra], source=origin)
+        src = f"{source_name(scene_path(ref))} (from {origin})" if origin else None
+        try:
+            data = read_scene(ref)
+        except SceneError as exc:
+            if src is None:
+                raise
+            raise SceneError(exc.problems, source=src) from exc
+        return SceneData({**data, **{k: own[k] for k in SCENE_REF_OVERRIDES if k in own}}, src or data.source)
     if own.get("shots"):
-        return {"id": "inline", "cast": {}, **own}
-    raise SceneError(["visual: a toon visual needs scene: <id> or inline cast + shots"])
+        return SceneData({"id": "inline", "cast": {}, **own}, origin)
+    raise SceneError(["visual: a toon visual needs scene: <id> or inline cast + shots"], source=origin)

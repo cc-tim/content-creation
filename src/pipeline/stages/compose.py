@@ -1186,6 +1186,7 @@ class ComposeStage(PipelineStage):
                         source_video=source_video,
                         theme=theme_dict,
                         project_root=ctx.work_dir,
+                        storyboard_file=ctx.storyboard_path,
                     )
 
                 # Frameless scenes: scale the visual to fill the full canvas so every

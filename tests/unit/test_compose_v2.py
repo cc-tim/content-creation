@@ -365,7 +365,7 @@ def test_compose_burn_subtitles_false_returns_plain_variant(monkeypatch, tmp_pat
     monkeypatch.setattr(
         "pipeline.stages.compose.check_ffmpeg_available", lambda: True
     )
-    def _fake_render(scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None):
+    def _fake_render(scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None, storyboard_file=None):
         return Path(work_dir) / f"{scene['id']}.mp4"
 
     monkeypatch.setattr("pipeline.stages.compose.render_scene", _fake_render)
@@ -436,7 +436,7 @@ def test_scenes_json_written_by_storyboard_compose(monkeypatch, tmp_path):
         lambda cmd: Path(cmd[-1]).write_bytes(b"mp4"))
     monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
     monkeypatch.setattr("pipeline.stages.compose.render_scene",
-        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None:
+        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None, storyboard_file=None:
             Path(work_dir) / f"{scene['id']}.mp4")
 
     # scenes.json is now derived from the ACTUAL concatenated clip durations.
@@ -615,7 +615,7 @@ def test_preferred_variant_selects_correct_final_path(monkeypatch, tmp_path):
         lambda cmd: Path(cmd[-1]).write_bytes(b"mp4"))
     monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
     monkeypatch.setattr("pipeline.stages.compose.render_scene",
-        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None:
+        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None, storyboard_file=None:
             Path(work_dir) / f"{scene['id']}.mp4")
 
     import asyncio
@@ -666,7 +666,7 @@ def test_compose_forces_no_overlay_when_mla(monkeypatch, tmp_path):
         lambda cmd: Path(cmd[-1]).write_bytes(b"mp4"))
     monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
     monkeypatch.setattr("pipeline.stages.compose.render_scene",
-        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None:
+        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None, storyboard_file=None:
             Path(work_dir) / f"{scene['id']}.mp4")
 
     import asyncio
@@ -732,7 +732,7 @@ def test_compose_mla_does_not_mux_secondary_audio(monkeypatch, tmp_path):
     monkeypatch.setattr("pipeline.stages.compose.run_ffmpeg", capture)
     monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
     monkeypatch.setattr("pipeline.stages.compose.render_scene",
-        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None:
+        lambda scene, duration, aspect_ratio, work_dir, source_video=None, theme=None, project_root=None, storyboard_file=None:
             Path(work_dir) / f"{scene['id']}.mp4")
 
     import asyncio
@@ -1253,7 +1253,7 @@ async def test_several_failed_scenes_all_reported_and_good_scene_stays_cached(sa
     rendered: list[str] = []
 
     def _render(scene, duration, aspect_ratio, work_dir, source_video=None, theme=None,
-                project_root=None):
+                project_root=None, storyboard_file=None):
         rendered.append(scene["id"])
         if scene["id"] in failing:
             raise RuntimeError(f"provider exploded for {scene['id']}")
