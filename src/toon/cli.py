@@ -1,6 +1,7 @@
 """`pipeline toon …` — validate, render and review own-show 2.5D scenes."""
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import typer
@@ -50,9 +51,12 @@ def validate(scene: str = typer.Argument(..., help="scene id or path to a scene 
         for n, (t, text) in enumerate(zip(sentence_starts(narration, s.duration), split_sentences(narration),
                                           strict=True), 1):
             typer.echo(f"  {n:>3}  {t:6.2f}s  {text}")
-    typer.echo("shots:")
-    for i, (sh, at) in enumerate(zip(s.shots, s.authored_shot_starts, strict=True), 1):
-        typer.echo(f"  {i:>3}  {float(sh.at):6.2f}s  {anchor_text(at):<24}  {sh.set} / {sh.camera}")
+    # each shot's window at this narration, so a retake's margin shows before recording
+    ends = [float(sh.at) for sh in s.shots[1:]] + [s.duration if s.duration is not None else math.inf]
+    typer.echo("shots (start – end, as authored):")
+    for i, (sh, at, end) in enumerate(zip(s.shots, s.authored_shot_starts, ends, strict=True), 1):
+        until = f"{end:6.2f}" if math.isfinite(end) else "   end"
+        typer.echo(f"  {i:>3}  {float(sh.at):6.2f} – {until} s  {anchor_text(at):<24}  {sh.set} / {sh.camera}")
     if s.duration is not None:
         for w in scene_warnings(s, s.duration) + drift_warnings(s, s.duration):
             typer.echo(f"WARN  {w}")

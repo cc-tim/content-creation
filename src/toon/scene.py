@@ -373,8 +373,12 @@ def _resolve_anchors(scene: ToonScene, narration: str | None) -> ToonScene:
     return scene.model_copy(update={"shots": shots})
 
 
-def _check(scene: ToonScene, bank: Bank) -> list[str]:
+def _check(scene: ToonScene, bank: Bank, shot_starts: tuple[float | SentenceAnchor, ...] = (),
+           narration_duration: float | None = None) -> list[str]:
+    """`shot_starts` are the shots' starts as authored; when any is a sentence anchor, the shot
+    windows depend on the narration, so a beat outside its shot names the window at this one."""
     p: list[str] = []
+    anchored = any(isinstance(at, SentenceAnchor) for at in shot_starts)
     for who, char in scene.cast.items():
         if char not in bank.characters:
             p.append(f"cast.{who}: unknown character {char!r} (bank has {sorted(bank.characters)})")
@@ -409,7 +413,14 @@ def _check(scene: ToonScene, bank: Bank) -> list[str]:
         for j, b in enumerate(shot.beats):
             bw = f"{w}.beats[{j}]"
             if isinstance(b.at, (int, float)) and not (0 <= b.at <= length):
-                p.append(f"{bw}.at: {b.at:g}s is outside the shot (0–{length:g}s)")
+                if anchored:  # a retake moved this window: say where it is now
+                    start = float(shot.at)
+                    p.append(f"{bw}.at: {b.at:g}s is outside the shot (0–{length:.2f}s): shot {i + 1} "
+                             f"{anchor_text(shot_starts[i])} → {start:.2f}–{start + length:.2f} s at this "
+                             f"narration ({narration_duration:.1f} s); anchor the beat "
+                             f"(at: {{sentence: n, plus: s}}) or move it")
+                else:
+                    p.append(f"{bw}.at: {b.at:g}s is outside the shot (0–{length:g}s)")
             p += _check_beat(b, bw, shot, spots, bank)
         p += _check_graphics(shot, w)
     return p
@@ -594,7 +605,8 @@ def _load(data: dict, bank: Bank, narration: str | None, duration: float | None)
         check_duration = None
     else:
         check_duration = max(authored_duration, duration)
-    problems = _check(scene.model_copy(update={"duration": check_duration}), bank)
+    problems = _check(scene.model_copy(update={"duration": check_duration}), bank, shot_starts,
+                      duration if duration is not None else authored_duration)
     if problems:
         raise SceneError(problems)
     scene._authored_duration, scene._shot_starts = authored_duration, shot_starts
