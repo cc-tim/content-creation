@@ -62,13 +62,17 @@ def run_tts(tmp_path, monkeypatch):
         work_dir.mkdir(exist_ok=True)
         storyboard_path = work_dir / "storyboard.json"
         Storyboard(scenes=scenes).save(storyboard_path)
-        ctx = PipelineContext(
-            project_id=1, source_url="x", locale="zh-TW", work_dir=work_dir,
-            storyboard_path=storyboard_path,
-            voice_id="tim-zhtw" if path == "prerecorded" else None,
+        ctx_path = work_dir / "context.json"
+        ctx = (
+            PipelineContext.load(ctx_path)
+            if ctx_path.exists()
+            else PipelineContext(project_id=1, source_url="x", locale="zh-TW", work_dir=work_dir)
         )
+        ctx.storyboard_path = storyboard_path
+        ctx.voice_id = "tim-zhtw" if path == "prerecorded" else None
         with patch("pipeline.stages.tts._get_audio_duration_ms", return_value=1000):
             ctx = await TtsStage().run(ctx)
+        ctx.save()
         audio = work_dir / "audio"
         return ctx, [(audio / f"segment_{i:03d}.mp3").read_text() for i in range(3)]
 
@@ -94,3 +98,37 @@ async def test_tts_per_scene_success_then_default_outage_raises(run_tts):
     """Cross-engine: s1 voiced by a per-scene edge engine, s2 by the default engine."""
     with pytest.raises(RuntimeError, match="mix"):
         await run_tts(path="per-scene", fail_scenes={"s2"}, per_scene_first_only=True)
+
+
+# ---- durable + visible (review finding 4) ----
+
+
+async def test_tts_records_the_fallback_voice_on_the_context(run_tts, tmp_path):
+    ctx, _ = await run_tts(path="default", fail_scenes={"s1"})
+
+    assert ctx.tts_fallback_voices == {"zh-TW-default-f": "zh-TW-kokoro-f"}
+    ctx.save()
+    reloaded = PipelineContext.load(ctx.work_dir / "context.json")
+    assert reloaded.tts_fallback_voices == {"zh-TW-default-f": "zh-TW-kokoro-f"}
+
+
+async def test_tts_clean_run_clears_a_stale_fallback_record(run_tts, tmp_path):
+    ctx, _ = await run_tts(path="default", fail_scenes={"s1"})
+    assert ctx.tts_fallback_voices
+
+    ctx, voiced = await run_tts(path="default", fail_scenes=set())
+
+    assert voiced == ["edge", "edge", "edge"]
+    assert ctx.tts_fallback_voices == {}
+
+
+async def test_tts_complete_summary_names_the_fallback_voice(run_tts):
+    from structlog.testing import capture_logs
+
+    with capture_logs() as logs:
+        await run_tts(path="default", fail_scenes={"s1"})
+
+    complete = [e for e in logs if e["event"] == "tts.complete"]
+    assert len(complete) == 1
+    assert complete[0]["log_level"] == "warning"
+    assert complete[0]["fallback_voices"] == {"zh-TW-default-f": "zh-TW-kokoro-f"}
