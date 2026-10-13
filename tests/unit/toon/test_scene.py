@@ -445,3 +445,25 @@ def test_prop_beat_flags_rejected_on_kinds_that_ignore_them(prop, use, flag, val
     ok = with_props(idea={"kind": "idea_bulb", "on": "tim"})
     ok["shots"][0]["beats"].append({"at": 1.0, "prop": "idea", flag: value})
     assert load_scene(ok, BANK).shots[0].beats[0].verb == "prop"  # the idea_bulb honours it
+
+
+# -- Sprint 11 (spec §11.2 b1): graphic keys --
+
+def test_show_of_a_visible_graphic_key_is_rejected():
+    card = {"x_card": "bulb", "at": [0.6, 0.3]}
+    d = mini(**{"at": 0.5, "show": card})
+    d["shots"][0]["beats"].append({"at": 1.0, "show": {**card, "at": [0.2, 0.3]}})
+    with pytest.raises(SceneError, match=r"shots\[0\]\.beats\[1\]\.show: 'x_card:bulb' is still showing "
+                                         r"from shots\[0\]\.beats\[0\]"):
+        load_scene(d, BANK)
+    bubble = mini(**{"at": 0.5, "show": {"bubble": ["dishes"], "from": "tim"}})
+    bubble["shots"][0]["beats"].append({"at": 1.0, "show": {"bubble": ["bang"], "from": "tim"}})
+    with pytest.raises(SceneError, match=r"beats\[1\]\.show: 'bubble:tim' is still showing from shots\[0\]\.beats\[0\]"):
+        load_scene(bubble, BANK)
+    twice = mini(**{"at": 0.5, "show": card})
+    twice["shots"][0]["beats"] += [{"at": 1.0, "hide": "x_card:bulb"}, {"at": 1.5, "hide": "x_card:bulb"}]
+    with pytest.raises(SceneError, match=r"beats\[2\]\.hide: 'x_card:bulb' is already hidden by shots\[0\]\.beats\[1\]"):
+        load_scene(twice, BANK)
+    again = mini(**{"at": 0.5, "show": card})
+    again["shots"][0]["beats"] += [{"at": 1.0, "hide": "x_card:bulb"}, {"at": 1.5, "show": card}]
+    assert [b.verb for b in load_scene(again, BANK).shots[0].beats] == ["show", "hide", "show"]
