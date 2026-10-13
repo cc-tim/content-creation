@@ -18,6 +18,17 @@ def _llm_quota_tripwire(request: pytest.FixtureRequest, monkeypatch: pytest.Monk
         monkeypatch.setenv("PIPELINE_CLAUDE_BIN", _TRIPWIRE_CLAUDE_BIN)
 
 
+@pytest.fixture(autouse=True)
+def _isolate_edge_tts_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """EdgeEngine rewrites edge_tts.communicate.WSS_URL process-wide; undo it per test."""
+    import edge_tts.communicate
+
+    from pipeline.voices import edge_engine
+
+    monkeypatch.setattr(edge_tts.communicate, "WSS_URL", edge_tts.communicate.WSS_URL)
+    monkeypatch.setattr(edge_engine, "_override_applied", edge_engine._override_applied)
+
+
 @pytest.fixture
 def sample_context(tmp_path: Path) -> PipelineContext:
     work_dir = tmp_path / "test_project"

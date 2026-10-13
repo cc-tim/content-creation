@@ -231,3 +231,32 @@ def test_kokoro_engine_reads_fullwidth_digits_and_letters_as_ascii(tmp_path):
     engine.synthesize("Ａ打５折", tmp_path / "a.mp3", _profile(sid=3))
 
     assert fake.calls[0][0] == "A打5折"
+
+
+def _mp3_metadata_frames(data: bytes) -> list[str]:
+    """Container frames that would end up mid-stream when TtsStage byte-joins segments."""
+    found = []
+    if data.startswith(b"ID3"):
+        found.append("ID3v2")
+    if b"Xing" in data[:512] or b"Info" in data[:512]:
+        found.append("Xing/Info")
+    if data[-128:].startswith(b"TAG"):
+        found.append("ID3v1")
+    return found
+
+
+def test_kokoro_mp3_has_no_metadata_frames_to_corrupt_a_byte_join(tmp_path):
+    out = tmp_path / "a.mp3"
+    KokoroEngine(model_dir=tmp_path, tts_factory=lambda _dir: _FakeTts(_tone(1.0))).synthesize(
+        "你好。", out, _profile(sid=3)
+    )
+    # Control: ffmpeg's default MP3 muxer writes these frames, so the check can fail.
+    control = tmp_path / "control.mp3"
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=d=1",
+         "-c:a", "libmp3lame", str(control)],
+        check=True,
+    )
+
+    assert _mp3_metadata_frames(control.read_bytes())
+    assert _mp3_metadata_frames(out.read_bytes()) == []
