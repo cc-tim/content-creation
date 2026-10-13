@@ -52,6 +52,17 @@ The porting pipeline keeps its existing rules. (Decided with Tim 2026-09-26.)
   - stubby black feet.
 
   These photos replace the store-plush photo and the r7 A/B/C options.
+
+  **FROZEN at v7 (Tim, 2026-10-13).** It was fitted to traced outlines of the photos (front,
+  side and back overlays):
+  - the black head comes down to the flipper-top line all round;
+  - the eye beads are set flush, with big pupils, close to the beak;
+  - the beak is long and tilted about 14° down;
+  - the orange cheek patches are large.
+
+  He has two poses: **standing** (design views) and **seated** on a shelf in rooms (a pyramid
+  silhouette; he reacts while seated). The snapshot, with SHA256SUMS, is in
+  `style-tryouts/r7-3d/frozen-v7-20261013/`.
 - **Scene library:** every scene idea or tryout is recorded in
   [`own-show-scenes.md`](own-show-scenes.md) (brief in Tim's words, picks, status), even if it
   never reaches a video; files in `output/own-show/scenes/<nnn-slug>/`.
@@ -62,14 +73,15 @@ The porting pipeline keeps its existing rules. (Decided with Tim 2026-09-26.)
 - **3D toy, Animal Crossing smooth**: r7-3d look A, a Three.js tryout. It has soft vinyl
   characters, a dollhouse room, a free camera, face-decal expressions, and deterministic
   rendering.
-- Open fixes before it is bank-ready:
-  - Tim's hair: it reads "so strange" (lumpy beads). Three sculpted Animal Crossing-style
-    options are pending Tim's pick.
-  - GuoGuo: rebuild from the hand-puppet photos.
-  - The tryout's own weak points: the primitive-built lioness, mechanical motion, and hands
-    that don't clear the big head.
-- The tryout code is throwaway. A production 3D engine and bank still has to go through the
-  roadmap.
+- Picks frozen on 2026-10-13:
+  - Tim's hair is **H3 textured crop**, one of three sculpted options. It replaces the bead
+    hair, which read "so strange".
+  - GuoGuo is frozen at v7 (see the mascot entry above).
+- The source of record for the bank is `r7-3d/frozen-v7-20261013/`, including
+  `locked_clip_v7.mp4`.
+- Still weak in the tryout: the lioness is built from primitives, the motion is mechanical, and
+  the hands don't clear the big head. These are later E11 items.
+- The tryout code is throwaway. The production engine is **E11** in `docs/ROADMAP.md`.
 
 **Backup style:**
 - **Drawn soft-cel rebuild** (r8): B's lean hoodie torso, C's stubby sleeve arms and the r7
@@ -167,10 +179,12 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
    ones. The style-dependent ones wait for the new style pick: laptop ✓/✗ screen art,
    `style.yaml` wiring and contact sheets. See README → *Toon*.
    **2026-10-13:** the 2.5D `toon` engine is now the backup style's engine (drawn soft-cel).
-4b. **Production 3D toy engine** for the locked Animal Crossing look.
-   - Order: first finish the tryout fixes (Tim picks the hair, GuoGuo is rebuilt). Then the EM
-     folds a production 3D engine and bank into `docs/ROADMAP.md` (INTAKE), after Sprint 11
-     merges.
+4b. **Production 3D toy engine** for the locked Animal Crossing look. This is **E11** in
+   `docs/ROADMAP.md`.
+   - INTAKE was done on 2026-10-13.
+   - **Sprint 12 (E11 v0) was greenlit on 2026-10-13**, including the lioness. It is being built
+     on branch `feat/e11-sprint12`.
+   - Spec: `docs/superpowers/specs/2026-10-13-toy3d-engine-v0-design.md`.
    - Scope for the roadmap: a 3D character bank (Tim, the lioness, GuoGuo), face-decal
      expressions, a pose library, and sets.
    - Scenes are driven by the same scene-file contract, rendered headless and deterministic,
