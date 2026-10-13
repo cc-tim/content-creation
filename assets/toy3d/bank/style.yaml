@@ -1,0 +1,25 @@
+# Look A, the locked own-show look (Tim, 2026-10-13): physical vinyl with a low clearcoat, soft PCF
+# shadows, a RoomEnvironment fill, GTAO, mild bloom on the bulb only, Neutral tone mapping.
+# scene.js renderer + post + materials, look-A branch, frozen v7. The engine reads every value.
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js renderer/post/soft()/prop(), look A"}
+fps: 30
+size: [1920, 1080]                 # the locked clip's frame; goldens downscale from it
+tone: {mapping: neutral, exposure: 0.95}
+shadows: {type: pcf}
+background: "#e8e0d4"
+fog: {color: "#e8e0d4", near: 13.0, far: 30.0}
+environment: {room: true, sigma: 0.04, intensity: 0.3}
+camera: {near: 0.05, far: 60.0}
+post:
+  samples: 4                        # MSAA on the half-float render target
+  gtao: {radius: 0.32, distance_exponent: 1.4, thickness: 1.2, scale: 1.0, samples: 16, blend: 0.8}
+  denoise: {luma_phi: 10.0, depth_phi: 2.0, normal_phi: 3.0, radius: 6.0, rings: 2, samples: 16,
+            # its noise texture draws the snapshot's own Math.random stream: mulberry32(stage seed)
+            # after the 11060 draws its build made first (tests/toy3d_snapshot.py random)
+            noise: {seed: 20261013, skip: 11060}}
+  bloom: {strength: 0.42, radius: 0.45, threshold: 1.6}
+  grade: {vignette: 0.16, grain: 0.0, warm: 0.0}
+materials:
+  soft: {roughness: 0.5, clearcoat: 0.22, clearcoat_roughness: 0.5, sheen: 0.15, sheen_roughness: 0.8, sheen_mix: 0.5}
+  prop: {roughness: 0.62}
+  face: {roughness: 0.45}

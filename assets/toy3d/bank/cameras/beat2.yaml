@@ -1,0 +1,46 @@
+# The locked clip's one continuous move (scene.js camAt): it orbits in, pans to the door, follows
+# the lioness to Tim, zooms on his shock, tilts up to the dying bulb and orbits out. Tweens fold in
+# order: value = lerp(previous, to, ease((t - at) / over)); `over` 0 is a cut. Local time is the
+# time since the camera cut (the shot's start). Angles in degrees, positions in metres.
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js camAt"}
+orbit:
+  pivot:
+    start: [-0.15, 0.72, -0.4]                               # PIV0
+    tweens:
+      - {at: 0.0, over: 2.25, ease: inout, to: [0.12, 0.92, -0.32]}   # PIV1
+      - {at: 5.6, to: [-0.2, 1.0, -0.25]}                    # P2: re-base the orbit for the pull-out
+  az:
+    start: 40.0
+    tweens:
+      - {at: 0.0, over: 2.25, ease: inout, to: 6.0}
+      - {at: 5.6, to: 9.30538439510222}                      # O2: the same position, seen from P2
+      - {at: 5.6, over: 2.0, ease: inout, to: -13.0}
+  el:
+    start: 27.0
+    tweens:
+      - {at: 0.0, over: 2.25, ease: inout, to: 12.0}
+      - {at: 5.6, to: 11.27667109345105}
+      - {at: 5.6, over: 2.0, ease: inout, to: 4.0}
+  dist:
+    start: 10.2
+    tweens:
+      - {at: 0.0, over: 2.25, ease: inout, to: 5.8}
+      - {at: 5.6, to: 5.7576370004995026}
+      - {at: 5.6, over: 2.0, ease: inout, to: 4.9}
+target:
+  start: [-0.15, 0.72, -0.4]                                 # follows the pivot in, then pans
+  tweens:
+    - {at: 0.0, over: 2.25, ease: inout, to: [0.12, 0.92, -0.32]}
+    - {at: 2.3, over: 0.55, ease: inout, to: [-1.85, 1.05, -0.5]}     # TB: the door
+    - {at: 2.85, over: 0.55, ease: inout, to: [-0.95, 1.32, -0.2]}    # TC: the lioness
+    - {at: 3.45, over: 0.37, ease: inout, to: [0.78, 1.06, -0.5]}     # TD: Tim
+    - {at: 4.85, over: 0.6, ease: inout, to: [0.8, 1.66, -0.52]}      # TE: the bulb
+    - {at: 5.6, over: 2.0, ease: inout, to: [-0.2, 1.0, -0.25]}       # P2
+fov:
+  start: 30.0
+  tweens:
+    - {at: 2.85, over: 0.55, ease: inout, to: 25.0}
+    - {at: 3.45, over: 0.37, ease: inout, to: 28.0}
+    - {at: 4.0, over: 0.75, ease: inout, to: 12.5}           # the zoom on the shock
+    - {at: 4.85, over: 0.6, ease: inout, to: 15.0}
+    - {at: 5.6, over: 2.0, ease: inout, to: 30.0}

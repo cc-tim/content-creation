@@ -5,6 +5,14 @@ import math
 
 import numpy as np
 
+from toon.beats import EASES as EASES
+from toon.beats import e_back as e_back
+from toon.beats import e_inout as e_inout
+from toon.beats import e_lin as e_lin
+from toon.beats import e_out as e_out
+from toon.beats import lerp as lerp
+from toon.beats import smooth as smooth
+
 
 def V(x, y, z):
     return np.array((x, y, z), float)
@@ -28,30 +36,8 @@ def rotY(d):
     return np.array(((c, 0, s), (0, 1, 0), (-s, 0, c)))
 
 
-def lerp(a, b, k):
-    return a + (b - a) * k
-
-
 def lerp2(p, q, k):
     return (lerp(p[0], q[0], k), lerp(p[1], q[1], k))
-
-
-def smooth(x):
-    x = min(max(x, 0.0), 1.0)
-    return x * x * (3 - 2 * x)
-
-
-def e_out(x):
-    return 1 - (1 - x) ** 3
-
-
-def e_back(x):
-    c1, c3 = 1.70158, 2.70158
-    return 1 + c3 * (x - 1) ** 3 + c1 * (x - 1) ** 2
-
-
-def e_lin(x):
-    return x
 
 
 def hsign(n):
@@ -113,6 +99,3 @@ def rrect(x, y, w, h, r, n=6):
         pts += [(cx + r * math.cos(math.radians(a0 + 90 * k / n)), cy + r * math.sin(math.radians(a0 + 90 * k / n)))
                 for k in range(n + 1)]
     return pts
-
-
-EASES = {"linear": e_lin, "smooth": smooth, "out": e_out, "back": e_back}

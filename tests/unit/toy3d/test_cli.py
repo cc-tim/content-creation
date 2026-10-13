@@ -1,0 +1,192 @@
+"""E11 S12-17 and checkpoint A1: `pipeline toon validate|render` handle a toy3d scene, the engine read
+from the file, never the 2.5D bank (the EM's mutation M10: the CLI's `_load` on the 2.5D bank must
+go red here). A toy3d scene id resolves in the toy3d library; `pipeline validate` fails a bad toy3d
+name at the review gate with exit 2."""
+import json
+from pathlib import Path
+
+from typer.testing import CliRunner
+
+from pipeline.cli import app
+
+runner = CliRunner()
+REPO = Path(__file__).resolve().parents[3]
+METAL = "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)"
+
+
+def _still(w, h, uniform=False):
+    from io import BytesIO
+
+    from PIL import Image
+
+    img = Image.new("RGB", (w, h), (9, 9, 9))
+    if not uniform:
+        img.paste((240, 200, 40), (w // 4, h // 4, w // 2, h // 2))
+    buf = BytesIO()
+    img.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def test_toon_validate_loads_a_toy3d_scene_against_the_toy3d_catalog(monkeypatch):
+    import toon.scene
+
+    engines = []
+    real = toon.scene.load_catalog
+
+    def spy(engine):
+        engines.append(engine)
+        return real(engine)
+
+    monkeypatch.setattr(toon.scene, "load_catalog", spy)
+    res = runner.invoke(app, ["toon", "validate", "001-beat2-break-in"])
+    assert res.exit_code == 0, res.output
+    assert "ok  001-beat2-break-in: 1 shots, 37 beats" in res.output
+    assert engines == ["toy3d"]
+
+
+def test_a_scene_id_resolves_in_the_toy3d_library():
+    from toon.scene import scene_path
+
+    assert scene_path("001-beat2-break-in") == REPO / "assets" / "toy3d" / "scenes" / "001-beat2-break-in.yaml"
+    assert scene_path("001-lioness-dishes") == REPO / "assets" / "toon" / "scenes" / "001-lioness-dishes.yaml"
+
+
+def test_a_scene_id_in_both_libraries_is_refused(tmp_path, monkeypatch):
+    import pytest
+
+    from toon.scene import SceneError, scene_path
+
+    for lib in ("toon", "toy3d"):
+        (tmp_path / lib / "scenes").mkdir(parents=True)
+        (tmp_path / lib / "scenes" / "twin.yaml").write_text("id: twin\n")
+        (tmp_path / lib / "bank").mkdir()
+    monkeypatch.setenv("TOON_ASSETS", str(tmp_path / "toon"))
+    monkeypatch.setenv("TOY3D_ASSETS", str(tmp_path / "toy3d"))
+    with pytest.raises(SceneError, match="both"):
+        scene_path("twin")
+
+
+def test_toon_render_stills_of_a_toy3d_scene_use_the_toy3d_engine(monkeypatch, tmp_path):
+    from contextlib import contextmanager
+
+    from toy3d import runtime
+
+    seen = []
+
+    class Page:
+        def init(self, bank, w, h, mode):
+            seen.append(("init", w, h, mode))
+
+        def info(self):
+            return {"renderer": METAL, "build": runtime.BROWSER_VERSION, "mode": "render"}
+
+        def render_state(self, spec):
+            seen.append(("frame", spec["frame"]))
+            return _still(1920, 1080)
+
+    @contextmanager
+    def fake_open(w, h, mode="render", **kw):
+        yield Page()
+
+    monkeypatch.setenv("TOY3D_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setattr(runtime, "PLATFORM", "darwin")
+    monkeypatch.setattr(runtime, "open_page", fake_open)
+    monkeypatch.setattr("toon.render.frame", lambda *a, **k: (_ for _ in ()).throw(AssertionError("2.5D")))
+    res = runner.invoke(app, ["toon", "render", "001-beat2-break-in", "--out", str(tmp_path), "--stills", "2.4,4"])
+    assert res.exit_code == 0, res.output
+    assert seen == [("init", 1920, 1080, "render"), ("frame", 72), ("frame", 120)]
+    assert sorted(p.name for p in tmp_path.glob("*.png")) == ["001-beat2-break-in_02.40.png", "001-beat2-break-in_04.00.png"]
+
+
+def test_toon_render_a_toy3d_clip_uses_the_toy3d_renderer(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_clip(scene, bank, out, duration, width, height, **kw):
+        calls.append((scene.id, type(bank).__name__, duration, width, height))
+        Path(out).write_bytes(b"x")
+        return Path(out)
+
+    monkeypatch.setattr("toy3d.render.render_clip", fake_clip)
+    res = runner.invoke(app, ["toon", "render", "001-beat2-break-in", "--out", str(tmp_path)])
+    assert res.exit_code == 0, res.output
+    assert calls == [("001-beat2-break-in", "Toy3DBank", 8.0, 1920, 1080)]
+
+
+def test_pipeline_validate_fails_a_bad_toy3d_name_with_exit_two(tmp_path, monkeypatch):
+    output = tmp_path / "output"
+    pdir = output / "projects" / "20990101-000000-toy3d"
+    pdir.mkdir(parents=True)
+    monkeypatch.setenv("PIPELINE_OUTPUT_DIR", str(output))
+    visual = {"type": "toon", "engine": "toy3d", "id": "inline", "cast": {"tim": "tim"},
+              "shots": [{"at": 0.0, "set": "office", "camera": "front34_push",
+                         "place": {"tim": {"spot": "desk_seat", "pose": "typing"}}}]}
+    (pdir / "storyboard.json").write_text(json.dumps({"theme": {}, "scenes": [
+        {"id": "s1", "section": "hook", "narration": "One.", "narration_est_sec": 4, "visual": visual}]}))
+    res = runner.invoke(app, ["validate", "--project-id", pdir.name])
+    assert res.exit_code == 2, res.output
+    assert "unknown camera 'front34_push'" in res.output
+
+
+
+def _fake_stills(monkeypatch, tmp_path, renderer, uniform=False):
+    from contextlib import contextmanager
+
+    from toy3d import runtime
+
+    class Page:
+        def init(self, bank, w, h, mode):
+            self.size = (w, h)
+
+        def info(self):
+            return {"renderer": renderer, "build": runtime.BROWSER_VERSION, "mode": "render"}
+
+        def render_state(self, spec):
+            return _still(*self.size, uniform=uniform)
+
+    @contextmanager
+    def fake_open(w, h, mode="render", **kw):
+        yield Page()
+
+    monkeypatch.setenv("TOY3D_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setattr(runtime, "PLATFORM", "darwin")
+    monkeypatch.setattr(runtime, "open_page", fake_open)
+
+
+def test_toy3d_stills_refuse_a_software_renderer(monkeypatch, tmp_path):
+    """Phase 2 review I4: stills go through the same backend gate as clips; nothing is written."""
+    _fake_stills(monkeypatch, tmp_path, "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device), SwiftShader driver)")
+    res = runner.invoke(app, ["toon", "render", "001-beat2-break-in", "--out", str(tmp_path / "o"), "--stills", "4"])
+    assert res.exit_code == 1 and "SwiftShader" in res.output
+    assert not list((tmp_path / "o").glob("*.png"))
+
+
+def test_toy3d_stills_refuse_a_blank_frame(monkeypatch, tmp_path):
+    _fake_stills(monkeypatch, tmp_path, METAL, uniform=True)
+    res = runner.invoke(app, ["toon", "render", "001-beat2-break-in", "--out", str(tmp_path / "o"), "--stills", "4"])
+    assert res.exit_code == 1 and "uniform" in res.output
+    assert not list((tmp_path / "o").glob("*.png"))
+
+
+def test_toy3d_render_never_loads_the_2d_renderer(monkeypatch, tmp_path):
+    """Phase 2 review M9: a toy3d scene's render doesn't import cairo's engine."""
+    import sys
+
+    _fake_stills(monkeypatch, tmp_path, METAL)
+    monkeypatch.setitem(sys.modules, "toon.render", None)          # importing it would fail
+    res = runner.invoke(app, ["toon", "render", "001-beat2-break-in", "--out", str(tmp_path / "o"), "--stills", "4"])
+    assert res.exit_code == 0, res.output
+
+
+def test_a_toy3d_render_failure_is_an_error_line_not_a_traceback(monkeypatch, tmp_path):
+    """Phase 2 review M9: a browser that fails to launch is an ERROR line and exit 1."""
+    from playwright.sync_api import Error as PlaywrightError
+
+    from toy3d import runtime
+
+    def no_launch(*a, **k):
+        raise PlaywrightError("BrowserType.launch: Target page, context or browser has been closed")
+
+    monkeypatch.setattr(runtime, "open_page", no_launch)
+    res = runner.invoke(app, ["toon", "render", "001-beat2-break-in", "--out", str(tmp_path / "o"), "--stills", "4"])
+    assert res.exit_code == 1 and "ERROR  " in res.output and "BrowserType.launch" in res.output
+    assert res.exception is None or isinstance(res.exception, SystemExit)

@@ -154,6 +154,28 @@ def check_toon() -> list[CheckResult]:
                             f"{exc!r} — needs libcairo (macOS: brew install cairo; hub: libcairo2)")]
 
 
+def check_toy3d() -> list[CheckResult]:
+    """The 3D toy engine (E11): the pinned browser build on an allow-listed GPU backend, and one
+    non-blank frame of the worked scene. Rewrites the renderer record the clip cache keys on."""
+    hint = ("toy3d needs the pinned browser (`uv run playwright install chromium`) on a GPU backend "
+            "(macOS Metal, Linux OpenGL ES)")
+    try:
+        from toon.scene import load_scene, read_scene
+        from toy3d import runtime
+        from toy3d.acting import resolve
+        from toy3d.bank import load_bank
+        from toy3d.render import check_frame
+
+        bank = load_bank()
+        scene = load_scene(read_scene("001-beat2-break-in"), bank.catalog)
+        with runtime.open_page(320, 180, "render") as page:
+            info = runtime.start(page, bank, 320, 180)
+            check_frame(page.render_state(resolve(scene, bank, 4.0)), 0, 4.0, 320, 180)
+        return [CheckResult("toy3d", True, f"Chrome for Testing {info['build']}; {info['renderer']}; frame 320x180")]
+    except Exception as exc:
+        return [CheckResult("toy3d", False, f"{exc} — {hint}")]
+
+
 def check_llm() -> list[CheckResult]:
     from pipeline.config import PipelineConfig
     from pipeline.llm import resolve_claude_bin
@@ -188,6 +210,7 @@ def run_checks(out_dir: Path) -> list[CheckResult]:
         ("glyph probes", lambda: check_glyph_probes(out_dir)),
         ("home tools", check_home_tools),
         ("toon", check_toon),
+        ("toy3d", check_toy3d),
         ("llm", check_llm),
     ]
     results: list[CheckResult] = []

@@ -29,6 +29,7 @@ def _all_pass(monkeypatch):
         cli_doctor, "check_home_tools", lambda: [CheckResult("home tools", True, "ok")]
     )
     monkeypatch.setattr(cli_doctor, "check_toon", lambda: [CheckResult("toon", True, "ok")])
+    monkeypatch.setattr(cli_doctor, "check_toy3d", lambda: [CheckResult("toy3d", True, "ok")])
     monkeypatch.setattr(cli_doctor, "check_llm", lambda: [CheckResult("llm", True, "ok")])
 
 
@@ -37,7 +38,7 @@ def test_doctor_registered_and_exit_0_when_all_pass(monkeypatch, tmp_path):
     res = runner.invoke(app, ["doctor", "--out", str(tmp_path)])
     assert res.exit_code == 0, res.output
     lines = [ln for ln in res.output.splitlines() if ln.startswith(("PASS", "FAIL"))]
-    assert len(lines) == 7 and all(ln.startswith("PASS") for ln in lines)
+    assert len(lines) == 8 and all(ln.startswith("PASS") for ln in lines)
     assert str(tmp_path) in res.output
 
 
@@ -249,3 +250,90 @@ def test_check_llm_fails_when_version_exits_nonzero(monkeypatch, tmp_path):
     assert not r.ok
     assert "exited 1" in r.detail
     assert str(exe) in r.detail
+
+
+
+# ── check: toy3d (E11 S12-17) ───────────────────────────────────────────────
+def _png(uniform=False):
+    import io
+
+    from PIL import Image
+
+    img = Image.new("RGB", (320, 180), (40, 40, 40))
+    if not uniform:
+        img.putpixel((5, 5), (250, 0, 0))
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def _fake_toy3d(monkeypatch, renderer, uniform=False, platform="darwin"):
+    from contextlib import contextmanager
+
+    from toy3d import runtime
+
+    class Page:
+        def init(self, bank, w, h, mode):
+            self.size = (w, h)
+
+        def info(self):
+            return {"renderer": renderer, "build": runtime.BROWSER_VERSION, "mode": "render"}
+
+        def render_state(self, spec):
+            assert spec["frame"] == 120                       # the worked scene at 4.0 s
+            return _png(uniform)
+
+    @contextmanager
+    def fake_open(w, h, mode="render", **kw):
+        yield Page()
+
+    monkeypatch.setattr(runtime, "open_page", fake_open)
+    monkeypatch.setattr(runtime, "PLATFORM", platform)
+
+
+METAL = "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)"
+
+
+def test_check_toy3d_passes_with_the_pinned_build_on_a_gpu(monkeypatch, tmp_path):
+    monkeypatch.setenv("TOY3D_CACHE_DIR", str(tmp_path))
+    _fake_toy3d(monkeypatch, METAL)
+    (r,) = cli_doctor.check_toy3d()
+    assert r.ok and r.name == "toy3d" and "151.0.7922.34" in r.detail and "Metal" in r.detail
+    assert (tmp_path / "renderer.json").exists()                    # doctor re-keys the clip cache
+
+
+def test_check_toy3d_fails_on_a_software_renderer(monkeypatch, tmp_path):
+    monkeypatch.setenv("TOY3D_CACHE_DIR", str(tmp_path))
+    _fake_toy3d(monkeypatch, "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device), SwiftShader driver)")
+    (r,) = cli_doctor.check_toy3d()
+    assert not r.ok and "SwiftShader" in r.detail and "uv run playwright install chromium" in r.detail
+
+
+def test_check_toy3d_fails_on_a_blank_frame(monkeypatch, tmp_path):
+    monkeypatch.setenv("TOY3D_CACHE_DIR", str(tmp_path))
+    _fake_toy3d(monkeypatch, METAL, uniform=True)
+    (r,) = cli_doctor.check_toy3d()
+    assert not r.ok and "uniform" in r.detail
+
+
+def test_check_toy3d_fails_with_the_install_hint_when_the_build_is_missing(monkeypatch, tmp_path):
+    from contextlib import contextmanager
+
+    from toy3d import runtime
+
+    @contextmanager
+    def fake_pw():
+        class Chromium:
+            executable_path = str(tmp_path / "chromium-1234" / "chrome")
+
+            def launch(self, **kw):
+                raise AssertionError("must not launch")
+
+        class P:
+            chromium = Chromium()
+        yield P()
+
+    monkeypatch.setenv("TOY3D_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr(runtime, "sync_playwright", fake_pw)
+    (r,) = cli_doctor.check_toy3d()
+    assert not r.ok and "uv run playwright install chromium" in r.detail and "missing at" in r.detail

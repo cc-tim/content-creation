@@ -1,0 +1,42 @@
+# Tim: the Animal Crossing-style villager, hair H3 (textured crop; Tim's pick, 2026-10-13), round
+# wire glasses, navy hoodie. Frozen v7 (scene.js makeTim).
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js makeTim; hair H3 (Tim)"}
+rig:
+  kind: tim
+  channels: [seat.ry, seat.pz, hips.px, hips.py, torso.rx, torso.rz, neck.rx, neck.ry, neck.rz,
+             arm_l.j1.rx, arm_l.j1.rz, arm_l.j2.rx, arm_l.j2.rz,
+             arm_r.j1.rx, arm_r.j1.rz, arm_r.j2.rx, arm_r.j2.rz,
+             leg_l.j1.rx, leg_l.j2.rx, leg_r.j1.rx, leg_r.j2.rx]
+seat_height: 0.3      # his root sits this high in the chair at a seat spot
+palette:
+  skin: "#f4dcc6"
+  hoodie: "#36435e"
+  hoodie_dark: "#2c374d"
+  string: "#efe7d8"
+  pants: "#8f8576"
+  shoe: "#ece5d8"
+  sole: "#a08d78"
+  hair: "#2b241f"                   # H3: dark brown-black…
+  hair_sheen: "#8a7464"             # …with a soft sheen
+  wire: "#3b3633"                   # the glasses
+  lens: "#ffffff"
+  drop: "#a9cfe3"                   # the sweat drop
+  ink: "#2a2421"                    # face decals (web/engine/faces.js)
+  brow: "#2d2a28"
+  mouth: "#6b3f36"
+  glint: "#ffffff"
+  blush: "#e49286"
+  gloom: "#7891be"
+  gloom_lines: "rgba(96,118,165,0.75)"
+  shock_eye: "#fffdf8"
+  shock_mouth: "#5e2f2a"
+  shock_tongue: "#d77f7a"
+params:
+  # H3's hairline: edge elevation (deg) against yaw (deg, 0 = front): a high near-straight fringe,
+  # a soft M at the temples, short sides above the ears, the nape at the back
+  hairline: [[0, 35], [15, 35.5], [29, 42], [43, 33], [60, 18], [80, 10], [100, 4], [125, -10], [150, -24], [180, -30]]
+  hair: {roughness: 0.42, clearcoat: 0.3, clearcoat_roughness: 0.38, sheen: 0.45, sheen_roughness: 0.45}
+  wire: {metalness: 0.55, roughness: 0.32}
+  lens: {opacity: 0.1, roughness: 0.05, clearcoat: 1.0}
+  drop: {roughness: 0.12, clearcoat: 1.0, opacity: 0.92}
+  face: {blush: 0.5, gloom: 0.5}    # the blush and the shock's forehead gloom, at their centres

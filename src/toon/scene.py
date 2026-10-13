@@ -9,37 +9,25 @@ from typing import Annotated, Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError, model_validator
 
-from toon.bank import Bank, default_root
-from toon.kit.icons import ICONS
+# The contract checks scenes through a SceneCatalog (toon.catalog): it never imports an engine's
+# bank or drawing code. Each engine's capability tables (beat fields, prop kinds, …) live there.
+from toon.catalog import (
+    CAPABILITIES,
+    DEFAULT_ENGINE,
+    PROP_BEAT_FLAGS,
+    SHOW_KINDS,
+    VERBS,
+    Capabilities,
+    SceneCatalog,
+    load_catalog,
+)
 
-Ease = Literal["linear", "smooth", "out", "back"]
-VERBS = ("door", "move", "pose", "face", "prop", "show", "hide", "camera")
-SHOW_KINDS = ("speed_lines", "bubble", "anger", "x_card", "check_pill")
+Ease = Literal["linear", "smooth", "out", "back", "inout"]
 CARD_KINDS = ("x_card", "check_pill")
 PROP_USE_FIELDS = ("on", "held_by", "b", "count")
-PROP_BEAT_FLAGS = ("flicker", "blink", "out")
-# Per bank-prop kind: (use fields it needs, use fields it draws, states a `to:` beat animates,
-# beat flags it honours). Anything else would load cleanly and be silently ignored by the
-# renderer, so it is rejected.
-PROP_KINDS: dict[str, tuple[frozenset[str], frozenset[str], frozenset[str], frozenset[str]]] = {
-    "idea_bulb": (frozenset({"on"}), frozenset({"on", "b"}), frozenset({"b"}), frozenset(PROP_BEAT_FLAGS)),
-    "plate": (frozenset({"held_by"}), frozenset({"held_by"}), frozenset(), frozenset()),
-    "plate_stack": (frozenset({"count"}), frozenset({"count"}), frozenset({"count"}), frozenset()),
-}
-# Per verb: the optional beat fields timeline.state_at reads. Any other field set on a beat would
-# load and be silently ignored, so it fails instead. On top of the table: `ease` only shapes a
-# change that has an `over:`, and a prop beat's over/ease only time a `to:` change (its flags
-# are per prop kind, PROP_KINDS).
-BEAT_FIELDS: dict[str, frozenset[str]] = {
-    "door": frozenset({"over", "ease"}),
-    "move": frozenset({"over", "ease", "to", "bob"}),
-    "pose": frozenset({"over", "ease", "to", "expr"}),
-    "face": frozenset({"over", "ease", "to"}),
-    "prop": frozenset({"over", "ease", "to", *PROP_BEAT_FLAGS}),
-    "show": frozenset({"over"}),  # the pop length
-    "hide": frozenset(),
-    "camera": frozenset(),
-}
+# Optional fields that are render options, checked against each engine's capability table.
+SCENE_RENDER_FIELDS = ("boil",)
+PLACE_RENDER_FIELDS = ("layer", "loop")
 # Why a verb takes no timing: the reason an over:/ease: on it fails with.
 _UNTIMED = {"camera": "a camera beat is a cut to a new preset",
             "hide": "a hide beat is instant",
@@ -97,8 +85,11 @@ class Place(_Strict):
     spot: str
     pose: str
     expr: str = "neutral"
-    layer: Literal["split", "low"] = "split"   # low: whole character sits behind the set's mid layer
-    loop: bool = True
+    # Optional render fields are None when not given, so "set" means "not None" (an engine that
+    # doesn't render one rejects it). layer: low puts the whole character behind the set's mid
+    # layer (None: split). loop: the pose's gesture loop (None: on).
+    layer: Literal["split", "low"] | None = None
+    loop: bool | None = None
 
 
 class PropUse(_Strict):
@@ -211,6 +202,7 @@ class Shot(_Strict):
 
 class ToonScene(_Strict):
     id: str
+    engine: Literal["toon2d", "toy3d"] = DEFAULT_ENGINE  # toon.catalog.ENGINES; picks the catalog
     duration: float | None = None
     cast: dict[str, str]
     shots: list[Shot] = Field(min_length=1)
@@ -373,45 +365,65 @@ def _resolve_anchors(scene: ToonScene, narration: str | None) -> ToonScene:
     return scene.model_copy(update={"shots": shots})
 
 
-def _check(scene: ToonScene, bank: Bank, shot_starts: tuple[float | SentenceAnchor, ...] = (),
+def _check(scene: ToonScene, catalog: SceneCatalog, shot_starts: tuple[float | SentenceAnchor, ...] = (),
            narration_duration: float | None = None) -> list[str]:
     """`shot_starts` are the shots' starts as authored; when any is a sentence anchor, the shot
     windows depend on the narration, so a beat outside its shot names the window at this one."""
     p: list[str] = []
+    caps = catalog.capabilities
     anchored = any(isinstance(at, SentenceAnchor) for at in shot_starts)
+    for f in SCENE_RENDER_FIELDS:
+        if getattr(scene, f) is not None and f not in caps.scene_fields:
+            p.append(f"{f}: {_not_rendered(caps, f, lambda c, f=f: f in c.scene_fields)}")
     for who, char in scene.cast.items():
-        if char not in bank.characters:
-            p.append(f"cast.{who}: unknown character {char!r} (bank has {sorted(bank.characters)})")
+        if char not in catalog.characters:
+            p.append(f"cast.{who}: unknown character {char!r} (bank has {sorted(catalog.characters)})")
     for i, shot in enumerate(scene.shots):  # shot order is checked as anchors resolve
         w = f"shots[{i}]"
-        set_def = bank.sets.get(shot.set)
-        spots = set_def.spots if set_def else {}
-        if set_def is None:
-            p.append(f"{w}.set: unknown set {shot.set!r} (bank has {sorted(bank.sets)})")
-        if shot.camera not in bank.cameras:
-            p.append(f"{w}.camera: unknown camera {shot.camera!r} (bank has {sorted(bank.cameras)})")
+        known_set = shot.set in catalog.sets
+        spots = catalog.spots(shot.set) if known_set else ()
+        if not known_set:
+            p.append(f"{w}.set: unknown set {shot.set!r} (bank has {sorted(catalog.sets)})")
+        if shot.camera not in catalog.cameras:
+            p.append(f"{w}.camera: unknown camera {shot.camera!r} (bank has {sorted(catalog.cameras)})")
         for who, pl in shot.place.items():
             pw = f"{w}.place.{who}"
             if who not in scene.cast:
                 p.append(f"{pw}: not in cast")
-            if set_def is not None and pl.spot not in spots:
+            character = scene.cast.get(who, "")
+            if known_set and pl.spot not in spots:
                 p.append(f"{pw}.spot: unknown spot {pl.spot!r} in set {shot.set!r}")
-            if pl.pose not in bank.poses:
-                p.append(f"{pw}.pose: unknown pose {pl.pose!r}")
-            if pl.expr not in bank.expressions:
-                p.append(f"{pw}.expr: unknown expression {pl.expr!r}")
+            if character in catalog.characters:  # an unknown one is reported once, at cast
+                if catalog.pose_class(character, pl.pose) is None:
+                    p.append(f"{pw}.pose: unknown pose {pl.pose!r}")
+                if pl.expr not in catalog.expressions_of(character):
+                    p.append(f"{pw}.expr: unknown expression {pl.expr!r}")
+            for f in PLACE_RENDER_FIELDS:
+                if getattr(pl, f) is not None and f not in caps.place_fields:
+                    p.append(f"{pw}.{f}: {_not_rendered(caps, f, lambda c, f=f: f in c.place_fields)}")
+        for n, fx in enumerate(shot.fx):
+            for kind in (k for k in Fx.model_fields if getattr(fx, k) is not None):
+                if kind not in caps.fx_kinds:
+                    p.append(f"{w}.fx[{n}].{kind}: "
+                             f"{_not_rendered(caps, f'{kind} fx', lambda c, k=kind: k in c.fx_kinds)}")
         for name, pu in shot.props.items():
             uw = f"{w}.props.{name}"
-            if pu.kind not in bank.props:
+            if pu.kind not in catalog.props:
                 p.append(f"{uw}.kind: unknown prop {pu.kind!r}")
+            elif (kind := catalog.prop_kind(pu.kind)) not in caps.prop_kinds:
+                p.append(f"{uw}.kind: {_not_rendered(caps, f'{kind} props', lambda c, k=kind: k in c.prop_kinds)}")
             else:
-                p += _check_prop_use(pu, uw, bank.props[pu.kind].kind)
+                p += _check_prop_use(pu, uw, kind, caps)
             for field, ref in (("on", pu.on), ("held_by", pu.held_by)):
                 if ref is not None and ref not in shot.place:
                     p.append(f"{uw}.{field}: {ref!r} is not placed in this shot")
         length = shot_length(scene, i)
         for j, b in enumerate(shot.beats):
             bw = f"{w}.beats[{j}]"
+            if b.verb not in caps.verbs:  # nothing else about the beat matters to this engine
+                p.append(f"{bw}.{b.verb}: "
+                         f"{_not_rendered(caps, f'{b.verb} beats', lambda c, v=b.verb: v in c.verbs)}")
+                continue
             if isinstance(b.at, (int, float)) and not (0 <= b.at <= length):
                 if anchored:  # a retake moved this window: say where it is now
                     start = float(shot.at)
@@ -421,8 +433,10 @@ def _check(scene: ToonScene, bank: Bank, shot_starts: tuple[float | SentenceAnch
                              f"(at: {{sentence: n, plus: s}}) or move it")
                 else:
                     p.append(f"{bw}.at: {b.at:g}s is outside the shot (0–{length:g}s)")
-            p += _check_beat(b, bw, shot, spots, bank)
+            p += _check_beat(b, bw, scene, shot, spots, catalog)
         p += _check_graphics(shot, w)
+    if not p:  # every name resolves: what this engine would still draw wrong
+        p += catalog.scene_problems(scene)
     return p
 
 
@@ -467,8 +481,17 @@ def _a(kind: str) -> str:
     return f"an {kind}" if kind[0] in "aeiou" else f"a {kind}"
 
 
-def _check_prop_use(pu: PropUse, uw: str, kind: str) -> list[str]:
-    need, draws = PROP_KINDS[kind][:2]
+def _not_rendered(caps: Capabilities, what: str, renders) -> str:
+    """`toy3d doesn't render bob on a move beat (toon2d does)`: names the engine, and any other
+    engine whose table renders it (`renders(capabilities) -> bool`)."""
+    others = [e for e, c in CAPABILITIES.items() if e != caps.engine and renders(c)]
+    return f"{caps.engine} doesn't render {what}" + (f" ({', '.join(others)} does)" if others else "")
+
+
+def _check_prop_use(pu: PropUse, uw: str, kind: str, caps: Capabilities) -> list[str]:
+    if kind not in caps.prop_kinds:
+        return []
+    need, draws = caps.prop_kinds[kind][:2]
     p: list[str] = []
     for field in PROP_USE_FIELDS:
         value = getattr(pu, field)
@@ -479,27 +502,34 @@ def _check_prop_use(pu: PropUse, uw: str, kind: str) -> list[str]:
     return p
 
 
-def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank) -> list[str]:
+def _check_beat(b: Beat, bw: str, scene: ToonScene, shot: Shot, spots, catalog: SceneCatalog) -> list[str]:
     p: list[str] = []
+    caps = catalog.capabilities
     placed = shot.place
     v = b.verb
     pu = shot.props.get(b.prop) if v == "prop" else None
-    kind = bank.props[pu.kind].kind if pu is not None and pu.kind in bank.props else None
+    kind = catalog.prop_kind(pu.kind) if pu is not None and pu.kind in catalog.props else None
+    if kind is not None and kind not in caps.prop_kinds:
+        kind = None
     if v == "move":
         if b.move not in placed:
             p.append(f"{bw}.move: {b.move!r} is not placed in this shot")
         if not isinstance(b.to, str) or b.to not in spots:
             p.append(f"{bw}.to: unknown spot {b.to!r}")
     elif v == "pose":
+        character = scene.cast.get(b.pose, "")
+        known = character in catalog.characters  # an unknown one is reported once, at cast
         if b.pose not in placed:
             p.append(f"{bw}.pose: {b.pose!r} is not placed in this shot")
-        elif b.to is not None:
-            if not isinstance(b.to, str) or b.to not in bank.poses:
+        elif b.to is not None and known:
+            to_class = catalog.pose_class(character, b.to) if isinstance(b.to, str) else None
+            from_class = catalog.pose_class(character, placed[b.pose].pose)
+            if to_class is None:
                 p.append(f"{bw}.to: unknown pose {b.to!r}")
-            elif bank.poses[b.to].hip != bank.poses[placed[b.pose].pose].hip:
-                p.append(f"{bw}.to: pose {b.to!r} changes hip ({bank.poses[placed[b.pose].pose].hip} → "
-                         f"{bank.poses[b.to].hip}); cut to a new shot instead")
-        if b.expr is not None and b.expr not in bank.expressions:
+            elif from_class is not None and to_class != from_class:
+                p.append(f"{bw}.to: pose {b.to!r} changes hip ({from_class} → {to_class}); "
+                         f"cut to a new shot instead")
+        if b.expr is not None and known and b.expr not in catalog.expressions_of(character):
             p.append(f"{bw}.expr: unknown expression {b.expr!r}")
         if b.to is None and b.expr is None:
             p.append(f"{bw}: a pose beat needs to: <pose> and/or expr: <expression>")
@@ -514,7 +544,7 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank) -> list[s
         elif b.to == {}:
             p.append(f"{bw}.to: is empty; a prop beat animates a state like {{b: 0.3}}")
         elif isinstance(b.to, dict) and kind is not None:
-            states = PROP_KINDS[kind][2]
+            states = caps.prop_kinds[kind].states
             for key in b.to:
                 if key not in states:
                     p.append(f"{bw}.to.{key}: {_a(kind)} prop has no {key!r} state "
@@ -523,6 +553,9 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank) -> list[s
             p.append(f"{bw}: a prop beat needs to / flicker / blink / out")
     elif v == "show":
         s = b.show
+        if s.kind not in caps.show_kinds:
+            p.append(f"{bw}.show.{s.kind}: "
+                     f"{_not_rendered(caps, f'{s.kind} shows', lambda c, k=s.kind: k in c.show_kinds)}")
         for ref in (s.speed_lines, s.from_, s.anger):
             if ref is not None and ref not in placed:
                 p.append(f"{bw}.show: {ref!r} is not placed in this shot")
@@ -533,62 +566,85 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank) -> list[s
         if s.id is not None and s.kind not in CARD_KINDS:
             p.append(f"{bw}.show.id: only valid with an x_card or check_pill show")
         cards = [x for x in (s.x_card, s.check_pill) if x]
+        icons = catalog.icons
         for icon in [*(s.bubble or []), *cards]:
-            if icon not in ICONS:
+            if icon not in icons:
                 p.append(f"{bw}.show: {icon!r} is not an icon — animation is wordless; "
-                         f"use one of {sorted(ICONS)}")
-    elif v == "camera" and b.camera not in bank.cameras:
+                         f"use one of {sorted(icons)}")
+    elif v == "camera" and b.camera not in catalog.cameras:
         p.append(f"{bw}.camera: unknown camera {b.camera!r}")
-    return p + _check_beat_fields(b, bw, kind)
+    return p + _check_beat_fields(b, bw, kind, caps)
 
 
-def _unread(verb: str, field: str) -> str:
+def _unread(caps: Capabilities, verb: str, field: str) -> str:
     if field in ("over", "ease") and verb in _UNTIMED:
         return f"{_UNTIMED[verb]}; {field} does not apply"
-    users = [u for u, fields in BEAT_FIELDS.items() if field in fields]
+    if any(field in c.beat_fields.get(verb, ()) for c in CAPABILITIES.values()):  # another engine reads it
+        return _not_rendered(caps, f"{field} on {_a(verb)} beat", lambda c: field in c.beat_fields.get(verb, ()))
+    users = [u for u, fields in caps.beat_fields.items() if field in fields]
+    if not users:  # no engine reads it on this verb, and this engine reads it nowhere: say who does
+        readers = [f"{e} reads it on {' / '.join(_a(u) for u, fs in c.beat_fields.items() if field in fs)} beat"
+                   for e, c in CAPABILITIES.items() if any(field in fs for fs in c.beat_fields.values())]
+        return f"{caps.engine} doesn't render {field}" + (f" ({'; '.join(readers)})" if readers else "")
     return f"only valid with {_a(users[0])} beat" if len(users) == 1 else f"not valid with {_a(verb)} beat"
 
 
-def _check_beat_fields(b: Beat, bw: str, kind: str | None) -> list[str]:
-    """Every optional field set on a beat must be one the timeline reads for its verb (and, on a
+def _check_beat_fields(b: Beat, bw: str, kind: str | None, caps: Capabilities) -> list[str]:
+    """Every optional field set on a beat must be one the engine reads for its verb (and, on a
     prop beat, for its prop kind; `kind` is None when the prop doesn't resolve)."""
     p: list[str] = []
     v = b.verb
     for field in BEAT_OPTIONAL:
         if getattr(b, field) is None:
             continue
-        if field not in BEAT_FIELDS[v]:
-            p.append(f"{bw}.{field}: {_unread(v, field)}")
+        if field not in caps.beat_fields[v]:
+            p.append(f"{bw}.{field}: {_unread(caps, v, field)}")
         elif v == "prop" and field in ("over", "ease") and b.to is None:
             p.append(f"{bw}.{field}: a prop beat times only a to: change; {field} does nothing without to:")
         elif field == "ease" and not (b.over or 0.0) > 0:
             p.append(f"{bw}.ease: does nothing without over: (the change is instant)")
         elif field == "bob" and not (b.over or 0.0) > 0:
             p.append(f"{bw}.bob: needs over: (an instant move would leave a fixed lift, not a bob)")
-        elif v == "prop" and field in PROP_BEAT_FLAGS and kind is not None and field not in PROP_KINDS[kind][3]:
-            takers = sorted(k for k, spec in PROP_KINDS.items() if field in spec[3])
+        elif v == "prop" and field in PROP_BEAT_FLAGS and kind is not None and field not in caps.prop_kinds[kind].flags:
+            takers = sorted(k for k, spec in caps.prop_kinds.items() if field in spec.flags)
             p.append(f"{bw}.{field}: {_a(kind)} prop ignores {field} (only {', '.join(takers)} takes it)")
     return p
 
 
-def load_scene(data: dict, bank: Bank, narration: str | None = None,
+def catalog_for(data: dict) -> SceneCatalog:
+    """The catalog to load scene data against: its `engine:`'s (default toon2d). An unknown or
+    unbuilt engine fails here, naming the data's source; there is never a fallback engine."""
+    try:
+        return load_catalog(data.get("engine", DEFAULT_ENGINE))
+    except SceneError as exc:
+        source = getattr(data, "source", None)
+        if source is None or exc.source is not None:
+            raise
+        raise SceneError(exc.problems, source=source) from exc
+
+
+def load_scene(data: dict, catalog: SceneCatalog, narration: str | None = None,
                duration: float | None = None, source: str | None = None) -> ToonScene:
-    """Validate scene data against the bank, resolving sentence anchors. Every SceneError names
-    `source`, which defaults to the data's own (`read_scene`, `scene_data_from_visual`)."""
+    """Validate scene data against an engine's catalog (toon.catalog), resolving sentence
+    anchors. Every SceneError names `source`, which defaults to the data's own (`read_scene`,
+    `scene_data_from_visual`)."""
     source = source if source is not None else getattr(data, "source", None)
     try:
-        return _load(data, bank, narration, duration)
+        return _load(data, catalog, narration, duration)
     except SceneError as exc:
         if source is None or exc.source is not None:
             raise
         raise type(exc)(exc.problems, source=source) from exc
 
 
-def _load(data: dict, bank: Bank, narration: str | None, duration: float | None) -> ToonScene:
+def _load(data: dict, catalog: SceneCatalog, narration: str | None, duration: float | None) -> ToonScene:
     try:
         scene = ToonScene.model_validate(data)
     except ValidationError as exc:
         raise SceneError([f"{'.'.join(map(str, e['loc']))}: {e['msg']}" for e in exc.errors()]) from exc
+    if scene.engine != catalog.capabilities.engine:  # every name check would be noise
+        raise SceneError([f"engine: a {scene.engine} scene, but this is the "
+                          f"{catalog.capabilities.engine} catalog"])
     # Duration §5: "the scene lasts as long as its narration ... if it is shorter than the
     # last beat, loading warns and the scene is cut at the narration's end." A narration
     # shorter than an authored shot's own start (e.g. 8s vs. a shot starting at 9.7s) must
@@ -613,7 +669,7 @@ def _load(data: dict, bank: Bank, narration: str | None, duration: float | None)
         check_duration = None
     else:
         check_duration = max(authored_duration, duration)
-    problems = _check(scene.model_copy(update={"duration": check_duration}), bank, shot_starts,
+    problems = _check(scene.model_copy(update={"duration": check_duration}), catalog, shot_starts,
                       duration if duration is not None else authored_duration)
     if problems:
         raise SceneError(problems)
@@ -654,7 +710,16 @@ def scene_warnings(scene: ToonScene, duration: float) -> list[str]:
 
 
 def scenes_root() -> Path:
+    from toon.bank import default_root  # the 2.5D scene library sits beside its bank
+
     return default_root().parent / "scenes"
+
+
+def scene_libraries() -> dict[str, Path]:
+    """Each engine's scene library: a scene id resolves in whichever holds it."""
+    from toy3d.bank import default_root as toy3d_root  # toy3d's library sits beside its bank
+
+    return {"toon2d": scenes_root(), "toy3d": toy3d_root().parent / "scenes"}
 
 
 _REPO = Path(__file__).resolve().parents[2]
@@ -669,9 +734,17 @@ def source_name(path: Path) -> str:
 
 
 def scene_path(ref: str) -> Path:
-    """A scene id (`001-lioness-dishes` → assets/toon/scenes/<id>.yaml) or a path to a YAML file."""
+    """A path to a scene YAML, or a scene id, found in the one engine library that holds it
+    (`001-lioness-dishes` → assets/toon/scenes/, `001-beat2-break-in` → assets/toy3d/scenes/)."""
     path = Path(ref)
-    return path if path.suffix in (".yaml", ".yml") else scenes_root() / f"{ref}.yaml"
+    if path.suffix in (".yaml", ".yml"):
+        return path
+    found = {engine: root / f"{ref}.yaml" for engine, root in scene_libraries().items()
+             if (root / f"{ref}.yaml").exists()}
+    if len(found) > 1:
+        raise SceneError([f"scene id {ref!r} is in both libraries ({', '.join(source_name(p) for p in found.values())}): "
+                          f"pass the file's path"])
+    return next(iter(found.values()), scenes_root() / f"{ref}.yaml")
 
 
 def read_scene(ref: str) -> SceneData:

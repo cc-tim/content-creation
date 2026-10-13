@@ -1,0 +1,27 @@
+# The idea bulb above a character's head, frozen v7 (scene.js bulb, poseBulb, puffs).
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js bulb/poseBulb"}
+kind: idea_bulb
+anchor: [0.0, 0.76, 0.0]            # above the head it sits on
+drift: {bob: 0.025, bob_rate: 2.4, tilt: 0.05, tilt_rate: 1.7}
+out: {over: 0.5, droop: 0.06, tilt: 0.3, smoke: 3, stagger: 0.12, smoke_span: 0.9,
+      rise: [0.1, 0.3], grow: [0.6, 1.6], alpha: 0.55, sway: {amp: 0.02, rate: 3.0, phase_step: 2.0}}
+glow: {base: 0.55, amp: 0.05, rate: 5.0}
+rays: {amp: 0.06, rate: 6.0, min_level: 0.5}
+lit_min: 0.05                       # the glass reads lit above this level
+palette:
+  glass: "#fff6dc"                  # lit
+  glass_off: "#e2ddd3"
+  emissive: "#ffe2a0"
+  screw: "#b8b2a8"
+  tip: "#6b6560"
+  glow: ["rgba(255,236,190,0.9)", "rgba(255,226,160,0.35)", "rgba(255,226,160,0)"]   # the sprite's stops
+  ray: "#f3d58e"
+  light: "#ffd98a"
+  smoke: "#9a948c"
+params:
+  glass: {roughness: 0.2, emissive_per_level: 2.4, opacity_lit: 0.96, opacity_off: 0.82}
+  screw: {metalness: 0.5, roughness: 0.4}
+  glow: {opacity_per_level: 0.75}
+  ray: {emissive: 0.6, roughness: 0.5}
+  light: {per_level: 0.55}
+  smoke: {roughness: 1.0}

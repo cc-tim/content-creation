@@ -1,0 +1,5 @@
+# The lioness's face decals (drawn by code: web/engine/faces.js), frozen v7 (scene.js LION_FACE).
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js LION_FACE"}
+expressions:
+  stern: {decal: lion_stern}
+  blink: {decal: lion_blink}

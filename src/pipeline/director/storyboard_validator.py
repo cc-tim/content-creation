@@ -447,8 +447,8 @@ def _validate_toon_scene(scene: Scene, visual: dict,
     # `duration=duration` and behave identically: a narration shorter than the scene warns
     # (via scene_warnings below) instead of raising, matching design spec §5 ("Duration").
     try:
-        from toon.bank import load_bank
         from toon.scene import (
+            catalog_for,
             drift_warnings,
             load_scene,
             scene_data_from_visual,
@@ -459,8 +459,8 @@ def _validate_toon_scene(scene: Scene, visual: dict,
         # Every SceneError names the storyboard file + scene id (or the scene file it references).
         origin = f"{source_name(storyboard_file) if storyboard_file else 'storyboard'} scene {scene.id}"
         duration = scene.narration_est_sec or None
-        loaded = load_scene(scene_data_from_visual(visual, origin), load_bank(),
-                            narration=scene.narration, duration=duration)
+        data = scene_data_from_visual(visual, origin)
+        loaded = load_scene(data, catalog_for(data), narration=scene.narration, duration=duration)
     except Exception as exc:  # BankError / SceneError / cairo — report, never crash validation
         return [_issue(scene, "error", "visual", f"toon scene invalid: {exc}",
                        "Fix the scene file; run `uv run pipeline toon validate <scene>`.")]

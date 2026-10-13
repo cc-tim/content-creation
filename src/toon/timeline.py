@@ -7,12 +7,30 @@ from dataclasses import dataclass, field, replace
 import numpy as np
 
 from toon.bank import Bank
-from toon.engine.mathx import EASES, V, e_out, lerp, smooth
+from toon.beats import POP as POP
+from toon.beats import ActorAt as ActorAt
+from toon.beats import CameraAt as CameraAt
+from toon.beats import Change as Change
+from toon.beats import DoorAt as DoorAt
+from toon.beats import GraphicAt as GraphicAt
+from toon.beats import PropAt as PropAt
+from toon.beats import SymbolicState as SymbolicState
+from toon.beats import beats_at
+from toon.engine.mathx import V, e_out, lerp, smooth
 from toon.engine.rig import HIP_SIT, HIP_STAND, Pose, mix
-from toon.scene import Beat, Flicker, Show, ToonScene, graphic_key, shot_length
+from toon.scene import Show, ToonScene
 
 HIP_REF = {"sit": HIP_SIT, "stand": HIP_STAND}
-POP = 0.25
+
+
+class ToonRenderError(RuntimeError):
+    pass
+
+
+def require_toon2d(scene: ToonScene) -> None:
+    """The 2.5D engine draws toon2d scenes only: a toy3d scene is never drawn as a doodle."""
+    if scene.engine != "toon2d":
+        raise ToonRenderError(f"{scene.id}: a {scene.engine} scene; the 2.5D engine draws toon2d scenes")
 
 
 @dataclass
@@ -82,109 +100,55 @@ def pose_of(bank: Bank, pose_name: str, expr_name: str) -> Pose:
                 eyes=e.eyes, mouth=e.mouth)
 
 
-def shot_index(scene: ToonScene, t: float) -> int:
-    return max(i for i, sh in enumerate(scene.shots) if float(sh.at) <= max(t, 0.0))
-
-
-def _progress(b: Beat, rel: float) -> float | None:
-    at = float(b.at)  # SentenceAnchor is resolved to a float before state_at ever runs
-    if rel < at:
-        return None
-    over = b.over or 0.0  # optional beat fields are None when not given: instant, smooth
-    k = 1.0 if over <= 0 else min((rel - at) / over, 1.0)
-    return EASES[b.ease or "smooth"](k)
-
-
 def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = None) -> FrameState:
-    t_cam = t_draw if t_cam is None else t_cam
-    i = shot_index(scene, t_cam)
-    shot = scene.shots[i]
-    start = float(shot.at)  # sentence anchors resolve to seconds before state_at ever runs
-    t_draw = max(t_draw, start)
-    rel = t_draw - start
-    spots = bank.sets[shot.set].spots
+    """The 2.5D engine's frame: the symbolic timeline folded over this bank's spots, poses,
+    props and cameras, with flicker on drawings (twos) and gesture loops."""
+    require_toon2d(scene)
+    sym = beats_at(scene, t_draw, t_cam)
+    spots = bank.sets[sym.set].spots
 
     chars = {}
-    for who, pl in shot.place.items():
-        sp = spots[pl.spot]
-        chars[who] = CharState(who, scene.cast[who], pose_of(bank, pl.pose, pl.expr), pl.pose, pl.expr,
-                               bank.poses[pl.pose].hip, V(*sp.pos), sp.yaw, pl.layer, pl.loop)
-    props = {}
-    for name, pu in shot.props.items():
-        d = bank.props[pu.kind]
-        props[name] = PropState(name, d.kind, d.layer, tuple(d.anchor), pu.on, pu.held_by,
-                                1.0 if pu.b is None else pu.b, pu.count or 0)
-    door = 0.0
-    graphics: dict[str, GraphicState] = {}
-    flickers: dict[str, Flicker | None] = {}
-    preset = bank.cameras[shot.camera]
-    rel_cam = t_cam - start
-    cam_from = 0.0  # a camera beat cuts to its preset, whose own move restarts at the beat
-
-    for b in sorted(shot.beats, key=lambda x: x.at):
-        if b.verb == "camera":  # the cut lands on camera time (ones), not drawing time (twos)
-            if rel_cam >= float(b.at):
-                preset, cam_from = bank.cameras[b.camera], float(b.at)
-            continue
-        k = _progress(b, rel)
-        if k is None:
-            continue
-        v, at = b.verb, float(b.at)
-        if v == "door":
-            door = lerp(door, 1.0 if b.door == "open" else 0.0, k)
-        elif v == "move":
-            c, dest = chars[b.move], spots[b.to]
-            c.root = lerp(c.root, V(*dest.pos), k) + V(0, (b.bob or 0.0) * abs(math.sin(k * 9)), 0)
+    for a in sym.actors:
+        sp = spots[a.spot]
+        chars[a.name] = CharState(a.name, a.character, pose_of(bank, a.pose, a.expr), a.pose, a.expr,
+                                  bank.poses[a.pose].hip, V(*sp.pos), sp.yaw, a.layer or "split",
+                                  True if a.loop is None else a.loop)
+    for ch in sym.changes:
+        c, k = chars[ch.who], ch.k
+        if ch.verb == "move":
+            dest = spots[ch.to]
+            c.root = lerp(c.root, V(*dest.pos), k) + V(0, (ch.bob or 0.0) * abs(math.sin(k * 9)), 0)
             c.yaw = lerp(c.yaw, dest.yaw, k)
-        elif v == "face":
-            c, o = chars[b.face], chars[b.to]
+        elif ch.verb == "face":
+            o = chars[ch.to]
             c.yaw = lerp(c.yaw, math.degrees(math.atan2(o.root[0] - c.root[0], o.root[2] - c.root[2])), k)
-        elif v == "pose":
-            c = chars[b.pose]
-            to_pose, to_expr = b.to or c.pose_name, b.expr or c.expr_name
-            c.pose = mix(c.pose, pose_of(bank, to_pose, to_expr), k)
+        else:  # pose
+            c.pose = mix(c.pose, pose_of(bank, ch.to, ch.expr), k)
             if k >= 1.0:
-                c.pose_name, c.expr_name = to_pose, to_expr
-        elif v == "prop":
-            s = props[b.prop]
-            if isinstance(b.to, dict):
-                for key, val in b.to.items():
-                    cur = getattr(s, key)
-                    if key == "count":
-                        s.count = int(cur + math.trunc((val - cur) * k))
-                    else:
-                        setattr(s, key, lerp(cur, val, k))
-            if b.flicker is not None:
-                flickers[b.prop] = b.flicker if isinstance(b.flicker, Flicker) else (Flicker() if b.flicker else None)
-            if b.blink is not None and rel < at + b.blink.over:
-                s.blink = b.blink.b
-            if b.out:
-                s.mode, s.smoke = "out", rel - at
-        elif v == "show":
-            pop = POP if b.over is None else b.over  # over: 0 appears at once, no pop
-            key = graphic_key(b.show)
-            graphics[key] = GraphicState(key, b.show, 1.0 if pop == 0 else min((rel - at) / pop, 1.0))
-        elif v == "hide":
-            graphics.pop(b.hide, None)
+                c.pose_name, c.expr_name = ch.to, ch.expr
 
-    idx = math.floor(t_draw * bank.style.drawing_fps + 1e-9)
-    for name, s in props.items():
-        f = flickers.get(name)
-        if s.mode != "out" and f is not None:
-            s.mode, s.b = "flicker", (f.low if idx % f.every == 0 else f.high)
+    idx = math.floor(sym.t_draw * bank.style.drawing_fps + 1e-9)
+    props = {}
+    for p in sym.props:
+        d = bank.props[p.item]
+        s = PropState(p.name, d.kind, d.layer, tuple(d.anchor), p.on, p.held_by, p.b, p.count,
+                      p.mode, p.smoke, p.blink)
+        if s.mode != "out" and p.flicker is not None:  # a flicker toggles per drawing (twos)
+            s.mode, s.b = "flicker", (p.flicker.low if idx % p.flicker.every == 0 else p.flicker.high)
         if s.blink is not None and s.mode != "out":
             s.b = s.blink
+        props[p.name] = s
 
     for c in chars.values():  # gesture loops (e.g. scrubbing) ride on the current pose
         loop = bank.poses[c.pose_name].loop
         if c.loop and loop is not None:
-            ph = t_draw * 2 * math.pi * loop.hz
+            ph = sym.t_draw * 2 * math.pi * loop.hz
             attr = f"hand_{loop.hand}"
             x, y, z = getattr(c.pose, attr)
             c.pose = replace(c.pose, **{attr: (x + loop.radius[0] * math.cos(ph), y + loop.radius[1] * math.sin(ph), z)})
 
-    span = shot_length(scene, i) - cam_from       # the preset's move runs from the cut to the shot's end
-    rel_move = rel_cam - cam_from
+    preset = bank.cameras[sym.camera.preset]
+    span, rel_move = sym.camera.span, sym.camera.since  # the preset's move runs from the cut to the shot's end
     ks = smooth(rel_move / span) if math.isfinite(span) and span > 0 else 0.0
     focal = lerp(preset.focal, preset.focal_to if preset.focal_to is not None else preset.focal, ks)
     az = lerp(preset.az, preset.az_to if preset.az_to is not None else preset.az, ks)
@@ -192,4 +156,5 @@ def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = 
         pk = e_out(min(max((rel_move - preset.punch.at) / preset.punch.over, 0.0), 1.0))
         focal = lerp(focal, preset.punch.to, pk)
     cam = CamState(az, preset.el, preset.dist, tuple(preset.target), focal)
-    return FrameState(i, shot.set, door, cam, chars, props, list(graphics.values()), list(shot.fx))
+    graphics = [GraphicState(g.key, g.show, g.k) for g in sym.graphics]
+    return FrameState(sym.shot, sym.set, sym.door, cam, chars, props, graphics, list(sym.fx))

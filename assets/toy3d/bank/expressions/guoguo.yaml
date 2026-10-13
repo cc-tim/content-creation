@@ -1,0 +1,4 @@
+# GuoGuo is a plush: his face is his bead eyes and beak, no decal (wide eyes are a pose flag).
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js makeGuo"}
+expressions:
+  neutral: {}

@@ -1,0 +1,34 @@
+# The lioness: a Sylvanian Families-style figure (no mane), lavender dress, gingham-hem apron.
+# Frozen v7 (scene.js makeLion), with the snapshot's known weak points (primitive build, sine walk).
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js makeLion"}
+rig:
+  kind: lioness
+  channels: [root.ry, hips.py, body.rx, body.rz, neck.rx, neck.ry,
+             arm_l.j1.rx, arm_l.j1.rz, arm_l.j2.rx, arm_l.j2.rz,
+             arm_r.j1.rx, arm_r.j1.rz, arm_r.j2.rx, arm_r.j2.rz,
+             leg_l.j1.rx, leg_l.j2.rx, leg_r.j1.rx, leg_r.j2.rx,
+             tail.rx, tail.ry, ear_l.rz, ear_r.rz, bubble_bang]
+scale: 1.15
+# Her walk on a move beat (scene.js poseLion): phase from the distance walked (in her own scale),
+# a step envelope that settles over 1/settle s after arrival.
+walk: {stride: 0.2, bob: 0.022, sway: 0.06, hip_swing: 0.5, knee: 0.25, arm_swing: 0.4, settle: 6.0}
+palette:
+  fur: "#d5b186"
+  fur_light: "#e3c6a0"
+  muzzle: "#f3e7d2"
+  nose: "#b27c6c"
+  mouth: "#6f4b3d"
+  inner_ear: "#efd9c0"
+  ear_back: "#6e5442"
+  tuft: "#7a5a40"
+  dress: "#a8a8c6"
+  apron: "#f7f1e6"
+  apron_check: "rgba(201,139,124,0.5)"
+  whisker: "#f8f2e6"
+  ink: "#2a2421"                    # face decals (web/engine/faces.js)
+  brow: "#8a6446"
+  eye_white: "rgba(246,236,218,0.95)"
+  glint: "#ffffff"
+  whisker_dots: "rgba(140,100,75,0.75)"
+params:
+  nose: {roughness: 0.25, clearcoat: 0.8}

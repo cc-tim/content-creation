@@ -36,11 +36,7 @@ from toon.kit.graphics import (
 from toon.kit.props import idea_bulb, plate, plate_stack
 from toon.kit.sets import build_set
 from toon.scene import ToonScene
-from toon.timeline import HIP_REF, FrameState, state_at
-
-
-class ToonRenderError(RuntimeError):
-    pass
+from toon.timeline import HIP_REF, FrameState, ToonRenderError, require_toon2d, state_at
 
 
 def _look(bank: Bank, character: str) -> Look:
@@ -181,6 +177,7 @@ def _tail(f, n: int = 2000) -> str:
 
 def render_clip(scene: ToonScene, bank: Bank, out_path: Path, duration: float,
                 width: int = 1920, height: int = 1080, workers: int | None = None) -> Path:
+    require_toon2d(scene)
     out_path = Path(out_path)
     key = cache_key(scene, bank, duration, width, height)
     stamp = out_path.with_suffix(".key")

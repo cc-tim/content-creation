@@ -89,3 +89,93 @@ def test_golden_test_files_use_shared_helper():
         assert "assert_matches_golden" in src, name
         assert "UPDATE_GOLDENS" not in src, name
         assert "def _assert_golden" not in src and "def _assert_anim_golden" not in src, name
+
+
+# -- the tolerant helper (E11 S12-12): GPU-rendered goldens, hub-canonical, compared everywhere --
+
+def _noisy(n_off, level, size=(100, 100)):
+    import numpy as np
+
+    a = np.full((size[1], size[0], 3), 128, np.uint8)
+    flat = a.reshape(-1, 3)
+    flat[:n_off] = 128 + level
+    return Image.fromarray(a)
+
+
+def _blob(side, level):
+    import numpy as np
+
+    a = np.full((100, 100, 3), 128, np.uint8)
+    a[40:40 + side, 40:40 + side] = 128 + level
+    return Image.fromarray(a)
+
+
+@pytest.fixture
+def grey(tmp_path):
+    path = tmp_path / "g" / "grey.png"
+    path.parent.mkdir()
+    Image.new("RGB", (100, 100), (128, 128, 128)).save(path)
+    return path
+
+
+LOOSE = {"mean": 1.0, "p999": 50.0, "max_frac": 0.01, "tile": 40.0}
+
+
+@pytest.mark.parametrize("platform", ["linux", "darwin"])
+def test_close_compare_runs_on_both_machines(monkeypatch, grey, platform):
+    from tests.golden_policy import assert_close_to_golden
+
+    monkeypatch.setattr(golden_policy.sys, "platform", platform)
+    stats = assert_close_to_golden(_noisy(5, 3), grey, **LOOSE)            # 5 px off by 3: noise
+    assert stats["frac8"] == 0 and stats["max"] == 3
+
+
+@pytest.mark.parametrize(("image", "limits", "metric"), [
+    (lambda: _noisy(2000, 2), {**LOOSE, "mean": 0.1}, "mean"),             # many small: the mean
+    (lambda: _noisy(200, 60), {**LOOSE, "max_frac": 0.001}, "frac8"),      # a few large: the fraction
+    (lambda: _noisy(30, 120), {**LOOSE, "p999": 10.0}, "p999"),            # the tail
+    (lambda: _blob(20, 120), {"mean": 10.0, "p999": 255.0, "max_frac": 1.0, "tile": 20.0}, "tile"),  # one blob
+], ids=["mean", "frac8", "p999", "tile"])
+def test_close_compare_fails_beyond_each_limit(monkeypatch, grey, image, limits, metric):
+    from tests.golden_policy import assert_close_to_golden
+
+    monkeypatch.setattr(golden_policy.sys, "platform", "linux")
+    with pytest.raises(AssertionError, match=f"beyond tolerance on [^:]*{metric}"):
+        assert_close_to_golden(image(), grey, **limits)
+
+
+def test_close_compare_fails_on_a_size_change(monkeypatch, grey):
+    from tests.golden_policy import assert_close_to_golden
+
+    monkeypatch.setattr(golden_policy.sys, "platform", "linux")
+    with pytest.raises(AssertionError, match="size"):
+        assert_close_to_golden(Image.new("RGB", (100, 90), (128, 128, 128)), grey, **LOOSE)
+
+
+def test_close_update_goldens_off_hub_is_a_hard_error(monkeypatch, grey):
+    from tests.golden_policy import assert_close_to_golden
+
+    monkeypatch.setattr(golden_policy.sys, "platform", "darwin")
+    monkeypatch.setenv("UPDATE_GOLDENS", "1")
+    before = grey.read_bytes()
+    with pytest.raises(RuntimeError, match="hub only"):
+        assert_close_to_golden(_noisy(5, 90), grey, **LOOSE)
+    assert grey.read_bytes() == before
+
+
+def test_close_update_goldens_on_the_hub_writes(monkeypatch, tmp_path):
+    from tests.golden_policy import assert_close_to_golden
+
+    monkeypatch.setattr(golden_policy.sys, "platform", "linux")
+    monkeypatch.setenv("UPDATE_GOLDENS", "1")
+    target = tmp_path / "new" / "z.png"
+    assert assert_close_to_golden(_noisy(5, 90), target, **LOOSE) == {}
+    assert target.exists()
+
+
+def test_a_missing_close_golden_names_the_hub_mint(monkeypatch, tmp_path):
+    from tests.golden_policy import assert_close_to_golden
+
+    monkeypatch.setattr(golden_policy.sys, "platform", "darwin")
+    with pytest.raises(AssertionError, match="UPDATE_GOLDENS=1 on the hub"):
+        assert_close_to_golden(_noisy(5, 3), tmp_path / "none.png", **LOOSE)

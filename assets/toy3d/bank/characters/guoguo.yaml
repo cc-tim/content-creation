@@ -1,0 +1,77 @@
+# GuoGuo: Tim's king-penguin hand-puppet plush, frozen at v7 (Tim approved, 2026-10-13). Black head
+# to the flipper-top line all round, yellow V-bib, flush blue bead eyes, long beak ~14° down with an
+# orange lower-mandible stripe, big orange cheek patches, white front / grey back, sideways
+# white-front paddle flippers, longer legs, black feet, shell fur. Seated on the shelf in rooms
+# (pose class sit), standing for the design views (class stand). scene.js makeGuo / poseGuo.
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js makeGuo/poseGuo; GuoGuo v7 approved by Tim"}
+rig:
+  kind: guoguo
+  channels: [look.dy, hop, sq, land, wob, flap, jig, raise, fidle, bob, body.rz]
+# How his acting signals drive the plush (scene.js poseGuo, verbatim coefficients).
+guoguo:
+  hop_scale: {sit: 0.6, stand: 1.0}      # seated hops are smaller
+  look: {seat_yaw: 0.12, body_share: 0.35, head_clamp: 0.55}   # seated: the head does most turning
+  squash: {sq: -0.14, speed: 0.1, speed_full: 1.4, land: -0.16, wob: 0.06}
+  flippers: {flap: 0.55, jig: 1.0, raise: 0.25}
+  fur_push: {base: -0.45, speed: -0.22, land: -0.5, wob: 0.25, whip: -0.5, whip_threshold: 0.05}
+  wide_eyes: {eye: 1.25, pupil: 0.6}
+palette:
+  white: "#f3f2ee"
+  grey: "#9b9da0"
+  black: "#1b1b1e"
+  yellow: "#f4e638"                 # the V-bib
+  orange: "#f56a1c"                 # the ear patches and the lower-mandible stripe
+  iris: "#2f78bd"                   # blue glass-bead eyes
+  pupil: "#0b0b0d"
+  glint: "#ffffff"
+# The design picks (v7): the photo traces' mapping, the body and leg profiles, the eye, beak,
+# flippers, ear patch and the seated settle. Lengths in metres, angles in degrees.
+params:
+  fur: {len: 0.015, shells: 22, density: 170, roughness: 1.0, metalness: 0.0,
+        beak_len: 0.004, beak_shells: 6, flipper_len: 0.014, foot_len: 0.012}
+  # photo -> model (guo_trace.json): scale s m/px, origin (x0, y0) px, the view's yaw
+  trace_map:
+    front: {s: 0.00166, x0: 407, y0: 404, yaw: 0}
+    side: {s: 0.0014157782515991472, x0: 448, y0: 472, yaw: 72}
+  flipper_top: 0.494                # the head's black ends level with the flipper tops
+  bib_top: 0.461                    # the traced V-bib's top edge in the photo
+  ear: {th: 80, dth: 37, y: 0.497, dy: 0.05}   # a round-oval patch low on the head side
+  # head + body as one mass: [y, half-width a (front trace), front depth f, back depth b (side trace)]
+  profile:
+    - [0.140, 0.000, 0.020, -0.030]
+    - [0.146, 0.100, 0.060, -0.050]
+    - [0.158, 0.150, 0.095, -0.080]
+    - [0.176, 0.180, 0.113, -0.100]
+    - [0.197, 0.182, 0.120, -0.112]
+    - [0.247, 0.170, 0.113, -0.122]
+    - [0.297, 0.166, 0.110, -0.125]
+    - [0.340, 0.162, 0.111, -0.123]
+    - [0.381, 0.155, 0.114, -0.120]
+    - [0.431, 0.148, 0.119, -0.115]
+    - [0.464, 0.142, 0.125, -0.111]
+    - [0.498, 0.135, 0.131, -0.107]
+    - [0.528, 0.125, 0.137, -0.102]
+    - [0.561, 0.112, 0.141, -0.096]
+    - [0.593, 0.099, 0.140, -0.088]
+    - [0.618, 0.086, 0.131, -0.077]
+    - [0.638, 0.068, 0.104, -0.056]
+    - [0.651, 0.042, 0.062, -0.026]
+    - [0.658, 0.000, 0.018, 0.018]
+  # the legs: two longer stubs that start high, black fluffy bottoms (same columns)
+  leg:
+    - [0.024, 0.000, 0.010, -0.010]
+    - [0.030, 0.055, 0.075, -0.050]
+    - [0.045, 0.074, 0.103, -0.068]
+    - [0.070, 0.082, 0.118, -0.080]
+    - [0.110, 0.085, 0.124, -0.090]
+    - [0.150, 0.082, 0.120, -0.096]
+    - [0.190, 0.074, 0.108, -0.098]
+    - [0.225, 0.058, 0.090, -0.088]
+    - [0.250, 0.030, 0.050, -0.050]
+    - [0.260, 0.000, 0.000, 0.000]
+  eye: {th: 47, y: 0.56}            # close to the beak (front photo)
+  beak: {z0: 0.1, z1: 0.262, y0: 0.548, y1: 0.508, h0: 0.044, w0: 0.042}   # long, ~14° down
+  flippers: {xr: 0.1, xt: 0.297, yr: 0.418, yt: 0.438, hr: 0.076, ht: 0.04, tr: 0.024, tt: 0.016}
+  sit_drop: 0.075                   # seated: how far the plush settles
+  iris: {roughness: 0.06, clearcoat: 1.0}
+  pupil: {roughness: 0.04, clearcoat: 1.0}

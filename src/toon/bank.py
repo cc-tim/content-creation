@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Collection
 from pathlib import Path
 from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from toon.catalog import TOON2D, Capabilities
 from toon.engine.look import BODY_KEYS, FACE_KEYS, HAIR_KEYS, HAIR_LAYER_KEYS
 
 Vec3 = tuple[float, float, float]
@@ -128,6 +130,34 @@ class Bank(_Strict):
     props: dict[str, PropDef]
     cameras: dict[str, CameraPreset]
     style: Style
+
+    # -- SceneCatalog adapter (toon.catalog): the 2.5D engine's names and capabilities. Poses and
+    # expressions are shared by every character here. --
+
+    @property
+    def capabilities(self) -> Capabilities:
+        return TOON2D
+
+    @property
+    def icons(self) -> Collection[str]:
+        from toon.kit.icons import ICONS  # drawn by the 2.5D kit
+
+        return frozenset(ICONS)
+
+    def spots(self, set_name: str) -> Collection[str]:
+        return self.sets[set_name].spots
+
+    def pose_class(self, character: str, pose: str) -> str | None:
+        return self.poses[pose].hip if pose in self.poses else None
+
+    def expressions_of(self, character: str) -> Collection[str]:
+        return self.expressions
+
+    def prop_kind(self, prop: str) -> str:
+        return self.props[prop].kind
+
+    def scene_problems(self, scene) -> list[str]:
+        return []   # the 2.5D engine draws every scene whose names resolve
 
 
 def default_root() -> Path:

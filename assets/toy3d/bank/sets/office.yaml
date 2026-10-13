@@ -1,0 +1,96 @@
+# The office + hall: a Sylvanian-style dollhouse cutaway (open front and right), frozen v7
+# (scene.js room, desk, chair, door, bookshelf). Spots: positions in metres, yaw in degrees.
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js room + desk + chair"}
+spots:
+  desk_seat: {pos: [0.85, 0.0, -0.5], seat: chair}          # TIM_X, TIM_Z: the swivel chair
+  doorway_out: {pos: [-3.25, 0.0, -0.7], yaw: 90.0}         # in the hall, behind the door
+  doorway_in: {pos: [-1.15, 0.0, -0.1], yaw: 90.0}          # just inside
+  shelf_top: {pos: [-0.26, 1.04, -1.72]}                    # on the bookshelf, in frame every beat
+  turntable: {pos: [1.85, 0.0, 0.65]}                       # open floor: the design views
+# The door swings in on its beat, then rings on a spring (scene.js poseDoor), puffing dust.
+door: {open: 1.9, rest: 1.62, decay: 7.0, freq: 26.0,
+       dust: {span: [0.06, 0.9], grow: [0.4, 1.4], alpha: 0.7}}
+# The laptop's code bars fill while the actor at desk_seat holds a pose flagged `typing`.
+laptop: {spot: desk_seat, lines: 4, rate: 2.2, max_lines: 11, cursor_rate: 3.0}
+# The look of the set (scene.js P + the room's inline colours, look A). Lists are ordered picks.
+palette:
+  table: "#d8ccba"                  # the tabletop the dollhouse stands on
+  exterior: "#e3d5bf"
+  beam: "#b98e67"
+  wall: "#efe5d1"                   # wallpaper ground
+  wallpaper_flowers: ["#d9ad9f", "#a9b897"]
+  wallpaper_centre: "#f2e3c2"
+  wallpaper_dot: "rgba(160,140,110,0.35)"
+  wainscot: "#b9c3a8"
+  trim: "#f5efe3"
+  floor: "#c9a47c"
+  floor_grain: "#6e4b2d"            # drawn at alpha 0.05–0.11
+  floor_seam: "#5f3e26"             # drawn at alpha 0.45 / 0.5
+  grain_ground: "#f4f4f4"           # the wood grain texture
+  grain_dark: "#785a3c"
+  grain_light: "#ffffff"
+  door: "#f2ebdd"
+  brass: "#c8a66a"
+  hall_wall: "#efdcb4"
+  hall_check: "#e6cfa3"
+  hall_grid: "rgba(255,255,255,0.6)"
+  hall_floor: "#d9c7a9"
+  hall_vases: ["#c9a27a", "#b9c3a8", "#d9ad9f", "#e8dcc6"]
+  hall_light: "#ffd9a8"
+  sky: ["#c9dbe3", "#e9e6da", "#f1e4cf"]
+  cloud: "rgba(255,255,255,0.75)"
+  hills: ["#b8c7aa", "#a3b694"]
+  gingham: "#eef0e2"
+  gingham_check: "rgba(150,170,130,0.45)"
+  painting_sky: ["#f2dcc0", "#efe6d6"]
+  painting_sun: "#efc79a"
+  painting_hills: ["#b5c4a1", "#93a77f"]
+  painting_tree: "#7c9169"
+  painting_trunk: "#8b6b52"
+  clock_face: "#f6f0e3"
+  clock_ticks: "#8b6b52"
+  clock_hands: "#5b4636"
+  shelf: "#cfa77f"
+  books: ["#c98b7c", "#93a77f", "#a8a8c6", "#d2b06f", "#7f93a8", "#e4d3b5", "#b07f6a", "#9fb3b0"]
+  shelf_vase: "#9fb3b0"
+  pot: "#c99a7a"
+  green: "#93a77f"
+  green_dark: "#7c9169"
+  rug: ["#d8afa2", "#efe3d1", "#b9c2a4", "#efe3d1"]
+  rug_braid: "rgba(120,90,70,0.12)"
+  desk: "#d9b68e"
+  desk_dark: "#b8916b"
+  laptop: "#ccc8c1"
+  laptop_dark: "#5a5753"
+  screen_bg: "#2f3546"              # the wordless code editor
+  screen_bar: "#3a4256"
+  screen_dots: ["#e7a596", "#e8cf8f", "#a6d0a8"]
+  screen_code: ["#9fc7e6", "#b7b2e6", "#a6d0a8", "#efb995"]
+  screen_cursor: "#e8e4dc"
+  screen_light: "#cfe0ff"
+  mug: "#c99a7a"
+  notebook: "#b9c3a8"
+  notebook_paper: "#f4efe4"
+  chair_pad: "#d2b06f"
+  chair_frame: "#6c6661"
+  dust: "#f1ebe0"
+  hemi_sky: "#fff4e4"
+  hemi_ground: "#cdb79a"
+  key: "#fff0dc"
+  rim: "#e9eeff"
+params:
+  hemi: {intensity: 0.6}
+  key: {intensity: 2.3, pos: [3.2, 6.5, 5.5], target: [-0.3, 0.0, -0.4],
+        shadow: {map: 4096, extent: 5.5, near: 1.0, far: 20.0, bias: -0.0003, normal_bias: 0.02, radius: 5}}
+  rim: {intensity: 0.55, pos: [-3.0, 4.0, -5.0]}
+  hall_light: {intensity: 3.0, pos: [-3.45, 2.0, -0.7]}
+  screen_light: {intensity: 0.12}
+  brass: {metalness: 0.6, roughness: 0.35}
+  laptop: {roughness: 0.4, metalness: 0.15}
+  screen: {emissive: 1.25, roughness: 0.3}
+  painting: {roughness: 0.8}
+  vase: {roughness: 0.3}
+  mug: {roughness: 0.35}
+  chair_frame: {roughness: 0.45}
+  curtain: {sheen: 0.1}
+  dust: {roughness: 1.0}

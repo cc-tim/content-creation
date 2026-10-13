@@ -1,0 +1,64 @@
+# Tim's poses (radians, metres): scene.js poseTim, frozen v7. A full pose sets every rig channel
+# (unset = 0); a partial pose only its own. Loops ride inside the pose (they blend with it; `stop`
+# ends one at the next full pose). Accents add after the blend, timed from their beat.
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js poseTim"}
+poses:
+  typing:
+    class: sit
+    flags: [{name: typing}]
+    channels:
+      hips.py: 0.02
+      torso.rx: 0.13
+      neck.rx: 0.1
+      arm_l.j1.rx: -1.25
+      arm_l.j1.rz: 0.3
+      arm_l.j2.rx: -0.55
+      arm_r.j1.rx: -1.25
+      arm_r.j1.rz: -0.3
+      arm_r.j2.rx: -0.55
+      leg_l.j1.rx: -1.5707963267948966
+      leg_l.j2.rx: 1.4207963267948966
+      leg_r.j1.rx: -1.5707963267948966
+      leg_r.j2.rx: 1.4207963267948966
+    loops:
+      - {channel: torso.rx, wave: sin, amp: 0.02, rate: 5.0}
+      - {channel: torso.rz, wave: sin, amp: 0.03, rate: 3.1, until_next: stop}
+      - {channel: neck.rx, wave: abs_sin, amp: 0.035, rate: 3.8}
+      - {channel: neck.ry, wave: sin, amp: 0.07, rate: 1.3, until_next: stop}
+      - {channel: neck.rz, wave: sin, amp: 0.06, rate: 1.9, until_next: stop}
+      - {channel: arm_l.j1.rx, wave: sin, amp: 0.05, rate: 26.0, phase: 0.0}
+      - {channel: arm_l.j2.rx, wave: sin, amp: 0.14, rate: 26.0, phase: 0.9}
+      - {channel: arm_r.j1.rx, wave: sin, amp: 0.05, rate: 26.0, phase: 1.9}
+      - {channel: arm_r.j2.rx, wave: sin, amp: 0.14, rate: 26.0, phase: 2.8}
+      - {channel: leg_l.j2.rx, wave: sin, amp: 0.25, rate: 4.2, phase: 0.0}
+      - {channel: leg_r.j2.rx, wave: sin, amp: 0.25, rate: 4.2, phase: 3.141592653589793}
+  shock:
+    class: sit
+    channels:
+      hips.py: 0.02
+      torso.rx: -0.13
+      neck.rx: -0.1
+      neck.ry: 0.12
+      arm_l.j1.rx: 0.45
+      arm_l.j1.rz: -1.95
+      arm_l.j2.rz: -0.65
+      arm_r.j1.rx: 0.45
+      arm_r.j1.rz: 1.95
+      arm_r.j2.rz: 0.65
+      leg_l.j1.rx: -1.9707963267948965
+      leg_l.j2.rx: 0.95
+      leg_r.j1.rx: -1.9707963267948965
+      leg_r.j2.rx: 0.95
+    accents:
+      - {type: half_sine, channel: hips.py, amp: 0.07, span: [0.0, 0.28]}               # the jolt
+      - {type: osc, channel: hips.px, wave: sin, amp: 0.006, rate: 61.0, after: 0.15, fade: [1.5, 2.3]}  # tremble
+      - {type: osc, channel: arm_l.j2.rz, wave: sin, amp: -0.1, rate: 24.0, phase: 0.0, after: 0.2}       # hands wiggle
+      - {type: osc, channel: arm_r.j2.rz, wave: sin, amp: 0.1, rate: 24.0, phase: 1.0, after: 0.2}
+  turned:   # the swivel chair turns toward the door, cheated toward the camera
+    class: sit
+    partial: true
+    channels: {seat.ry: -0.75}
+  pushed:   # the chair rolls back on the shock
+    class: sit
+    partial: true
+    channels: {seat.pz: -0.1}

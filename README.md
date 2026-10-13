@@ -278,7 +278,7 @@ uv run pipeline visual-review extract-frames --project-id <ID>
 
 ### Render readiness
 ```bash
-uv run pipeline doctor [--out tmp/doctor]   # fonts (Noto CJK TC), fontconfig, ffmpeg drawtext/libass, CJK glyph probes; exit 0 = ready
+uv run pipeline doctor [--out tmp/doctor]   # fonts (Noto CJK TC), fontconfig, ffmpeg drawtext/libass, CJK glyph probes, toon (cairo), toy3d (browser + GPU); exit 0 = ready
 ```
 Natural-language triggers: "review the rendered video", "check for visual issues", "look at the rendered scenes", "judge the scene image"
 
@@ -299,6 +299,7 @@ uv run pipeline toon sheet tim [--out DIR]                     # character model
 | Topic | Rule |
 |---|---|
 | Storyboard | `"visual": {"type": "toon", "scene": "<id>"}` (may add `"boil"`), or an inline scene. Subtitles stay on. |
+| Engine | A scene's optional `engine:` picks its engine: `toon2d` (default, the 2.5D cairo engine) or `toy3d` (E11, the locked 3D toy look, below). A field the engine doesn't render fails at load, naming the engine. There is no fallback between engines. |
 | Re-render | compose's scene cache is file-existence based: after editing a scene file, the bank or `src/toon`, run `uv run pipeline compose rescene --project-id <ID> --scene sN`. The toon clip cache itself re-renders on engine, bank or scene changes. |
 | Duration | The scene lasts as long as its narration. Longer narration holds the last shot. Shorter narration warns, then cuts the scene. |
 | Timing | Shots and beats take `at: {sentence: n, plus: s}` (a storyboard scene, or `toon validate --narration`), so cuts follow a re-recorded narration. Shots left in seconds warn when the narration is more than 0.5 s off the scene's `duration`. |
@@ -306,6 +307,24 @@ uv run pipeline toon sheet tim [--out DIR]                     # character model
 | Aspect | 16:9 only in v0. A toon scene on a 9:16 storyboard fails validation. |
 | Needs | libcairo (macOS: `brew install cairo`; hub: `libcairo2`). `pipeline doctor` checks it. |
 | Goldens | Canonical on the hub: `UPDATE_GOLDENS=1 uv run pytest tests/unit/toon/test_goldens.py` there only. |
+
+#### toy3d (the locked 3D toy look, E11)
+The scene language is the same `toon` scene, with `engine: toy3d`. Python resolves each frame's acting (`src/toy3d/acting.py`). A headless browser draws it with three.js (`src/toy3d/web/`), and the frames stream to ffmpeg. Spec: `docs/superpowers/specs/2026-10-13-toy3d-engine-v0-design.md`.
+- **Bank:** `assets/toy3d/bank/`. It holds GuoGuo v7 (frozen), Tim (hair H3), the lioness, the office set, the cameras, the idea bulb and the bubble, and the look (`style.yaml`, palettes, params).
+- **Scenes:** `assets/toy3d/scenes/` (`001-beat2-break-in`). A scene id resolves in whichever library holds it.
+
+```bash
+uv run playwright install chromium                         # once per machine: the pinned Chrome for Testing build
+uv run pipeline toon validate 001-beat2-break-in           # loads against the toy3d bank (the file's engine)
+uv run pipeline toon render 001-beat2-break-in [--stills 2.4,4.0] [--width 1280 --height 720] [--out DIR]
+```
+
+| Topic | Rule |
+|---|---|
+| Needs | The pinned browser (playwright 1.62.0 → Chrome for Testing 151.0.7922.34) on a GPU backend: macOS Metal, Linux OpenGL ES (`--use-angle=gl-egl`). Software and Vulkan renderers are refused. `pipeline doctor` checks the build, the backend and one non-blank frame. |
+| Cache | A clip re-renders when the scene, the bank, the engine (JS or Python), the browser build, the GPU renderer, the size or the fps changes. The renderer string comes from `~/.cache/content-creation/toy3d/renderer.json` (override the dir with `TOY3D_CACHE_DIR`), so a cache hit launches no browser. |
+| Look | Every colour and look value is bank data. The page refuses a missing key, an unread key or a non-colour palette value. |
+| Parity / goldens | `tests/fixtures/toy3d/tryout_ref/` holds the frozen r7 snapshot's own renders (Mac Metal; the engine matches them pixel for pixel). `tests/fixtures/toy3d/goldens/` holds hub-canonical Layer C goldens, compared on both machines. Both are integration tests (`--integration`). |
 
 ### Dashboard (always-on)
 

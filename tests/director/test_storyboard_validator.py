@@ -429,3 +429,15 @@ def test_map_missing_query_is_error(tmp_path: Path) -> None:
     issues = validate_storyboard(sb, tmp_path)
     errs = _errors(issues)
     assert any(i.field == "visual.query" for i in errs)
+
+
+def test_a_bad_toy3d_name_fails_the_validator(tmp_path: Path) -> None:
+    # S12-16: a toy3d scene is checked against the toy3d bank at the review gate.
+    from pipeline.director.storyboard_validator import validate_storyboard
+
+    good = {"type": "toon", "scene": "001-beat2-break-in"}
+    sb = Storyboard(scenes=[_scene("s1", good)])
+    assert not _errors(validate_storyboard(sb, tmp_path))
+    bad = {"type": "toon", "scene": "001-beat2-break-in", "boil": "soft"}       # toy3d has no line boil
+    (issue,) = _errors(validate_storyboard(Storyboard(scenes=[_scene("s1", bad)]), tmp_path))
+    assert "boil" in issue.issue and "toy3d" in issue.issue
