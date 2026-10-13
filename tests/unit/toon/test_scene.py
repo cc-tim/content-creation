@@ -455,7 +455,7 @@ def test_every_beat_field_is_read_or_rejected():
         for field in BEAT_OPTIONAL:
             if field in _FENCE_BASE[verb]:
                 continue  # the base beat already sets it (and loads)
-            extra = {"over": 1.0} if field == "ease" and "over" in BEAT_FIELDS[verb] else {}
+            extra = {"over": 1.0} if field in ("ease", "bob") and "over" in BEAT_FIELDS[verb] else {}
             data = _fence_scene(verb, **extra, **{field: _FENCE_VALUE[field]})
             if field in BEAT_FIELDS[verb]:
                 load_scene(data, BANK)
@@ -622,3 +622,49 @@ def test_a_seconds_beat_outside_an_anchored_shot_names_its_window():
     plain = mini(**{"at": 9.0, "door": "open"})                # a scene in seconds keeps the plain error
     with pytest.raises(SceneError, match=r"9s is outside the shot \(0–4s\)$"):
         load_scene(plain, BANK)
+
+
+# -- code review R1 M5/M6: falsy and no-op beat fields fail, or render exactly what they say --
+
+@pytest.mark.parametrize("beat, path", [
+    ({"at": 1.0, "prop": "idea", "out": False}, r"beats\.0\.out: Input should be True"),
+    ({"at": 1.0, "move": "tim", "to": "doorway", "bob": 0.1}, r"beats\[0\]\.bob: needs over:"),
+    ({"at": 1.0, "prop": "idea", "to": {}}, r"beats\[0\]\.to: is empty"),
+])
+def test_no_op_beat_fields_are_rejected(beat, path):
+    with pytest.raises(SceneError, match=path):
+        load_scene(mini(**beat), BANK)
+
+
+_FENCE_FALSY = {"over": 0.0, "ease": "", "to": {}, "expr": "", "bob": 0.0, "flicker": False,
+                "blink": {}, "out": False}
+# The falsy values that load, and what each must render: anything else set falsy fails.
+_FALSY_READ = {("door", "over"), ("move", "over"), ("pose", "over"), ("face", "over"), ("prop", "over"),
+               ("show", "over"), ("move", "bob"), ("prop", "flicker")}
+
+
+def test_falsy_beat_fields_mean_what_they_render():
+    from toon.scene import BEAT_OPTIONAL, VERBS
+
+    assert set(_FENCE_FALSY) == set(BEAT_OPTIONAL)
+    for verb in VERBS:
+        for field, falsy in _FENCE_FALSY.items():
+            extra = {"over": 1.0} if field == "bob" else {}
+            data = _fence_scene(verb, **extra, **{field: falsy})
+            if (verb, field) not in _FALSY_READ:
+                with pytest.raises(SceneError):
+                    load_scene(data, BANK)
+                continue
+            s = load_scene(data, BANK)
+            plain = load_scene(_fence_scene(verb, **extra), BANK)
+            if field == "over" and verb != "show":   # over: 0 is instant, the same as no over
+                assert repr(state_at(s, BANK, 1.0, 1.0)) == repr(state_at(plain, BANK, 1.0, 1.0)), verb
+            elif field == "over":                    # a show with over: 0 appears at once
+                assert state_at(s, BANK, 1.0, 1.0).graphics[0].k == 1.0
+            elif field == "bob":                     # bob: 0 is no lift, the same as no bob
+                assert repr(state_at(s, BANK, 1.5, 1.5)) == repr(state_at(plain, BANK, 1.5, 1.5))
+            else:                                    # flicker: false stops an earlier flicker
+                d = _fence_scene(verb, flicker=False)
+                d["shots"][0]["beats"].insert(0, {"at": 0.5, "prop": "idea", "flicker": True})
+                stops = load_scene(d, BANK)
+                assert {state_at(stops, BANK, t, t).props["idea"].mode for t in (1.2, 1.3, 1.4)} == {"on"}
