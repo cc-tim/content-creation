@@ -179,3 +179,19 @@ def test_validator_warns_when_seconds_timed_shots_drift_from_narration(tmp_path)
     partly["shots"][2]["at"], partly["shots"][3]["at"] = 6.2, 9.7
     (w,) = drift({"type": "toon", **partly}, 16.2)
     assert "shots 3–4 are in seconds" in w.issue
+
+
+def test_render_scene_logs_drift_for_seconds_timed_shots(tmp_path, monkeypatch):
+    # Sprint 11 (EM REVIEW 1, M18): compose logs the drift warning, not just the validator.
+    from structlog.testing import capture_logs
+
+    def fake_clip(scene, bank, out, duration, width, height, workers=None):
+        Path(out).write_bytes(b"x")
+        return Path(out)
+
+    monkeypatch.setattr("toon.render.render_clip", fake_clip)
+    with capture_logs() as logs:
+        base.render_scene({"id": "s2", "narration": "One.", "visual": {"type": "toon", "scene": "001-lioness-dishes"}},
+                          16.2, "16:9", tmp_path)
+    (drift,) = [e for e in logs if e["event"] == "toon.scene.drift"]
+    assert drift["scene_id"] == "s2" and "shots 2–4 are in seconds" in drift["detail"]
