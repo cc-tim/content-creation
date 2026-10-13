@@ -154,3 +154,24 @@ def test_render_error_and_validator_name_the_scene_source(tmp_path):
         base.render_scene({"id": "s3", "visual": {"type": "toon", "scene": str(missing)}}, 5.0, "16:9",
                           tmp_path, storyboard_file=sb_file)
     assert f"{missing} (from {sb_file} scene s3): scene file not found" in e.value.reason
+
+
+def test_validator_warns_when_seconds_timed_shots_drift_from_narration(tmp_path):
+    # Sprint 11 (spec §11.2 f): a scene timed in seconds is legitimate, so this is a warning.
+    from tests.unit.toon.test_scene import N3, anchored_001
+
+    def drift(visual, est):
+        return [i for i in _validate_scene(_scene(visual, narration=N3, est=est), tmp_path)
+                if "won't follow the narration" in i.issue]
+
+    ref = {"type": "toon", "scene": "001-lioness-dishes"}  # authored 13.0 s; shots 2–4 in seconds
+    (w,) = drift(ref, 16.2)
+    assert w.severity == "warn"
+    assert ("shots 2–4 are in seconds and won't follow the narration (authored 13.0 s, narration 16.2 s); "
+            "anchor them with `at: {sentence: n}`") in w.issue
+    assert drift(ref, 13.5) == [] and drift(ref, 12.5) == []       # within 0.5 s
+    assert drift({"type": "toon", **anchored_001()}, 16.2) == []   # anchored shots follow it
+    partly = anchored_001()
+    partly["shots"][2]["at"], partly["shots"][3]["at"] = 6.2, 9.7
+    (w,) = drift({"type": "toon", **partly}, 16.2)
+    assert "shots 3–4 are in seconds" in w.issue
