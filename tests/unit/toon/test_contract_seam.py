@@ -33,7 +33,6 @@ def test_engine_key_defaults_and_unknown_fails():
     from typing import get_args
 
     from toon.catalog import ENGINES
-
     from toon.scene import ToonScene
 
     assert get_args(ToonScene.model_fields["engine"].annotation) == ENGINES
@@ -52,3 +51,49 @@ def test_scene_module_does_not_import_the_2d_bank():
     names = [a.name for n in tree.body if isinstance(n, ast.Import) for a in n.names]
     names += [n.module or "" for n in tree.body if isinstance(n, ast.ImportFrom)]
     assert not [m for m in names if m.startswith(_FENCED)]
+
+
+# -- S12-2: "means what it renders" is engine-relative --
+
+# What toy3d (v0) doesn't render but toon2d does: each must fail on toy3d, naming the engine.
+_TOY3D_GAPS = [
+    ({"boil": "still"}, None, r"^boil: toy3d doesn't render boil \(toon2d does\)"),
+    (None, {"place": {"tim": {"spot": "desk_seat", "pose": "sit_typing", "layer": "split"}}},
+     r"shots\[0\]\.place\.tim\.layer: toy3d doesn't render layer \(toon2d does\)"),
+    (None, {"fx": [{"glow": {"at": [0, 2, 0], "radius": 1, "color": "warm", "alpha": 0.3}}]},
+     r"shots\[0\]\.fx\[0\]\.glow: toy3d doesn't render glow fx \(toon2d does\)"),
+    (None, {"beats": [{"at": 1.0, "show": {"anger": "tim"}}]},
+     r"shots\[0\]\.beats\[0\]\.show\.anger: toy3d doesn't render anger shows \(toon2d does\)"),
+    (None, {"beats": [{"at": 1.0, "move": "tim", "to": "doorway", "over": 1.0, "bob": 0.1}]},
+     r"shots\[0\]\.beats\[0\]\.bob: toy3d doesn't render bob on a move beat \(toon2d does\)"),
+]
+
+
+@pytest.mark.parametrize("scene_change, shot_change, path", _TOY3D_GAPS)
+def test_field_the_engine_does_not_render_fails_naming_the_engine(scene_change, shot_change, path):
+    d = {**copy.deepcopy(MINI), **(scene_change or {})}
+    d["shots"][0].update(copy.deepcopy(shot_change or {}))
+    load_scene(copy.deepcopy(d), BANK)                                   # toon2d renders it
+    with pytest.raises(SceneError, match=path):
+        load_scene({**d, "engine": "toy3d"}, TOY3D_TEST)
+
+
+@pytest.mark.parametrize("engine", ["toon2d", "toy3d"])
+def test_a_verb_or_prop_kind_the_engine_lacks_fails_naming_the_engine(engine):
+    # Both v0 engines render every verb and the idea bulb, so narrowed copies of each engine's
+    # real table prove the check per engine.
+    import dataclasses
+
+    from toon.catalog import CAPABILITIES
+
+    caps = CAPABILITIES[engine]
+    narrow = dataclasses.replace(caps, verbs=caps.verbs - {"hide"},
+                                 prop_kinds={k: v for k, v in caps.prop_kinds.items() if k != "idea_bulb"})
+    catalog = dataclasses.replace(TOY3D_TEST, capabilities=narrow)
+    d = {**copy.deepcopy(MINI), "engine": engine}
+    d["shots"][0]["beats"] = [{"at": 0.5, "show": {"bubble": ["dishes"], "from": "tim"}},
+                              {"at": 1.0, "hide": "bubble:tim"}]
+    with pytest.raises(SceneError) as e:
+        load_scene(d, catalog)
+    assert f"shots[0].beats[1].hide: {engine} doesn't render hide beats" in str(e.value)
+    assert f"shots[0].props.idea.kind: {engine} doesn't render idea_bulb props" in str(e.value)
