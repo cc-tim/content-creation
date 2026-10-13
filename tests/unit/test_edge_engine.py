@@ -286,3 +286,34 @@ def test_edge_engine_reports_the_override_for_every_engine_in_the_process(tmp_pa
         EdgeEngine().synthesize("二", tmp_path / "b.mp3", _HSIAOCHEN)
 
     assert [e["overridden"] for e in logs if e["event"] == "tts.edge.endpoint"] == [True, True]
+
+
+def test_edge_engine_steps_aside_when_edge_tts_has_no_wss_url(tmp_path, monkeypatch):
+    """A future edge_tts may rename or drop WSS_URL: synthesize with whatever it does."""
+    import edge_tts.communicate
+    from structlog.testing import capture_logs
+
+    monkeypatch.delattr(edge_tts.communicate, "WSS_URL")
+    _scripted_run(monkeypatch, [None])
+
+    with capture_logs() as logs:
+        out = EdgeEngine().synthesize("一", tmp_path / "a.mp3", _HSIAOCHEN)
+
+    assert out.read_bytes() == b"FAKE-MP3"
+    assert not hasattr(edge_tts.communicate, "WSS_URL")
+    events = [e for e in logs if e["event"] == "tts.edge.endpoint"]
+    assert [(e["endpoint"], e["overridden"]) for e in events] == [(None, False)]
+
+
+def test_edge_engine_override_does_not_need_the_constants_url(tmp_path, monkeypatch):
+    """Only edge_tts.communicate.WSS_URL is used for synthesis; constants may change freely."""
+    import edge_tts.communicate
+    import edge_tts.constants
+
+    monkeypatch.setattr(edge_tts.communicate, "WSS_URL", _LEGACY_WSS_URL)
+    monkeypatch.delattr(edge_tts.constants, "WSS_URL")
+    _scripted_run(monkeypatch, [None])
+
+    EdgeEngine().synthesize("一", tmp_path / "a.mp3", _HSIAOCHEN)
+
+    assert edge_tts.communicate.WSS_URL.startswith("wss://api.msedgeservices.com/")
