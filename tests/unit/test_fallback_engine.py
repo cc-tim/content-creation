@@ -185,3 +185,96 @@ def test_shipped_zh_tw_edge_voices_fall_back_to_local_kokoro(voice_id, fallback_
     assert isinstance(engine, FallbackEngine)
     assert isinstance(engine.fallback, KokoroEngine)
     assert engine.fallback_profile.id == fallback_id
+
+
+# ---- run-scoped health shared across resolves (review finding 1) ----
+
+
+def _patch_engines(monkeypatch, fail_scenes: set[str]) -> dict[str, list[str | None]]:
+    """EdgeEngine is unavailable on fail_scenes; Kokoro always works. Returns call log."""
+    calls: dict[str, list[str | None]] = {"edge": [], "kokoro": []}
+
+    def edge(self, text, out_path, profile, scene_id=None):
+        calls["edge"].append(scene_id)
+        if scene_id in fail_scenes:
+            raise VoiceEngineUnavailable("edge refused synthesis (HTTP 403)")
+        out_path.write_text("edge")
+        return out_path
+
+    def kokoro(self, text, out_path, profile, scene_id=None):
+        calls["kokoro"].append(scene_id)
+        out_path.write_text("kokoro")
+        return out_path
+
+    monkeypatch.setattr(EdgeEngine, "synthesize", edge)
+    monkeypatch.setattr(KokoroEngine, "synthesize", kokoro)
+    return calls
+
+
+def _per_scene(registry: VoiceRegistry, tmp_path: Path, voice_ids: list[str]) -> list[str]:
+    """Resolve afresh for every scene, as tts._resolve_per_scene_engine does."""
+    out = []
+    for i, voice_id in enumerate(voice_ids, start=1):
+        engine, profile = registry.resolve(voice_id)
+        path = tmp_path / f"s{i}.mp3"
+        engine.synthesize("x", path, profile, scene_id=f"s{i}")
+        out.append(path.read_text())
+    return out
+
+
+_JENNY = {"id": "en-US-jenny", "engine": "edge", "locale": "en", "params": {"voice": "en-US-JennyNeural"}}
+
+
+def test_registry_engagement_switches_every_later_resolve(tmp_path, monkeypatch):
+    calls = _patch_engines(monkeypatch, fail_scenes={"s1"})
+    registry = _registry(tmp_path, [_EDGE_WITH_FALLBACK, _KOKORO])
+
+    voiced = _per_scene(registry, tmp_path, ["zh-TW-default-f"] * 3)
+
+    assert voiced == ["kokoro", "kokoro", "kokoro"]
+    assert calls["edge"] == ["s1"]
+    assert registry.fallbacks_used() == {"zh-TW-default-f": "zh-TW-kokoro-f"}
+
+
+def test_registry_refuses_to_mix_once_any_resolve_succeeded(tmp_path, monkeypatch):
+    calls = _patch_engines(monkeypatch, fail_scenes={"s2"})
+    registry = _registry(tmp_path, [_EDGE_WITH_FALLBACK, _KOKORO])
+
+    with pytest.raises(RuntimeError, match="mix"):
+        _per_scene(registry, tmp_path, ["zh-TW-default-f"] * 3)
+
+    assert calls["kokoro"] == []
+    assert registry.fallbacks_used() == {}
+
+
+def test_registry_counts_a_success_on_an_edge_voice_without_fallback(tmp_path, monkeypatch):
+    """Cross-engine: scene 1 voiced by another edge voice proves edge was up this run."""
+    _patch_engines(monkeypatch, fail_scenes={"s2"})
+    registry = _registry(tmp_path, [_EDGE_WITH_FALLBACK, _KOKORO, _JENNY])
+
+    with pytest.raises(RuntimeError, match="mix"):
+        _per_scene(registry, tmp_path, ["en-US-jenny", "zh-TW-default-f"])
+
+
+def test_registry_health_is_scoped_to_one_registry(tmp_path, monkeypatch):
+    calls = _patch_engines(monkeypatch, fail_scenes={"s1"})
+    voices = [_EDGE_WITH_FALLBACK, _KOKORO]
+    _per_scene(_registry(tmp_path, voices), tmp_path, ["zh-TW-default-f"])
+
+    _per_scene(_registry(tmp_path, voices), tmp_path, ["zh-TW-default-f", "zh-TW-default-f"])
+
+    assert calls["edge"] == ["s1", "s1"]  # the second run tries edge again
+
+
+def test_registry_prerecorded_misses_share_the_run_health(tmp_path, monkeypatch):
+    """PrerecordedEngine resolves its fallback voice per missing scene."""
+    calls = _patch_engines(monkeypatch, fail_scenes={"s2"})
+    prerecorded = {
+        "id": "tim-zhtw", "engine": "prerecorded", "locale": "zh-TW",
+        "params": {"recording_dir": str(tmp_path / "rec"), "fallback_voice_id": "zh-TW-default-f"},
+    }
+    registry = _registry(tmp_path, [_EDGE_WITH_FALLBACK, _KOKORO, prerecorded])
+
+    with pytest.raises(RuntimeError, match="mix"):
+        _per_scene(registry, tmp_path, ["tim-zhtw"] * 3)
+    assert calls["kokoro"] == []
