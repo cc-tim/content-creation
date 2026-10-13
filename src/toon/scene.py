@@ -18,6 +18,7 @@ from toon.catalog import (
     VERBS,
     Capabilities,
     SceneCatalog,
+    load_catalog,
 )
 
 Ease = Literal["linear", "smooth", "out", "back"]
@@ -567,6 +568,18 @@ def _check_beat_fields(b: Beat, bw: str, kind: str | None, caps: Capabilities) -
             takers = sorted(k for k, spec in caps.prop_kinds.items() if field in spec.flags)
             p.append(f"{bw}.{field}: {_a(kind)} prop ignores {field} (only {', '.join(takers)} takes it)")
     return p
+
+
+def catalog_for(data: dict) -> SceneCatalog:
+    """The catalog to load scene data against: its `engine:`'s (default toon2d). An unknown or
+    unbuilt engine fails here, naming the data's source; there is never a fallback engine."""
+    try:
+        return load_catalog(data.get("engine", DEFAULT_ENGINE))
+    except SceneError as exc:
+        source = getattr(data, "source", None)
+        if source is None or exc.source is not None:
+            raise
+        raise SceneError(exc.problems, source=source) from exc
 
 
 def load_scene(data: dict, catalog: SceneCatalog, narration: str | None = None,

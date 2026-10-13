@@ -14,12 +14,12 @@ _REPO = Path(__file__).resolve().parents[2]
 
 def _load(scene: str, narration: str | None, duration: float | None):
     """Bank + validated scene, or ERROR lines and exit 1 — never a traceback."""
-    from toon.bank import load_bank
-    from toon.scene import NeedsNarration, SceneError, load_scene, read_scene
+    from toon.scene import NeedsNarration, SceneError, catalog_for, load_scene, read_scene
 
     try:
-        bank = load_bank()
-        return bank, load_scene(read_scene(scene), bank, narration=narration, duration=duration)
+        data = read_scene(scene)
+        catalog = catalog_for(data)  # the engine named in the file
+        return catalog, load_scene(data, catalog, narration=narration, duration=duration)
     except (ValueError, yaml.YAMLError) as exc:  # SceneError and BankError are ValueErrors
         # A problem's own text may hold "; ", so a SceneError prints its problems one by one.
         lines = ([f"{exc.source}: {p}" if exc.source else p for p in exc.problems]

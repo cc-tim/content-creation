@@ -22,8 +22,8 @@ def render_toon_scene(scene: dict, duration_sec: float, width: int, height: int,
                                suggested_fix="Use 16:9 for toon scenes.")
     try:
         from toon import render
-        from toon.bank import load_bank
         from toon.scene import (
+            catalog_for,
             drift_warnings,
             load_scene,
             scene_data_from_visual,
@@ -31,16 +31,19 @@ def render_toon_scene(scene: dict, duration_sec: float, width: int, height: int,
             source_name,
         )
 
-        bank = load_bank()
         origin = f"{source_name(storyboard_file) if storyboard_file else 'storyboard'} scene {scene_id}"
         data = scene_data_from_visual(scene.get("visual", {}), origin)
-        toon_scene = load_scene(data, bank, narration=scene.get("narration"), duration=duration_sec)
+        catalog = catalog_for(data)  # the scene's engine; an unbuilt one fails, never falls back
+        toon_scene = load_scene(data, catalog, narration=scene.get("narration"), duration=duration_sec)
         for w in scene_warnings(toon_scene, duration_sec):
             logger.warning("toon.scene.cut", scene_id=scene_id, detail=w)
         for w in drift_warnings(toon_scene, duration_sec):
             logger.warning("toon.scene.drift", scene_id=scene_id, detail=w)
         out = Path(work_dir) / f"toon_{scene_id}.mp4"
-        return render.render_clip(toon_scene, bank, out, duration_sec, width, height)
+        if toon_scene.engine != "toon2d":  # E11 phase 2 adds toy3d's renderer here
+            raise SceneRenderError(scene=scene_id, reason=f"toon: no renderer for engine {toon_scene.engine!r}",
+                                   suggested_fix=_FIX)
+        return render.render_clip(toon_scene, catalog, out, duration_sec, width, height)
     except SceneRenderError:
         raise
     except Exception as exc:  # BankError, SceneError, ToonRenderError, cairo load (OSError) …
