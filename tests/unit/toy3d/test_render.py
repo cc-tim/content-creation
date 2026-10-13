@@ -277,3 +277,46 @@ def test_import_closure_follows_submodule_imports(tmp_path):
     toon_dir = Path(toon.__file__).parent
     assert set(import_closure([f])) >= {f, toon_dir / "__init__.py", toon_dir / "engine" / "__init__.py",
                                          toon_dir / "engine" / "mathx.py"}
+
+
+def test_the_key_follows_the_python_that_shapes_each_frame(scene, bank, monkeypatch):
+    """A3 I1: an ease or an acting formula changes frames, so it changes the key (the key hashes
+    every frame's resolved spec, besides the sources)."""
+    from toy3d import acting
+    from toy3d.render import cache_key
+
+    base = cache_key(scene, bank, 2.0, W, H, METAL)
+    from toon.engine.mathx import EASES
+
+    monkeypatch.setitem(EASES, "inout", lambda x: x)
+    eased = cache_key(scene, bank, 2.0, W, H, METAL)
+    monkeypatch.undo()
+    monkeypatch.setattr(acting, "FLAP_RAMP", 0.1)
+    flapped = cache_key(scene, bank, 4.0, W, H, METAL)
+    monkeypatch.undo()
+    assert eased != base and flapped != cache_key(scene, bank, 4.0, W, H, METAL)
+
+
+def test_the_key_covers_the_vendored_files_not_just_their_sums(scene, bank, tmp_path, monkeypatch):
+    # Phase 2 review M4: a locally patched three.js re-keys even if SHA256SUMS wasn't updated.
+    from toy3d import runtime
+    from toy3d.render import cache_key
+
+    web = tmp_path / "web"
+    shutil.copytree(runtime.WEB_ROOT, web)
+    monkeypatch.setattr(runtime, "WEB_ROOT", web)
+    before = cache_key(scene, bank, 1.0, W, H, METAL)
+    f = web / "vendor" / "three-0.170.0" / "examples" / "jsm" / "postprocessing" / "OutputPass.js"
+    f.write_text(f.read_text() + "\n// patched\n")
+    assert cache_key(scene, bank, 1.0, W, H, METAL) != before
+
+
+def test_toy3d_no_longer_depends_on_the_2d_bank():
+    # A3 m2: toy3d's acting reads the engine-neutral timeline, so 2.5D bank edits never re-key it.
+    import toon
+    from toy3d.render import acting_sources
+
+    src = {p.resolve() for p in acting_sources()}
+    toon_dir = Path(toon.__file__).parent
+    assert toon_dir / "beats.py" in src
+    assert not {toon_dir / "bank.py", toon_dir / "timeline.py", toon_dir / "engine" / "rig.py"} & src

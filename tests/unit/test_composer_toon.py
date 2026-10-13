@@ -270,3 +270,34 @@ def test_a_toy3d_render_failure_is_a_scene_render_error_with_the_fix(tmp_path, m
                           8.0, "16:9", tmp_path)
     assert "uv run playwright install chromium" in str(e.value)
     assert "pipeline doctor" in e.value.suggested_fix
+
+
+def test_an_engine_without_a_renderer_is_a_scene_render_error(tmp_path, monkeypatch):
+    # A3 m1: compose's own guard, reached: a loaded scene whose engine no renderer takes.
+    import toon.scene
+
+    real = toon.scene.load_scene
+    monkeypatch.setattr(toon.scene, "load_scene",
+                        lambda *a, **k: real(*a, **k).model_copy(update={"engine": "toy4d"}))
+    with pytest.raises(SceneRenderError, match=r"toon: no renderer for engine 'toy4d'"):
+        base.render_scene({"id": "s1", "narration": "One.", "visual": {"type": "toon", "scene": "001-lioness-dishes"}},
+                          13.0, "16:9", tmp_path)
+
+
+def test_toy3d_validation_and_rendering_read_one_bank(tmp_path, monkeypatch):
+    # A3 m5: the catalog a toy3d scene is validated against is the bank it renders with.
+    import toy3d.bank
+
+    loads, seen = [], []
+    real = toy3d.bank.load_bank
+    monkeypatch.setattr(toy3d.bank, "load_bank", lambda *a, **k: loads.append(1) or real(*a, **k))
+
+    def fake_clip(scene, bank, out, duration, width, height, **kw):
+        seen.append(bank)
+        Path(out).write_bytes(b"x")
+        return Path(out)
+
+    monkeypatch.setattr("toy3d.render.render_clip", fake_clip)
+    base.render_scene({"id": "s0", "narration": "One.", "visual": {"type": "toon", "scene": "001-beat2-break-in"}},
+                      8.0, "16:9", tmp_path)
+    assert len(loads) == 1 and type(seen[0]).__name__ == "Toy3DBank"

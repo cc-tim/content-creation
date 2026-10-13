@@ -343,3 +343,25 @@ def test_an_expression_beat_during_a_blend_switches_the_face_when_it_starts(bank
                        {"at": 2.0, "pose": "tim", "to": "turned", "over": 0.3}])
     faces = {t: resolve(sc, bank, t)["actors"]["tim"]["face"] for t in (1.1, 1.25, 1.49, 2.1, 2.5)}
     assert faces == {1.1: "tim_shock", 1.25: "tim_neutral", 1.49: "tim_neutral", 2.1: "tim_neutral", 2.5: "tim_neutral"}
+
+
+def test_the_spec_is_plain_json_for_any_scene(bank):
+    """A3 m7: the spec crosses to the page as JSON: no Infinity (an open-ended last shot), no
+    pydantic objects (a show, a flicker), whatever the scene holds."""
+    import json
+
+    from toon.scene import load_scene
+    from toy3d.acting import resolve
+
+    place = {"tim": {"spot": "desk_seat", "pose": "typing", "expr": "neutral"},
+             "lioness": {"spot": "doorway_in", "pose": "stand", "expr": "stern"}}
+    d = {"id": "two", "engine": "toy3d", "cast": {"tim": "tim", "lioness": "lioness"}, "shots": [
+        {"at": 0.0, "set": "office", "camera": "beat2", "place": place,
+         "props": {"idea": {"kind": "idea_bulb", "on": "tim", "b": 1.0}},
+         "beats": [{"at": 0.5, "prop": "idea", "flicker": {"every": 2, "low": 0.3, "high": 0.8}},
+                   {"at": 0.6, "show": {"bubble": ["dishes"], "from": "lioness"}}]},
+        {"at": 2.0, "set": "office", "camera": "closeup", "place": place}]}       # no duration: open-ended
+    s = load_scene(d, bank.catalog)
+    for t in (1.0, 2.5, 30.0):
+        spec = resolve(s, bank, t)
+        assert json.loads(json.dumps(spec, allow_nan=False)) == spec, t

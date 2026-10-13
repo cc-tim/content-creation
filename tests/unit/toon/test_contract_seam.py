@@ -1,11 +1,8 @@
 """E11 Sprint 12 phase 1: one scene contract, checked against any engine's catalog."""
-import ast
 import copy
-from pathlib import Path
 
 import pytest
 
-import toon
 from tests.unit.toon.catalogs import TOY3D_TEST
 from tests.unit.toon.test_scene import BANK, MINI
 from toon.scene import SceneError, load_scene
@@ -41,16 +38,20 @@ def test_engine_key_defaults_and_unknown_fails():
         load_scene({**copy.deepcopy(MINI), "engine": "toy4d"}, BANK)
 
 
-_FENCED = ("toon.bank", "toon.kit", "toon.engine", "toon.render", "toon.timeline", "cairo", "cairocffi")
+_FENCED = ("toon.bank", "toon.kit", "toon.engine", "toon.render", "toon.timeline", "toon.cairo_compat",
+           "cairo", "cairocffi", "numpy")
 
 
-def test_scene_module_does_not_import_the_2d_bank():
-    # The contract must not depend on one engine's bank or kit (spec §4.1); function-level
-    # imports (e.g. scenes_root) are allowed.
-    tree = ast.parse((Path(toon.__file__).parent / "scene.py").read_text())
-    names = [a.name for n in tree.body if isinstance(n, ast.Import) for a in n.names]
-    names += [n.module or "" for n in tree.body if isinstance(n, ast.ImportFrom)]
-    assert not [m for m in names if m.startswith(_FENCED)]
+def test_the_contract_and_the_symbolic_timeline_load_no_2d_engine_code():
+    # The contract (scene) and the engine-neutral timeline (beats) must not pull in one engine's
+    # bank, kit or drawing stack (spec §4.1; A3 m2): checked in a fresh interpreter.
+    import subprocess
+    import sys
+
+    code = ("import sys, toon.scene, toon.beats; "
+            f"print(sorted(m for m in sys.modules if m.startswith({_FENCED!r})))")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    assert out.stdout.strip() == "[]", out.stdout
 
 
 # -- S12-2: "means what it renders" is engine-relative --
@@ -97,3 +98,84 @@ def test_a_verb_or_prop_kind_the_engine_lacks_fails_naming_the_engine(engine):
         load_scene(d, catalog)
     assert f"shots[0].beats[1].hide: {engine} doesn't render hide beats" in str(e.value)
     assert f"shots[0].props.idea.kind: {engine} doesn't render idea_bulb props" in str(e.value)
+
+
+
+# -- A3 I3: names are checked per character (the cast name is not the character) --
+
+def _wife(place=None, beats=()):
+    d = copy.deepcopy(MINI)
+    d["engine"] = "toy3d"
+    d["cast"] = {"tim": "tim", "wife": "lioness"}
+    d["shots"][0]["place"]["wife"] = place or {"spot": "doorway_out", "pose": "stand_point", "expr": "angry"}
+    d["shots"][0]["beats"] = list(beats)
+    return d
+
+
+def test_a_cast_name_is_checked_as_its_character():
+    load_scene(_wife(), TOY3D_TEST)                                        # the lioness's pose and face
+    bad = _wife()
+    bad["shots"][0]["place"]["tim"]["expr"] = "angry"                      # the lioness's, not Tim's
+    with pytest.raises(SceneError, match=r"place\.tim\.expr: unknown expression 'angry'"):
+        load_scene(bad, TOY3D_TEST)
+    with pytest.raises(SceneError, match=r"place\.wife\.pose: unknown pose 'sit_typing'"):
+        load_scene(_wife({"spot": "doorway_out", "pose": "sit_typing", "expr": "angry"}), TOY3D_TEST)
+
+
+def test_a_pose_beat_is_checked_as_its_character():
+    load_scene(_wife(beats=[{"at": 1.0, "pose": "wife", "expr": "neutral"}]), TOY3D_TEST)
+    with pytest.raises(SceneError, match=r"beats\[0\]\.to: unknown pose 'sit_typing'"):
+        load_scene(_wife(beats=[{"at": 1.0, "pose": "wife", "to": "sit_typing"}]), TOY3D_TEST)
+    with pytest.raises(SceneError, match=r"beats\[0\]\.expr: unknown expression 'angry'"):
+        load_scene(_wife(beats=[{"at": 1.0, "pose": "tim", "expr": "angry"}]), TOY3D_TEST)
+
+
+def test_an_unknown_character_is_one_problem_not_a_cascade():
+    # A3 m4: the per-character checks are skipped when the character itself is unknown.
+    d = _wife(beats=[{"at": 1.0, "pose": "wife", "to": "stand_point"}])
+    d["cast"]["wife"] = "tigress"
+    with pytest.raises(SceneError) as e:
+        load_scene(d, TOY3D_TEST)
+    assert e.value.problems == ["cast.wife: unknown character 'tigress' (bank has ['lioness', 'tim'])"]
+
+
+def test_a_field_no_engine_reads_on_that_verb_says_which_verb_does():
+    # A3 m4: bob on a pose beat isn't fixed by switching engines; say who reads bob, and on what.
+    d = copy.deepcopy(MINI)
+    d["engine"] = "toy3d"
+    d["shots"][0]["beats"] = [{"at": 1.0, "pose": "tim", "to": "sit_shock", "over": 0.5, "bob": 0.1}]
+    with pytest.raises(SceneError) as e:
+        load_scene(d, TOY3D_TEST)
+    assert "shots[0].beats[0].bob: toy3d doesn't render bob (toon2d reads it on a move beat)" in e.value.problems
+
+
+def test_toy3d_takes_the_place_fields_its_table_lists():
+    # A3 m3: loop is in toy3d's place_fields; a loop: false placement loads and reaches beats_at.
+    from toon.timeline import beats_at
+
+    d = copy.deepcopy(MINI)
+    d["engine"] = "toy3d"
+    d["shots"][0]["place"]["tim"]["loop"] = False
+    (tim,) = beats_at(load_scene(d, TOY3D_TEST), 1.0).actors
+    assert tim.loop is False
+
+
+def test_the_render_field_lists_are_the_models_optional_render_fields():
+    # A3 m6: a new optional render field can't skip the engine check.
+    from toon.scene import PLACE_RENDER_FIELDS, SCENE_RENDER_FIELDS, Place, ToonScene
+
+    optional = {f for f, info in ToonScene.model_fields.items() if info.default is None} - {"duration"}
+    assert set(SCENE_RENDER_FIELDS) == optional
+    assert set(PLACE_RENDER_FIELDS) == {f for f, info in Place.model_fields.items() if info.default is None}
+
+
+def test_the_2d_renderer_refuses_a_toy3d_scene(tmp_path):
+    # A3 m1: the 2.5D engine never draws a toy3d scene, whoever calls it.
+    from toon import render, timeline
+
+    toy = load_scene({**copy.deepcopy(MINI), "engine": "toy3d"}, TOY3D_TEST)
+    for call in (lambda: render.frame(toy, BANK, 1.0, 64, 36),
+                 lambda: render.render_clip(toy, BANK, tmp_path / "x.mp4", 1.0, 64, 36),
+                 lambda: timeline.state_at(toy, BANK, 1.0)):
+        with pytest.raises(render.ToonRenderError, match="a toy3d scene; the 2.5D engine draws toon2d scenes"):
+            call()

@@ -76,3 +76,25 @@ def test_beats_at_carries_time_since_start():
     idea = next(p for p in later.props if p.name == "idea")
     assert idea.since == pytest.approx(0.2)                                  # its out beat at 1.0
     assert beats_at(load_scene(copy.deepcopy(MINI), BANK), 0.5).door_at is None
+
+
+def test_state_at_folds_a_face_before_a_later_move():
+    # A3 I2: a face that starts *before* a move aims where the fold has the mover so far ("faces
+    # fold last" would aim at the final position). Values measured at 5d0f9b3 (045e47e: the same).
+    from toon.timeline import state_at
+
+    d = {"id": "t", "duration": 8.0, "cast": {"tim": "tim", "lioness": "lioness"},
+         "shots": [{"at": 0.0, "set": "office", "camera": "two_shot",
+                    "place": {"tim": {"spot": "desk_seat", "pose": "sit_typing"},
+                              "lioness": {"spot": "doorway_out", "pose": "stand_point"}},
+                    "beats": [{"at": 0.5, "face": "tim", "to": "lioness", "over": 1.0, "ease": "linear"},
+                              {"at": 1.0, "move": "lioness", "to": "doorway", "over": 1.0, "ease": "linear"},
+                              {"at": 1.2, "face": "lioness", "to": "tim", "over": 0.5},
+                              {"at": 1.4, "move": "lioness", "to": "doorway_out", "over": 1.0}]}]}
+    s = load_scene(d, BANK)
+    want = {1.3: (-97.79397427129865, 40.369455209482545), 1.8: (-122.24246783912331, 57.295511437773015),
+            2.6: (-122.24246783912331, 38.0)}
+    for t, (tim, lioness) in want.items():
+        fs = state_at(s, BANK, t)
+        assert (fs.chars["tim"].yaw, fs.chars["lioness"].yaw) == (pytest.approx(tim, rel=1e-12),
+                                                                    pytest.approx(lioness, rel=1e-12)), t
