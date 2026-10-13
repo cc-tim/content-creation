@@ -183,3 +183,51 @@ def test_kokoro_engine_names_every_missing_bundle_file_before_loading(tmp_path, 
             assert name in message
     assert "tokens.txt" not in message.split("missing", 1)[1].split(";", 1)[0]
     assert "install_kokoro_tts.sh" in message
+
+
+def _with_zh_lexicon(model_dir: Path, chars: str) -> Path:
+    (model_dir / "lexicon-zh.txt").write_text(
+        "".join(f"{c} x 1\n" for c in chars) + "推出 t u 1 ch u 1\n", encoding="utf-8"
+    )
+    return model_dir
+
+
+def _unvoiced_warnings(logs: list[dict]) -> list[dict]:
+    return [e for e in logs if e["event"] == "tts.kokoro.unvoiced_chars"]
+
+
+def test_kokoro_engine_is_quiet_when_every_character_is_voiced(tmp_path):
+    from structlog.testing import capture_logs
+
+    _with_zh_lexicon(tmp_path, "推出")
+    engine = KokoroEngine(model_dir=tmp_path, tts_factory=lambda _dir: _FakeTts(_tone(0.2)))
+    with capture_logs() as logs:
+        engine.synthesize("OpenAI 推出 GPT-5。", tmp_path / "a.mp3", _profile(sid=3))
+    assert _unvoiced_warnings(logs) == []
+
+
+def test_kokoro_engine_warns_about_characters_it_cannot_voice(tmp_path):
+    """Emoji are read out as English names, rare CJK not in the lexicon are dropped."""
+    from structlog.testing import capture_logs
+
+    _with_zh_lexicon(tmp_path, "他很好")
+    engine = KokoroEngine(model_dir=tmp_path, tts_factory=lambda _dir: _FakeTts(_tone(0.2)))
+    with capture_logs() as logs:
+        engine.synthesize("他很好😀，犇。", tmp_path / "a.mp3", _profile(sid=3), scene_id="s4")
+
+    warned = _unvoiced_warnings(logs)
+    assert len(warned) == 1
+    assert warned[0]["log_level"] == "warning"
+    assert warned[0]["chars"] == ["😀", "犇"]
+    assert warned[0]["scene_id"] == "s4"
+
+
+def test_kokoro_engine_reads_fullwidth_digits_and_letters_as_ascii(tmp_path):
+    """Fullwidth ５ was dropped silently; Ａ was spelled out as its Unicode name."""
+    fake = _FakeTts(_tone(0.2))
+    _with_zh_lexicon(tmp_path, "打折")
+    engine = KokoroEngine(model_dir=tmp_path, tts_factory=lambda _dir: fake)
+
+    engine.synthesize("Ａ打５折", tmp_path / "a.mp3", _profile(sid=3))
+
+    assert fake.calls[0][0] == "A打5折"
