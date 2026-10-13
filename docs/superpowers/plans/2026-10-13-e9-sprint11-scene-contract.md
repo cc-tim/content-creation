@@ -1063,8 +1063,8 @@ task's red step (a commit can't record its own SHA).
 | S11-3 | `test_scene.py::test_prop_beat_flags_rejected_on_kinds_that_ignore_them` | 1 | `DID NOT RAISE` (6 of 6) | `DID NOT RAISE` on 6 of 6 | `ee11844` | `1e2cc36` |
 | S11-10 | `test_bank.py::test_prop_kinds_match_bank_prop_kinds` | 1 | green (fence) | green (fence; passes on master) | `ee11844` | `1e2cc36` |
 | S11-4 | `test_bank.py::test_hair_keys_beside_layers_rejected` | 2 | `DID NOT RAISE` (3 of 3) | `DID NOT RAISE <class 'toon.bank.BankError'>` on 3 of 3 (fill, fringe, none); the bun case green | `f4f91d3` | `7bc0406` |
-| S11-5 | `test_scene.py::test_show_of_a_visible_graphic_key_is_rejected` | 3 | `DID NOT RAISE` | `DID NOT RAISE <class 'toon.scene.SceneError'>` (the second x_card on one key loads) | | |
-| S11-6 | `test_timeline.py::test_two_cards_one_icon_with_ids_both_show` | 3 | `SceneError: …show.id: Extra inputs are not permitted` | `SceneError: shots.0.beats.0.show.id: Extra inputs are not permitted; shots.0.beats.1.show.id: …` | | |
+| S11-5 | `test_scene.py::test_show_of_a_visible_graphic_key_is_rejected` | 3 | `DID NOT RAISE` | `DID NOT RAISE <class 'toon.scene.SceneError'>` (the second x_card on one key loads) | `df1273c` | |
+| S11-6 | `test_timeline.py::test_two_cards_one_icon_with_ids_both_show` | 3 | `SceneError: …show.id: Extra inputs are not permitted` | `SceneError: shots.0.beats.0.show.id: Extra inputs are not permitted; shots.0.beats.1.show.id: …` | `df1273c` | |
 | S11-7 | `test_scene.py::test_sentences_count_real_breaks_only` | 4 | 「」/straight-quote/abbreviation cases differ | | | |
 | S11-8 | `test_scene.py::test_scene_error_names_its_source` + `test_composer_toon.py::test_render_error_and_validator_name_the_scene_source` | 5 | `AttributeError: … 'source'`; `TypeError: … 'storyboard_file'` | | | |
 | S11-12 | `test_scene.py::test_shot_sentence_anchor_follows_the_narration` | 6 | `shots.1.at: Input should be a valid number` | | | |

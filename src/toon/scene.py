@@ -15,6 +15,7 @@ from toon.kit.icons import ICONS
 Ease = Literal["linear", "smooth", "out", "back"]
 VERBS = ("door", "move", "pose", "face", "prop", "show", "hide", "camera")
 SHOW_KINDS = ("speed_lines", "bubble", "anger", "x_card", "check_pill")
+CARD_KINDS = ("x_card", "check_pill")
 PROP_USE_FIELDS = ("on", "held_by", "b", "count")
 PROP_BEAT_FLAGS = ("flicker", "blink", "out")
 # Per bank-prop kind: (use fields it needs, use fields it draws, states a `to:` beat animates,
@@ -111,6 +112,7 @@ class Show(_Strict):
     x_card: str | None = None
     check_pill: str | None = None
     at: tuple[float, float] | None = None   # screen fractions, for cards
+    id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]*$")  # a card's key; never drawn
 
     @model_validator(mode="after")
     def _one_kind(self):
@@ -200,9 +202,12 @@ class ToonScene(_Strict):
 
 def graphic_key(show: Show) -> str:
     """`<kind>:<target>` — the name a `hide:` beat uses. Keyed on the show's own kind, so a
-    stray field of another kind can never pick the target."""
+    stray field of another kind can never pick the target. A card's target is its `id:` when it
+    has one, so two cards with one icon get two keys."""
     target = {"speed_lines": show.speed_lines, "bubble": show.from_, "anger": show.anger,
               "x_card": show.x_card, "check_pill": show.check_pill}[show.kind]
+    if show.kind in CARD_KINDS and show.id is not None:
+        target = show.id
     return f"{show.kind}:{target}"
 
 
@@ -312,16 +317,45 @@ def _check(scene: ToonScene, bank: Bank) -> list[str]:
                 if ref is not None and ref not in shot.place:
                     p.append(f"{uw}.{field}: {ref!r} is not placed in this shot")
         length = shot_length(scene, i)
-        # Collect shown graphics in this shot
-        shown: dict[str, float] = {}  # graphic_key -> at time
-        for _j, b in enumerate(shot.beats):
-            if b.verb == "show" and isinstance(b.at, float):
-                shown[graphic_key(b.show)] = b.at
         for j, b in enumerate(shot.beats):
             bw = f"{w}.beats[{j}]"
             if isinstance(b.at, (int, float)) and not (0 <= b.at <= length):
                 p.append(f"{bw}.at: {b.at:g}s is outside the shot (0–{length:g}s)")
-            p += _check_beat(b, bw, shot, spots, bank, shown)
+            p += _check_beat(b, bw, shot, spots, bank)
+        p += _check_graphics(shot, w)
+    return p
+
+
+def _check_graphics(shot: Shot, w: str) -> list[str]:
+    """Shows and hides in the order the timeline plays them (by time, then as listed). A show
+    whose key is still visible would silently replace that graphic; a hide must take one down."""
+    p: list[str] = []
+    beats = sorted(enumerate(shot.beats), key=lambda jb: float(jb[1].at))
+    shows = {j: graphic_key(b.show) for j, b in beats if b.verb == "show"}
+    visible: dict[str, int] = {}  # key -> the show beat that put it up
+    gone: dict[str, int] = {}     # key -> the hide beat that took it down
+    for j, b in beats:
+        bw = f"{w}.beats[{j}]"
+        if b.verb == "show":
+            key = shows[j]
+            if key in visible:
+                hint = ", or give each card its own id:" if b.show.kind in CARD_KINDS else ""
+                p.append(f"{bw}.show: {key!r} is still showing from {w}.beats[{visible[key]}]; "
+                         f"hide it first{hint}")
+            visible[key] = j
+            gone.pop(key, None)
+        elif b.verb == "hide":
+            if b.hide in visible:
+                del visible[b.hide]
+                gone[b.hide] = j
+            elif b.hide in gone:
+                p.append(f"{bw}.hide: {b.hide!r} is already hidden by {w}.beats[{gone[b.hide]}]")
+            elif b.hide in shows.values():
+                first = min(float(shot.beats[k].at) for k, key in shows.items() if key == b.hide)
+                p.append(f"{bw}.hide: {b.hide!r} was shown at {first:g}s, after this hide at {float(b.at):g}s")
+            else:
+                p.append(f"{bw}.hide: {b.hide!r} does not match a graphic shown earlier in this shot "
+                         f"(shown: {sorted(set(shows.values()))})")
     return p
 
 
@@ -341,8 +375,7 @@ def _check_prop_use(pu: PropUse, uw: str, kind: str) -> list[str]:
     return p
 
 
-def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
-                 shown: dict[str, float] | None = None) -> list[str]:
+def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank) -> list[str]:
     p: list[str] = []
     placed = shot.place
     v = b.verb
@@ -389,19 +422,15 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
                 p.append(f"{bw}.show: {ref!r} is not placed in this shot")
         if s.from_ is not None and s.kind != "bubble":
             p.append(f"{bw}.show.from: only valid with a bubble show")
-        if s.at is not None and s.kind not in ("x_card", "check_pill"):
+        if s.at is not None and s.kind not in CARD_KINDS:
             p.append(f"{bw}.show.at: only valid with an x_card or check_pill show")
+        if s.id is not None and s.kind not in CARD_KINDS:
+            p.append(f"{bw}.show.id: only valid with an x_card or check_pill show")
         cards = [x for x in (s.x_card, s.check_pill) if x]
         for icon in [*(s.bubble or []), *cards]:
             if icon not in ICONS:
                 p.append(f"{bw}.show: {icon!r} is not an icon — animation is wordless; "
                          f"use one of {sorted(ICONS)}")
-    elif v == "hide":
-        if shown is None or b.hide not in shown:
-            keys = sorted(shown.keys()) if shown else []
-            p.append(f"{bw}.hide: {b.hide!r} does not match a graphic shown earlier in this shot (shown: {keys})")
-        elif isinstance(b.at, float) and shown[b.hide] > b.at:
-            p.append(f"{bw}.hide: {b.hide!r} was shown at {shown[b.hide]:g}s, after this hide at {b.at:g}s")
     elif v == "camera" and b.camera not in bank.cameras:
         p.append(f"{bw}.camera: unknown camera {b.camera!r}")
     return p + _check_beat_fields(b, bw, kind)
