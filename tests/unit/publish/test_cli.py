@@ -198,9 +198,11 @@ def test_status_remote(project_with_context: Path, monkeypatch: pytest.MonkeyPat
 
 
 def _mark_fallback_narrated(project: Path) -> None:
-    ctx = PipelineContext.load(project / "context.json")
-    ctx.tts_fallback_voices = {"zh-TW-default-f": "zh-TW-kokoro-f"}
-    ctx.save()
+    audio = project / "audio"
+    audio.mkdir(exist_ok=True)
+    (audio / "tts_fallback.json").write_text(
+        json.dumps({"fallback_voices": {"zh-TW-default-f": "zh-TW-kokoro-f"}})
+    )
 
 
 def test_publish_refuses_fallback_narration_without_the_flag(
