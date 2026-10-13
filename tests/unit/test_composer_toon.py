@@ -131,3 +131,26 @@ def test_render_scene_toon_missing_ffmpeg_is_a_scene_render_error(tmp_path, monk
     monkeypatch.setattr("toon.render.render_clip", fake_clip)
     with pytest.raises(SceneRenderError, match="toon"):
         base.render_scene({"id": "s1", "visual": {"type": "toon", "scene": "001-lioness-dishes"}}, 13.0, "16:9", tmp_path)
+
+
+def test_render_error_and_validator_name_the_scene_source(tmp_path):
+    # Sprint 11 (spec §11.2 b3): `pipeline validate`'s issue and compose's SceneRenderError name
+    # the storyboard file and scene id (inline), or the scene file it was referenced from.
+    words = {"type": "toon", "cast": {"tim": "tim"}, "shots": [{
+        "at": 0.0, "set": "office", "camera": "two_shot",
+        "place": {"tim": {"spot": "desk_seat", "pose": "sit_typing"}},
+        "beats": [{"at": 1.0, "show": {"bubble": ["Dishes. Now."], "from": "tim"}}]}]}
+    sb_file = tmp_path / "storyboard_zh-TW.json"
+    Storyboard(scenes=[Scene(id="s2", section="content", narration="One.", narration_est_sec=5.0,
+                             visual=words)]).save(sb_file)
+    (issue,) = validation_errors(validate_storyboard(Storyboard.load(sb_file), tmp_path))
+    assert f"{sb_file} scene s2: shots[0].beats[0].show" in issue.issue
+    with pytest.raises(SceneRenderError) as e:
+        base.render_scene({"id": "s2", "narration": "One.", "visual": words}, 5.0, "16:9", tmp_path,
+                          storyboard_file=sb_file)
+    assert f"{sb_file} scene s2: shots[0].beats[0].show" in e.value.reason
+    missing = tmp_path / "gone.yaml"
+    with pytest.raises(SceneRenderError) as e:
+        base.render_scene({"id": "s3", "visual": {"type": "toon", "scene": str(missing)}}, 5.0, "16:9",
+                          tmp_path, storyboard_file=sb_file)
+    assert f"{missing} (from {sb_file} scene s3): scene file not found" in e.value.reason

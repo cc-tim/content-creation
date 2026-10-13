@@ -1,4 +1,5 @@
 import copy
+import re
 
 import pytest
 
@@ -485,3 +486,33 @@ def test_show_of_a_visible_graphic_key_is_rejected():
     again = mini(**{"at": 0.5, "show": card})
     again["shots"][0]["beats"] += [{"at": 1.0, "hide": "x_card:bulb"}, {"at": 1.5, "show": card}]
     assert [b.verb for b in load_scene(again, BANK).shots[0].beats] == ["show", "hide", "show"]
+
+
+# -- Sprint 11 (spec §11.2 b3): SceneError names its source --
+
+def test_scene_error_names_its_source(tmp_path):
+    import yaml
+
+    from toon.scene import scene_data_from_visual
+
+    bad = mini()
+    bad["shots"][0]["camera"] = "nope"
+    f = tmp_path / "bad.yaml"
+    f.write_text(yaml.safe_dump(bad))
+    with pytest.raises(SceneError) as e:                     # a scene file: its path
+        load_scene(read_scene(str(f)), BANK)
+    assert e.value.source == str(f)
+    assert str(e.value).startswith(f"{f}: shots[0].camera: unknown camera 'nope'")
+    data = read_scene("001-lioness-dishes")                  # in the repo: repo-relative
+    data["shots"][0]["camera"] = "nope"
+    with pytest.raises(SceneError, match=r"^assets/toon/scenes/001-lioness-dishes\.yaml: shots\[0\]\.camera"):
+        load_scene(data, BANK)
+    origin = "output/projects/p/storyboard.json scene s2"   # an inline visual: storyboard + scene id
+    with pytest.raises(SceneError) as e:
+        load_scene(scene_data_from_visual({"type": "toon", **bad}, origin), BANK)
+    assert str(e.value).startswith(f"{origin}: shots[0].camera: unknown camera")
+    ref = {"type": "toon", "scene": str(f)}                  # a reference: the file, from the scene
+    with pytest.raises(SceneError, match=rf"^{re.escape(str(f))} \(from {origin}\): shots\[0\]\.camera"):
+        load_scene(scene_data_from_visual(ref, origin), BANK)
+    with pytest.raises(SceneError, match=r"^x\.yaml: shots\[0\]\.camera"):   # explicit source=
+        load_scene(bad, BANK, source="x.yaml")
