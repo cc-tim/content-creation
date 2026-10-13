@@ -197,3 +197,18 @@ def test_edge_engine_logs_an_upstream_endpoint_as_not_overridden(tmp_path, monke
     assert [(e["endpoint"], e["overridden"]) for e in events] == [
         ("wss://speech.example.invalid/v2", False)
     ]
+
+
+def test_edge_engine_reports_the_override_for_every_engine_in_the_process(tmp_path, monkeypatch):
+    """The first engine patches the module URL; later engines still run on that override."""
+    import edge_tts.communicate
+    from structlog.testing import capture_logs
+
+    monkeypatch.setattr(edge_tts.communicate, "WSS_URL", _LEGACY_WSS_URL)
+    _scripted_run(monkeypatch, [None, None])
+
+    with capture_logs() as logs:
+        EdgeEngine().synthesize("一", tmp_path / "a.mp3", _HSIAOCHEN)
+        EdgeEngine().synthesize("二", tmp_path / "b.mp3", _HSIAOCHEN)
+
+    assert [e["overridden"] for e in logs if e["event"] == "tts.edge.endpoint"] == [True, True]
