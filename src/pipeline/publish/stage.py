@@ -41,8 +41,21 @@ def run_preflight(
     ctx: PipelineContext,
     privacy: str,
     schedule_iso: str | None,
+    allow_fallback_voice: bool = False,
 ) -> None:
     """Validate all local inputs before any API call. Raises PreflightError."""
+    if ctx.tts_fallback_voices:
+        if not allow_fallback_voice:
+            raise PreflightError(
+                f"narration used fallback TTS voice(s) {ctx.tts_fallback_voices} because the "
+                f"primary engine was down. Re-run TTS once it is back, or listen to the video "
+                f"and pass --allow-fallback-voice to publish it anyway."
+            )
+        logger.warning(
+            "publish.preflight.fallback_voice",
+            fallback_voices=ctx.tts_fallback_voices,
+            note="Publishing a video narrated by a FALLBACK voice (--allow-fallback-voice).",
+        )
     if ctx.final_video_path is None or not ctx.final_video_path.exists():
         raise PreflightError(
             f"final video not found (ctx.final_video_path={ctx.final_video_path}). "
@@ -102,6 +115,7 @@ class PublishStage:
     force_metadata: bool = False
     force_thumbnail: bool = False
     dry_run: bool = False
+    allow_fallback_voice: bool = False
 
     def _attach_outro(
         self,
@@ -184,7 +198,12 @@ class PublishStage:
         # Attach outro before preflight so preflight validates the merged file
         self._attach_outro(ctx, profile)
 
-        run_preflight(ctx=ctx, privacy=self.privacy, schedule_iso=self.schedule_iso)
+        run_preflight(
+            ctx=ctx,
+            privacy=self.privacy,
+            schedule_iso=self.schedule_iso,
+            allow_fallback_voice=self.allow_fallback_voice,
+        )
 
         metadata = load_metadata(ctx.work_dir / "metadata.json")
         upload_body = self._build_upload_body(metadata)

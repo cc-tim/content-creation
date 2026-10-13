@@ -96,6 +96,11 @@ def upload(
     dry_run: bool = typer.Option(False, "--dry-run"),
     force_metadata: bool = typer.Option(False, "--force-metadata"),
     force_thumbnail: bool = typer.Option(False, "--force-thumbnail"),
+    allow_fallback_voice: bool = typer.Option(
+        False,
+        "--allow-fallback-voice",
+        help="Publish even though TTS narrated with a fallback voice (ctx.tts_fallback_voices).",
+    ),
 ) -> None:
     """Upload a produced project to YouTube."""
     work_dir = _project_dir(project_id)
@@ -115,6 +120,7 @@ def upload(
         force_metadata=force_metadata,
         force_thumbnail=force_thumbnail,
         dry_run=dry_run,
+        allow_fallback_voice=allow_fallback_voice,
     )
 
     from pipeline.session_log import SessionEntry, append_session, new_session_id

@@ -393,7 +393,7 @@ def _log_complete(event: str, fallback_voices: dict[str, str], **fields: Any) ->
     if fallback_voices:
         logger.warning(
             event, **fields, fallback_voices=fallback_voices,
-            note="Narrated by FALLBACK voice(s): listen before publishing.",
+            note="Narrated by FALLBACK voice(s): listen; publish refuses without --allow-fallback-voice.",
         )
     else:
         logger.info(event, **fields)
