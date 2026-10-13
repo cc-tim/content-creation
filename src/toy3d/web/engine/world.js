@@ -46,6 +46,13 @@ export function buildWorld(bank, { width, height, mode }) {
   const bubbleLook = { palette: look(bank.bubble.palette, 'graphics/bubble.yaml palette'), params: look(bank.bubble.params, 'graphics/bubble.yaml params') };
 
   const renderer = mode === 'render' ? makeRenderer(style, width, height) : null;
+  let lost = false;   // a lost WebGL context (a GPU reset) draws nothing: the next frame fails, naming it
+  if (renderer) renderer.domElement.addEventListener('webglcontextlost', () => { lost = true; });
+  const alive = () => {
+    if (lost || renderer.getContext().isContextLost()) {
+      throw new Error('toy3d: the WebGL context was lost (a GPU reset or driver fault); render again, and run `uv run pipeline doctor`');
+    }
+  };
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(style.background);
   scene.fog = new THREE.Fog(style.fog.color, style.fog.near, style.fog.far);
@@ -238,9 +245,11 @@ export function buildWorld(bank, { width, height, mode }) {
 
   function renderState(spec) {
     if (!post) throw new Error('toy3d: this page was built in state mode (no WebGL); init it with mode render');
+    alive();
     applyState(spec);
     post.grade.uniforms.frame.value = spec.frame;
     post.composer.render();
+    alive();
     return renderer.domElement.toDataURL('image/png');
   }
 

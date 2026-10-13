@@ -79,8 +79,8 @@ class FakePage:
             y, x = np.mgrid[0:h, 0:w]
             r = np.hypot((x - w / 2) / w, (y - h / 2) / h)
             img = Image.fromarray(np.dstack([(230 - 60 * r).astype(np.uint8)] * 3))
-        elif i != self.uniform_at:
-            img.putpixel((i % w, 0), (250, 10, 10))
+        elif i != self.uniform_at:          # something drawn: a mark inside the frame, moving per frame
+            img.putpixel((2 + i % (w - 4), h // 2), (250, 10, 10))
         buf = io.BytesIO()
         img.save(buf, "PNG")
         return buf.getvalue()

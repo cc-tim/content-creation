@@ -16,7 +16,7 @@ from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Any
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 import toon
 import toy3d
@@ -26,6 +26,7 @@ from toy3d.bank import Toy3DBank
 from toy3d.runtime import BROWSER_VERSION, Page, Toy3DRenderError
 
 FFMPEG = "ffmpeg"
+EDGE_MIN = 24   # a frame's strongest edge (PIL FIND_EDGES): the background and its vignette stay far below
 PageFactory = Callable[[int, int, str], AbstractContextManager[Page]]
 Resolve = Callable[[ToonScene, Toy3DBank, float], dict[str, Any]]
 
@@ -133,6 +134,12 @@ def check_frame(png: bytes, i: int, t: float, width: int, height: int) -> None:
     if all(lo == hi for lo, hi in bands):
         raise Toy3DRenderError(f"frame {i} (t={t:.3f}s) is a uniform colour {extrema}: the page drew nothing "
                                f"(a lost WebGL context or an empty world)")
+    w, h = img.size   # PIL leaves a filter's 1-px border unfiltered: read the inside only
+    edges: Any = img.convert("L").filter(ImageFilter.FIND_EDGES).crop((1, 1, w - 1, h - 1)).getextrema()
+    edge = edges[1]
+    if edge < EDGE_MIN:
+        raise Toy3DRenderError(f"frame {i} (t={t:.3f}s) shows nothing but the background (its strongest edge is "
+                               f"{edge} levels): the page drew an empty world")
 
 
 def _tail(f, n: int = 2000) -> str:
@@ -164,12 +171,8 @@ def render_clip(scene: ToonScene, bank: Toy3DBank, out_path: Path, duration: flo
         return out_path
     factory = page_factory or runtime.open_page
     fps = bank.style.fps
-    tmp = out_path.with_suffix(".part.mp4")
     with factory(width, height, "render") as page:
-        page.init(runtime.bank_payload(bank), width, height, "render")
-        info = page.info()
-        runtime.check_renderer(info["renderer"])
-        runtime.write_renderer_record(info)
+        info = runtime.start(page, bank, width, height)
         key = cache_key(scene, bank, duration, width, height, info["renderer"], build=info["build"], specs=specs)
         if cached(key):
             return out_path
@@ -177,6 +180,10 @@ def render_clip(scene: ToonScene, bank: Toy3DBank, out_path: Path, duration: flo
         # never pair an old key with a new file.
         stamp.unlink(missing_ok=True)
         out_path.parent.mkdir(parents=True, exist_ok=True)
+        # A temp file of its own: two renders of one clip at once never write into each other.
+        fd, name = tempfile.mkstemp(dir=out_path.parent, prefix=f".{out_path.stem}.", suffix=".part.mp4")
+        os.close(fd)
+        tmp = Path(name)
         # ffmpeg's stderr goes to a tempfile, not a pipe, so a full stderr can't deadlock the writes.
         with tempfile.TemporaryFile() as err:
             proc = subprocess.Popen(

@@ -104,9 +104,11 @@ def _render_toy3d(s, out: Path, width: int, height: int, stills: str) -> None:
     try:
         if stills:
             with runtime.open_page(width, height, "render") as page:
-                page.init(runtime.bank_payload(bank), width, height, "render")
-                for t in (float(x) for x in stills.split(",")):
-                    (out / f"{s.id}_{t:05.2f}.png").write_bytes(page.render_state(resolve(s, bank, t)))
+                runtime.start(page, bank, width, height)
+                for i, t in enumerate(float(x) for x in stills.split(",")):
+                    png = page.render_state(resolve(s, bank, t))
+                    toy3d_render.check_frame(png, i, t, width, height)
+                    (out / f"{s.id}_{t:05.2f}.png").write_bytes(png)
             typer.echo(f"stills → {out}")
             return
         if s.duration is None:

@@ -169,11 +169,8 @@ def check_toy3d() -> list[CheckResult]:
         bank = load_bank()
         scene = load_scene(read_scene("001-beat2-break-in"), bank.catalog)
         with runtime.open_page(320, 180, "render") as page:
-            page.init(runtime.bank_payload(bank), 320, 180, "render")
-            info = page.info()
-            runtime.check_renderer(info["renderer"])
+            info = runtime.start(page, bank, 320, 180)
             check_frame(page.render_state(resolve(scene, bank, 4.0)), 0, 4.0, 320, 180)
-        runtime.write_renderer_record(info)
         return [CheckResult("toy3d", True, f"Chrome for Testing {info['build']}; {info['renderer']}; frame 320x180")]
     except Exception as exc:
         return [CheckResult("toy3d", False, f"{exc} — {hint}")]

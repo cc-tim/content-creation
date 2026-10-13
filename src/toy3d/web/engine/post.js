@@ -24,6 +24,11 @@ export function makeRenderer(style, W, H) {
   renderer.toneMapping = TONE[style.tone.mapping];
   renderer.toneMappingExposure = style.tone.exposure;
   document.body.appendChild(renderer.domElement);
+  // A shader that fails to compile or link fails the frame: three would log it and draw on without it.
+  renderer.debug.onShaderError = (gl, program, vs, fs) => {
+    const log = [gl.getProgramInfoLog(program), gl.getShaderInfoLog(vs), gl.getShaderInfoLog(fs)].filter(Boolean).join(' | ');
+    throw new Error(`toy3d: a shader failed to compile or link: ${log.trim().slice(0, 400)}`);
+  };
   return renderer;
 }
 

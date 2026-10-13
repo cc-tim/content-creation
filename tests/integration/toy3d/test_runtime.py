@@ -9,23 +9,26 @@ import pytest
 pytestmark = pytest.mark.integration
 
 
-def _browsers():
-    out = subprocess.run(["pgrep", "-f", "playwright_chromiumdev_profile"], capture_output=True, text=True)
-    return set(out.stdout.split())
+def _ours(tag):
+    """Processes whose command line carries this page's tag: its browser."""
+    out = subprocess.run(["pgrep", "-f", f"toy3d-page={tag}"], capture_output=True, text=True)
+    return out.stdout.split()
 
 
 def test_a_hung_page_call_times_out_and_leaves_no_browser(monkeypatch):
     from toy3d import runtime
 
     monkeypatch.setattr(runtime, "CALL_TIMEOUT", 2.0)
-    before = _browsers()
     t0 = time.monotonic()
+    tag = None
     with pytest.raises(runtime.Toy3DRenderError, match=r"evaluate timed out after 2 s"), \
             runtime.open_page(64, 36, "render") as page:
+        tag = page.tag
+        assert _ours(tag)                                          # its browser is up
         page.evaluate("() => { while (true) {} }")
     assert time.monotonic() - t0 < 30
     time.sleep(1.0)
-    assert _browsers() <= before                                    # no orphan left spinning
+    assert not _ours(tag)                                          # and gone: no orphan left spinning
 
 
 @pytest.fixture
@@ -56,6 +59,6 @@ def test_a_lost_webgl_context_fails_the_render(page, worked, bank):
 def test_a_console_error_fails_the_render(page, worked, bank):
     from toy3d.runtime import Toy3DRenderError
 
-    page.evaluate("() => console.error('THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false')")
-    with pytest.raises(Toy3DRenderError, match="Shader Error 1282"):
+    with pytest.raises(Toy3DRenderError, match="Shader Error 1282"):      # at the first call that sees it
+        page.evaluate("() => console.error('THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false')")
         page.render_state(_spec(worked, bank, 1.0))
