@@ -455,7 +455,16 @@ Evidence goes in `tmp/toy3d-v0/compose-smoke/REPORT.md`.
 > `5d0f9b3..045e47e`: 0 Critical, 3 Important, 7 Minor) and a fresh review of Phase 2 (range
 > `8d78e95..94de1da`: 0 Critical, 5 Important, 10 Minor). The findings and their dispositions
 > are under "Code reviews" below, and their ledger rows close the red-run ledger. The gates on
-> both machines ran after the last fix.
+> both machines ran after the last fix, at `0176c11`:
+>
+> | Gate | Mac (M3 Pro, Metal) | hub clone (GTX 1050, OpenGL ES) |
+> |---|---|---|
+> | `uv run pytest -q` | 1826 passed, 130 skipped | 1861 passed, 95 skipped |
+> | `ruff check src/ tests/` / `mypy src/` | clean / clean (171 files) | clean / clean (171 files) |
+> | toy3d + toon integration (`--integration`) | 70 passed | 63 passed; 7 skipped by name (parity: Mac-Metal references) |
+> | `pipeline doctor` | 19/19 (toy3d PASS) | 19/19 (toy3d PASS) |
+> | scene 001 (2.5D), 431 hashes against `5d0f9b3` | identical | n/a |
+> | parity with the frozen snapshot | max diff 0 on all 7 frames | skipped (by name) |
 
 The full suite, ruff and mypy on the Mac and in the hub clone. Fold in the Phase 1 code review's
 findings (A3) red-first. Run a separate review of the Phase 2 diff. Then the ledger and the
