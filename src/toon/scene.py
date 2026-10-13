@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError,
 # The contract checks scenes through a SceneCatalog (toon.catalog): it never imports an engine's
 # bank or drawing code. Each engine's capability tables (beat fields, prop kinds, …) live there.
 from toon.catalog import (
+    CAPABILITIES,
     DEFAULT_ENGINE,
     PROP_BEAT_FLAGS,
     SHOW_KINDS,
@@ -24,6 +25,9 @@ from toon.catalog import (
 Ease = Literal["linear", "smooth", "out", "back"]
 CARD_KINDS = ("x_card", "check_pill")
 PROP_USE_FIELDS = ("on", "held_by", "b", "count")
+# Optional fields that are render options, checked against each engine's capability table.
+SCENE_RENDER_FIELDS = ("boil",)
+PLACE_RENDER_FIELDS = ("layer", "loop")
 # Why a verb takes no timing: the reason an over:/ease: on it fails with.
 _UNTIMED = {"camera": "a camera beat is a cut to a new preset",
             "hide": "a hide beat is instant",
@@ -368,6 +372,9 @@ def _check(scene: ToonScene, catalog: SceneCatalog, shot_starts: tuple[float | S
     p: list[str] = []
     caps = catalog.capabilities
     anchored = any(isinstance(at, SentenceAnchor) for at in shot_starts)
+    for f in SCENE_RENDER_FIELDS:
+        if getattr(scene, f) is not None and f not in caps.scene_fields:
+            p.append(f"{f}: {_not_rendered(caps, f, lambda c, f=f: f in c.scene_fields)}")
     for who, char in scene.cast.items():
         if char not in catalog.characters:
             p.append(f"cast.{who}: unknown character {char!r} (bank has {sorted(catalog.characters)})")
@@ -390,18 +397,32 @@ def _check(scene: ToonScene, catalog: SceneCatalog, shot_starts: tuple[float | S
                 p.append(f"{pw}.pose: unknown pose {pl.pose!r}")
             if pl.expr not in catalog.expressions_of(character):
                 p.append(f"{pw}.expr: unknown expression {pl.expr!r}")
+            for f in PLACE_RENDER_FIELDS:
+                if getattr(pl, f) is not None and f not in caps.place_fields:
+                    p.append(f"{pw}.{f}: {_not_rendered(caps, f, lambda c, f=f: f in c.place_fields)}")
+        for n, fx in enumerate(shot.fx):
+            for kind in (k for k in Fx.model_fields if getattr(fx, k) is not None):
+                if kind not in caps.fx_kinds:
+                    p.append(f"{w}.fx[{n}].{kind}: "
+                             f"{_not_rendered(caps, f'{kind} fx', lambda c, k=kind: k in c.fx_kinds)}")
         for name, pu in shot.props.items():
             uw = f"{w}.props.{name}"
             if pu.kind not in catalog.props:
                 p.append(f"{uw}.kind: unknown prop {pu.kind!r}")
+            elif (kind := catalog.prop_kind(pu.kind)) not in caps.prop_kinds:
+                p.append(f"{uw}.kind: {_not_rendered(caps, f'{kind} props', lambda c, k=kind: k in c.prop_kinds)}")
             else:
-                p += _check_prop_use(pu, uw, catalog.prop_kind(pu.kind), caps)
+                p += _check_prop_use(pu, uw, kind, caps)
             for field, ref in (("on", pu.on), ("held_by", pu.held_by)):
                 if ref is not None and ref not in shot.place:
                     p.append(f"{uw}.{field}: {ref!r} is not placed in this shot")
         length = shot_length(scene, i)
         for j, b in enumerate(shot.beats):
             bw = f"{w}.beats[{j}]"
+            if b.verb not in caps.verbs:  # nothing else about the beat matters to this engine
+                p.append(f"{bw}.{b.verb}: "
+                         f"{_not_rendered(caps, f'{b.verb} beats', lambda c, v=b.verb: v in c.verbs)}")
+                continue
             if isinstance(b.at, (int, float)) and not (0 <= b.at <= length):
                 if anchored:  # a retake moved this window: say where it is now
                     start = float(shot.at)
@@ -455,6 +476,13 @@ def _check_graphics(shot: Shot, w: str) -> list[str]:
 
 def _a(kind: str) -> str:
     return f"an {kind}" if kind[0] in "aeiou" else f"a {kind}"
+
+
+def _not_rendered(caps: Capabilities, what: str, renders) -> str:
+    """`toy3d doesn't render bob on a move beat (toon2d does)`: names the engine, and any other
+    engine whose table renders it (`renders(capabilities) -> bool`)."""
+    others = [e for e, c in CAPABILITIES.items() if e != caps.engine and renders(c)]
+    return f"{caps.engine} doesn't render {what}" + (f" ({', '.join(others)} does)" if others else "")
 
 
 def _check_prop_use(pu: PropUse, uw: str, kind: str, caps: Capabilities) -> list[str]:
@@ -521,6 +549,9 @@ def _check_beat(b: Beat, bw: str, scene: ToonScene, shot: Shot, spots, catalog: 
             p.append(f"{bw}: a prop beat needs to / flicker / blink / out")
     elif v == "show":
         s = b.show
+        if s.kind not in caps.show_kinds:
+            p.append(f"{bw}.show.{s.kind}: "
+                     f"{_not_rendered(caps, f'{s.kind} shows', lambda c, k=s.kind: k in c.show_kinds)}")
         for ref in (s.speed_lines, s.from_, s.anger):
             if ref is not None and ref not in placed:
                 p.append(f"{bw}.show: {ref!r} is not placed in this shot")
@@ -544,7 +575,11 @@ def _check_beat(b: Beat, bw: str, scene: ToonScene, shot: Shot, spots, catalog: 
 def _unread(caps: Capabilities, verb: str, field: str) -> str:
     if field in ("over", "ease") and verb in _UNTIMED:
         return f"{_UNTIMED[verb]}; {field} does not apply"
+    if any(field in c.beat_fields.get(verb, ()) for c in CAPABILITIES.values()):  # another engine reads it
+        return _not_rendered(caps, f"{field} on {_a(verb)} beat", lambda c: field in c.beat_fields.get(verb, ()))
     users = [u for u, fields in caps.beat_fields.items() if field in fields]
+    if not users:
+        return _not_rendered(caps, f"{field} on any beat", lambda c: any(field in fs for fs in c.beat_fields.values()))
     return f"only valid with {_a(users[0])} beat" if len(users) == 1 else f"not valid with {_a(verb)} beat"
 
 
