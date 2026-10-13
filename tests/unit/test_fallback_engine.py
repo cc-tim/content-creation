@@ -290,3 +290,21 @@ def test_fallback_engine_name_reports_the_engine_actually_speaking(tmp_path):
     engine.synthesize("一。", tmp_path / "a.mp3", _PRIMARY)
 
     assert engine.name == "kokoro"
+
+
+@pytest.mark.parametrize("earlier_success", [False, True], ids=["first-call", "mid-run"])
+def test_voice_without_fallback_says_so_instead_of_talking_about_mixing(tmp_path, earlier_success):
+    health = EngineHealth("edge", succeeded=earlier_success)
+    engine = FallbackEngine(
+        _ScriptedEngine("edge", [VoiceEngineUnavailable("edge refused synthesis (HTTP 403)")]),
+        health,
+    )
+    jenny = VoiceProfile(id="en-US-jenny", engine="edge", locale="en", params={"voice": "j"})
+
+    with pytest.raises(VoiceEngineUnavailable) as excinfo:
+        engine.synthesize("one.", tmp_path / "a.mp3", jenny, scene_id="s2")
+
+    message = str(excinfo.value)
+    assert "HTTP 403" in message
+    assert "en-US-jenny has no fallback voice" in message
+    assert "mix" not in message
