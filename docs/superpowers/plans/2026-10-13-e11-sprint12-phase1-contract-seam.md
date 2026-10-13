@@ -496,3 +496,25 @@ params go red.
 | S12-2 | `test_contract_seam.py::test_field_the_engine_does_not_render_fails_naming_the_engine` + `::test_a_verb_or_prop_kind_the_engine_lacks_fails_naming_the_engine` | 3 | `DID NOT RAISE` | `DID NOT RAISE` for toy3d boil, layer, glow fx, anger show, and both narrowed-table cases (an unrendered verb or prop kind); bob fails but says only `not valid with a move beat` (no engine named) | `aa6458e` | `1aa6967` |
 | S12-4 | `test_symbolic_timeline.py` | 4 | `ImportError: cannot import name 'beats_at'` | `ImportError: cannot import name 'beats_at' from 'toon.timeline'`; `AttributeError: module 'toon.timeline' has no attribute 'beats_at'`; the overlapping-beats pin is green (it guards the refactor; values measured at `5d0f9b3`) | `19e5335` | `0350583` |
 | S12-5 | `test_contract_conformance.py` (28 cases: 17 engine-neutral cases compared problem for problem, the catalogs' own name lists aside; anchors at 3 durations; anchor failures, NeedsNarration and drift; the source; `over: 0` via `beats_at`; per-engine S11-2 and S11-3 fences) | 5 | green (guard); mutation evidence | green, 28 passed. Mutations: M-a (the ease-without-over rule only on toon2d) → `[S11-1 ease without over]` red; M-b (a show over a visible key allowed) → `[S11-5 a bubble over a visible bubble]` red; both reverted | n/a (guard) | |
+
+## Execution notes (Phase 1 checkpoint, 2026-10-13)
+
+- **Scene 001 byte-identical, both machines:**
+  - What's hashed: 41 evenly spaced frames at 960×540 plus all 390 compose frames at 320×180,
+    rendered by the base `5d0f9b3` (exported; its `src` first on `sys.path`) and by the branch on
+    the same machine.
+  - Mac: 431 of 431 SHA-256 identical, checked after every task.
+  - Hub (isolated clone at `045e47e`): 431 of 431 identical. The stderr lines confirm each run
+    imported its own tree.
+- **Hub toon suite (isolated clone; the hub's own checkout untouched):**
+  `env -u UPDATE_GOLDENS uv run pytest --integration tests/integration/toon tests/unit/toon` →
+  247 passed, 0 skipped: goldens 4/4 and parity both ran. `git status --porcelain tests/fixtures
+  assets` is empty. Parity measured separately, per key time `[0.0, 0.0, 0.004, 0.0, 0.0, 0.058]`;
+  worst 0.058.
+- **Mac gates at `045e47e`:** `uv run pytest -q` = 1647 passed, 62 skipped, 0 failed (base 1604
+  passed); `ruff check src/ tests/` clean; `mypy src/` clean (164 files). The toon integration run
+  gave 215 passed, 4 skipped (the hub-only goldens). The tryout file is now on the Mac, so parity
+  ran there too.
+- **Sprint 11 tests changed:** two fences (`test_every_beat_field_is_read_or_rejected`,
+  `test_prop_kinds_match_bank_prop_kinds`) now read `TOON2D.beat_fields` and `TOON2D.prop_kinds`
+  from `toon.catalog`, because the tables moved there (Task 1's fix commit). No assertion changed.
