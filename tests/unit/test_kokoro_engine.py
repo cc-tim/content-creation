@@ -152,3 +152,34 @@ def test_kokoro_engine_output_matches_edge_loudness(tmp_path, seconds):
     engine.synthesize("你好。", out, _profile(sid=3))
 
     assert _integrated_lufs(out) == pytest.approx(-19.0, abs=1.5)
+
+
+_BUNDLE_FILES = [
+    "model.onnx", "voices.bin", "tokens.txt", "lexicon-us-en.txt", "lexicon-zh.txt",
+    "date-zh.fst", "phone-zh.fst", "number-zh.fst",
+]
+_BUNDLE_DIRS = ["dict", "espeak-ng-data"]
+
+
+def test_kokoro_engine_names_every_missing_bundle_file_before_loading(tmp_path, monkeypatch):
+    """sherpa-onnx exit(255)s the whole process on a partial bundle: check in Python first."""
+    import pipeline.voices.kokoro_engine as kokoro_engine
+
+    def must_not_load(_model_dir):
+        raise AssertionError("sherpa must not load an incomplete bundle")
+
+    monkeypatch.setattr(kokoro_engine, "_load_sherpa_kokoro", must_not_load)
+    partial = tmp_path / "bundle"
+    partial.mkdir()
+    (partial / "model.onnx").write_bytes(b"onnx")
+    (partial / "tokens.txt").write_text("x")
+
+    with pytest.raises(FileNotFoundError) as excinfo:
+        KokoroEngine(model_dir=partial).synthesize("你好。", tmp_path / "a.mp3", _profile(sid=3))
+
+    message = str(excinfo.value)
+    for name in [*_BUNDLE_FILES, *_BUNDLE_DIRS]:
+        if name not in ("model.onnx", "tokens.txt"):
+            assert name in message
+    assert "tokens.txt" not in message.split("missing", 1)[1].split(";", 1)[0]
+    assert "install_kokoro_tts.sh" in message
