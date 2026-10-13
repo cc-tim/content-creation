@@ -342,6 +342,7 @@ uv run pipeline publish <project-id>                               # auto-routes
 uv run pipeline publish <project-id> --profile ideal-parents-tw    # explicit channel
 uv run pipeline publish <project-id> --schedule 2026-04-25T19:00:00+08:00
 uv run pipeline publish <project-id> --dry-run                     # preflight only
+uv run pipeline publish <project-id> --allow-fallback-voice        # publish despite a TTS fallback voice
 
 uv run pipeline publish auth --profile ideal-parents-tw
 uv run pipeline publish accounts list
@@ -510,9 +511,18 @@ The voice registry (`voices/registry.json`) selects the voice. Each locale's def
 | ja-JP | `ja-JP-NanamiNeural` | `ja-JP-KeitaNeural` | none |
 | es-MX | `es-MX-DaliaNeural` | `es-MX-JorgeNeural` | none |
 
-**Auto-fallback:** a registry voice can name `params.fallback_voice_id`; the three zh-TW edge voices name a Kokoro voice. If the primary engine fails before it has produced any audio in a pass, the whole pass switches to the fallback and logs `tts.fallback.engaged` at error level. Listen before publishing. If the primary fails after some scenes already used it, TTS stops with an error instead, so one narration never mixes two voices.
+**Auto-fallback:** a registry voice can name `params.fallback_voice_id`; the three zh-TW edge voices name a Kokoro voice. The fallback engages only when edge is classified unavailable: a 401/403, or a 429/5xx/connection failure that outlasts 5 retries (1–16 s). Config bugs and text-specific errors still fail. The decision covers the whole TTS run (all scenes, per-scene voices and prerecorded misses alike):
 
-**One-time setup per machine (Kokoro):** `./scripts/install_kokoro_tts.sh` downloads about 350 MB into `~/.cache/content-creation/tts/kokoro-multi-lang-v1_1`.
+| Situation | Result |
+|-----------|--------|
+| Edge is unavailable before any edge voice has produced audio this run | Every voice with a fallback switches to it for the rest of the run. `tts.fallback.engaged` is logged at error level, `tts.complete` becomes a warning naming the fallback, and `ctx.tts_fallback_voices` records it. |
+| Edge becomes unavailable after some scenes already used it | TTS stops with an error, so one narration never mixes two voices |
+| `pipeline voice test`, `compose voice-variant`, MLA selective resynth | No fallback, ever: you get the requested voice or an error |
+| Publishing a project whose `ctx.tts_fallback_voices` is non-empty | Preflight refuses. Re-run TTS when edge is back, or listen and pass `--allow-fallback-voice` |
+
+Kokoro reads Traditional text through OpenCC `tw2s` (character variants only; its word lexicon is Simplified), is loudness-matched to edge (−19 LUFS), and logs `tts.kokoro.unvoiced_chars` for characters it would drop or misread (emoji, rare CJK). Reword those lines.
+
+**One-time setup per machine (Kokoro):** `./scripts/install_kokoro_tts.sh` downloads about 350 MB into `~/.cache/content-creation/tts/kokoro-multi-lang-v1_1`, checks its sha256, and sets an interrupted earlier install aside.
 
 | Config (env) | Default | Purpose |
 |--------------|---------|---------|
@@ -524,7 +534,7 @@ The voice registry (`voices/registry.json`) selects the voice. Each locale's def
 | Symptom | Meaning |
 |---------|---------|
 | `403` from `speech.platform.bing.com` | Legacy host, retired by Microsoft in Oct 2026. `EdgeEngine` routes synthesis through `api.msedgeservices.com` until an edge-tts release does it upstream (rany2/edge-tts#491). |
-| `tts.edge.retry … status=429` warnings | The new endpoint throttles bursts. The engine retries up to 5 times (1–16 s). |
+| `tts.edge.retry` warnings (429, 5xx, connection errors) | The new endpoint throttles bursts. The engine retries up to 5 times (1–16 s). |
 | `403` from `api.msedgeservices.com` | The new endpoint now refuses too. zh-TW falls back to Kokoro automatically. For other locales, check upstream edge-tts. |
 
 ## Prerecorded Voice Workflow
