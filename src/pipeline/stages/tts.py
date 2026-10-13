@@ -307,8 +307,14 @@ class TtsStage(PipelineStage):
                 secondary = await self._synthesize_secondary(
                     ctx, registry, staging, scene_pauses_ms
                 )
+            # Fail-safe order: a crash between the steps may cause a false publish refusal,
+            # never fallback audio without its marker.
+            fallbacks = registry.fallbacks_used()
+            if fallbacks:
+                write_fallback_marker(audio_dir, fallbacks)
             _commit_staged_audio(staging, audio_dir)
-            write_fallback_marker(audio_dir, registry.fallbacks_used())
+            if not fallbacks:
+                write_fallback_marker(audio_dir, fallbacks)  # removes a stale marker
         finally:
             shutil.rmtree(staging, ignore_errors=True)
 
