@@ -119,12 +119,30 @@ def test_a_longer_narration_lets_a_sentence_anchor_land_past_the_authored_end():
     ("One two. Three four five six.", ["One two.", "Three four five six."]),
     ("他走了。……好。", ["他走了。……", "好。"]),              # a run holding 。 still breaks
     ("What?! No.", ["What?!", "No."]),
+    # Sprint 11 (spec §11.2 b2; Tim 2026-10-13): a terminator inside quotes still breaks, and the
+    # closing quotes right after it stay with the sentence they close.
+    ("他說：「我走了。」然後離開。", ["他說：「我走了。」", "然後離開。"]),
+    ("「走吧！」「好。」", ["「走吧！」", "「好。」"]),
+    ("「A。B。」", ["「A。", "B。」"]),                       # a quoted narration still splits inside
+    ("她說：『好。』）然後走了。", ["她說：『好。』）", "然後走了。"]),  # a run of closers
+    ('She said "Stop." Then she left.', ['She said "Stop."', "Then she left."]),
+    # abbreviations (en + es-419) don't break; at the end of the text one still ends it
+    ("The U.S. economy grew. Jobs rose.", ["The U.S. economy grew.", "Jobs rose."]),
+    ("Dr. Lin said so. Then she left.", ["Dr. Lin said so.", "Then she left."]),
+    ("Bring snacks, e.g. chips. Then go.", ["Bring snacks, e.g. chips.", "Then go."]),
+    ("J. K. Rowling wrote it. Fans loved it.", ["J. K. Rowling wrote it.", "Fans loved it."]),
+    ("We met at 9 a.m. sharp. It rained.", ["We met at 9 a.m. sharp.", "It rained."]),
+    ("El Sr. Pérez llegó. Luego se fue.", ["El Sr. Pérez llegó.", "Luego se fue."]),
+    ("Neither did I. We left.", ["Neither did I.", "We left."]),          # "I" is not an initial
+    ("We left. Then we moved to the U.S.", ["We left.", "Then we moved to the U.S."]),
 ])
 def test_sentences_count_real_breaks_only(narration, sentences):
     from toon.scene import split_sentences
 
     assert split_sentences(narration) == sentences
     assert len(sentence_starts(narration, 10.0)) == len(sentences)
+    closers = "」』”’）)]】》〉\"'"
+    assert not [s for s in split_sentences(narration) if s[0] in closers]
 
 
 def test_sentence_anchor_needs_narration():
