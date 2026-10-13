@@ -195,3 +195,40 @@ def test_render_scene_logs_drift_for_seconds_timed_shots(tmp_path, monkeypatch):
                           16.2, "16:9", tmp_path)
     (drift,) = [e for e in logs if e["event"] == "toon.scene.drift"]
     assert drift["scene_id"] == "s2" and "shots 2–4 are in seconds" in drift["detail"]
+
+
+def test_dispatches_by_scene_engine(tmp_path, monkeypatch):
+    # E11 S12-3: the scene's engine picks the catalog and the renderer. A toy3d scene never
+    # falls back to the 2.5D engine, and an unknown engine fails, listing the engines.
+    import copy
+
+    import yaml
+
+    from tests.unit.toon.test_scene import MINI
+
+    rendered = []
+
+    def fake_clip(scene, bank, out, duration, width, height, workers=None):
+        rendered.append(scene.engine)
+        Path(out).write_bytes(b"x")
+        return Path(out)
+
+    monkeypatch.setattr("toon.render.render_clip", fake_clip)
+    base.render_scene({"id": "s1", "narration": "One.", "visual": {"type": "toon", "scene": "001-lioness-dishes"}},
+                      13.0, "16:9", tmp_path)
+    assert rendered == ["toon2d"]
+    toy = {"type": "toon", **copy.deepcopy(MINI), "engine": "toy3d"}
+    with pytest.raises(SceneRenderError, match=r"toy3d has no bank yet"):
+        base.render_scene({"id": "s2", "narration": "One.", "visual": toy}, 4.0, "16:9", tmp_path)
+    ref = tmp_path / "toy.yaml"                                    # a reference: the file's engine
+    ref.write_text(yaml.safe_dump({**copy.deepcopy(MINI), "engine": "toy3d"}))
+    with pytest.raises(SceneRenderError, match=r"toy3d has no bank yet"):
+        base.render_scene({"id": "s3", "narration": "One.", "visual": {"type": "toon", "scene": str(ref)}},
+                          4.0, "16:9", tmp_path)
+    assert rendered == ["toon2d"]                                  # never a 2.5D fallback
+    with pytest.raises(SceneRenderError, match=r"unknown engine 'toy4d' \(engines: toon2d, toy3d\)"):
+        base.render_scene({"id": "s4", "visual": {**toy, "engine": "toy4d"}}, 4.0, "16:9", tmp_path)
+    (issue,) = validation_errors(validate_storyboard(Storyboard(scenes=[
+        Scene(id="s5", section="content", narration="One.", narration_est_sec=4.0,
+              visual={**toy, "engine": "toy4d"})]), tmp_path))
+    assert "unknown engine 'toy4d' (engines: toon2d, toy3d)" in issue.issue
