@@ -166,3 +166,77 @@ def test_voice_variant_runs_tts_without_auto_fallback(tmp_path):
     stages = orchestrator.call_args.args[0]
     tts_stage = next(s for s in stages if isinstance(s, TtsStage))
     assert tts_stage.auto_fallback is False
+
+
+# ---- MLA: a failed run must not leave unmarked fallback audio on disk ----
+
+_JENNY = {"id": "en-US-jenny", "engine": "edge", "locale": "en",
+          "params": {"voice": "en-US-JennyNeural"}}
+
+
+@pytest.fixture
+def mla_project(tmp_path, monkeypatch):
+    """A zh-TW + en MLA project whose audio/ already holds an earlier edge narration."""
+    voices_dir = tmp_path / "voices"
+    voices_dir.mkdir()
+    voices = [*_VOICES, _JENNY]
+    registry = json.dumps({"voices": voices}).replace("__REC__", str(tmp_path / "rec"))
+    (voices_dir / "registry.json").write_text(registry, encoding="utf-8")
+    monkeypatch.setenv("PIPELINE_VOICES_DIR", str(voices_dir))
+
+    work_dir = tmp_path / "project"
+    audio = work_dir / "audio"
+    audio.mkdir(parents=True)
+    for name in ("narration_zh-TW.mp3", "segment_000.mp3", "narration_en.mp3"):
+        (audio / name).write_text("old-edge")
+    scenes = [
+        Scene(id=f"s{i}", section="content", narration=f"第{i}段。", narration_est_sec=1.0,
+              narration_alt={"en": f"Part {i}."}, visual={"type": "text_card", "text": "x"},
+              pause_after_sec=0)
+        for i in (1, 2)
+    ]
+    storyboard_path = work_dir / "storyboard.json"
+    Storyboard(scenes=scenes).save(storyboard_path)
+    ctx = PipelineContext(
+        project_id=1, source_url="x", locale="zh-TW", work_dir=work_dir,
+        storyboard_path=storyboard_path, mla=True, secondary_locale="en",
+    )
+    return ctx
+
+
+def _engines_down_for(monkeypatch, down_voices: set[str] | None) -> None:
+    """Edge is unavailable for down_voices (None: every voice). Kokoro always works."""
+
+    def edge(self, text, out_path, profile, scene_id=None):
+        if down_voices is None or profile.params["voice"] in down_voices:
+            raise VoiceEngineUnavailable("edge refused synthesis (HTTP 403)")
+        out_path.write_text("edge")
+        return out_path
+
+    def kokoro(self, text, out_path, profile, scene_id=None):
+        out_path.write_text("kokoro")
+        return out_path
+
+    monkeypatch.setattr(EdgeEngine, "synthesize", edge)
+    monkeypatch.setattr(KokoroEngine, "synthesize", kokoro)
+
+
+async def test_mla_secondary_outage_after_a_primary_fallback_leaves_audio_untouched(
+    mla_project, monkeypatch
+):
+    """zh falls back to Kokoro, en (no fallback) then fails: nothing on disk may change."""
+    _engines_down_for(monkeypatch, None)
+    audio = mla_project.work_dir / "audio"
+
+    with (
+        patch("pipeline.stages.tts._get_audio_duration_ms", return_value=1000),
+        pytest.raises(VoiceEngineUnavailable),
+    ):
+        await TtsStage().run(mla_project)
+
+    assert (audio / "narration_zh-TW.mp3").read_text() == "old-edge"
+    assert (audio / "segment_000.mp3").read_text() == "old-edge"
+    assert (audio / "narration_en.mp3").read_text() == "old-edge"
+    assert sorted(p.name for p in audio.iterdir()) == [
+        "narration_en.mp3", "narration_zh-TW.mp3", "segment_000.mp3",
+    ]
