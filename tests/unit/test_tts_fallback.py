@@ -307,3 +307,21 @@ async def test_old_marker_survives_until_clean_audio_is_committed(run_tts, tmp_p
         await run_tts(path="default", fail_scenes=set())
 
     assert marker.exists()  # the Kokoro audio is still what's on disk
+
+
+async def test_tts_sweeps_staging_dirs_left_by_a_killed_run(run_tts, tmp_path):
+    from structlog.testing import capture_logs
+
+    stale = tmp_path / "project" / "audio" / ".tts-staging-abc123"
+    stale.mkdir(parents=True)
+    (stale / "segment_000.mp3").write_text("half")
+
+    with capture_logs() as logs:
+        ctx, _ = await run_tts(path="default", fail_scenes=set())
+
+    assert not stale.exists()
+    swept = [e for e in logs if e["event"] == "tts.staging.swept"]
+    assert len(swept) == 1
+    assert swept[0]["log_level"] == "info"
+    assert swept[0]["dirs"] == [".tts-staging-abc123"]
+    assert not [p for p in (ctx.work_dir / "audio").iterdir() if p.name.startswith(".tts-staging-")]
