@@ -214,9 +214,20 @@ def test_dispatches_by_scene_engine(tmp_path, monkeypatch):
         return Path(out)
 
     monkeypatch.setattr("toon.render.render_clip", fake_clip)
+    toy3d_rendered = []
+
+    def fake_toy3d_clip(scene, bank, out, duration, width, height, **kw):
+        toy3d_rendered.append((scene.engine, scene.id, type(bank).__name__, duration, (width, height)))
+        Path(out).write_bytes(b"x")
+        return Path(out)
+
+    monkeypatch.setattr("toy3d.render.render_clip", fake_toy3d_clip)
     base.render_scene({"id": "s1", "narration": "One.", "visual": {"type": "toon", "scene": "001-lioness-dishes"}},
                       13.0, "16:9", tmp_path)
     assert rendered == ["toon2d"]
+    out = base.render_scene({"id": "s0", "narration": "One.", "visual": {"type": "toon", "scene": "001-beat2-break-in"}},
+                            8.0, "16:9", tmp_path)
+    assert out.exists() and toy3d_rendered == [("toy3d", "001-beat2-break-in", "Toy3DBank", 8.0, (1280, 720))]
     toy = {"type": "toon", **copy.deepcopy(MINI), "engine": "toy3d"}
     toy3d_catalog = r"unknown camera 'front34_push' \(bank has \['beat2'"   # checked against toy3d's bank
     with pytest.raises(SceneRenderError, match=toy3d_catalog):
@@ -233,3 +244,29 @@ def test_dispatches_by_scene_engine(tmp_path, monkeypatch):
         Scene(id="s5", section="content", narration="One.", narration_est_sec=4.0,
               visual={**toy, "engine": "toy4d"})]), tmp_path))
     assert "unknown engine 'toy4d' (engines: toon2d, toy3d)" in issue.issue
+
+
+def test_toy3d_fps_matches_compose_concat():
+    # S12-15: toy3d renders at COMPOSE_FPS, like toon (a different rate judders through concat).
+    from toy3d.bank import load_bank as load_toy3d_bank
+
+    assert load_toy3d_bank().style.fps == COMPOSE_FPS
+
+
+def test_a_toy3d_render_failure_is_a_scene_render_error_with_the_fix(tmp_path, monkeypatch):
+    # S12-16: never a silent fallback to the 2.5D engine; the fix names doctor's toy3d check.
+    from toy3d.runtime import Toy3DRenderError
+
+    def no_browser(*a, **k):
+        raise Toy3DRenderError("toy3d needs the pinned browser build (…), missing at /x: run `uv run playwright install chromium`")
+
+    def no_2d(*a, **k):
+        raise AssertionError("the 2.5D engine must never render a toy3d scene")
+
+    monkeypatch.setattr("toy3d.render.render_clip", no_browser)
+    monkeypatch.setattr("toon.render.render_clip", no_2d)
+    with pytest.raises(SceneRenderError) as e:
+        base.render_scene({"id": "s1", "narration": "One.", "visual": {"type": "toon", "scene": "001-beat2-break-in"}},
+                          8.0, "16:9", tmp_path)
+    assert "uv run playwright install chromium" in str(e.value)
+    assert "pipeline doctor" in e.value.suggested_fix
