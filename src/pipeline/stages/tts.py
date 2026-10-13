@@ -258,6 +258,7 @@ class TtsStage(PipelineStage):
 
         audio_dir = ctx.work_dir / "audio"
         audio_dir.mkdir(parents=True, exist_ok=True)
+        _sweep_stale_staging(audio_dir)
 
         segments = extract_narration_segments(script_text)
         logger.info("tts.segments", count=len(segments))
@@ -429,6 +430,15 @@ class TtsStage(PipelineStage):
             locale=ctx.secondary_locale, path=str(ctx.secondary_narration_path),
             voice=sec_profile.id,
         )
+
+
+def _sweep_stale_staging(audio_dir: Path) -> None:
+    """Remove staging dirs a killed run left behind (a finished run always removes its own)."""
+    stale = sorted(p for p in audio_dir.glob(".tts-staging-*") if p.is_dir())
+    for path in stale:
+        shutil.rmtree(path, ignore_errors=True)
+    if stale:
+        logger.info("tts.staging.swept", dirs=[p.name for p in stale])
 
 
 def _commit_staged_audio(staging: Path, audio_dir: Path) -> None:
