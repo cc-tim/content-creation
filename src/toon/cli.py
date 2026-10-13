@@ -74,14 +74,14 @@ def render(scene: str = typer.Argument(...), out: Path = typer.Option(None),
            width: int = typer.Option(1920), height: int = typer.Option(1080),
            stills: str = typer.Option("", help="comma-separated times → PNGs instead of an mp4"),
            narration: str = typer.Option(None), duration: float = typer.Option(None)) -> None:
-    from toon.render import frame, render_clip
-
     bank, s = _load(scene, narration, duration)
     out = out or _REPO / "output" / "own-show" / "scenes" / s.id
     out.mkdir(parents=True, exist_ok=True)
     if s.engine == "toy3d":
-        _render_toy3d(s, out, width, height, stills)
+        _render_toy3d(s, bank, out, width, height, stills)
         return
+    from toon.render import frame, render_clip  # the 2.5D engine (cairo): only for its own scenes
+
     if stills:
         for t in (float(x) for x in stills.split(",")):
             Image.fromarray(frame(s, bank, t, width, height)[..., [2, 1, 0]]).save(out / f"{s.id}_{t:05.2f}.png")
@@ -93,14 +93,13 @@ def render(scene: str = typer.Argument(...), out: Path = typer.Option(None),
     typer.echo(render_clip(s, bank, out / f"{s.id}.mp4", s.duration, width, height))
 
 
-def _render_toy3d(s, out: Path, width: int, height: int, stills: str) -> None:
-    """A toy3d scene: stills from one page, or the clip through toy3d's cached runner."""
+def _render_toy3d(s, bank, out: Path, width: int, height: int, stills: str) -> None:
+    """A toy3d scene, with the bank it was validated against: stills from one page, or the clip
+    through toy3d's cached runner. Any failure is an ERROR line and exit 1, never a traceback."""
     from toy3d import render as toy3d_render
     from toy3d import runtime
     from toy3d.acting import resolve
-    from toy3d.bank import load_bank
 
-    bank = load_bank()
     try:
         if stills:
             with runtime.open_page(width, height, "render") as page:
@@ -115,8 +114,10 @@ def _render_toy3d(s, out: Path, width: int, height: int, stills: str) -> None:
             typer.echo("ERROR  scene has no duration; pass --duration")
             raise typer.Exit(code=1)
         typer.echo(toy3d_render.render_clip(s, bank, out / f"{s.id}.mp4", s.duration, width, height))
-    except runtime.Toy3DRenderError as exc:
-        typer.echo(f"ERROR  {exc}")
+    except typer.Exit:
+        raise
+    except Exception as exc:  # Toy3DRenderError, a browser that won't launch (PlaywrightError), …
+        typer.echo(f"ERROR  {' '.join(str(exc).split())}")
         raise typer.Exit(code=1) from exc
 
 
