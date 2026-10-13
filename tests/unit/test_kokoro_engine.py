@@ -100,3 +100,33 @@ def test_kokoro_engine_missing_model_says_how_to_install(tmp_path):
     engine = KokoroEngine(model_dir=tmp_path / "not-downloaded")
     with pytest.raises(FileNotFoundError, match="install_kokoro_tts.sh"):
         engine.synthesize("你好。", tmp_path / "a.mp3", _profile(sid=3))
+
+
+def test_kokoro_engine_reads_traditional_text_as_simplified(tmp_path):
+    """The bundle's zh lexicon has Simplified words only: 銀行 alone was read yín-xíng."""
+    fake = _FakeTts(_tone(0.2))
+    engine = KokoroEngine(model_dir=tmp_path, tts_factory=lambda _dir: fake)
+
+    engine.synthesize("他去銀行領錢，長大後還會來。", tmp_path / "a.mp3", _profile(sid=3))
+
+    assert fake.calls[0][0] == "他去银行领钱，长大后还会来。"
+
+
+def test_kokoro_engine_keeps_taiwan_vocabulary(tmp_path):
+    """Character variants only (tw2s): no 影片→视频 style word swaps change what is said."""
+    fake = _FakeTts(_tone(0.2))
+    engine = KokoroEngine(model_dir=tmp_path, tts_factory=lambda _dir: fake)
+
+    engine.synthesize("打開軟體看影片。", tmp_path / "a.mp3", _profile(sid=3))
+
+    assert fake.calls[0][0] == "打开软体看影片。"
+
+
+def test_kokoro_engine_voices_the_zero_numeral(tmp_path):
+    """〇 is not in the lexicon and was dropped silently (二〇二四 → 二二四)."""
+    fake = _FakeTts(_tone(0.2))
+    engine = KokoroEngine(model_dir=tmp_path, tts_factory=lambda _dir: fake)
+
+    engine.synthesize("二〇二四年", tmp_path / "a.mp3", _profile(sid=3))
+
+    assert fake.calls[0][0] == "二零二四年"
