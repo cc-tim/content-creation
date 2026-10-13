@@ -194,3 +194,12 @@ def test_prop_flags_a_kind_ignores_are_rejected_per_engine(engine):
                     load_scene(d, catalog)
             checked += 1
     assert checked == 3 * len(catalog.props)
+
+
+@ENGINES
+def test_inout_is_read_on_both_engines(engine):
+    # S12-22: the inout ease is engine-neutral (beats_at computes it), so both engines take it.
+    from toon.engine.mathx import EASES
+
+    s = load_scene(scene(engine, {"at": 1.0, "door": "open", "over": 1.0, "ease": "inout"}), CATALOGS[engine])
+    assert beats_at(s, 1.25).door == pytest.approx(EASES["inout"](0.25))

@@ -50,3 +50,29 @@ def test_state_at_matches_the_pre_split_fold_on_overlapping_beats():
                                {"at": 1.4, "pose": "tim", "to": "sit_typing", "over": 0.5, "ease": "linear"}]
     fs = state_at(load_scene(d, BANK), BANK, 1.6)
     assert (fs.chars["tim"].yaw, fs.chars["tim"].pose.lean) == (-103.38238005032606, 6.000000000000004)
+
+
+# -- S12-22 (EM ruling D2): the only new authored field is the inout ease; time since start is
+# internal beats_at data --
+
+def test_inout_ease_is_the_tryouts_cubic_in_out():
+    from toon.engine.mathx import EASES
+    from toon.timeline import beats_at
+
+    for x in (0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0):    # the snapshot's `ease` (scene.js line 22)
+        assert EASES["inout"](x) == (4 * x * x * x if x < 0.5 else 1 - (-2 * x + 2) ** 3 / 2)
+    d = copy.deepcopy(MINI)
+    d["shots"][0]["beats"] = [{"at": 1.0, "door": "open", "over": 1.0, "ease": "inout"}]
+    assert beats_at(load_scene(d, BANK), 1.25).door == pytest.approx(EASES["inout"](0.25))
+
+
+def test_beats_at_carries_time_since_start():
+    from toon.timeline import DoorAt, beats_at
+
+    sym = beats_at(load_scene(copy.deepcopy(BASE), BANK), 1.5)
+    assert [(c.since, c.over) for c in sym.changes] == [(0.5, 1.0), (0.5, 1.0)]
+    assert sym.door_at == DoorAt(value=0.5, to="open", since=0.5, over=1.0)
+    later = beats_at(load_scene(copy.deepcopy(BASE), BANK), 5.2)            # shot 2, rel 1.2
+    idea = next(p for p in later.props if p.name == "idea")
+    assert idea.since == pytest.approx(0.2)                                  # its out beat at 1.0
+    assert beats_at(load_scene(copy.deepcopy(MINI), BANK), 0.5).door_at is None

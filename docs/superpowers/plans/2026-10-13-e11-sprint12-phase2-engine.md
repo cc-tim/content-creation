@@ -408,7 +408,7 @@ report to the lead.
 
 | Row | Test | Task | Expected red | Observed red | Red commit | Fix commit |
 |-----|------|------|--------------|--------------|------------|------------|
-| S12-22 | `test_symbolic_timeline.py` (inout, since) + conformance (inout on both engines) | 1 | literal error; no `since` | | | |
+| S12-22 | `test_symbolic_timeline.py` (inout, since) + conformance (inout on both engines) | 1 | literal error; no `since` | `KeyError: 'inout'` (EASES); `shots.0.beats.0.ease: Input should be 'linear', 'smooth', 'out' or 'back'` on both engines; `ImportError: cannot import name 'DoorAt'` | | |
 | S12-6/20/23a, S12-5 A2 | `tests/unit/toy3d/test_bank.py`, conformance with the real catalog | 2 | `ModuleNotFoundError: toy3d` | | | |
 | S12-7s/10s | `test_engine_source_fences.py` | 3 | files missing | | | |
 | S12-8/9/13/14u | `test_runner.py`, `test_render.py` | 4 | `ModuleNotFoundError: toy3d.runtime` | | | |
