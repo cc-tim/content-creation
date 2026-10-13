@@ -448,7 +448,13 @@ def _validate_toon_scene(scene: Scene, visual: dict,
     # (via scene_warnings below) instead of raising, matching design spec §5 ("Duration").
     try:
         from toon.bank import load_bank
-        from toon.scene import load_scene, scene_data_from_visual, scene_warnings, source_name
+        from toon.scene import (
+            drift_warnings,
+            load_scene,
+            scene_data_from_visual,
+            scene_warnings,
+            source_name,
+        )
 
         # Every SceneError names the storyboard file + scene id (or the scene file it references).
         origin = f"{source_name(storyboard_file) if storyboard_file else 'storyboard'} scene {scene.id}"
@@ -464,7 +470,11 @@ def _validate_toon_scene(scene: Scene, visual: dict,
     # collects warnings (e.g. format_visual_decision_table's `issue.get("severity") == "warn"`)
     # filters on that exact string; "warning" would silently vanish from every warning list.
     return [_issue(scene, "warn", "visual", w, "Lengthen the narration or tighten the beats.")
-            for w in scene_warnings(loaded, duration)]
+            for w in scene_warnings(loaded, duration)] + [
+        _issue(scene, "warn", "visual", w,
+               "Anchor the shots to sentences, `at: {sentence: n}`; check the split with "
+               "`uv run pipeline toon validate <scene> --narration …`.")
+        for w in drift_warnings(loaded, duration)]
 
 
 def _validate_text_card(scene: Scene, visual: dict[str, Any]) -> list[SceneValidationError]:

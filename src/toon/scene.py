@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError, model_validator
 
 from toon.bank import Bank, default_root
 from toon.kit.icons import ICONS
@@ -210,6 +210,18 @@ class ToonScene(_Strict):
     cast: dict[str, str]
     shots: list[Shot] = Field(min_length=1)
     boil: Literal["full", "soft", "still"] | None = None  # overrides the bank style's default
+    # Set by load_scene, never authored or serialised (so never in the clip's cache key): the
+    # authored duration and each shot's authored start, for the drift warning and `toon validate`.
+    _authored_duration: float | None = PrivateAttr(default=None)
+    _shot_starts: tuple[float | SentenceAnchor, ...] = PrivateAttr(default=())
+
+    @property
+    def authored_duration(self) -> float | None:
+        return self._authored_duration
+
+    @property
+    def authored_shot_starts(self) -> tuple[float | SentenceAnchor, ...]:
+        return self._shot_starts
 
 
 def graphic_key(show: Show) -> str:
@@ -545,7 +557,7 @@ def _load(data: dict, bank: Bank, narration: str | None, duration: float | None)
     # downstream keeps using the narration duration), but _check() validates shot windows
     # against the scene's AUTHORED duration (from the file, or None for inline scenes) —
     # the structure the author actually wrote — not the possibly-shorter narration.
-    authored_duration = scene.duration
+    authored_duration, shot_starts = scene.duration, tuple(sh.at for sh in scene.shots)
     if duration is not None:
         scene = scene.model_copy(update={"duration": duration})
     scene = _resolve_anchors(scene, narration)
@@ -564,7 +576,30 @@ def _load(data: dict, bank: Bank, narration: str | None, duration: float | None)
     problems = _check(scene.model_copy(update={"duration": check_duration}), bank)
     if problems:
         raise SceneError(problems)
+    scene._authored_duration, scene._shot_starts = authored_duration, shot_starts
     return scene
+
+
+DRIFT_TOLERANCE = 0.5  # seconds
+
+
+def _numbers(ns: list[int]) -> str:
+    return f"{ns[0]}–{ns[-1]}" if len(ns) > 1 and ns == list(range(ns[0], ns[-1] + 1)) else ", ".join(map(str, ns))
+
+
+def drift_warnings(scene: ToonScene, duration: float) -> list[str]:
+    """Shots timed in seconds stay put when the narration's length changes. A warning, not an
+    error (a scene timed in seconds is legitimate): it fires when the scene has an authored
+    duration, a later shot starts at an absolute time, and the narration is more than
+    DRIFT_TOLERANCE off the authored duration."""
+    fixed = [i + 1 for i, at in enumerate(scene.authored_shot_starts)
+             if i > 0 and not isinstance(at, SentenceAnchor)]
+    authored = scene.authored_duration
+    if authored is None or not fixed or abs(duration - authored) <= DRIFT_TOLERANCE:
+        return []
+    which = f"shots {_numbers(fixed)} are" if len(fixed) > 1 else f"shot {fixed[0]} is"
+    return [f"scene {scene.id}: {which} in seconds and won't follow the narration (authored "
+            f"{authored:.1f} s, narration {duration:.1f} s); anchor them with `at: {{sentence: n}}`"]
 
 
 def scene_warnings(scene: ToonScene, duration: float) -> list[str]:

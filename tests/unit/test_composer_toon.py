@@ -83,8 +83,10 @@ def test_validator_accepts_001_and_rejects_words(tmp_path):
 
 
 def test_validator_warns_when_narration_is_shorter_than_the_scene(tmp_path):
-    (issue,) = _validate_scene(_scene({"type": "toon", "scene": "001-lioness-dishes"}, est=8.0), tmp_path)
-    assert issue.severity == "warn" and "cut" in issue.issue
+    issues = _validate_scene(_scene({"type": "toon", "scene": "001-lioness-dishes"}, est=8.0), tmp_path)
+    # 8.0 s against 001's authored 13.0 s also drifts its seconds-timed shots (Sprint 11).
+    assert [i.severity for i in issues] == ["warn", "warn"]
+    (cut,) = [i for i in issues if "cut" in i.issue]
 
 
 def test_toon_warning_is_picked_up_by_the_warn_severity_collector(tmp_path):
@@ -101,7 +103,7 @@ def test_toon_warning_is_picked_up_by_the_warn_severity_collector(tmp_path):
     assert decision["issues"][0]["severity"] == "warn"
 
     table = format_visual_decision_table(sb, tmp_path)
-    assert "Validation warnings: 1" in table
+    assert "Validation warnings: 2" in table  # the cut, and (Sprint 11) the drift of shots 2–4
 
 
 def test_validator_refuses_toon_in_a_vertical_storyboard(tmp_path):

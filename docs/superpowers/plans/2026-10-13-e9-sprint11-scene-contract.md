@@ -885,7 +885,7 @@ DRIFT_TOLERANCE = 0.5  # seconds
 
 
 def _numbers(ns: list[int]) -> str:
-    return f"{ns[0]}–{ns[-1]}" if len(ns) > 2 and ns == list(range(ns[0], ns[-1] + 1)) else ", ".join(map(str, ns))
+    return f"{ns[0]}–{ns[-1]}" if len(ns) > 1 and ns == list(range(ns[0], ns[-1] + 1)) else ", ".join(map(str, ns))
 
 
 def drift_warnings(scene: ToonScene, duration: float) -> list[str]:
@@ -1069,6 +1069,6 @@ task's red step (a commit can't record its own SHA).
 | S11-8 | `test_scene.py::test_scene_error_names_its_source` + `test_composer_toon.py::test_render_error_and_validator_name_the_scene_source` | 5 | `AttributeError: … 'source'`; `TypeError: … 'storyboard_file'` | `AttributeError: 'SceneError' object has no attribute 'source'`; validator issue reads `toon scene invalid: shots[0].beats[0].show: …` with no storyboard file or scene id | `d77d7a3` | `0a178d6` |
 | S11-12 | `test_scene.py::test_shot_sentence_anchor_follows_the_narration` | 6 | `shots.1.at: Input should be a valid number` | `SceneError: assets/toon/scenes/001-lioness-dishes.yaml: shots.1.at: Input should be a valid number; … shots.2.at …; … shots.3.at …` | `457a608` | `0403f1f` |
 | S11-13 | `test_scene.py::test_shot_anchors_resolving_out_of_order_fail_loudly` | 6 | `shots.2.at: Input should be a valid number` | `SceneError: shots.1.at: Input should be a valid number; shots.2.at: …` (the first case; a shot can't take an anchor at all) | `457a608` | `0403f1f` |
-| S11-14 | `test_composer_toon.py::test_validator_warns_when_seconds_timed_shots_drift_from_narration` | 7 | `ValueError: not enough values to unpack` | `ValueError: not enough values to unpack (expected 1, got 0)` (no drift warning at 16.2 s) | | |
+| S11-14 | `test_composer_toon.py::test_validator_warns_when_seconds_timed_shots_drift_from_narration` | 7 | `ValueError: not enough values to unpack` | `ValueError: not enough values to unpack (expected 1, got 0)` (no drift warning at 16.2 s) | `78d55be` | |
 | S11-9 | `test_cli.py::test_validate_with_narration_prints_the_sentence_table` + `::test_validate_anchored_scene_without_narration_names_the_flag` | 8 | exit 2 `No such option: --narration`; flag not named | | | |
 | S11-11 | `test_render.py::test_workers_use_the_callers_bank` | 9 | frames differ (workers drew the edited focal) | | | |
