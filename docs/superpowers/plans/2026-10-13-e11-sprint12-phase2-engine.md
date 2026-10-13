@@ -421,7 +421,7 @@ report to the lead.
 | S12-7s/10s | `test_engine_source_fences.py` | 3 | files missing | `FileNotFoundError` on `vendor/three-0.170.0/SHA256SUMS` and `stage.html`; `AssertionError: no engine modules` (×2) | `5e00b45` | `1216373` |
 | S12-8/9/13/14u | `test_runner.py`, `test_render.py` | 4 | `ModuleNotFoundError: toy3d.runtime` | 20 × `ModuleNotFoundError: No module named 'toy3d.runtime'`, 5 × `… 'toy3d.render'`, 4 × `ImportError: cannot import name 'runtime'/'render' from 'toy3d'` (29 failed) | `57ccfe8` | `7b77d99` |
 | S12-11A/23p | `test_acting.py` (every frame against `snapshot_oracle.py`, a verbatim transcription of the snapshot's animation), `test_state_symbolic.py` | 5 | `ModuleNotFoundError: toy3d.acting` | 62 × `ModuleNotFoundError: No module named 'toy3d.acting'` (53 failed, 9 errors); `test_every_toy3d_capability_has_a_probe` passes (a table fence, mutation-checked) | `f35942e` | (this commit) |
-| S12-7r/11B/23j | `test_state_goldens.py`, `test_style_wiring.py` | 6 | page stubs | | | |
+| S12-7r/11B/23j | `test_state_goldens.py` (node matrices minted from the snapshot's own scene graph: `tests/toy3d_snapshot.py nodes`), `test_style_wiring.py` | 6 | page stubs | against the committed stub page: 41 errors (`Toy3DRenderError: toy3d page: init failed: toy3d engine: not built yet`), 3 failed (the loud-init messages). Order deviation, recorded honestly: the engine port was written before these tests, then the red was observed against the committed stub | (this commit) | |
 | S12-18 | `test_parity_tryout.py` | 7 | scene file missing | | | |
 | S12-12 | `test_goldens.py`, `test_golden_policy.py` | 8 | helper missing | | | |
 | S12-14…17 | composer/CLI/doctor/render/cadence | 9 | no toy3d dispatch | | | |
