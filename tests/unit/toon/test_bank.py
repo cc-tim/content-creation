@@ -78,3 +78,54 @@ def test_style_boil_mode_rejects_unknown_value(tmp_path):
     p.write_text(p.read_text().replace("mode: soft", "mode: wobbly"))
     with pytest.raises(BankError, match=r"style\.yaml: boil\.mode"):
         load_bank(root)
+
+
+def test_prop_kinds_match_bank_prop_kinds():
+    # scene.PROP_KINDS (what each prop kind takes and honours) must cover exactly the kinds the
+    # bank can declare: a bank kind with no entry would fail every scene that uses it.
+    from typing import get_args
+
+    from toon.bank import PropDef
+    from toon.scene import PROP_KINDS
+
+    assert set(PROP_KINDS) == set(get_args(PropDef.model_fields["kind"].annotation))
+
+
+@pytest.mark.parametrize("key, message", [
+    ("fill: ink", r"hair\.fill: ignored beside hair\.layers"),
+    ("fringe: saw", r"hair\.fringe: ignored beside hair\.layers"),
+    # code review R1 M7: with `none: true` it is the layers that are dropped, not `none`
+    ("none: true", r"hair\.none: beside hair\.layers, `none: true` wins and every layer is dropped"),
+])
+def test_hair_keys_beside_layers_rejected(tmp_path, key, message):
+    # Beside `layers:` the layered drawing reads only `layers` and `bun`; a top-level per-layer
+    # key would load and be silently ignored, and `none` silently drops the layers.
+    root = tmp_path / "bank"
+    shutil.copytree(default_root(), root)
+    p = root / "characters" / "tim.yaml"
+    text = p.read_text()
+    assert "hair:\n  layers:\n" in text
+    p.write_text(text.replace("hair:\n  layers:\n", f"hair:\n  {key}\n  layers:\n", 1))
+    with pytest.raises(BankError, match=rf"tim\.yaml: {message}"):
+        load_bank(root)
+
+
+def test_empty_hair_layers_rejected(tmp_path):
+    # Code review R1 M7: draw_hair falls back to the top-level hair for an empty list, so
+    # `layers: []` would load and silently draw the default hair.
+    root = tmp_path / "bank"
+    shutil.copytree(default_root(), root)
+    p = root / "characters" / "lioness.yaml"
+    text = p.read_text()
+    assert "hair: {none: true}" in text
+    p.write_text(text.replace("hair: {none: true}", "hair: {layers: []}", 1))
+    with pytest.raises(BankError, match=r"lioness\.yaml: hair\.layers: is empty"):
+        load_bank(root)
+
+
+def test_a_bun_beside_layers_loads(tmp_path):
+    root = tmp_path / "bank"
+    shutil.copytree(default_root(), root)
+    p = root / "characters" / "tim.yaml"
+    p.write_text(p.read_text().replace("hair:\n  layers:\n", "hair:\n  bun: [0.0, 0.5, -0.6, 0.3]\n  layers:\n", 1))
+    assert load_bank(root).characters["tim"].hair["bun"] == [0.0, 0.5, -0.6, 0.3]

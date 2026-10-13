@@ -44,11 +44,13 @@ def render_scene_still(
     work_dir: Path,
     theme: dict | None = None,
     project_root: Path | None = None,
+    storyboard_file: Path | None = None,
 ) -> Path:
     """Composite one scene to a single PNG in the delivered variant.
 
     Reuses the compose render path (render_scene -> book-frame -> overlay) at
     minimal duration, then extracts frame 1. Deterministic for static visuals.
+    *storyboard_file* is named in a toon scene's errors, as compose does.
     """
     work_dir.mkdir(parents=True, exist_ok=True)
     scene_id = scene.get("id", "scene")
@@ -56,6 +58,7 @@ def render_scene_still(
 
     visual_mp4 = render_scene(
         scene, _STILL_DURATION_SEC, "16:9", work_dir, theme=theme or {}, project_root=project_root,
+        storyboard_file=storyboard_file,
     )
 
     framed = composite_scene_frame(

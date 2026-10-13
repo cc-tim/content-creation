@@ -290,6 +290,7 @@ Tim's 2.5D hand-drawn doodle animation for his own hosted videos lives in `src/t
 Guideline: `docs/own-show.md` · spec: `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md`.
 ```bash
 uv run pipeline toon validate 001-lioness-dishes              # schema, every name resolves, wordless
+uv run pipeline toon validate <scene> --narration "…" [--duration 13.44]  # + sentence table, resolved shot starts, WARN lines
 uv run pipeline toon render 001-lioness-dishes [--stills 1.5,4.7] [--width 1280 --height 720] [--out DIR]
 uv run pipeline toon sheet tim [--out DIR]                     # character model sheet PNG
 ```
@@ -299,6 +300,7 @@ uv run pipeline toon sheet tim [--out DIR]                     # character model
 | Storyboard | `"visual": {"type": "toon", "scene": "<id>"}` (may add `"boil"`), or an inline scene. Subtitles stay on. |
 | Re-render | compose's scene cache is file-existence based: after editing a scene file, the bank or `src/toon`, run `uv run pipeline compose rescene --project-id <ID> --scene sN`. The toon clip cache itself re-renders on engine, bank or scene changes. |
 | Duration | The scene lasts as long as its narration. Longer narration holds the last shot. Shorter narration warns, then cuts the scene. |
+| Timing | Shots and beats take `at: {sentence: n, plus: s}` (a storyboard scene, or `toon validate --narration`), so cuts follow a re-recorded narration. Shots left in seconds warn when the narration is more than 0.5 s off the scene's `duration`. |
 | Line boil | Bank default is `soft` (`style.yaml` → `boil`). A scene may set `boil: full \| soft \| still`. |
 | Aspect | 16:9 only in v0. A toon scene on a 9:16 storyboard fails validation. |
 | Needs | libcairo (macOS: `brew install cairo`; hub: `libcairo2`). `pipeline doctor` checks it. |

@@ -83,8 +83,10 @@ def test_validator_accepts_001_and_rejects_words(tmp_path):
 
 
 def test_validator_warns_when_narration_is_shorter_than_the_scene(tmp_path):
-    (issue,) = _validate_scene(_scene({"type": "toon", "scene": "001-lioness-dishes"}, est=8.0), tmp_path)
-    assert issue.severity == "warn" and "cut" in issue.issue
+    issues = _validate_scene(_scene({"type": "toon", "scene": "001-lioness-dishes"}, est=8.0), tmp_path)
+    # 8.0 s against 001's authored 13.0 s also drifts its seconds-timed shots (Sprint 11).
+    assert [i.severity for i in issues] == ["warn", "warn"]
+    (cut,) = [i for i in issues if "cut" in i.issue]
 
 
 def test_toon_warning_is_picked_up_by_the_warn_severity_collector(tmp_path):
@@ -101,7 +103,7 @@ def test_toon_warning_is_picked_up_by_the_warn_severity_collector(tmp_path):
     assert decision["issues"][0]["severity"] == "warn"
 
     table = format_visual_decision_table(sb, tmp_path)
-    assert "Validation warnings: 1" in table
+    assert "Validation warnings: 2" in table  # the cut, and (Sprint 11) the drift of shots 2–4
 
 
 def test_validator_refuses_toon_in_a_vertical_storyboard(tmp_path):
@@ -131,3 +133,65 @@ def test_render_scene_toon_missing_ffmpeg_is_a_scene_render_error(tmp_path, monk
     monkeypatch.setattr("toon.render.render_clip", fake_clip)
     with pytest.raises(SceneRenderError, match="toon"):
         base.render_scene({"id": "s1", "visual": {"type": "toon", "scene": "001-lioness-dishes"}}, 13.0, "16:9", tmp_path)
+
+
+def test_render_error_and_validator_name_the_scene_source(tmp_path):
+    # Sprint 11 (spec §11.2 b3): `pipeline validate`'s issue and compose's SceneRenderError name
+    # the storyboard file and scene id (inline), or the scene file it was referenced from.
+    words = {"type": "toon", "cast": {"tim": "tim"}, "shots": [{
+        "at": 0.0, "set": "office", "camera": "two_shot",
+        "place": {"tim": {"spot": "desk_seat", "pose": "sit_typing"}},
+        "beats": [{"at": 1.0, "show": {"bubble": ["Dishes. Now."], "from": "tim"}}]}]}
+    sb_file = tmp_path / "storyboard_zh-TW.json"
+    Storyboard(scenes=[Scene(id="s2", section="content", narration="One.", narration_est_sec=5.0,
+                             visual=words)]).save(sb_file)
+    (issue,) = validation_errors(validate_storyboard(Storyboard.load(sb_file), tmp_path))
+    assert f"{sb_file} scene s2: shots[0].beats[0].show" in issue.issue
+    with pytest.raises(SceneRenderError) as e:
+        base.render_scene({"id": "s2", "narration": "One.", "visual": words}, 5.0, "16:9", tmp_path,
+                          storyboard_file=sb_file)
+    assert f"{sb_file} scene s2: shots[0].beats[0].show" in e.value.reason
+    missing = tmp_path / "gone.yaml"
+    with pytest.raises(SceneRenderError) as e:
+        base.render_scene({"id": "s3", "visual": {"type": "toon", "scene": str(missing)}}, 5.0, "16:9",
+                          tmp_path, storyboard_file=sb_file)
+    assert f"{missing} (from {sb_file} scene s3): scene file not found" in e.value.reason
+
+
+def test_validator_warns_when_seconds_timed_shots_drift_from_narration(tmp_path):
+    # Sprint 11 (spec §11.2 f): a scene timed in seconds is legitimate, so this is a warning.
+    from tests.unit.toon.test_scene import N3, anchored_001
+
+    def drift(visual, est):
+        return [i for i in _validate_scene(_scene(visual, narration=N3, est=est), tmp_path)
+                if "won't follow the narration" in i.issue]
+
+    ref = {"type": "toon", "scene": "001-lioness-dishes"}  # authored 13.0 s; shots 2–4 in seconds
+    (w,) = drift(ref, 16.2)
+    assert w.severity == "warn"
+    assert ("shots 2–4 are in seconds and won't follow the narration (authored 13.0 s, narration 16.2 s); "
+            "anchor them with `at: {sentence: n}`") in w.issue
+    assert drift(ref, 13.5) == [] and drift(ref, 12.5) == []       # within 0.5 s
+    assert drift(ref, 13.4) == [] and drift(ref, 12.6) == []       # just under it
+    assert len(drift(ref, 13.6)) == 1 and len(drift(ref, 12.4)) == 1  # just over it (EM R3)
+    assert drift({"type": "toon", **anchored_001()}, 16.2) == []   # anchored shots follow it
+    partly = anchored_001()
+    partly["shots"][2]["at"], partly["shots"][3]["at"] = 6.2, 9.7
+    (w,) = drift({"type": "toon", **partly}, 16.2)
+    assert "shots 3–4 are in seconds" in w.issue
+
+
+def test_render_scene_logs_drift_for_seconds_timed_shots(tmp_path, monkeypatch):
+    # Sprint 11 (EM REVIEW 1, M18): compose logs the drift warning, not just the validator.
+    from structlog.testing import capture_logs
+
+    def fake_clip(scene, bank, out, duration, width, height, workers=None):
+        Path(out).write_bytes(b"x")
+        return Path(out)
+
+    monkeypatch.setattr("toon.render.render_clip", fake_clip)
+    with capture_logs() as logs:
+        base.render_scene({"id": "s2", "narration": "One.", "visual": {"type": "toon", "scene": "001-lioness-dishes"}},
+                          16.2, "16:9", tmp_path)
+    (drift,) = [e for e in logs if e["event"] == "toon.scene.drift"]
+    assert drift["scene_id"] == "s2" and "shots 2–4 are in seconds" in drift["detail"]

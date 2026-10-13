@@ -1,9 +1,11 @@
 import copy
+import re
 
 import pytest
 
 from toon.bank import load_bank
 from toon.scene import SceneError, load_scene, read_scene, scene_warnings, sentence_starts
+from toon.timeline import state_at
 
 BANK = load_bank()
 MINI = {
@@ -118,12 +120,44 @@ def test_a_longer_narration_lets_a_sentence_anchor_land_past_the_authored_end():
     ("One two. Three four five six.", ["One two.", "Three four five six."]),
     ("他走了。……好。", ["他走了。……", "好。"]),              # a run holding 。 still breaks
     ("What?! No.", ["What?!", "No."]),
+    # Sprint 11 (spec §11.2 b2; Tim 2026-10-13): a terminator inside quotes still breaks, and the
+    # closing quotes right after it stay with the sentence they close.
+    ("他說：「我走了。」然後離開。", ["他說：「我走了。」", "然後離開。"]),
+    ("「走吧！」「好。」", ["「走吧！」", "「好。」"]),
+    ("「A。B。」", ["「A。", "B。」"]),                       # a quoted narration still splits inside
+    ("她說：『好。』）然後走了。", ["她說：『好。』）", "然後走了。"]),  # a run of closers
+    ('She said "Stop." Then she left.', ['She said "Stop."', "Then she left."]),
+    # abbreviations (en + es-419) don't break; at the end of the text one still ends it
+    ("The U.S. economy grew. Jobs rose.", ["The U.S. economy grew.", "Jobs rose."]),
+    ("Dr. Lin said so. Then she left.", ["Dr. Lin said so.", "Then she left."]),
+    ("Bring snacks, e.g. chips. Then go.", ["Bring snacks, e.g. chips.", "Then go."]),
+    ("J. K. Rowling wrote it. Fans loved it.", ["J. K. Rowling wrote it.", "Fans loved it."]),
+    ("We met at 9 a.m. sharp. It rained.", ["We met at 9 a.m. sharp.", "It rained."]),
+    ("El Sr. Pérez llegó. Luego se fue.", ["El Sr. Pérez llegó.", "Luego se fue."]),
+    ("Neither did I. We left.", ["Neither did I.", "We left."]),          # "I" is not an initial
+    ("We left. Then we moved to the U.S.", ["We left.", "Then we moved to the U.S."]),
+    # es-419 (code review R1 I1): accented words are whole words, not one-letter abbreviations
+    ("Fue un buen día. Luego se fue.", ["Fue un buen día.", "Luego se fue."]),
+    ("Llegó el camión. Todos salieron.", ["Llegó el camión.", "Todos salieron."]),
+    ("Era un niño. Ahora no.", ["Era un niño.", "Ahora no."]),
+    ("Vive en EE. UU. desde 2010. Le gusta.", ["Vive en EE. UU. desde 2010.", "Le gusta."]),
+    ("La Dra. Ruiz y Ud. lo saben. Bien.", ["La Dra. Ruiz y Ud. lo saben.", "Bien."]),
+    ("«Me voy.» Luego se fue.", ["«Me voy.»", "Luego se fue."]),
+    ("他在U.S.工作。很好。", ["他在U.S.工作。", "很好。"]),
+    # code review R1 M8: an ellipsis, a closing quote, then more text ends the sentence (Tim's
+    # 。」 rule); without the closer it is still a pause inside the sentence (我……不知道。)
+    ("他說：「我不知道……」他沉默了。", ["他說：「我不知道……」", "他沉默了。"]),
+    # code review R1 M9: a straight " closes only an unmatched opening "; otherwise it opens
+    ('他走了。"你好。"', ["他走了。", '"你好。"']),
+    ('"Go home." "Not yet."', ['"Go home."', '"Not yet."']),
 ])
 def test_sentences_count_real_breaks_only(narration, sentences):
     from toon.scene import split_sentences
 
     assert split_sentences(narration) == sentences
     assert len(sentence_starts(narration, 10.0)) == len(sentences)
+    closers = "」』”’）)]】》〉»›"  # a straight " or ' may open a sentence, so it isn't listed
+    assert not [s for s in split_sentences(narration) if s[0] in closers]
 
 
 def test_sentence_anchor_needs_narration():
@@ -350,3 +384,300 @@ def test_boil_override_accepts_a_known_mode():
 def test_boil_override_rejects_an_unknown_mode():
     with pytest.raises(SceneError, match="boil"):
         load_scene({**mini(), "boil": "wobbly"}, BANK)
+
+
+# -- Sprint 11 (spec §11.2 a): every field set on a beat is read by the timeline, or rejected --
+
+def _hide_after_show(**hide_fields):
+    d = mini(**{"at": 0.5, "show": {"anger": "tim"}})
+    d["shots"][0]["beats"].append({"at": 1.0, "hide": "anger:tim", **hide_fields})
+    return d
+
+
+@pytest.mark.parametrize("data, path", [
+    (mini(**{"at": 1.0, "show": {"anger": "tim"}, "ease": "out"}), r"beats\[0\]\.ease: a show beat pops in"),
+    (_hide_after_show(over=0.5), r"beats\[1\]\.over: a hide beat is instant"),
+    (_hide_after_show(ease="linear"), r"beats\[1\]\.ease: a hide beat is instant"),
+    (mini(**{"at": 1.0, "camera": "two_shot", "over": 0.5}), r"beats\[0\]\.over: a camera beat is a cut"),
+    (mini(**{"at": 1.0, "camera": "two_shot", "ease": "out"}), r"beats\[0\]\.ease: a camera beat is a cut"),
+    (mini(**{"at": 1.0, "prop": "idea", "flicker": True, "over": 0.5}),
+     r"beats\[0\]\.over: a prop beat times only a to: change"),
+    (mini(**{"at": 1.0, "prop": "idea", "out": True, "ease": "linear"}),
+     r"beats\[0\]\.ease: a prop beat times only a to: change"),
+    (mini(**{"at": 1.0, "door": "open", "ease": "linear"}), r"beats\[0\]\.ease: does nothing without over"),
+])
+def test_beat_timing_fields_rejected_where_ignored(data, path):
+    with pytest.raises(SceneError, match=path):
+        load_scene(data, BANK)
+
+
+# One shot where every verb has a valid base beat at 1.0 (a hide follows a show at 0.5).
+_FENCE_SHOT = {"at": 0.0, "set": "office", "camera": "two_shot",
+               "place": {"tim": {"spot": "desk_seat", "pose": "sit_typing"},
+                         "lioness": {"spot": "doorway_out", "pose": "stand_point"}},
+               "props": {"idea": {"kind": "idea_bulb", "on": "tim", "b": 1.0}}}
+_FENCE_BASE = {
+    "door": {"door": "open"},
+    "move": {"move": "lioness", "to": "doorway"},
+    "pose": {"pose": "tim", "to": "sit_shock"},
+    "face": {"face": "tim", "to": "lioness"},
+    "prop": {"prop": "idea", "to": {"b": 0.3}},
+    "show": {"show": {"anger": "tim"}},
+    "hide": {"hide": "anger:tim"},
+    "camera": {"camera": "close_push"},
+}
+_FENCE_VALUE = {"over": 1.0, "ease": "back", "to": "doorway", "expr": "shocked", "bob": 0.3,
+                "flicker": True, "blink": {"b": 0.35, "over": 0.4}, "out": True}
+
+
+def _fence_scene(verb, **fields):
+    shot = copy.deepcopy(_FENCE_SHOT)
+    shot["beats"] = [{"at": 0.5, "show": {"anger": "tim"}}] if verb == "hide" else []
+    shot["beats"].append({"at": 1.0, **_FENCE_BASE[verb], **fields})
+    return {"id": "fence", "duration": 4.0, "cast": {"tim": "tim", "lioness": "lioness"}, "shots": [shot]}
+
+
+def _changes_the_timeline(verb, field, extra):
+    with_it = load_scene(_fence_scene(verb, **extra, **{field: _FENCE_VALUE[field]}), BANK)
+    without = load_scene(_fence_scene(verb, **extra), BANK)
+    return any(repr(state_at(with_it, BANK, t, t)) != repr(state_at(without, BANK, t, t))
+               for t in (1.0, 1.1, 1.3, 1.6, 2.5))
+
+
+def test_every_beat_field_is_read_or_rejected():
+    # scene.BEAT_FIELDS is the one table of the optional beat fields the timeline reads per
+    # verb. A field in it must load and change what state_at returns; any other must fail.
+    from toon.scene import BEAT_FIELDS, BEAT_OPTIONAL, VERBS, Beat
+
+    assert set(BEAT_FIELDS) == set(VERBS)
+    assert set(BEAT_OPTIONAL) == set(Beat.model_fields) - {"at", *VERBS}
+    for verb in VERBS:
+        for field in BEAT_OPTIONAL:
+            if field in _FENCE_BASE[verb]:
+                continue  # the base beat already sets it (and loads)
+            extra = {"over": 1.0} if field in ("ease", "bob") and "over" in BEAT_FIELDS[verb] else {}
+            data = _fence_scene(verb, **extra, **{field: _FENCE_VALUE[field]})
+            if field in BEAT_FIELDS[verb]:
+                load_scene(data, BANK)
+                assert _changes_the_timeline(verb, field, extra), (verb, field)
+            else:
+                with pytest.raises(SceneError, match=rf"beats\[\d\]\.{field}: "):
+                    load_scene(data, BANK)
+    beat = load_scene(_fence_scene("door"), BANK).shots[0].beats[0]
+    assert beat.over is None and beat.ease is None
+
+
+@pytest.mark.parametrize("prop, use", [("p", {"kind": "plate", "held_by": "tim"}),
+                                       ("s", {"kind": "plate_stack", "count": 6})])
+@pytest.mark.parametrize("flag, value", [("flicker", True), ("blink", {"b": 0.35, "over": 0.2}), ("out", True)])
+def test_prop_beat_flags_rejected_on_kinds_that_ignore_them(prop, use, flag, value):
+    d = with_props(idea={"kind": "idea_bulb", "on": "tim"}, **{prop: use})
+    d["shots"][0]["beats"].append({"at": 1.0, "prop": prop, flag: value})
+    with pytest.raises(SceneError, match=rf"beats\[0\]\.{flag}: a {use['kind']} prop ignores {flag}"):
+        load_scene(d, BANK)
+    ok = with_props(idea={"kind": "idea_bulb", "on": "tim"})
+    ok["shots"][0]["beats"].append({"at": 1.0, "prop": "idea", flag: value})
+    assert load_scene(ok, BANK).shots[0].beats[0].verb == "prop"  # the idea_bulb honours it
+
+
+# -- Sprint 11 (spec §11.2 b1): graphic keys --
+
+def test_show_of_a_visible_graphic_key_is_rejected():
+    card = {"x_card": "bulb", "at": [0.6, 0.3]}
+    d = mini(**{"at": 0.5, "show": card})
+    d["shots"][0]["beats"].append({"at": 1.0, "show": {**card, "at": [0.2, 0.3]}})
+    with pytest.raises(SceneError, match=r"shots\[0\]\.beats\[1\]\.show: 'x_card:bulb' is still showing "
+                                         r"from shots\[0\]\.beats\[0\]"):
+        load_scene(d, BANK)
+    bubble = mini(**{"at": 0.5, "show": {"bubble": ["dishes"], "from": "tim"}})
+    bubble["shots"][0]["beats"].append({"at": 1.0, "show": {"bubble": ["bang"], "from": "tim"}})
+    with pytest.raises(SceneError, match=r"beats\[1\]\.show: 'bubble:tim' is still showing from shots\[0\]\.beats\[0\]"):
+        load_scene(bubble, BANK)
+    twice = mini(**{"at": 0.5, "show": card})
+    twice["shots"][0]["beats"] += [{"at": 1.0, "hide": "x_card:bulb"}, {"at": 1.5, "hide": "x_card:bulb"}]
+    with pytest.raises(SceneError, match=r"beats\[2\]\.hide: 'x_card:bulb' is already hidden by shots\[0\]\.beats\[1\]"):
+        load_scene(twice, BANK)
+    again = mini(**{"at": 0.5, "show": card})
+    again["shots"][0]["beats"] += [{"at": 1.0, "hide": "x_card:bulb"}, {"at": 1.5, "show": card}]
+    assert [b.verb for b in load_scene(again, BANK).shots[0].beats] == ["show", "hide", "show"]
+
+
+# -- Sprint 11 (spec §11.2 b3): SceneError names its source --
+
+def test_scene_error_names_its_source(tmp_path):
+    import yaml
+
+    from toon.scene import scene_data_from_visual
+
+    bad = mini()
+    bad["shots"][0]["camera"] = "nope"
+    f = tmp_path / "bad.yaml"
+    f.write_text(yaml.safe_dump(bad))
+    with pytest.raises(SceneError) as e:                     # a scene file: its path
+        load_scene(read_scene(str(f)), BANK)
+    assert e.value.source == str(f)
+    assert str(e.value).startswith(f"{f}: shots[0].camera: unknown camera 'nope'")
+    data = read_scene("001-lioness-dishes")                  # in the repo: repo-relative
+    data["shots"][0]["camera"] = "nope"
+    with pytest.raises(SceneError, match=r"^assets/toon/scenes/001-lioness-dishes\.yaml: shots\[0\]\.camera"):
+        load_scene(data, BANK)
+    origin = "output/projects/p/storyboard.json scene s2"   # an inline visual: storyboard + scene id
+    with pytest.raises(SceneError) as e:
+        load_scene(scene_data_from_visual({"type": "toon", **bad}, origin), BANK)
+    assert str(e.value).startswith(f"{origin}: shots[0].camera: unknown camera")
+    ref = {"type": "toon", "scene": str(f)}                  # a reference: the file, from the scene
+    with pytest.raises(SceneError, match=rf"^{re.escape(str(f))} \(from {origin}\): shots\[0\]\.camera"):
+        load_scene(scene_data_from_visual(ref, origin), BANK)
+    with pytest.raises(SceneError, match=r"^x\.yaml: shots\[0\]\.camera"):   # explicit source=
+        load_scene(bad, BANK, source="x.yaml")
+
+
+# -- Sprint 11 (spec §11.2 f): shot starts follow the narration --
+
+# Spec §11.3's demo narration (s2 of the Sprint 9 smoke; edge-tts 13.44 s): three sentences.
+N3 = "提姆靈光一閃，想到一個好點子。獅子太太氣沖沖衝進來，要他馬上去洗碗。提姆只好站到水槽前，看著靈感一點點熄滅。"
+
+
+def anchored_001(plus=2.0):
+    """Scene 001 with shots 2–4 on N3's sentences: 2 → sentence 2, 3 → 3, 4 → 3 + plus."""
+    d = read_scene("001-lioness-dishes")
+    d["shots"][1]["at"] = {"sentence": 2}
+    d["shots"][2]["at"] = {"sentence": 3}
+    d["shots"][3]["at"] = {"sentence": 3, "plus": plus}
+    return d
+
+
+def test_shot_sentence_anchor_follows_the_narration():
+    authored = [[b["at"] for b in sh.get("beats", [])] for sh in read_scene("001-lioness-dishes")["shots"]]
+    for duration in (13.44, 16.0):
+        starts = sentence_starts(N3, duration)
+        s = load_scene(anchored_001(), BANK, narration=N3, duration=duration)
+        assert [sh.at for sh in s.shots] == pytest.approx([0.0, starts[1], starts[2], starts[2] + 2.0])
+        assert [[b.at for b in sh.beats] for sh in s.shots] == authored  # seconds beats: no stretch
+    fast = load_scene(anchored_001(), BANK, narration=N3, duration=9.0)  # a much faster take
+    assert fast.shots[3].at == pytest.approx(sentence_starts(N3, 9.0)[2] + 2.0)
+    assert "cut" in scene_warnings(fast, 9.0)[0]
+    d = anchored_001()  # a beat anchor resolves relative to its shot's resolved start, plus included
+    d["shots"][2]["beats"].append({"at": {"sentence": 3, "plus": 0.5}, "prop": "idea",
+                                   "blink": {"b": 0.35, "over": 0.15}})
+    assert load_scene(d, BANK, narration=N3, duration=13.44).shots[2].beats[-1].at == pytest.approx(0.5)
+
+
+def test_shot_anchors_resolving_out_of_order_fail_loudly():
+    two = anchored_001()
+    two["shots"][2]["at"] = {"sentence": 2}
+    with pytest.raises(SceneError, match=r"shots\[2\]\.at: \{sentence: 2\} → 3\.73s is not after "
+                                         r"shots\[1\] at \{sentence: 2\} → 3\.73s"):
+        load_scene(two, BANK, narration=N3, duration=13.44)
+    overtaken = anchored_001()
+    overtaken["shots"][2]["at"] = 8.0
+    assert load_scene(overtaken, BANK, narration=N3, duration=13.44).shots[2].at == 8.0
+    with pytest.raises(SceneError, match=r"shots\[2\]\.at: 8s is not after shots\[1\] at \{sentence: 2\} → 9\.33s"):
+        load_scene(overtaken, BANK, narration=N3, duration=33.6)
+    first = anchored_001()
+    first["shots"][0]["at"] = {"sentence": 2}
+    with pytest.raises(SceneError, match=r"shots\[0\]\.at: \{sentence: 2\} → 3\.73s; the first shot must start at 0"):
+        load_scene(first, BANK, narration=N3, duration=13.44)
+    past = anchored_001()
+    past["shots"][1]["at"] = {"sentence": 4}
+    with pytest.raises(SceneError, match=r"shots\[1\]\.at: sentence 4, but narration has 3"):
+        load_scene(past, BANK, narration=N3, duration=13.44)
+    with pytest.raises(SceneError, match=r"shots\[1\]\.at: sentence anchors need the scene's narration"):
+        load_scene(anchored_001(), BANK)
+    beyond = anchored_001()  # a beat's plus: past its shot's end
+    beyond["shots"][1]["beats"].append({"at": {"sentence": 2, "plus": 9.0}, "door": "close"})
+    with pytest.raises(SceneError, match=r"shots\[1\]\.beats\[7\]\.at: 9s is outside the shot"):
+        load_scene(beyond, BANK, narration=N3, duration=13.44)
+
+
+# -- Sprint 11 (EM REVIEW 1 R4, row S11-17): over values mean what they render --
+
+def test_over_values_mean_what_they_render():
+    for beat in ({"at": 1.0, "door": "open", "over": -1},                 # loaded and acted as instant
+                 {"at": 1.0, "show": {"anger": "tim"}, "over": -0.5},
+                 {"at": 1.0, "prop": "idea", "to": {"b": 0.3}, "over": -1}):
+        with pytest.raises(SceneError, match=r"shots\.0\.beats\.0\.over: Input should be greater than or equal to 0"):
+            load_scene(mini(**beat), BANK)
+    with pytest.raises(SceneError, match=r"beats\.0\.blink\.over: Input should be greater than 0"):  # never shows
+        load_scene(mini(**{"at": 1.0, "prop": "idea", "blink": {"b": 0.35, "over": 0}}), BANK)
+    instant = load_scene(mini(**{"at": 1.0, "show": {"anger": "tim"}, "over": 0}), BANK)
+    (g,) = state_at(instant, BANK, 1.0, 1.0).graphics
+    assert g.k == 1.0                                       # over: 0 on a show appears at once
+    popped = load_scene(mini(**{"at": 1.0, "show": {"anger": "tim"}}), BANK)
+    (g,) = state_at(popped, BANK, 1.05, 1.05).graphics
+    assert g.k == pytest.approx(0.2)                        # no over: the 0.25 s pop
+
+
+def test_a_seconds_beat_outside_an_anchored_shot_names_its_window():
+    # Code review R1 I2: a beat in seconds inside an anchored shot can fit one take and not
+    # another. It stays a load error (a mid-video beat is never dropped silently), and the error
+    # names the shot's anchor and its window at this narration.
+    d = anchored_001()
+    d["shots"][1]["beats"].append({"at": 3.5, "show": {"x_card": "bulb", "at": [0.5, 0.5]}})
+    assert load_scene(d, BANK, narration=N3, duration=13.44).shots[1].beats[-1].at == 3.5  # fits
+    with pytest.raises(SceneError, match=r"shots\[1\]\.beats\[7\]\.at: 3\.5s is outside the shot \(0–3\.17s\): "
+                                         r"shot 2 \{sentence: 2\} → 2\.50–5\.67 s at this narration \(9\.0 s\); "
+                                         r"anchor the beat \(at: \{sentence: n, plus: s\}\) or move it"):
+        load_scene(d, BANK, narration=N3, duration=9.0)
+    plain = mini(**{"at": 9.0, "door": "open"})                # a scene in seconds keeps the plain error
+    with pytest.raises(SceneError, match=r"9s is outside the shot \(0–4s\)$"):
+        load_scene(plain, BANK)
+
+
+# -- code review R1 M5/M6: falsy and no-op beat fields fail, or render exactly what they say --
+
+@pytest.mark.parametrize("beat, path", [
+    ({"at": 1.0, "prop": "idea", "out": False}, r"beats\.0\.out: Input should be True"),
+    ({"at": 1.0, "move": "tim", "to": "doorway", "bob": 0.1}, r"beats\[0\]\.bob: needs over:"),
+    ({"at": 1.0, "prop": "idea", "to": {}}, r"beats\[0\]\.to: is empty"),
+])
+def test_no_op_beat_fields_are_rejected(beat, path):
+    with pytest.raises(SceneError, match=path):
+        load_scene(mini(**beat), BANK)
+
+
+_FENCE_FALSY = {"over": 0.0, "ease": "", "to": {}, "expr": "", "bob": 0.0, "flicker": False,
+                "blink": {}, "out": False}
+# The falsy values that load, and what each must render: anything else set falsy fails.
+_FALSY_READ = {("door", "over"), ("move", "over"), ("pose", "over"), ("face", "over"), ("prop", "over"),
+               ("show", "over"), ("move", "bob"), ("prop", "flicker")}
+
+
+def test_falsy_beat_fields_mean_what_they_render():
+    from toon.scene import BEAT_OPTIONAL, VERBS
+
+    assert set(_FENCE_FALSY) == set(BEAT_OPTIONAL)
+    for verb in VERBS:
+        for field, falsy in _FENCE_FALSY.items():
+            extra = {"over": 1.0} if field == "bob" else {}
+            data = _fence_scene(verb, **extra, **{field: falsy})
+            if (verb, field) not in _FALSY_READ:
+                with pytest.raises(SceneError):
+                    load_scene(data, BANK)
+                continue
+            s = load_scene(data, BANK)
+            plain = load_scene(_fence_scene(verb, **extra), BANK)
+            if field == "over" and verb != "show":   # over: 0 is instant, the same as no over
+                assert repr(state_at(s, BANK, 1.0, 1.0)) == repr(state_at(plain, BANK, 1.0, 1.0)), verb
+            elif field == "over":                    # a show with over: 0 appears at once
+                assert state_at(s, BANK, 1.0, 1.0).graphics[0].k == 1.0
+            elif field == "bob":                     # bob: 0 is no lift, the same as no bob
+                assert repr(state_at(s, BANK, 1.5, 1.5)) == repr(state_at(plain, BANK, 1.5, 1.5))
+            else:                                    # flicker: false stops an earlier flicker
+                d = _fence_scene(verb, flicker=False)
+                d["shots"][0]["beats"].insert(0, {"at": 0.5, "prop": "idea", "flicker": True})
+                stops = load_scene(d, BANK)
+                assert {state_at(stops, BANK, t, t).props["idea"].mode for t in (1.2, 1.3, 1.4)} == {"on"}
+
+
+def test_a_hide_before_its_show_says_which_comes_first():
+    # Code review R1 M11: at the same time, the timeline plays beats as listed.
+    same = mini(**{"at": 1.0, "hide": "anger:tim"})
+    same["shots"][0]["beats"].append({"at": 1.0, "show": {"anger": "tim"}})
+    with pytest.raises(SceneError, match=r"beats\[0\]\.hide: 'anger:tim' is shown at 1s by shots\[0\]\.beats\[1\], "
+                                         r"listed after this hide at the same time; list the hide after it"):
+        load_scene(same, BANK)
+    later = mini(**{"at": 1.0, "hide": "anger:tim"})
+    later["shots"][0]["beats"].append({"at": 2.0, "show": {"anger": "tim"}})
+    with pytest.raises(SceneError, match=r"beats\[0\]\.hide: 'anger:tim' was shown at 2s, after this hide at 1s"):
+        load_scene(later, BANK)

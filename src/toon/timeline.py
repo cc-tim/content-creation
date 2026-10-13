@@ -83,23 +83,25 @@ def pose_of(bank: Bank, pose_name: str, expr_name: str) -> Pose:
 
 
 def shot_index(scene: ToonScene, t: float) -> int:
-    return max(i for i, sh in enumerate(scene.shots) if sh.at <= max(t, 0.0))
+    return max(i for i, sh in enumerate(scene.shots) if float(sh.at) <= max(t, 0.0))
 
 
 def _progress(b: Beat, rel: float) -> float | None:
     at = float(b.at)  # SentenceAnchor is resolved to a float before state_at ever runs
     if rel < at:
         return None
-    k = 1.0 if b.over <= 0 else min((rel - at) / b.over, 1.0)
-    return EASES[b.ease](k)
+    over = b.over or 0.0  # optional beat fields are None when not given: instant, smooth
+    k = 1.0 if over <= 0 else min((rel - at) / over, 1.0)
+    return EASES[b.ease or "smooth"](k)
 
 
 def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = None) -> FrameState:
     t_cam = t_draw if t_cam is None else t_cam
     i = shot_index(scene, t_cam)
     shot = scene.shots[i]
-    t_draw = max(t_draw, shot.at)
-    rel = t_draw - shot.at
+    start = float(shot.at)  # sentence anchors resolve to seconds before state_at ever runs
+    t_draw = max(t_draw, start)
+    rel = t_draw - start
     spots = bank.sets[shot.set].spots
 
     chars = {}
@@ -116,7 +118,7 @@ def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = 
     graphics: dict[str, GraphicState] = {}
     flickers: dict[str, Flicker | None] = {}
     preset = bank.cameras[shot.camera]
-    rel_cam = t_cam - shot.at
+    rel_cam = t_cam - start
     cam_from = 0.0  # a camera beat cuts to its preset, whose own move restarts at the beat
 
     for b in sorted(shot.beats, key=lambda x: x.at):
@@ -132,7 +134,7 @@ def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = 
             door = lerp(door, 1.0 if b.door == "open" else 0.0, k)
         elif v == "move":
             c, dest = chars[b.move], spots[b.to]
-            c.root = lerp(c.root, V(*dest.pos), k) + V(0, b.bob * abs(math.sin(k * 9)), 0)
+            c.root = lerp(c.root, V(*dest.pos), k) + V(0, (b.bob or 0.0) * abs(math.sin(k * 9)), 0)
             c.yaw = lerp(c.yaw, dest.yaw, k)
         elif v == "face":
             c, o = chars[b.face], chars[b.to]
@@ -159,9 +161,9 @@ def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = 
             if b.out:
                 s.mode, s.smoke = "out", rel - at
         elif v == "show":
-            dur = b.over if b.over > 0 else POP
+            pop = POP if b.over is None else b.over  # over: 0 appears at once, no pop
             key = graphic_key(b.show)
-            graphics[key] = GraphicState(key, b.show, min((rel - at) / dur, 1.0))
+            graphics[key] = GraphicState(key, b.show, 1.0 if pop == 0 else min((rel - at) / pop, 1.0))
         elif v == "hide":
             graphics.pop(b.hide, None)
 

@@ -65,3 +65,17 @@ def test_still_gate_resolves_project_relative_image_with_cwd_elsewhere(tmp_path,
 
     assert "render_error" not in result.output
     assert result.exit_code == 0, result.output
+
+
+def test_still_gate_toon_error_names_the_storyboard_file(tmp_path, monkeypatch):
+    """Sprint 11 (code review R1 M10): a bad inline toon scene's render_error names the
+    storyboard file and scene id, as `pipeline validate` and compose do."""
+    monkeypatch.setenv("PIPELINE_OUTPUT_DIR", str(tmp_path))
+    toon = {"type": "toon", "cast": {"tim": "tim"}, "shots": [{
+        "at": 0.0, "set": "office", "camera": "two_shot",
+        "place": {"tim": {"spot": "desk_seat", "pose": "sit_typing"}},
+        "beats": [{"at": 1.0, "show": {"bubble": ["Dishes. Now."], "from": "tim"}}]}]}
+    pid = _project(tmp_path, [{"id": "s1", "section": "h", "visual": toon, "overlay": None}])
+    result = runner.invoke(storyboard_app, ["still-gate", pid])
+    sb_file = tmp_path / "projects" / pid / "storyboard.json"
+    assert f"{sb_file} scene s1: shots[0].beats[0].show" in result.output, result.output

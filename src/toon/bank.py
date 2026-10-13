@@ -166,7 +166,8 @@ def _table(root: Path, name: str, model: type[BaseModel]) -> dict[str, Any]:
 
 def _check_look(path: Path, ch: Character) -> None:
     """face/hair/body are open dicts merged over the engine defaults, so an unknown key (a typo
-    like `eyex`) would load and silently leave the default in place. Reject it instead."""
+    like `eyex`) would load and silently leave the default in place. Reject it instead, and a
+    known hair key the layered drawing never reads beside `layers:` too."""
     unknown = [(f"{part}.{k}", keys) for part, keys, data in
                (("face", FACE_KEYS, ch.face), ("hair", HAIR_KEYS, ch.hair), ("body", BODY_KEYS, ch.body))
                for k in data if k not in keys]
@@ -175,9 +176,18 @@ def _check_look(path: Path, ch: Character) -> None:
         raise BankError(f"{path}: hair.layers: expected a list of layer mappings")
     for i, layer in enumerate(layers or []):
         unknown += [(f"hair.layers[{i}].{k}", HAIR_LAYER_KEYS) for k in layer if k not in HAIR_LAYER_KEYS]
-    if unknown:
-        raise BankError("; ".join(f"{path}: {where}: unknown key (known: {sorted(keys)})"
-                                  for where, keys in unknown))
+    # Beside `layers:` the layered drawing reads only `layers` and `bun`: a top-level per-layer
+    # key would load and be silently ignored, and `none: true` silently drops every layer.
+    beside = [f"{path}: hair.{k}: ignored beside hair.layers (only layers and bun are read there)"
+              for k in ch.hair if layers is not None and k in HAIR_LAYER_KEYS]
+    if layers is not None and "none" in ch.hair:
+        beside.append(f"{path}: hair.none: beside hair.layers, `none: true` wins and every layer is "
+                      f"dropped (`none: false` does nothing); keep one of them")
+    if layers == []:  # draw_hair would fall back to the top-level hair: the default look
+        beside.append(f"{path}: hair.layers: is empty; give at least one layer, or drop layers")
+    if unknown or beside:
+        raise BankError("; ".join([*(f"{path}: {where}: unknown key (known: {sorted(keys)})"
+                                     for where, keys in unknown), *beside]))
 
 
 def load_bank(root: Path | None = None) -> Bank:

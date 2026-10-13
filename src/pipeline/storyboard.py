@@ -323,6 +323,8 @@ class Storyboard:
     title_alt: dict[str, str] = field(default_factory=dict)
     description_alt: dict[str, str] = field(default_factory=dict)
     primary_locale: str = "zh-TW"
+    # The file load()/save() last read or wrote, so errors can name it. Never serialised.
+    path: Path | None = field(default=None, compare=False, repr=False)
 
     # --- Serialization ---
 
@@ -374,11 +376,14 @@ class Storyboard:
             json.dumps(self.to_dict(), indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+        self.path = path
 
     @classmethod
     def load(cls, path: Path) -> Storyboard:
         data = json.loads(path.read_text(encoding="utf-8"))
-        return cls.from_dict(data)
+        sb = cls.from_dict(data)
+        sb.path = path
+        return sb
 
     # --- Script Derivation ---
 

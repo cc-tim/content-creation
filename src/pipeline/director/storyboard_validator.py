@@ -53,7 +53,8 @@ def validate_storyboard(
     for scene in sb.scenes:
         if scene_ids is not None and scene.id not in scene_ids:
             continue
-        issues.extend(_validate_scene(scene, project_root, aspect_ratio=sb.aspect_ratio))
+        issues.extend(_validate_scene(scene, project_root, aspect_ratio=sb.aspect_ratio,
+                                      storyboard_file=sb.path))
     return issues
 
 
@@ -177,6 +178,7 @@ def _validate_scene(
     project_root: Path,
     *,
     aspect_ratio: str = "16:9",
+    storyboard_file: Path | None = None,
 ) -> list[SceneValidationError]:
     visual = scene.visual or {}
     visual_type = str(visual.get("type") or "text_card")
@@ -209,7 +211,7 @@ def _validate_scene(
     elif visual_type == "chart":
         issues.extend(_validate_chart_visual(scene, visual))
     elif visual_type == "toon":
-        issues.extend(_validate_toon(scene, visual, aspect_ratio))
+        issues.extend(_validate_toon(scene, visual, aspect_ratio, storyboard_file))
     elif visual_type == "namecard" and not str(visual.get("name") or "").strip():
         issues.append(_issue(
             scene,
@@ -424,7 +426,8 @@ def _validate_chart_visual(scene: Scene, visual: dict[str, Any]) -> list[SceneVa
     return out
 
 
-def _validate_toon(scene: Scene, visual: dict, aspect_ratio: str = "16:9") -> list[SceneValidationError]:
+def _validate_toon(scene: Scene, visual: dict, aspect_ratio: str = "16:9",
+                   storyboard_file: Path | None = None) -> list[SceneValidationError]:
     # compose renders every scene visual at 16:9 and fits it to the canvas, so on a 9:16
     # storyboard the adapter's own 16:9 guard never fires and the clip is silently
     # center-cropped. Block it here, at the review gate.
@@ -433,10 +436,11 @@ def _validate_toon(scene: Scene, visual: dict, aspect_ratio: str = "16:9") -> li
         f"toon renders 16:9 only in v0, but this storyboard is {aspect_ratio} "
         "(compose would center-crop the clip)",
         "Use a 16:9 storyboard for toon scenes, or another visual type here.")]
-    return aspect + _validate_toon_scene(scene, visual)
+    return aspect + _validate_toon_scene(scene, visual, storyboard_file)
 
 
-def _validate_toon_scene(scene: Scene, visual: dict) -> list[SceneValidationError]:
+def _validate_toon_scene(scene: Scene, visual: dict,
+                         storyboard_file: Path | None = None) -> list[SceneValidationError]:
     # R15: load_scene() itself now validates shot windows against the scene's AUTHORED
     # duration (from the file), not the narration-estimated duration passed here — so the
     # validator and the render path (pipeline.composer.toon.render_toon_scene) can both pass
@@ -444,10 +448,18 @@ def _validate_toon_scene(scene: Scene, visual: dict) -> list[SceneValidationErro
     # (via scene_warnings below) instead of raising, matching design spec §5 ("Duration").
     try:
         from toon.bank import load_bank
-        from toon.scene import load_scene, scene_data_from_visual, scene_warnings
+        from toon.scene import (
+            drift_warnings,
+            load_scene,
+            scene_data_from_visual,
+            scene_warnings,
+            source_name,
+        )
 
+        # Every SceneError names the storyboard file + scene id (or the scene file it references).
+        origin = f"{source_name(storyboard_file) if storyboard_file else 'storyboard'} scene {scene.id}"
         duration = scene.narration_est_sec or None
-        loaded = load_scene(scene_data_from_visual(visual), load_bank(),
+        loaded = load_scene(scene_data_from_visual(visual, origin), load_bank(),
                             narration=scene.narration, duration=duration)
     except Exception as exc:  # BankError / SceneError / cairo — report, never crash validation
         return [_issue(scene, "error", "visual", f"toon scene invalid: {exc}",
@@ -458,7 +470,11 @@ def _validate_toon_scene(scene: Scene, visual: dict) -> list[SceneValidationErro
     # collects warnings (e.g. format_visual_decision_table's `issue.get("severity") == "warn"`)
     # filters on that exact string; "warning" would silently vanish from every warning list.
     return [_issue(scene, "warn", "visual", w, "Lengthen the narration or tighten the beats.")
-            for w in scene_warnings(loaded, duration)]
+            for w in scene_warnings(loaded, duration)] + [
+        _issue(scene, "warn", "visual", w,
+               "Anchor the shots to sentences, `at: {sentence: n}`; check the split with "
+               "`uv run pipeline toon validate <scene> --narration …`.")
+        for w in drift_warnings(loaded, duration)]
 
 
 def _validate_text_card(scene: Scene, visual: dict[str, Any]) -> list[SceneValidationError]:

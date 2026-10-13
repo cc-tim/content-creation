@@ -4,10 +4,10 @@ from __future__ import annotations
 import math
 import re
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError, model_validator
 
 from toon.bank import Bank, default_root
 from toon.kit.icons import ICONS
@@ -15,14 +15,35 @@ from toon.kit.icons import ICONS
 Ease = Literal["linear", "smooth", "out", "back"]
 VERBS = ("door", "move", "pose", "face", "prop", "show", "hide", "camera")
 SHOW_KINDS = ("speed_lines", "bubble", "anger", "x_card", "check_pill")
+CARD_KINDS = ("x_card", "check_pill")
 PROP_USE_FIELDS = ("on", "held_by", "b", "count")
-# Per bank-prop kind: (use fields it needs, use fields it draws, states a `to:` beat animates).
-# Anything else would load cleanly and be silently ignored by the renderer, so it is rejected.
-PROP_KINDS: dict[str, tuple[frozenset[str], frozenset[str], frozenset[str]]] = {
-    "idea_bulb": (frozenset({"on"}), frozenset({"on", "b"}), frozenset({"b"})),
-    "plate": (frozenset({"held_by"}), frozenset({"held_by"}), frozenset()),
-    "plate_stack": (frozenset({"count"}), frozenset({"count"}), frozenset({"count"})),
+PROP_BEAT_FLAGS = ("flicker", "blink", "out")
+# Per bank-prop kind: (use fields it needs, use fields it draws, states a `to:` beat animates,
+# beat flags it honours). Anything else would load cleanly and be silently ignored by the
+# renderer, so it is rejected.
+PROP_KINDS: dict[str, tuple[frozenset[str], frozenset[str], frozenset[str], frozenset[str]]] = {
+    "idea_bulb": (frozenset({"on"}), frozenset({"on", "b"}), frozenset({"b"}), frozenset(PROP_BEAT_FLAGS)),
+    "plate": (frozenset({"held_by"}), frozenset({"held_by"}), frozenset(), frozenset()),
+    "plate_stack": (frozenset({"count"}), frozenset({"count"}), frozenset({"count"}), frozenset()),
 }
+# Per verb: the optional beat fields timeline.state_at reads. Any other field set on a beat would
+# load and be silently ignored, so it fails instead. On top of the table: `ease` only shapes a
+# change that has an `over:`, and a prop beat's over/ease only time a `to:` change (its flags
+# are per prop kind, PROP_KINDS).
+BEAT_FIELDS: dict[str, frozenset[str]] = {
+    "door": frozenset({"over", "ease"}),
+    "move": frozenset({"over", "ease", "to", "bob"}),
+    "pose": frozenset({"over", "ease", "to", "expr"}),
+    "face": frozenset({"over", "ease", "to"}),
+    "prop": frozenset({"over", "ease", "to", *PROP_BEAT_FLAGS}),
+    "show": frozenset({"over"}),  # the pop length
+    "hide": frozenset(),
+    "camera": frozenset(),
+}
+# Why a verb takes no timing: the reason an over:/ease: on it fails with.
+_UNTIMED = {"camera": "a camera beat is a cut to a new preset",
+            "hide": "a hide beat is instant",
+            "show": "a show beat pops in, and only over: (the pop length) times it"}
 
 
 class _SceneLoader(yaml.SafeLoader):
@@ -43,9 +64,24 @@ _SceneLoader.yaml_implicit_resolvers = {
 
 
 class SceneError(ValueError):
-    def __init__(self, problems: list[str]):
-        self.problems = problems
-        super().__init__("; ".join(problems))
+    """Problems with a scene, each `<path>: <message>`. `source` names where the scene came
+    from (a scene file, or a storyboard scene) and prefixes every problem."""
+
+    def __init__(self, problems: list[str], source: str | None = None):
+        self.problems, self.source = problems, source
+        super().__init__("; ".join(f"{source}: {p}" if source else p for p in problems))
+
+
+class NeedsNarration(SceneError):
+    """Sentence anchors with no narration (or no duration) to resolve them against."""
+
+
+class SceneData(dict[str, Any]):
+    """Scene data plus where it came from, which `load_scene` names in every error."""
+
+    def __init__(self, data: dict, source: str | None):
+        super().__init__(data)
+        self.source = source
 
 
 class _Strict(BaseModel):
@@ -54,6 +90,7 @@ class _Strict(BaseModel):
 
 class SentenceAnchor(_Strict):
     sentence: int = Field(ge=1)
+    plus: float = Field(default=0.0, ge=0.0)  # seconds after the sentence starts
 
 
 class Place(_Strict):
@@ -91,6 +128,7 @@ class Show(_Strict):
     x_card: str | None = None
     check_pill: str | None = None
     at: tuple[float, float] | None = None   # screen fractions, for cards
+    id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]*$")  # a card's key; never drawn
 
     @model_validator(mode="after")
     def _one_kind(self):
@@ -116,7 +154,7 @@ class Flicker(_Strict):
 
 class Blink(_Strict):
     b: float
-    over: float
+    over: float = Field(gt=0)  # a blink of 0 s or less would never show
 
 
 class Beat(_Strict):
@@ -124,11 +162,13 @@ class Beat(_Strict):
 
     `camera: <preset>` is a cut to another bank camera preset at `at`, not a blend: the new
     preset's own push/truck/punch restarts from the beat, so `over`/`ease` are rejected on it.
+    Optional fields are None when not given; BEAT_FIELDS says which ones each verb reads.
     """
 
     at: float | SentenceAnchor
-    over: float = 0.0
-    ease: Ease = "smooth"
+    # None: not given (instant; a show pops in over 0.25 s). 0 is instant, a show included.
+    over: float | None = Field(default=None, ge=0)
+    ease: Ease | None = None    # None: not given (smooth)
     door: Literal["open", "close"] | None = None
     move: str | None = None
     pose: str | None = None
@@ -139,10 +179,10 @@ class Beat(_Strict):
     camera: str | None = None
     to: str | dict[str, float] | None = None
     expr: str | None = None
-    bob: float = 0.0
+    bob: float | None = None
     flicker: Flicker | bool | None = None
     blink: Blink | None = None
-    out: bool | None = None
+    out: Literal[True] | None = None  # `out: false` would do nothing, so only true is taken
 
     @model_validator(mode="after")
     def _one_verb(self):
@@ -156,8 +196,11 @@ class Beat(_Strict):
         return next(v for v in VERBS if getattr(self, v) is not None)
 
 
+BEAT_OPTIONAL = tuple(f for f in Beat.model_fields if f != "at" and f not in VERBS)
+
+
 class Shot(_Strict):
-    at: float
+    at: float | SentenceAnchor  # seconds into the scene, or a sentence anchor (resolved at load)
     set: str
     camera: str
     place: dict[str, Place]
@@ -172,40 +215,87 @@ class ToonScene(_Strict):
     cast: dict[str, str]
     shots: list[Shot] = Field(min_length=1)
     boil: Literal["full", "soft", "still"] | None = None  # overrides the bank style's default
+    # Set by load_scene, never authored or serialised (so never in the clip's cache key): the
+    # authored duration and each shot's authored start, for the drift warning and `toon validate`.
+    _authored_duration: float | None = PrivateAttr(default=None)
+    _shot_starts: tuple[float | SentenceAnchor, ...] = PrivateAttr(default=())
+
+    @property
+    def authored_duration(self) -> float | None:
+        return self._authored_duration
+
+    @property
+    def authored_shot_starts(self) -> tuple[float | SentenceAnchor, ...]:
+        return self._shot_starts
 
 
 def graphic_key(show: Show) -> str:
     """`<kind>:<target>` — the name a `hide:` beat uses. Keyed on the show's own kind, so a
-    stray field of another kind can never pick the target."""
+    stray field of another kind can never pick the target. A card's target is its `id:` when it
+    has one, so two cards with one icon get two keys."""
     target = {"speed_lines": show.speed_lines, "bubble": show.from_, "anger": show.anger,
               "x_card": show.x_card, "check_pill": show.check_pill}[show.kind]
+    if show.kind in CARD_KINDS and show.id is not None:
+        target = show.id
     return f"{show.kind}:{target}"
 
 
 def shot_length(scene: ToonScene, i: int) -> float:
     if i + 1 < len(scene.shots):
-        return scene.shots[i + 1].at - scene.shots[i].at
-    return scene.duration - scene.shots[i].at if scene.duration is not None else math.inf
+        return float(scene.shots[i + 1].at) - float(scene.shots[i].at)
+    return scene.duration - float(scene.shots[i].at) if scene.duration is not None else math.inf
 
 
-_TERMINATORS = re.compile(r"[.!?。！？…]+")
+# A terminator run, then any closing quotes or brackets right after it: they belong to the
+# sentence they close (spec §11.2 b2), so no sentence starts with a closer.
+_BREAK = re.compile(r"([.!?。！？…]+)([」』”’）)\]】》〉»›\"']*)")
+# A "." after one of these words, or after a one-letter word (U.S., J. K., e.g., a.m.; not the
+# pronoun "I"), is an abbreviation, not a break. en + es-419 (EE. UU., Dra., Ud.). The known
+# cost: "…moved to the U.S. Then…" stays one sentence; `pipeline toon validate --narration`
+# prints the split. Words are Latin letters with accents (día, camión), never CJK, so 他在U.S.
+# still reads "U" as a one-letter word.
+ABBREVIATIONS = frozenset({"mr", "mrs", "ms", "dr", "prof", "st", "vs", "etc",
+                           "sr", "sra", "srta", "dra", "ud", "uds", "ee", "uu"})
+_WORD_BEFORE = re.compile(r"(?<![A-Za-zÀ-ɏ])[A-Za-zÀ-ɏ]+$")
+
+
+def _closers(found: str, sentence: str) -> str:
+    """The closers right after a terminator that close something in this sentence. A straight "
+    is ambiguous: it closes only an unmatched opening " (in 他走了。"你好。" it opens the next one)."""
+    open_quote = sentence.count('"') % 2 == 1
+    for i, ch in enumerate(found):
+        if ch == '"':
+            if not open_quote:
+                return found[:i]
+            open_quote = False
+    return found
+
+
+def _abbreviation(before: str) -> bool:
+    m = _WORD_BEFORE.search(before)
+    return m is not None and ((len(m.group()) == 1 and m.group() != "I") or m.group().lower() in ABBREVIATIONS)
 
 
 def split_sentences(narration: str) -> list[str]:
     """The narration's sentences, as `at: {sentence: n}` anchors count them.
 
-    A run of terminators is one break ("What?!", "他走了。……"). A lone "." between digits is a
-    decimal point ("3.5"). An ellipsis ("……", "...") followed directly by more text is a pause
-    inside the sentence ("我……不知道。"); followed by a space or the end, it ends the sentence.
+    A run of terminators is one break ("What?!", "他走了。……"), and the closing quotes right
+    after it stay with it (「我走了。」). A lone "." between digits is a decimal point ("3.5"), and
+    one after an abbreviation ("U.S.", "Dr.") is no break. An ellipsis ("……", "...") followed
+    directly by more text is a pause inside the sentence ("我……不知道。"); followed by a space,
+    the end, or a closing quote (「我不知道……」他沉默了。), it ends the sentence.
     """
     text = narration.strip()
     parts, start = [], 0
-    for m in _TERMINATORS.finditer(text):
-        run, end = m.group(), m.end()
-        nxt = text[end:end + 1]
-        if run == "." and text[m.start() - 1:m.start()].isdigit() and nxt.isdigit():
+    for m in _BREAK.finditer(text):
+        run, closers = m.group(1), _closers(m.group(2), text[start:m.start()])
+        end = m.start(2) + len(closers)
+        before, nxt = text[:m.start()], text[end:end + 1]
+        if run == "." and before[-1:].isdigit() and nxt.isdigit():
             continue
-        if set(run) <= {".", "…"} and run != "." and nxt and not nxt.isspace():
+        if set(run) <= {".", "…"} and run != "." and not closers and nxt and not nxt.isspace():
+            continue
+        if run == "." and _abbreviation(before):
             continue
         parts.append(text[start:end])
         start = end
@@ -223,45 +313,77 @@ def sentence_starts(narration: str, duration: float) -> list[float]:
     return starts
 
 
+def anchor_text(at: float | SentenceAnchor) -> str:
+    """An `at:` as the author wrote it, for messages and `toon validate`."""
+    if isinstance(at, SentenceAnchor):
+        return f"{{sentence: {at.sentence}" + (f", plus: {at.plus:g}" if at.plus else "") + "}"
+    return f"{at:g}s"
+
+
+def _shot_order(shots: list[Shot], starts: list[float]) -> list[str]:
+    """After anchors resolve, the first shot starts at 0 and shot starts strictly increase.
+    Each problem names the shot, its anchor as authored and its resolved time."""
+    def label(i: int) -> str:
+        at = shots[i].at
+        return f"{anchor_text(at)} → {starts[i]:.2f}s" if isinstance(at, SentenceAnchor) else anchor_text(at)
+
+    p = [f"shots[0].at: {label(0)}; the first shot must start at 0"] if starts[0] != 0 else []
+    p += [f"shots[{i}].at: {label(i)} is not after shots[{i - 1}] at {label(i - 1)}; "
+          f"shots must start in increasing order"
+          for i in range(1, len(starts)) if starts[i] <= starts[i - 1]]
+    return p
+
+
 def _resolve_anchors(scene: ToonScene, narration: str | None) -> ToonScene:
-    anchored = [(i, j) for i, sh in enumerate(scene.shots) for j, b in enumerate(sh.beats)
-                if isinstance(b.at, SentenceAnchor)]
+    """Sentence anchors → seconds: shots first (sentence start + plus), then each beat relative
+    to its shot's resolved start. Every anchor resolves through sentence_starts(), the seam where
+    measured word timings (E9 item 3) plug in later. Seconds stay as written: nothing stretches."""
+    anchored = [f"shots[{i}].at" for i, sh in enumerate(scene.shots) if isinstance(sh.at, SentenceAnchor)]
+    anchored += [f"shots[{i}].beats[{j}].at" for i, sh in enumerate(scene.shots)
+                 for j, b in enumerate(sh.beats) if isinstance(b.at, SentenceAnchor)]
+    if anchored and (not narration or scene.duration is None):
+        raise NeedsNarration([f"{a}: sentence anchors need the scene's narration and duration" for a in anchored])
+    starts = sentence_starts(narration, scene.duration) if anchored else []
+    problems: list[str] = []
+
+    def resolve(at: float | SentenceAnchor, where: str) -> float:
+        if not isinstance(at, SentenceAnchor):
+            return at
+        if at.sentence > len(starts):
+            problems.append(f"{where}: sentence {at.sentence}, but narration has {len(starts)}")
+            return math.nan
+        return starts[at.sentence - 1] + at.plus
+
+    shot_at = [resolve(sh.at, f"shots[{i}].at") for i, sh in enumerate(scene.shots)]
+    if problems:
+        raise SceneError(problems)
+    problems += _shot_order(scene.shots, shot_at)
+    if problems:
+        raise SceneError(problems)
     if not anchored:
         return scene
-    if not narration or scene.duration is None:
-        raise SceneError([f"shots[{i}].beats[{j}].at: sentence anchors need the scene's narration and duration"
-                          for i, j in anchored])
-    starts = sentence_starts(narration, scene.duration)
-    problems, shots = [], []
+    shots = []
     for i, sh in enumerate(scene.shots):
-        beats = []
-        for j, b in enumerate(sh.beats):
-            if isinstance(b.at, SentenceAnchor):
-                n = b.at.sentence
-                if n > len(starts):
-                    problems.append(f"shots[{i}].beats[{j}].at: sentence {n}, but narration has {len(starts)}")
-                else:
-                    b = b.model_copy(update={"at": starts[n - 1] - sh.at})
-            beats.append(b)
-        shots.append(sh.model_copy(update={"beats": beats}))
+        beats = [b if not isinstance(b.at, SentenceAnchor) else
+                 b.model_copy(update={"at": resolve(b.at, f"shots[{i}].beats[{j}].at") - shot_at[i]})
+                 for j, b in enumerate(sh.beats)]
+        shots.append(sh.model_copy(update={"at": shot_at[i], "beats": beats}))
     if problems:
         raise SceneError(problems)
     return scene.model_copy(update={"shots": shots})
 
 
-def _check(scene: ToonScene, bank: Bank) -> list[str]:
+def _check(scene: ToonScene, bank: Bank, shot_starts: tuple[float | SentenceAnchor, ...] = (),
+           narration_duration: float | None = None) -> list[str]:
+    """`shot_starts` are the shots' starts as authored; when any is a sentence anchor, the shot
+    windows depend on the narration, so a beat outside its shot names the window at this one."""
     p: list[str] = []
+    anchored = any(isinstance(at, SentenceAnchor) for at in shot_starts)
     for who, char in scene.cast.items():
         if char not in bank.characters:
             p.append(f"cast.{who}: unknown character {char!r} (bank has {sorted(bank.characters)})")
-    last = -1.0
-    for i, shot in enumerate(scene.shots):
+    for i, shot in enumerate(scene.shots):  # shot order is checked as anchors resolve
         w = f"shots[{i}]"
-        if i == 0 and shot.at != 0:
-            p.append(f"{w}.at: the first shot must start at 0")
-        if shot.at <= last:
-            p.append(f"{w}.at: shots must start in increasing order")
-        last = shot.at
         set_def = bank.sets.get(shot.set)
         spots = set_def.spots if set_def else {}
         if set_def is None:
@@ -288,16 +410,56 @@ def _check(scene: ToonScene, bank: Bank) -> list[str]:
                 if ref is not None and ref not in shot.place:
                     p.append(f"{uw}.{field}: {ref!r} is not placed in this shot")
         length = shot_length(scene, i)
-        # Collect shown graphics in this shot
-        shown: dict[str, float] = {}  # graphic_key -> at time
-        for _j, b in enumerate(shot.beats):
-            if b.verb == "show" and isinstance(b.at, float):
-                shown[graphic_key(b.show)] = b.at
         for j, b in enumerate(shot.beats):
             bw = f"{w}.beats[{j}]"
             if isinstance(b.at, (int, float)) and not (0 <= b.at <= length):
-                p.append(f"{bw}.at: {b.at:g}s is outside the shot (0–{length:g}s)")
-            p += _check_beat(b, bw, shot, spots, bank, shown)
+                if anchored:  # a retake moved this window: say where it is now
+                    start = float(shot.at)
+                    p.append(f"{bw}.at: {b.at:g}s is outside the shot (0–{length:.2f}s): shot {i + 1} "
+                             f"{anchor_text(shot_starts[i])} → {start:.2f}–{start + length:.2f} s at this "
+                             f"narration ({narration_duration:.1f} s); anchor the beat "
+                             f"(at: {{sentence: n, plus: s}}) or move it")
+                else:
+                    p.append(f"{bw}.at: {b.at:g}s is outside the shot (0–{length:g}s)")
+            p += _check_beat(b, bw, shot, spots, bank)
+        p += _check_graphics(shot, w)
+    return p
+
+
+def _check_graphics(shot: Shot, w: str) -> list[str]:
+    """Shows and hides in the order the timeline plays them (by time, then as listed). A show
+    whose key is still visible would silently replace that graphic; a hide must take one down."""
+    p: list[str] = []
+    beats = sorted(enumerate(shot.beats), key=lambda jb: float(jb[1].at))
+    shows = {j: graphic_key(b.show) for j, b in beats if b.verb == "show"}
+    visible: dict[str, int] = {}  # key -> the show beat that put it up
+    gone: dict[str, int] = {}     # key -> the hide beat that took it down
+    for j, b in beats:
+        bw = f"{w}.beats[{j}]"
+        if b.verb == "show":
+            key = shows[j]
+            if key in visible:
+                hint = ", or give each card its own id:" if b.show.kind in CARD_KINDS else ""
+                p.append(f"{bw}.show: {key!r} is still showing from {w}.beats[{visible[key]}]; "
+                         f"hide it first{hint}")
+            visible[key] = j
+            gone.pop(key, None)
+        elif b.verb == "hide":
+            if b.hide in visible:
+                del visible[b.hide]
+                gone[b.hide] = j
+            elif b.hide in gone:
+                p.append(f"{bw}.hide: {b.hide!r} is already hidden by {w}.beats[{gone[b.hide]}]")
+            elif b.hide in shows.values():
+                first, k = min((float(shot.beats[k].at), k) for k, key in shows.items() if key == b.hide)
+                if first == float(b.at):  # same time: the timeline plays beats as listed
+                    p.append(f"{bw}.hide: {b.hide!r} is shown at {first:g}s by {w}.beats[{k}], listed after "
+                             f"this hide at the same time; list the hide after it")
+                else:
+                    p.append(f"{bw}.hide: {b.hide!r} was shown at {first:g}s, after this hide at {float(b.at):g}s")
+            else:
+                p.append(f"{bw}.hide: {b.hide!r} does not match a graphic shown earlier in this shot "
+                         f"(shown: {sorted(set(shows.values()))})")
     return p
 
 
@@ -306,7 +468,7 @@ def _a(kind: str) -> str:
 
 
 def _check_prop_use(pu: PropUse, uw: str, kind: str) -> list[str]:
-    need, draws, _ = PROP_KINDS[kind]
+    need, draws = PROP_KINDS[kind][:2]
     p: list[str] = []
     for field in PROP_USE_FIELDS:
         value = getattr(pu, field)
@@ -317,13 +479,12 @@ def _check_prop_use(pu: PropUse, uw: str, kind: str) -> list[str]:
     return p
 
 
-def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
-                 shown: dict[str, float] | None = None) -> list[str]:
+def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank) -> list[str]:
     p: list[str] = []
     placed = shot.place
     v = b.verb
-    if v in ("door", "show", "hide", "camera") and b.to is not None:
-        p.append(f"{bw}.to: not valid with a {v} beat")
+    pu = shot.props.get(b.prop) if v == "prop" else None
+    kind = bank.props[pu.kind].kind if pu is not None and pu.kind in bank.props else None
     if v == "move":
         if b.move not in placed:
             p.append(f"{bw}.move: {b.move!r} is not placed in this shot")
@@ -346,13 +507,13 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
         if b.face not in placed or not isinstance(b.to, str) or b.to not in placed:
             p.append(f"{bw}: face needs two characters placed in this shot")
     elif v == "prop":
-        pu = shot.props.get(b.prop)
         if pu is None:
             p.append(f"{bw}.prop: unknown prop use {b.prop!r} in this shot")
         if isinstance(b.to, str):
             p.append(f"{bw}.to: prop beats take a mapping like {{b: 0.3}}")
-        elif isinstance(b.to, dict) and pu is not None and pu.kind in bank.props:
-            kind = bank.props[pu.kind].kind
+        elif b.to == {}:
+            p.append(f"{bw}.to: is empty; a prop beat animates a state like {{b: 0.3}}")
+        elif isinstance(b.to, dict) and kind is not None:
             states = PROP_KINDS[kind][2]
             for key in b.to:
                 if key not in states:
@@ -367,41 +528,63 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
                 p.append(f"{bw}.show: {ref!r} is not placed in this shot")
         if s.from_ is not None and s.kind != "bubble":
             p.append(f"{bw}.show.from: only valid with a bubble show")
-        if s.at is not None and s.kind not in ("x_card", "check_pill"):
+        if s.at is not None and s.kind not in CARD_KINDS:
             p.append(f"{bw}.show.at: only valid with an x_card or check_pill show")
+        if s.id is not None and s.kind not in CARD_KINDS:
+            p.append(f"{bw}.show.id: only valid with an x_card or check_pill show")
         cards = [x for x in (s.x_card, s.check_pill) if x]
         for icon in [*(s.bubble or []), *cards]:
             if icon not in ICONS:
                 p.append(f"{bw}.show: {icon!r} is not an icon — animation is wordless; "
                          f"use one of {sorted(ICONS)}")
-    elif v == "hide":
-        if shown is None or b.hide not in shown:
-            keys = sorted(shown.keys()) if shown else []
-            p.append(f"{bw}.hide: {b.hide!r} does not match a graphic shown earlier in this shot (shown: {keys})")
-        elif isinstance(b.at, float) and shown[b.hide] > b.at:
-            p.append(f"{bw}.hide: {b.hide!r} was shown at {shown[b.hide]:g}s, after this hide at {b.at:g}s")
-    elif v == "camera":
-        if b.camera not in bank.cameras:
-            p.append(f"{bw}.camera: unknown camera {b.camera!r}")
-        for field in ("over", "ease"):
-            if field in b.model_fields_set:
-                p.append(f"{bw}.{field}: a camera beat is a cut to a new preset; {field} does not apply")
-    # Check verb-specific fields on other verbs
-    if v != "pose" and b.expr is not None:
-        p.append(f"{bw}.expr: only valid with a pose beat")
-    if v != "prop" and b.flicker is not None:
-        p.append(f"{bw}.flicker: only valid with a prop beat")
-    if v != "prop" and b.blink is not None:
-        p.append(f"{bw}.blink: only valid with a prop beat")
-    if v != "prop" and b.out:
-        p.append(f"{bw}.out: only valid with a prop beat")
-    if v != "move" and b.bob != 0.0:
-        p.append(f"{bw}.bob: only valid with a move beat")
+    elif v == "camera" and b.camera not in bank.cameras:
+        p.append(f"{bw}.camera: unknown camera {b.camera!r}")
+    return p + _check_beat_fields(b, bw, kind)
+
+
+def _unread(verb: str, field: str) -> str:
+    if field in ("over", "ease") and verb in _UNTIMED:
+        return f"{_UNTIMED[verb]}; {field} does not apply"
+    users = [u for u, fields in BEAT_FIELDS.items() if field in fields]
+    return f"only valid with {_a(users[0])} beat" if len(users) == 1 else f"not valid with {_a(verb)} beat"
+
+
+def _check_beat_fields(b: Beat, bw: str, kind: str | None) -> list[str]:
+    """Every optional field set on a beat must be one the timeline reads for its verb (and, on a
+    prop beat, for its prop kind; `kind` is None when the prop doesn't resolve)."""
+    p: list[str] = []
+    v = b.verb
+    for field in BEAT_OPTIONAL:
+        if getattr(b, field) is None:
+            continue
+        if field not in BEAT_FIELDS[v]:
+            p.append(f"{bw}.{field}: {_unread(v, field)}")
+        elif v == "prop" and field in ("over", "ease") and b.to is None:
+            p.append(f"{bw}.{field}: a prop beat times only a to: change; {field} does nothing without to:")
+        elif field == "ease" and not (b.over or 0.0) > 0:
+            p.append(f"{bw}.ease: does nothing without over: (the change is instant)")
+        elif field == "bob" and not (b.over or 0.0) > 0:
+            p.append(f"{bw}.bob: needs over: (an instant move would leave a fixed lift, not a bob)")
+        elif v == "prop" and field in PROP_BEAT_FLAGS and kind is not None and field not in PROP_KINDS[kind][3]:
+            takers = sorted(k for k, spec in PROP_KINDS.items() if field in spec[3])
+            p.append(f"{bw}.{field}: {_a(kind)} prop ignores {field} (only {', '.join(takers)} takes it)")
     return p
 
 
 def load_scene(data: dict, bank: Bank, narration: str | None = None,
-               duration: float | None = None) -> ToonScene:
+               duration: float | None = None, source: str | None = None) -> ToonScene:
+    """Validate scene data against the bank, resolving sentence anchors. Every SceneError names
+    `source`, which defaults to the data's own (`read_scene`, `scene_data_from_visual`)."""
+    source = source if source is not None else getattr(data, "source", None)
+    try:
+        return _load(data, bank, narration, duration)
+    except SceneError as exc:
+        if source is None or exc.source is not None:
+            raise
+        raise type(exc)(exc.problems, source=source) from exc
+
+
+def _load(data: dict, bank: Bank, narration: str | None, duration: float | None) -> ToonScene:
     try:
         scene = ToonScene.model_validate(data)
     except ValidationError as exc:
@@ -414,7 +597,7 @@ def load_scene(data: dict, bank: Bank, narration: str | None = None,
     # downstream keeps using the narration duration), but _check() validates shot windows
     # against the scene's AUTHORED duration (from the file, or None for inline scenes) —
     # the structure the author actually wrote — not the possibly-shorter narration.
-    authored_duration = scene.duration
+    authored_duration, shot_starts = scene.duration, tuple(sh.at for sh in scene.shots)
     if duration is not None:
         scene = scene.model_copy(update={"duration": duration})
     scene = _resolve_anchors(scene, narration)
@@ -430,16 +613,40 @@ def load_scene(data: dict, bank: Bank, narration: str | None = None,
         check_duration = None
     else:
         check_duration = max(authored_duration, duration)
-    problems = _check(scene.model_copy(update={"duration": check_duration}), bank)
+    problems = _check(scene.model_copy(update={"duration": check_duration}), bank, shot_starts,
+                      duration if duration is not None else authored_duration)
     if problems:
         raise SceneError(problems)
+    scene._authored_duration, scene._shot_starts = authored_duration, shot_starts
     return scene
 
 
+DRIFT_TOLERANCE = 0.5  # seconds
+
+
+def _numbers(ns: list[int]) -> str:
+    return f"{ns[0]}–{ns[-1]}" if len(ns) > 1 and ns == list(range(ns[0], ns[-1] + 1)) else ", ".join(map(str, ns))
+
+
+def drift_warnings(scene: ToonScene, duration: float) -> list[str]:
+    """Shots timed in seconds stay put when the narration's length changes. A warning, not an
+    error (a scene timed in seconds is legitimate): it fires when the scene has an authored
+    duration, a later shot starts at an absolute time, and the narration is more than
+    DRIFT_TOLERANCE off the authored duration."""
+    fixed = [i + 1 for i, at in enumerate(scene.authored_shot_starts)
+             if i > 0 and not isinstance(at, SentenceAnchor)]
+    authored = scene.authored_duration
+    if authored is None or not fixed or abs(duration - authored) <= DRIFT_TOLERANCE:
+        return []
+    which = f"shots {_numbers(fixed)} are" if len(fixed) > 1 else f"shot {fixed[0]} is"
+    return [f"scene {scene.id}: {which} in seconds and won't follow the narration (authored "
+            f"{authored:.1f} s, narration {duration:.1f} s); anchor them with `at: {{sentence: n}}`"]
+
+
 def scene_warnings(scene: ToonScene, duration: float) -> list[str]:
-    last = max((sh.at + b.at + b.over for sh in scene.shots for b in sh.beats
+    last = max((float(sh.at) + b.at + (b.over or 0.0) for sh in scene.shots for b in sh.beats
                 if isinstance(b.at, float)), default=0.0)
-    last = max(last, scene.shots[-1].at)
+    last = max(last, float(scene.shots[-1].at))
     if last > duration:
         return [f"scene {scene.id}: its last beat ends at {last:g}s but the narration ends at "
                 f"{duration:g}s; the clip will be cut there"]
@@ -450,20 +657,36 @@ def scenes_root() -> Path:
     return default_root().parent / "scenes"
 
 
-def read_scene(ref: str) -> dict:
+_REPO = Path(__file__).resolve().parents[2]
+
+
+def source_name(path: Path) -> str:
+    """A file as errors name it: repo-relative inside the repo, else as given."""
+    try:
+        return str(Path(path).resolve().relative_to(_REPO))
+    except ValueError:
+        return str(path)
+
+
+def scene_path(ref: str) -> Path:
     """A scene id (`001-lioness-dishes` → assets/toon/scenes/<id>.yaml) or a path to a YAML file."""
     path = Path(ref)
-    if path.suffix not in (".yaml", ".yml"):
-        path = scenes_root() / f"{ref}.yaml"
+    return path if path.suffix in (".yaml", ".yml") else scenes_root() / f"{ref}.yaml"
+
+
+def read_scene(ref: str) -> SceneData:
+    """A scene file's data, which remembers the file (`load_scene` names it in every error)."""
+    path = scene_path(ref)
+    src = source_name(path)
     if not path.exists():
-        raise SceneError([f"scene file not found: {path}"])
+        raise SceneError(["scene file not found"], source=src)
     try:
         data = yaml.load(path.read_text(), Loader=_SceneLoader)
     except yaml.YAMLError as exc:
-        raise SceneError([f"{path}: not valid YAML: {' '.join(str(exc).split())}"]) from exc
+        raise SceneError([f"not valid YAML: {' '.join(str(exc).split())}"], source=src) from exc
     if not isinstance(data, dict):
-        raise SceneError([f"{path}: expected a scene mapping (id, cast, shots), got {type(data).__name__}"])
-    return data
+        raise SceneError([f"expected a scene mapping (id, cast, shots), got {type(data).__name__}"], source=src)
+    return SceneData(data, src)
 
 
 # Keys the pipeline owns on every storyboard visual — `type` (dispatch), the director's
@@ -473,18 +696,29 @@ PIPELINE_VISUAL_KEYS = frozenset({"type", "confidence", "rationale", "edit_mode"
 SCENE_REF_OVERRIDES = frozenset({"boil"})
 
 
-def scene_data_from_visual(visual: dict) -> dict:
+def scene_data_from_visual(visual: dict, origin: str | None = None) -> SceneData:
     """A storyboard `toon` visual → scene data. Inline scenes pass every scene key through, so
-    the scene model's `extra="forbid"` catches typos; references take `boil:` and nothing else."""
+    the scene model's `extra="forbid"` catches typos; references take `boil:` and nothing else.
+
+    `origin` names the storyboard scene (`<storyboard file> scene <sid>`). The data's source is
+    then the origin itself for an inline scene, or `<scene file> (from <origin>)` for a reference.
+    """
     own = {k: v for k, v in visual.items() if k not in PIPELINE_VISUAL_KEYS}
     if own.get("scene"):
+        ref = str(own["scene"])
         extra = sorted(set(own) - {"scene"} - SCENE_REF_OVERRIDES)
         if extra:
             raise SceneError([f"visual.{k}: a scene reference takes only scene: and "
                               f"{', '.join(sorted(SCENE_REF_OVERRIDES))}: (edit the scene file, "
-                              f"or inline the shots)" for k in extra])
-        data = read_scene(str(own["scene"]))
-        return {**data, **{k: own[k] for k in SCENE_REF_OVERRIDES if k in own}}
+                              f"or inline the shots)" for k in extra], source=origin)
+        src = f"{source_name(scene_path(ref))} (from {origin})" if origin else None
+        try:
+            data = read_scene(ref)
+        except SceneError as exc:
+            if src is None:
+                raise
+            raise SceneError(exc.problems, source=src) from exc
+        return SceneData({**data, **{k: own[k] for k in SCENE_REF_OVERRIDES if k in own}}, src or data.source)
     if own.get("shots"):
-        return {"id": "inline", "cast": {}, **own}
-    raise SceneError(["visual: a toon visual needs scene: <id> or inline cast + shots"])
+        return SceneData({"id": "inline", "cast": {}, **own}, origin)
+    raise SceneError(["visual: a toon visual needs scene: <id> or inline cast + shots"], source=origin)

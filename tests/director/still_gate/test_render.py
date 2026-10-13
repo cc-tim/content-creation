@@ -41,8 +41,9 @@ def test_render_scene_still_forwards_project_root(tmp_path: Path, monkeypatch):
     seen: dict[str, object] = {}
 
     def fake_render_scene(scene, duration, aspect_ratio, work_dir, source_video=None,
-                          theme=None, project_root=None):
+                          theme=None, project_root=None, storyboard_file=None):
         seen["project_root"] = project_root
+        seen["storyboard_file"] = storyboard_file
         out = work_dir / "visual.mp4"
         out.write_bytes(b"visual")
         return out
@@ -59,5 +60,8 @@ def test_render_scene_still_forwards_project_root(tmp_path: Path, monkeypatch):
     still_render.render_scene_still(
         {"id": "s1", "visual": {"type": "text_card", "text": "x"}},
         variant="no_overlay", work_dir=tmp_path / "work", theme={}, project_root=project,
+        storyboard_file=project / "storyboard.json",
     )
     assert seen["project_root"] == project
+    # Sprint 11 (code review R1 M10): a toon scene's error names the storyboard file here too.
+    assert seen["storyboard_file"] == project / "storyboard.json"

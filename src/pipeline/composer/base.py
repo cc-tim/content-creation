@@ -332,11 +332,13 @@ def render_scene(
     source_video: Path | None = None,
     theme: dict | None = None,
     project_root: Path | None = None,
+    storyboard_file: Path | None = None,
 ) -> Path:
     """Dispatch to the appropriate visual renderer based on scene.visual.type.
 
     *project_root* is the project dir that relative `clip` / `article_image` / `image`
-    paths resolve against (pipeline.utils.paths). Returns the rendered segment (.mp4).
+    paths resolve against (pipeline.utils.paths). *storyboard_file* is named in toon scene
+    errors. Returns the rendered segment (.mp4).
     """
     visual = scene.get("visual", {})
     visual_type = visual.get("type", "text_card")
@@ -477,7 +479,8 @@ def render_scene(
     elif visual_type == "toon":
         from pipeline.composer.toon import render_toon_scene
 
-        return render_toon_scene(scene, duration_sec, width, height, work_dir, scene_id)
+        return render_toon_scene(scene, duration_sec, width, height, work_dir, scene_id,
+                                 storyboard_file=storyboard_file)
 
     else:
         raise ValueError(f"Unknown visual type: {visual_type} in scene {scene_id}")

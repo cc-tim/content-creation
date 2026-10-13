@@ -3,7 +3,7 @@ import copy
 import pytest
 
 from toon.bank import load_bank
-from toon.scene import load_scene, read_scene
+from toon.scene import SceneError, load_scene, read_scene
 from toon.timeline import state_at
 
 BANK = load_bank()
@@ -129,3 +129,27 @@ def test_gesture_loop_rides_on_the_pose():
     b = state_at(s, BANK, 4.1).chars["tim"].pose.hand_r  # phase 20.5π → cos 0, sin 1
     assert b[0] == pytest.approx(base[0]) and b[1] == pytest.approx(base[1] + 0.04)
     assert tuple(state_at(SCENE, BANK, 4.0).chars["tim"].pose.hand_r) == tuple(base)  # loop off: exact pose
+
+
+def test_two_cards_one_icon_with_ids_both_show():
+    d = copy.deepcopy(CUT)
+    d["shots"][0]["beats"] = [
+        {"at": 1.0, "show": {"x_card": "bulb", "id": "first", "at": [0.64, 0.30]}},
+        {"at": 1.0, "show": {"x_card": "bulb", "id": "second", "at": [0.20, 0.30]}},
+        {"at": 3.0, "hide": "x_card:first"},
+    ]
+    s = load_scene(d, BANK)
+    assert sorted(g.key for g in state_at(s, BANK, 2.0).graphics) == ["x_card:first", "x_card:second"]
+    assert [g.key for g in state_at(s, BANK, 3.5).graphics] == ["x_card:second"]
+    two_shots = copy.deepcopy(d)  # keys are per shot: the same id in another shot is fine
+    two_shots["shots"].append({**copy.deepcopy(d["shots"][0]), "at": 6.0})
+    two_shots["duration"] = 12.0
+    assert len(load_scene(two_shots, BANK).shots) == 2
+    bad = copy.deepcopy(d)
+    bad["shots"][0]["beats"][1]["show"]["id"] = "Second card"
+    with pytest.raises(SceneError, match=r"show\.id"):
+        load_scene(bad, BANK)
+    not_a_card = copy.deepcopy(CUT)
+    not_a_card["shots"][0]["beats"] = [{"at": 1.0, "show": {"anger": "tim", "id": "x"}}]
+    with pytest.raises(SceneError, match=r"show\.id: only valid with an x_card or check_pill show"):
+        load_scene(not_a_card, BANK)

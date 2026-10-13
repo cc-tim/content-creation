@@ -15,7 +15,7 @@ import numpy as np
 
 import toon
 from toon import ENGINE_VERSION
-from toon.bank import Bank, bank_files, load_bank
+from toon.bank import Bank, bank_files
 from toon.cairo_compat import cairo
 from toon.engine.camera import orbit
 from toon.engine.look import Look
@@ -120,7 +120,7 @@ def frame(scene: ToonScene, bank: Bank, t: float, width: int = 1920, height: int
     dfps = bank.style.drawing_fps
     td = math.floor(t * dfps + 1e-9) / dfps          # drawings on twos; camera on ones
     fs = state_at(scene, bank, td, t)
-    td = max(td, scene.shots[fs.shot].at)
+    td = max(td, float(scene.shots[fs.shot].at))
     surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
     draw_frame(cairo.Context(surf), scene, bank, fs, td, width, height, boil=int(t * dfps + 1e-9))
     return composite(surf, width, height, bank.style.grain)
@@ -129,8 +129,10 @@ def frame(scene: ToonScene, bank: Bank, t: float, width: int = 1920, height: int
 _WORKER: dict = {}
 
 
-def _init_worker(scene_json: str, bank_root: str, width: int, height: int) -> None:
-    _WORKER.update(scene=ToonScene.model_validate_json(scene_json), bank=load_bank(Path(bank_root)),
+def _init_worker(scene_json: str, bank_json: str, width: int, height: int) -> None:
+    # The caller's bank, not a reload from disk: frames come from the bank that was validated,
+    # even if a bank file changed since. (cache_key still hashes the bank files on disk.)
+    _WORKER.update(scene=ToonScene.model_validate_json(scene_json), bank=Bank.model_validate_json(bank_json),
                    width=width, height=height)
 
 
@@ -148,7 +150,7 @@ def render_frames(scene: ToonScene, bank: Bank, times: Iterable[float], width: i
     ctx = multiprocessing.get_context("spawn")
     with ProcessPoolExecutor(max_workers=workers or os.cpu_count() or 2, mp_context=ctx,
                              initializer=_init_worker,
-                             initargs=(scene.model_dump_json(by_alias=True), str(bank.root), width, height)) as ex:
+                             initargs=(scene.model_dump_json(by_alias=True), bank.model_dump_json(), width, height)) as ex:
         yield from ex.map(_render_one, times, chunksize=4)
 
 
