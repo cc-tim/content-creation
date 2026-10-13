@@ -742,7 +742,10 @@ def voice_variant(
     )
     try:
         result = asyncio.run(
-            Orchestrator([TtsStage(), ComposeStage()]).run(variant_ctx, start_from="tts")
+            # The variant exists to hear this voice: fail rather than substitute a fallback.
+            Orchestrator([TtsStage(auto_fallback=False), ComposeStage()]).run(
+                variant_ctx, start_from="tts"
+            )
         )
         if not result.success:
             entry.outcome = "failed"

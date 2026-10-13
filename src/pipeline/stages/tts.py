@@ -220,6 +220,10 @@ async def _synthesize_pass(
 
 
 class TtsStage(PipelineStage):
+    def __init__(self, auto_fallback: bool | None = None) -> None:
+        # None: PIPELINE_TTS_AUTO_FALLBACK decides. False: the requested voice or a failure.
+        self.auto_fallback = auto_fallback
+
     @property
     def name(self) -> str:
         return "tts"
@@ -228,7 +232,7 @@ class TtsStage(PipelineStage):
         logger.info("tts.start", locale=ctx.locale)
 
         config = PipelineConfig()
-        registry = VoiceRegistry(config.VOICES_DIR)
+        registry = VoiceRegistry(config.VOICES_DIR, auto_fallback=self.auto_fallback)
         if ctx.voice_id:
             engine, profile = registry.resolve(ctx.voice_id)
         else:
