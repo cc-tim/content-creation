@@ -1,25 +1,47 @@
 """E11 S12-5: one scene contract. Sprint 11's contract cases fail the same way against both
 engines' catalogs where the field is engine-neutral, and each engine's own tables (S11-2, S11-3)
-hold against the symbolic timeline. TOY3D_TEST stands in for the toy3d bank until phase 2."""
+hold against the symbolic timeline. The toy3d leg runs on the real toy3d bank's catalog (A2), with
+its own names (ROLES)."""
 import copy
 import re
 
 import pytest
 
-from tests.unit.toon.catalogs import TOY3D_TEST
 from tests.unit.toon.test_scene import BANK, MINI, N3
+from toon.catalog import load_catalog
 from toon.scene import NeedsNarration, SceneData, SceneError, drift_warnings, load_scene
 from toon.timeline import beats_at
 
-CATALOGS = {"toon2d": BANK, "toy3d": TOY3D_TEST}
+CATALOGS = {"toon2d": BANK, "toy3d": load_catalog("toy3d")}
 ENGINES = pytest.mark.parametrize("engine", sorted(CATALOGS))
 BUBBLE = {"bubble": ["dishes"], "from": "tim"}
+# Each engine's bank names for the same roles (the contract cases are the same; the banks differ).
+ROLES = {
+    "toon2d": {"pose": "sit_typing", "expr": "focused", "camera": "front34_push", "camera2": "two_shot",
+               "camera3": "close_push", "spot2": "doorway", "pose2": "sit_shock", "expr2": "shocked",
+               "lion_pose": "stand_point", "lion_expr": "neutral"},
+    "toy3d": {"pose": "typing", "expr": "neutral", "camera": "beat2", "camera2": "twoshot",
+              "camera3": "closeup", "spot2": "doorway_in", "pose2": "shock", "expr2": "shock",
+              "lion_pose": "stand", "lion_expr": "stern"},
+}
+
+
+def _named(engine, beat):
+    """A contract case's beat in this engine's names (`<camera2>` → the bank's camera, …)."""
+    def swap(v):
+        if isinstance(v, str) and v.startswith("<") and v.endswith(">"):
+            return ROLES[engine][v[1:-1]]
+        return {k: swap(x) for k, x in v.items()} if isinstance(v, dict) else v
+    return swap(copy.deepcopy(beat))
 
 
 def scene(engine, *beats):
     d = copy.deepcopy(MINI)
     d["engine"] = engine
-    d["shots"][0]["beats"] = [copy.deepcopy(b) for b in beats]
+    shot = d["shots"][0]
+    shot["camera"] = ROLES[engine]["camera"]
+    shot["place"]["tim"].update(pose=ROLES[engine]["pose"], expr=ROLES[engine]["expr"])
+    shot["beats"] = [_named(engine, b) for b in beats]
     return d
 
 
@@ -34,8 +56,8 @@ NEUTRAL = {
     "S11-1 ease on a show": [{"at": 1.0, "show": BUBBLE, "ease": "out"}],
     "S11-1 over on a hide": [{"at": 0.5, "show": BUBBLE}, {"at": 1.0, "hide": "bubble:tim", "over": 0.5}],
     "S11-1 ease on a hide": [{"at": 0.5, "show": BUBBLE}, {"at": 1.0, "hide": "bubble:tim", "ease": "linear"}],
-    "S11-1 over on a camera cut": [{"at": 1.0, "camera": "two_shot", "over": 0.5}],
-    "S11-1 ease on a camera cut": [{"at": 1.0, "camera": "two_shot", "ease": "out"}],
+    "S11-1 over on a camera cut": [{"at": 1.0, "camera": "<camera2>", "over": 0.5}],
+    "S11-1 ease on a camera cut": [{"at": 1.0, "camera": "<camera2>", "ease": "out"}],
     "S11-1 prop over without to": [{"at": 1.0, "prop": "idea", "flicker": True, "over": 0.5}],
     "S11-1 prop ease without to": [{"at": 1.0, "prop": "idea", "out": True, "ease": "linear"}],
     "S11-1 ease without over": [{"at": 1.0, "door": "open", "ease": "linear"}],
@@ -132,15 +154,15 @@ def test_over_0_on_a_show_appears_at_once(engine):
 
 _BASE = {
     "door": {"door": "open"},
-    "move": {"move": "lioness", "to": "doorway"},
-    "pose": {"pose": "tim", "to": "sit_shock"},
+    "move": {"move": "lioness", "to": "<spot2>"},
+    "pose": {"pose": "tim", "to": "<pose2>"},
     "face": {"face": "tim", "to": "lioness"},
     "prop": {"prop": "idea", "to": {"b": 0.3}},
     "show": {"show": BUBBLE},
     "hide": {"hide": "bubble:tim"},
-    "camera": {"camera": "close_push"},
+    "camera": {"camera": "<camera3>"},
 }
-_VALUE = {"over": 1.0, "ease": "back", "to": "doorway", "expr": "shocked", "bob": 0.3,
+_VALUE = {"over": 1.0, "ease": "back", "to": "<spot2>", "expr": "<expr2>", "bob": 0.3,
           "flicker": True, "blink": {"b": 0.35, "over": 0.4}, "out": True}
 
 
@@ -148,10 +170,11 @@ def _fence(engine, verb, **fields):
     d = scene(engine)
     d["cast"] = {"tim": "tim", "lioness": "lioness"}
     shot = d["shots"][0]
-    shot["camera"] = "two_shot"
-    shot["place"]["lioness"] = {"spot": "doorway_out", "pose": "stand_point"}
+    shot["camera"] = ROLES[engine]["camera2"]
+    shot["place"]["lioness"] = {"spot": "doorway_out", "pose": ROLES[engine]["lion_pose"],
+                                "expr": ROLES[engine]["lion_expr"]}
     shot["beats"] = [{"at": 0.5, "show": BUBBLE}] if verb == "hide" else []
-    shot["beats"].append({"at": 1.0, **_BASE[verb], **fields})
+    shot["beats"].append(_named(engine, {"at": 1.0, **_BASE[verb], **fields}))
     return d
 
 
