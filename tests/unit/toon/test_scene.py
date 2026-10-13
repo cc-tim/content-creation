@@ -4,6 +4,7 @@ import pytest
 
 from toon.bank import load_bank
 from toon.scene import SceneError, load_scene, read_scene, scene_warnings, sentence_starts
+from toon.timeline import state_at
 
 BANK = load_bank()
 MINI = {
@@ -350,3 +351,97 @@ def test_boil_override_accepts_a_known_mode():
 def test_boil_override_rejects_an_unknown_mode():
     with pytest.raises(SceneError, match="boil"):
         load_scene({**mini(), "boil": "wobbly"}, BANK)
+
+
+# -- Sprint 11 (spec §11.2 a): every field set on a beat is read by the timeline, or rejected --
+
+def _hide_after_show(**hide_fields):
+    d = mini(**{"at": 0.5, "show": {"anger": "tim"}})
+    d["shots"][0]["beats"].append({"at": 1.0, "hide": "anger:tim", **hide_fields})
+    return d
+
+
+@pytest.mark.parametrize("data, path", [
+    (mini(**{"at": 1.0, "show": {"anger": "tim"}, "ease": "out"}), r"beats\[0\]\.ease: a show beat pops in"),
+    (_hide_after_show(over=0.5), r"beats\[1\]\.over: a hide beat is instant"),
+    (_hide_after_show(ease="linear"), r"beats\[1\]\.ease: a hide beat is instant"),
+    (mini(**{"at": 1.0, "camera": "two_shot", "over": 0.5}), r"beats\[0\]\.over: a camera beat is a cut"),
+    (mini(**{"at": 1.0, "camera": "two_shot", "ease": "out"}), r"beats\[0\]\.ease: a camera beat is a cut"),
+    (mini(**{"at": 1.0, "prop": "idea", "flicker": True, "over": 0.5}),
+     r"beats\[0\]\.over: a prop beat times only a to: change"),
+    (mini(**{"at": 1.0, "prop": "idea", "out": True, "ease": "linear"}),
+     r"beats\[0\]\.ease: a prop beat times only a to: change"),
+    (mini(**{"at": 1.0, "door": "open", "ease": "linear"}), r"beats\[0\]\.ease: does nothing without over"),
+])
+def test_beat_timing_fields_rejected_where_ignored(data, path):
+    with pytest.raises(SceneError, match=path):
+        load_scene(data, BANK)
+
+
+# One shot where every verb has a valid base beat at 1.0 (a hide follows a show at 0.5).
+_FENCE_SHOT = {"at": 0.0, "set": "office", "camera": "two_shot",
+               "place": {"tim": {"spot": "desk_seat", "pose": "sit_typing"},
+                         "lioness": {"spot": "doorway_out", "pose": "stand_point"}},
+               "props": {"idea": {"kind": "idea_bulb", "on": "tim", "b": 1.0}}}
+_FENCE_BASE = {
+    "door": {"door": "open"},
+    "move": {"move": "lioness", "to": "doorway"},
+    "pose": {"pose": "tim", "to": "sit_shock"},
+    "face": {"face": "tim", "to": "lioness"},
+    "prop": {"prop": "idea", "to": {"b": 0.3}},
+    "show": {"show": {"anger": "tim"}},
+    "hide": {"hide": "anger:tim"},
+    "camera": {"camera": "close_push"},
+}
+_FENCE_VALUE = {"over": 1.0, "ease": "back", "to": "doorway", "expr": "shocked", "bob": 0.3,
+                "flicker": True, "blink": {"b": 0.35, "over": 0.4}, "out": True}
+
+
+def _fence_scene(verb, **fields):
+    shot = copy.deepcopy(_FENCE_SHOT)
+    shot["beats"] = [{"at": 0.5, "show": {"anger": "tim"}}] if verb == "hide" else []
+    shot["beats"].append({"at": 1.0, **_FENCE_BASE[verb], **fields})
+    return {"id": "fence", "duration": 4.0, "cast": {"tim": "tim", "lioness": "lioness"}, "shots": [shot]}
+
+
+def _changes_the_timeline(verb, field, extra):
+    with_it = load_scene(_fence_scene(verb, **extra, **{field: _FENCE_VALUE[field]}), BANK)
+    without = load_scene(_fence_scene(verb, **extra), BANK)
+    return any(repr(state_at(with_it, BANK, t, t)) != repr(state_at(without, BANK, t, t))
+               for t in (1.0, 1.1, 1.3, 1.6, 2.5))
+
+
+def test_every_beat_field_is_read_or_rejected():
+    # scene.BEAT_FIELDS is the one table of the optional beat fields the timeline reads per
+    # verb. A field in it must load and change what state_at returns; any other must fail.
+    from toon.scene import BEAT_FIELDS, BEAT_OPTIONAL, VERBS, Beat
+
+    assert set(BEAT_FIELDS) == set(VERBS)
+    assert set(BEAT_OPTIONAL) == set(Beat.model_fields) - {"at", *VERBS}
+    for verb in VERBS:
+        for field in BEAT_OPTIONAL:
+            if field in _FENCE_BASE[verb]:
+                continue  # the base beat already sets it (and loads)
+            extra = {"over": 1.0} if field == "ease" and "over" in BEAT_FIELDS[verb] else {}
+            data = _fence_scene(verb, **extra, **{field: _FENCE_VALUE[field]})
+            if field in BEAT_FIELDS[verb]:
+                load_scene(data, BANK)
+                assert _changes_the_timeline(verb, field, extra), (verb, field)
+            else:
+                with pytest.raises(SceneError, match=rf"beats\[\d\]\.{field}: "):
+                    load_scene(data, BANK)
+    beat = load_scene(_fence_scene("door"), BANK).shots[0].beats[0]
+    assert beat.over is None and beat.ease is None
+
+
+@pytest.mark.parametrize("prop, use", [("p", {"kind": "plate", "held_by": "tim"}),
+                                       ("s", {"kind": "plate_stack", "count": 6})])
+@pytest.mark.parametrize("flag, value", [("flicker", True), ("blink", {"b": 0.35, "over": 0.2}), ("out", True)])
+def test_prop_beat_flags_rejected_on_kinds_that_ignore_them(prop, use, flag, value):
+    d = with_props(idea={"kind": "idea_bulb", "on": "tim"}, **{prop: use})
+    d["shots"][0]["beats"].append({"at": 1.0, "prop": prop, flag: value})
+    with pytest.raises(SceneError, match=rf"beats\[0\]\.{flag}: a {use['kind']} prop ignores {flag}"):
+        load_scene(d, BANK)
+    ok = with_props(idea={"kind": "idea_bulb", "on": "tim"})
+    ok["shots"][0]["beats"].append({"at": 1.0, "prop": "idea", flag: value})
+    assert load_scene(ok, BANK).shots[0].beats[0].verb == "prop"  # the idea_bulb honours it

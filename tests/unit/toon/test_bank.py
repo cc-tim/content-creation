@@ -78,3 +78,14 @@ def test_style_boil_mode_rejects_unknown_value(tmp_path):
     p.write_text(p.read_text().replace("mode: soft", "mode: wobbly"))
     with pytest.raises(BankError, match=r"style\.yaml: boil\.mode"):
         load_bank(root)
+
+
+def test_prop_kinds_match_bank_prop_kinds():
+    # scene.PROP_KINDS (what each prop kind takes and honours) must cover exactly the kinds the
+    # bank can declare: a bank kind with no entry would fail every scene that uses it.
+    from typing import get_args
+
+    from toon.bank import PropDef
+    from toon.scene import PROP_KINDS
+
+    assert set(PROP_KINDS) == set(get_args(PropDef.model_fields["kind"].annotation))
