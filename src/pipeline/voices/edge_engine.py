@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import asyncio
+import time
+from collections.abc import Callable
 from pathlib import Path
 
+import aiohttp
 import edge_tts
 import edge_tts.communicate
+import structlog
 from edge_tts.constants import TRUSTED_CLIENT_TOKEN
 
 from pipeline.voices.base import VoiceEngine, VoiceProfile
+
+logger = structlog.get_logger()
 
 # Since Oct 2026 speech.platform.bing.com answers the synthesis WebSocket with 403
 # (rany2/edge-tts#490); Edge 155 synthesizes through api.msedgeservices.com with the same
@@ -18,6 +24,10 @@ _SYNTH_WSS_URL = (
     "wss://api.msedgeservices.com/tts/cognitiveservices/websocket/v1"
     f"?Ocp-Apim-Subscription-Key={TRUSTED_CLIENT_TOKEN}"
 )
+# That endpoint throttles: ~1 in 5 back-to-back requests gets a 429 (no Retry-After) and
+# the next one usually succeeds. 403 is not retried: it means the endpoint refuses us.
+_RETRY_STATUSES = frozenset({429, 503})
+_RETRY_DELAYS_SEC = (1.0, 2.0, 4.0, 8.0, 16.0)
 
 
 def _ensure_synth_endpoint() -> None:
@@ -26,6 +36,9 @@ def _ensure_synth_endpoint() -> None:
 
 
 class EdgeEngine(VoiceEngine):
+    def __init__(self, sleep: Callable[[float], None] = time.sleep) -> None:
+        self._sleep = sleep
+
     @property
     def name(self) -> str:
         return "edge"
@@ -43,8 +56,19 @@ class EdgeEngine(VoiceEngine):
             raise ValueError(f"edge voice profile {profile.id} is missing params.voice")
         out_path.parent.mkdir(parents=True, exist_ok=True)
         _ensure_synth_endpoint()
-        asyncio.run(self._run(text, voice, out_path))
-        return out_path
+        for attempt, delay in enumerate((*_RETRY_DELAYS_SEC, None), start=1):
+            try:
+                asyncio.run(self._run(text, voice, out_path))
+                return out_path
+            except aiohttp.WSServerHandshakeError as exc:
+                if exc.status not in _RETRY_STATUSES or delay is None:
+                    raise
+                logger.warning(
+                    "tts.edge.retry", voice=voice, status=exc.status,
+                    attempt=attempt, delay_sec=delay,
+                )
+                self._sleep(delay)
+        raise AssertionError("unreachable")
 
     @staticmethod
     async def _run(text: str, voice: str, out_path: Path) -> None:

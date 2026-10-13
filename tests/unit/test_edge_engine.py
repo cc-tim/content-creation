@@ -80,7 +80,8 @@ def test_edge_engine_leaves_a_fixed_upstream_endpoint_alone(tmp_path, monkeypatc
 
     _synthesize_with_fake_communicate(tmp_path)
 
-    assert edge_tts.communicate.WSS_URL == upstream
+    url = edge_tts.communicate.WSS_URL
+    assert url == upstream
 
 
 def _handshake_error(status: int):
@@ -120,7 +121,7 @@ _HSIAOCHEN = VoiceProfile(
 
 def test_edge_engine_retries_rate_limited_handshakes(tmp_path, monkeypatch):
     """api.msedgeservices.com answers ~1 in 5 back-to-back requests with 429."""
-    calls = _scripted_run(monkeypatch, [_handshake_error(429), _handshake_error(429), None])
+    calls = _scripted_run(monkeypatch, [_handshake_error(429), _handshake_error(503), None])
     sleeps: list[float] = []
 
     out = EdgeEngine(sleep=sleeps.append).synthesize("你好", tmp_path / "n.mp3", _HSIAOCHEN)
