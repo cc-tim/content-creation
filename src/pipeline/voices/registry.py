@@ -5,16 +5,23 @@ from pathlib import Path
 
 from pipeline.voices.base import VoiceEngine, VoiceNotFound, VoiceProfile
 from pipeline.voices.edge_engine import EdgeEngine
-from pipeline.voices.fallback_engine import FallbackEngine
+from pipeline.voices.fallback_engine import EngineHealth, FallbackEngine
 
 
 class VoiceRegistry:
-    """On-disk catalog of voice profiles keyed by id."""
+    """On-disk catalog of voice profiles keyed by id.
 
-    def __init__(self, voices_dir: Path):
+    One registry serves one TTS run: the engines it hands out share per-engine-type
+    health, so an outage switches every voice of the run to its fallback or none of them.
+    `auto_fallback` overrides PIPELINE_TTS_AUTO_FALLBACK (False: plain engines, no guard).
+    """
+
+    def __init__(self, voices_dir: Path, auto_fallback: bool | None = None):
         self._dir = Path(voices_dir)
         self._path = self._dir / "registry.json"
         self._profiles: dict[str, VoiceProfile] = {}
+        self._auto_fallback = auto_fallback
+        self._health: dict[str, EngineHealth] = {}
         self._load()
 
     # ---- loading / saving ----
@@ -70,19 +77,37 @@ class VoiceRegistry:
             raise VoiceNotFound(f"voice '{voice_id}' not in registry")
         del self._profiles[voice_id]
 
+    def fallbacks_used(self) -> dict[str, str]:
+        """Primary voice id -> fallback voice id, for each voice that switched this run."""
+        used: dict[str, str] = {}
+        for health in self._health.values():
+            used.update(health.fallbacks)
+        return used
+
     # ---- engine factory ----
-    def _engine_for(self, profile: VoiceProfile) -> VoiceEngine:
-        engine = self._base_engine_for(profile)
-        # Prerecorded profiles use params.fallback_voice_id for missing recordings instead.
-        fallback_id = profile.params.get("fallback_voice_id")
-        if not fallback_id or profile.engine == "prerecorded":
-            return engine
+    def _auto_fallback_enabled(self) -> bool:
+        if self._auto_fallback is not None:
+            return self._auto_fallback
         from pipeline.config import PipelineConfig
 
-        if not PipelineConfig().TTS_AUTO_FALLBACK:
+        return PipelineConfig().TTS_AUTO_FALLBACK
+
+    def _engine_for(self, profile: VoiceProfile) -> VoiceEngine:
+        engine = self._base_engine_for(profile)
+        # Prerecorded profiles use params.fallback_voice_id for missing recordings instead;
+        # the voices they fall back to come through here and are guarded themselves.
+        if profile.engine == "prerecorded" or not self._auto_fallback_enabled():
             return engine
+        # Every voice is guarded, with or without a fallback, so a success on any voice
+        # of this engine type counts for the run.
+        health = self._health.setdefault(profile.engine, EngineHealth(profile.engine))
+        fallback_id = profile.params.get("fallback_voice_id")
+        if not fallback_id:
+            return FallbackEngine(engine, health)
         fallback_profile = self.get(fallback_id)
-        return FallbackEngine(engine, self._base_engine_for(fallback_profile), fallback_profile)
+        return FallbackEngine(
+            engine, health, self._base_engine_for(fallback_profile), fallback_profile
+        )
 
     def _base_engine_for(self, profile: VoiceProfile) -> VoiceEngine:
         if profile.engine == "edge":

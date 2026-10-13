@@ -8,7 +8,7 @@ from structlog.testing import capture_logs
 
 from pipeline.voices.base import VoiceEngine, VoiceEngineUnavailable, VoiceNotFound, VoiceProfile
 from pipeline.voices.edge_engine import EdgeEngine
-from pipeline.voices.fallback_engine import FallbackEngine
+from pipeline.voices.fallback_engine import EngineHealth, FallbackEngine
 from pipeline.voices.kokoro_engine import KokoroEngine
 from pipeline.voices.prerecorded_engine import PrerecordedEngine
 from pipeline.voices.registry import VoiceRegistry
@@ -42,7 +42,9 @@ _FALLBACK = VoiceProfile(id="zh-TW-kokoro-f", engine="kokoro", locale="zh-TW",
 
 
 def _engine(primary: _ScriptedEngine, fallback: _ScriptedEngine) -> FallbackEngine:
-    return FallbackEngine(primary=primary, fallback=fallback, fallback_profile=_FALLBACK)
+    return FallbackEngine(
+        primary=primary, health=EngineHealth("edge"), fallback=fallback, fallback_profile=_FALLBACK
+    )
 
 
 def test_fallback_engine_uses_primary_while_it_works(tmp_path):

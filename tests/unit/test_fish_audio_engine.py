@@ -101,7 +101,7 @@ def test_registry_returns_fish_audio_engine(tmp_path: Path, monkeypatch):
 
     monkeypatch.setenv("PIPELINE_FISH_AUDIO_API_KEY", "sk-fish-test")
 
-    reg = VoiceRegistry(voices_dir)
+    reg = VoiceRegistry(voices_dir, auto_fallback=False)  # bare engine, no run guard
     engine, profile = reg.resolve("tim-fish-default-f")
 
     assert isinstance(engine, FishAudioEngine)
