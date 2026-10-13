@@ -169,6 +169,7 @@ docs/superpowers/specs/  # Design specs
 | Transcription fallback | **faster-whisper** | 4x faster than openai-whisper |
 | Story analysis + scriptwriting | **Claude (Opus) via claude -p on the subscription** | Best reasoning for narrative restructuring; runs on subscription quota |
 | TTS (primary/free) | **edge-tts** | Free, covers zh-TW/ja/es |
+| TTS (local fallback) | **Kokoro v1.1-zh** via **sherpa-onnx** | Free, offline, Apache-2.0; zh-TW auto-fallback when edge-tts is down |
 | TTS (premium) | **Google Cloud TTS Neural2** | 1M chars/month free tier |
 | Video composition | **FFmpeg** via ffmpeg-python | Industry standard |
 | Trend monitoring | **YouTube Data API v3** + **pytrends** | Free tiers sufficient |
@@ -465,6 +466,7 @@ Natural-language triggers:
 |---------|---------------|----------------|
 | Claude (Opus creative / Haiku checks) via claude -p | $0 marginal | Tim's Claude subscription quota |
 | Edge-TTS | $0 | Unlimited narration (primary) |
+| Kokoro (local) | $0 | Offline zh-TW fallback narration |
 | Google Cloud TTS Neural2 | $0 | 1M chars/month free tier (premium voice) |
 | OpenAI Whisper API | ~$3 | ~500 min transcription (fallback) |
 | OpenAI TTS | ~$5 | ~333K chars for special narration |
@@ -491,17 +493,43 @@ Hook (0-30s) → Context (30s-2min) → Rising Action (2-6min) → Climax (6-8mi
 ### Timing
 Trending content must be ported within 48-72 hours of the EN original going viral.
 
-## Edge-TTS Voice IDs
+## TTS Voices
 
-| Locale | Female | Male |
-|--------|--------|------|
-| zh-TW | `zh-TW-HsiaoChenNeural`, `zh-TW-HsiaoYuNeural` | `zh-TW-YunJheNeural` |
-| ja-JP | `ja-JP-NanamiNeural` | `ja-JP-KeitaNeural` |
-| es-MX | `es-MX-DaliaNeural` | `es-MX-JorgeNeural` |
+The voice registry (`voices/registry.json`) selects the voice. Each locale's default is its `*-default-f` entry. Pick another voice per run with `--voice <id>`, and list voices with `uv run pipeline voice list`. `uv run pipeline voice test <id> --text "..."` renders a sample.
+
+| Engine | Voices | Cost | Notes |
+|--------|--------|------|-------|
+| `edge` | Microsoft Edge neural voices (table below) | $0 | Primary. Unofficial Edge endpoint. |
+| `kokoro` | Kokoro v1.1-zh speakers, picked by `params.sid` (3 = zf_001, 59 = zm_010) | $0 | Local, offline, CPU-only. Mainland Mandarin accent. Needs the one-time model download below. |
+| `fish_audio` | Cloned voice (`params.reference_id`) | paid | Fish Audio API |
+| `prerecorded` | Scene recordings | $0 | See Prerecorded Voice Workflow |
+
+| Locale | Edge female | Edge male | Fallback (`kokoro`) |
+|--------|-------------|-----------|---------------------|
+| zh-TW | `zh-TW-HsiaoChenNeural` (default), `zh-TW-HsiaoYuNeural` | `zh-TW-YunJheNeural` | `zh-TW-kokoro-f`, `zh-TW-kokoro-m` |
+| ja-JP | `ja-JP-NanamiNeural` | `ja-JP-KeitaNeural` | none |
+| es-MX | `es-MX-DaliaNeural` | `es-MX-JorgeNeural` | none |
+
+**Auto-fallback:** a registry voice can name `params.fallback_voice_id`; the three zh-TW edge voices name a Kokoro voice. If the primary engine fails before it has produced any audio in a pass, the whole pass switches to the fallback and logs `tts.fallback.engaged` at error level. Listen before publishing. If the primary fails after some scenes already used it, TTS stops with an error instead, so one narration never mixes two voices.
+
+**One-time setup per machine (Kokoro):** `./scripts/install_kokoro_tts.sh` downloads about 350 MB into `~/.cache/content-creation/tts/kokoro-multi-lang-v1_1`.
+
+| Config (env) | Default | Purpose |
+|--------------|---------|---------|
+| `PIPELINE_TTS_AUTO_FALLBACK` | `true` | Set `false` to fail instead of switching to the fallback voice |
+| `PIPELINE_TTS_KOKORO_MODEL_DIR` | `~/.cache/content-creation/tts/kokoro-multi-lang-v1_1` | Kokoro model bundle location |
+
+**Troubleshooting edge-tts:**
+
+| Symptom | Meaning |
+|---------|---------|
+| `403` from `speech.platform.bing.com` | Legacy host, retired by Microsoft in Oct 2026. `EdgeEngine` routes synthesis through `api.msedgeservices.com` until an edge-tts release does it upstream (rany2/edge-tts#491). |
+| `tts.edge.retry … status=429` warnings | The new endpoint throttles bursts. The engine retries up to 5 times (1–16 s). |
+| `403` from `api.msedgeservices.com` | The new endpoint now refuses too. zh-TW falls back to Kokoro automatically. For other locales, check upstream edge-tts. |
 
 ## Prerecorded Voice Workflow
 
-Drop scene recordings into `voices/prerecorded/<voice_id>/<scene_id>.wav`. The pipeline's `PrerecordedEngine` picks them up and falls back to Edge-TTS for missing scenes. See `scripts/record_voice.md`.
+Drop scene recordings into `voices/prerecorded/<voice_id>/<scene_id>.wav`. The pipeline's `PrerecordedEngine` picks them up and falls back to its `fallback_voice_id` (default: the locale's default voice) for missing scenes. See `scripts/record_voice.md`.
 
 ## CJK Subtitle Rendering
 
