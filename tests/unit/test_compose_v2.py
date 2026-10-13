@@ -383,6 +383,47 @@ def test_compose_burn_subtitles_false_returns_plain_variant(monkeypatch, tmp_pat
     assert result_ctx.final_video_path != compose_dir / f"final_{locale}_subtitles.mp4"
 
 
+def test_compose_passes_the_storyboard_file_to_render_scene(monkeypatch, tmp_path):
+    """Sprint 11 (S11-8, EM REVIEW 1 R2): compose hands render_scene the storyboard file, so a
+    toon scene's SceneRenderError names `<storyboard file> scene <sid>`. Dropping the kwarg
+    would only ever say `storyboard scene <sid>`."""
+    import asyncio
+
+    from pipeline.stages.base import PipelineContext
+
+    work_dir = tmp_path / "work"
+    (work_dir / "audio").mkdir(parents=True)
+    narration = work_dir / "audio" / "narration.mp3"
+    narration.write_bytes(b"mp3")
+    subs = work_dir / "audio" / "subs.srt"
+    subs.write_text("1\n00:00:00,000 --> 00:00:01,000\nx\n", encoding="utf-8")
+    sb_path = work_dir / "storyboard_zh-TW.json"
+    Storyboard(scenes=[Scene(id="s1", section="hook", narration="x", narration_est_sec=1.0,
+                             visual={"type": "text_card", "text": "hi"})]).save(sb_path)
+    ctx = PipelineContext(
+        project_id=1, source_url="x", locale="zh-TW", work_dir=work_dir, narration_path=narration,
+        subtitle_path=subs, storyboard_path=sb_path, burn_subtitles=False,
+        segment_timings=[{"index": 0, "text": "x", "path": str(narration), "start_ms": 0, "duration_ms": 1000}],
+    )
+
+    def capture(cmd):
+        if "-i" in cmd and cmd[-1].endswith(".mp4"):
+            Path(cmd[-1]).write_bytes(b"mp4")
+
+    received: list = []
+
+    def _fake_render(scene, duration, aspect_ratio, work_dir, source_video=None, theme=None,
+                     project_root=None, storyboard_file=None):
+        received.append(storyboard_file)
+        return Path(work_dir) / f"{scene['id']}.mp4"
+
+    monkeypatch.setattr("pipeline.stages.compose.run_ffmpeg", capture)
+    monkeypatch.setattr("pipeline.stages.compose.check_ffmpeg_available", lambda: True)
+    monkeypatch.setattr("pipeline.stages.compose.render_scene", _fake_render)
+    asyncio.run(ComposeStage().run(ctx))
+    assert received == [sb_path]
+
+
 def test_scenes_json_written_by_storyboard_compose(monkeypatch, tmp_path):
     """After _compose_from_storyboard, compose/scenes.json exists with correct timestamps."""
     from pathlib import Path

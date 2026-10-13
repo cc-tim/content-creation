@@ -1112,3 +1112,13 @@ task's red step (a commit can't record its own SHA).
   toon clip (A: 369 vs 374 frames, 12.300 s video vs 12.393 s audio). The pipeline's narration
   duration for a prerecorded take is the transcoded MP3's (12.456 s, with encoder padding), while
   the WAV is 12.393 s; the mux then trims the held last shot. The cuts are unaffected.
+
+## Rework after EM REVIEW 1 (2026-10-13 = REWORK, narrow)
+
+R2 and R3 are test-only pins of behaviour that already exists, so there is no red commit: the
+"red" column is the EM's surviving mutation, applied by hand to the source, run, and reverted.
+S11-17 changes behaviour, so it lands red first.
+
+| Item | Test | Red evidence | Red commit | Fix / pin commit |
+|------|------|--------------|------------|------------------|
+| R2 (S11-8) | `test_compose_v2.py::test_compose_passes_the_storyboard_file_to_render_scene` | M13 (compose passes `storyboard_file=None`): `AssertionError: assert [None] == [PosixPath('/…/storyboard_zh-TW.json')]` | n/a (pin) | |
