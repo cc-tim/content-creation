@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.toy3d_snapshot import SCREEN_LOG_JS
 from tests.unit.toy3d.test_state_symbolic import PROBES, _probe_scene
 
 pytestmark = pytest.mark.integration
@@ -29,7 +30,7 @@ HTMLCanvasElement.prototype.getContext = function (kind, ...rest) {
 def state_page(bank):
     from toy3d import runtime
 
-    with runtime.open_page(1920, 1080, "state", init_script=COUNT_CONTEXTS) as page:
+    with runtime.open_page(1920, 1080, "state", init_script=COUNT_CONTEXTS + SCREEN_LOG_JS) as page:
         page.init(runtime.bank_payload(bank), 1920, 1080, "state")
         yield page
 
@@ -71,7 +72,9 @@ def test_applied_world_matrices_match_goldens(state_page, worked, design, bank):
     for key, nodes in want.items():
         name, t = key.split("@")
         scene = design if name == "guo" else worked
-        bad += _diff(state_page.apply_state(_spec(scene, bank, float(t))), nodes, key)
+        got = state_page.apply_state(_spec(scene, bank, float(t)))
+        got["laptop.screen"] = state_page.evaluate("() => JSON.stringify(window.__screenLog)")   # its draw calls
+        bad += _diff(got, nodes, key)
     assert not bad, "\n".join(bad[:20])
 
 

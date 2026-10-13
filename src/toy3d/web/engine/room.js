@@ -285,17 +285,7 @@ export function buildOffice(scene, set, M) {
     sp.rotation.order = 'YXZ'; sp.rotation.set(Math.PI / 2, a, 0);
     sph(0.03, mFrame, chair, [Math.sin(a) * 0.22, 0.03, Math.cos(a) * 0.22]);
   }
-  // FNV-1a over the screen's pixels (Layer B: the drawn code bars, comparable to the snapshot's).
-  // Read from a copy: reading the screen canvas itself would make Chrome stop accelerating it.
-  function screenHash() {
-    const copy = document.createElement('canvas'); copy.width = scrCanvas.width; copy.height = scrCanvas.height;
-    const cg = copy.getContext('2d', { willReadFrequently: true }); cg.drawImage(scrCanvas, 0, 0);
-    const d = cg.getImageData(0, 0, scrCanvas.width, scrCanvas.height).data;
-    let h = 0x811c9dc5;
-    for (let i = 0; i < d.length; i++) { h ^= d[i]; h = Math.imul(h, 0x01000193) >>> 0; }
-    return h;
-  }
-  return { doorHinge, chair, drawScreen, screenHash };
+  return { doorHinge, chair, drawScreen };
 }
 
 // ---- dust puffs the door kicks up (seeded positions; the spec drives their k) ----

@@ -232,7 +232,6 @@ export function buildWorld(bank, { width, height, mode }) {
     if (bub.bubble.visible) { put('bubble', bub.bubble); put('bubble.pop', bub.bubPop); put('bubble.bang', bub.bang); }
     dust.forEach((m, i) => { if (m.visible) { put(`dust.${i}`, m); out[`dust.${i}.opacity`] = m.material.opacity; } });
     smoke.forEach((m, i) => { if (m.visible) { put(`smoke.${i}`, m); out[`smoke.${i}.opacity`] = m.material.opacity; } });
-    out['laptop.screen'] = room.screenHash();
     return out;
   }
 

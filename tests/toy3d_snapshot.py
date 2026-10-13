@@ -54,7 +54,7 @@ def verify(d: Path) -> dict[str, str]:
 
 EXPORT_JS = """
 window.__snap = { scene, camera, tim, lion, guoSit, guoStand, chair, doorHinge, bulb, glow, rays, bulbLight,
-  mGlass, bubble, bubPop, bang, puffs, TIM_FACE, LION_FACE, scrCanvas };
+  mGlass, bubble, bubPop, bang, puffs, TIM_FACE, LION_FACE };
 """
 
 # Counts Math.random draws (the stage seeds it): `start` = draws before the GTAOPass constructor's
@@ -109,22 +109,30 @@ NODES_JS = """
   if (S.bubble.visible) { put('bubble', S.bubble); put('bubble.pop', S.bubPop); put('bubble.bang', S.bang); }
   S.puffs.slice(0, 9).forEach((m, i) => { if (m.visible) { put(`dust.${i}`, m); out[`dust.${i}.opacity`] = m.material.opacity; } });
   S.puffs.slice(9).forEach((m, i) => { if (m.visible) { put(`smoke.${i}`, m); out[`smoke.${i}.opacity`] = m.material.opacity; } });
-  out['laptop.screen'] = screenHash(S.scrCanvas);
+  out['laptop.screen'] = JSON.stringify(window.__screenLog);
   return out;
 }
 """
 
-# FNV-1a over the laptop screen's pixels: the wordless code bars drawn for this frame. Read from a
-# copy: reading the screen canvas itself would make Chrome stop accelerating it, and change it.
-SCREEN_HASH_JS = """
-window.screenHash = (c) => {
-  const copy = document.createElement('canvas'); copy.width = c.width; copy.height = c.height;
-  const g = copy.getContext('2d', { willReadFrequently: true }); g.drawImage(c, 0, 0);
-  const d = g.getImageData(0, 0, c.width, c.height).data;
-  let h = 0x811c9dc5;
-  for (let i = 0; i < d.length; i++) { h ^= d[i]; h = Math.imul(h, 0x01000193) >>> 0; }
-  return h;
-};
+# The laptop screen's draw calls this frame (Layer B): its wordless code bars as drawn, not as a GPU
+# rasterised them, so the log is the same on every machine. The screen is the one 512×320 canvas;
+# a full clear starts a frame. An init script, for the snapshot's page and the engine's alike.
+SCREEN_LOG_JS = """
+(() => {
+  const P = CanvasRenderingContext2D.prototype;
+  const r = (x) => (typeof x === 'number' ? Math.round(x * 1000) / 1000 : x);
+  window.__screenLog = [];
+  for (const m of ['fillRect', 'roundRect', 'ellipse', 'fill']) {
+    const orig = P[m];
+    P[m] = function (...a) {
+      if (this.canvas.width === 512 && this.canvas.height === 320) {
+        if (m === 'fillRect' && a[0] === 0 && a[1] === 0 && a[2] === 512 && a[3] === 320) window.__screenLog = [];
+        window.__screenLog.push([m, ...a.map(r), m === 'fill' || m === 'fillRect' ? String(this.fillStyle) : '']);
+      }
+      return orig.apply(this, a);
+    };
+  }
+})();
 """
 
 
@@ -170,7 +178,7 @@ def open_snapshot(d: Path, width: int = 1920, height: int = 1080, *, count: bool
             page.on("pageerror", lambda e: errors.append(str(e)))
             if count:
                 page.add_init_script(COUNT_JS)
-            page.add_init_script(SCREEN_HASH_JS)
+            page.add_init_script(SCREEN_LOG_JS)
             page.route(f"{ORIGIN}/**", _route(d))
             page.goto(f"{ORIGIN}/stage.html?look=A")
             wait_ready(page, errors, timeout=240.0)

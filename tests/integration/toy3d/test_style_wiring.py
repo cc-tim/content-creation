@@ -61,7 +61,9 @@ def test_style_values_change_pixels(payload, spec, base, path, value):
 
 
 def test_the_same_bank_renders_the_same_pixels(payload, spec, base):
-    assert np.array_equal(_render(payload, spec), base)
+    # A fresh page, the same picture: byte-identical on the Mac, within the hub GPU's measured
+    # 1-level run-to-run noise there (tests/fixtures/toy3d/goldens/PROVENANCE.md).
+    assert np.abs(_render(payload, spec) - base).max() <= 1
 
 
 @pytest.mark.parametrize(("path", "value", "message"), [
