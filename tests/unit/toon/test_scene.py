@@ -574,3 +574,21 @@ def test_shot_anchors_resolving_out_of_order_fail_loudly():
     beyond["shots"][1]["beats"].append({"at": {"sentence": 2, "plus": 9.0}, "door": "close"})
     with pytest.raises(SceneError, match=r"shots\[1\]\.beats\[7\]\.at: 9s is outside the shot"):
         load_scene(beyond, BANK, narration=N3, duration=13.44)
+
+
+# -- Sprint 11 (EM REVIEW 1 R4, row S11-17): over values mean what they render --
+
+def test_over_values_mean_what_they_render():
+    for beat in ({"at": 1.0, "door": "open", "over": -1},                 # loaded and acted as instant
+                 {"at": 1.0, "show": {"anger": "tim"}, "over": -0.5},
+                 {"at": 1.0, "prop": "idea", "to": {"b": 0.3}, "over": -1}):
+        with pytest.raises(SceneError, match=r"shots\.0\.beats\.0\.over: Input should be greater than or equal to 0"):
+            load_scene(mini(**beat), BANK)
+    with pytest.raises(SceneError, match=r"beats\.0\.blink\.over: Input should be greater than 0"):  # never shows
+        load_scene(mini(**{"at": 1.0, "prop": "idea", "blink": {"b": 0.35, "over": 0}}), BANK)
+    instant = load_scene(mini(**{"at": 1.0, "show": {"anger": "tim"}, "over": 0}), BANK)
+    (g,) = state_at(instant, BANK, 1.0, 1.0).graphics
+    assert g.k == 1.0                                       # over: 0 on a show appears at once
+    popped = load_scene(mini(**{"at": 1.0, "show": {"anger": "tim"}}), BANK)
+    (g,) = state_at(popped, BANK, 1.05, 1.05).graphics
+    assert g.k == pytest.approx(0.2)                        # no over: the 0.25 s pop
