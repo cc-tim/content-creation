@@ -83,7 +83,7 @@ def pose_of(bank: Bank, pose_name: str, expr_name: str) -> Pose:
 
 
 def shot_index(scene: ToonScene, t: float) -> int:
-    return max(i for i, sh in enumerate(scene.shots) if sh.at <= max(t, 0.0))
+    return max(i for i, sh in enumerate(scene.shots) if float(sh.at) <= max(t, 0.0))
 
 
 def _progress(b: Beat, rel: float) -> float | None:
@@ -99,8 +99,9 @@ def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = 
     t_cam = t_draw if t_cam is None else t_cam
     i = shot_index(scene, t_cam)
     shot = scene.shots[i]
-    t_draw = max(t_draw, shot.at)
-    rel = t_draw - shot.at
+    start = float(shot.at)  # sentence anchors resolve to seconds before state_at ever runs
+    t_draw = max(t_draw, start)
+    rel = t_draw - start
     spots = bank.sets[shot.set].spots
 
     chars = {}
@@ -117,7 +118,7 @@ def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = 
     graphics: dict[str, GraphicState] = {}
     flickers: dict[str, Flicker | None] = {}
     preset = bank.cameras[shot.camera]
-    rel_cam = t_cam - shot.at
+    rel_cam = t_cam - start
     cam_from = 0.0  # a camera beat cuts to its preset, whose own move restarts at the beat
 
     for b in sorted(shot.beats, key=lambda x: x.at):

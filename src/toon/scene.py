@@ -86,6 +86,7 @@ class _Strict(BaseModel):
 
 class SentenceAnchor(_Strict):
     sentence: int = Field(ge=1)
+    plus: float = Field(default=0.0, ge=0.0)  # seconds after the sentence starts
 
 
 class Place(_Strict):
@@ -194,7 +195,7 @@ BEAT_OPTIONAL = tuple(f for f in Beat.model_fields if f != "at" and f not in VER
 
 
 class Shot(_Strict):
-    at: float
+    at: float | SentenceAnchor  # seconds into the scene, or a sentence anchor (resolved at load)
     set: str
     camera: str
     place: dict[str, Place]
@@ -224,8 +225,8 @@ def graphic_key(show: Show) -> str:
 
 def shot_length(scene: ToonScene, i: int) -> float:
     if i + 1 < len(scene.shots):
-        return scene.shots[i + 1].at - scene.shots[i].at
-    return scene.duration - scene.shots[i].at if scene.duration is not None else math.inf
+        return float(scene.shots[i + 1].at) - float(scene.shots[i].at)
+    return scene.duration - float(scene.shots[i].at) if scene.duration is not None else math.inf
 
 
 # A terminator run, then any closing quotes or brackets right after it: they belong to the
@@ -279,27 +280,61 @@ def sentence_starts(narration: str, duration: float) -> list[float]:
     return starts
 
 
+def anchor_text(at: float | SentenceAnchor) -> str:
+    """An `at:` as the author wrote it, for messages and `toon validate`."""
+    if isinstance(at, SentenceAnchor):
+        return f"{{sentence: {at.sentence}" + (f", plus: {at.plus:g}" if at.plus else "") + "}"
+    return f"{at:g}s"
+
+
+def _shot_order(shots: list[Shot], starts: list[float]) -> list[str]:
+    """After anchors resolve, the first shot starts at 0 and shot starts strictly increase.
+    Each problem names the shot, its anchor as authored and its resolved time."""
+    def label(i: int) -> str:
+        at = shots[i].at
+        return f"{anchor_text(at)} → {starts[i]:.2f}s" if isinstance(at, SentenceAnchor) else anchor_text(at)
+
+    p = [f"shots[0].at: {label(0)}; the first shot must start at 0"] if starts[0] != 0 else []
+    p += [f"shots[{i}].at: {label(i)} is not after shots[{i - 1}] at {label(i - 1)}; "
+          f"shots must start in increasing order"
+          for i in range(1, len(starts)) if starts[i] <= starts[i - 1]]
+    return p
+
+
 def _resolve_anchors(scene: ToonScene, narration: str | None) -> ToonScene:
-    anchored = [(i, j) for i, sh in enumerate(scene.shots) for j, b in enumerate(sh.beats)
-                if isinstance(b.at, SentenceAnchor)]
+    """Sentence anchors → seconds: shots first (sentence start + plus), then each beat relative
+    to its shot's resolved start. Every anchor resolves through sentence_starts(), the seam where
+    measured word timings (E9 item 3) plug in later. Seconds stay as written: nothing stretches."""
+    anchored = [f"shots[{i}].at" for i, sh in enumerate(scene.shots) if isinstance(sh.at, SentenceAnchor)]
+    anchored += [f"shots[{i}].beats[{j}].at" for i, sh in enumerate(scene.shots)
+                 for j, b in enumerate(sh.beats) if isinstance(b.at, SentenceAnchor)]
+    if anchored and (not narration or scene.duration is None):
+        raise SceneError([f"{a}: sentence anchors need the scene's narration and duration" for a in anchored])
+    starts = sentence_starts(narration, scene.duration) if anchored else []
+    problems: list[str] = []
+
+    def resolve(at: float | SentenceAnchor, where: str) -> float:
+        if not isinstance(at, SentenceAnchor):
+            return at
+        if at.sentence > len(starts):
+            problems.append(f"{where}: sentence {at.sentence}, but narration has {len(starts)}")
+            return math.nan
+        return starts[at.sentence - 1] + at.plus
+
+    shot_at = [resolve(sh.at, f"shots[{i}].at") for i, sh in enumerate(scene.shots)]
+    if problems:
+        raise SceneError(problems)
+    problems += _shot_order(scene.shots, shot_at)
+    if problems:
+        raise SceneError(problems)
     if not anchored:
         return scene
-    if not narration or scene.duration is None:
-        raise SceneError([f"shots[{i}].beats[{j}].at: sentence anchors need the scene's narration and duration"
-                          for i, j in anchored])
-    starts = sentence_starts(narration, scene.duration)
-    problems, shots = [], []
+    shots = []
     for i, sh in enumerate(scene.shots):
-        beats = []
-        for j, b in enumerate(sh.beats):
-            if isinstance(b.at, SentenceAnchor):
-                n = b.at.sentence
-                if n > len(starts):
-                    problems.append(f"shots[{i}].beats[{j}].at: sentence {n}, but narration has {len(starts)}")
-                else:
-                    b = b.model_copy(update={"at": starts[n - 1] - sh.at})
-            beats.append(b)
-        shots.append(sh.model_copy(update={"beats": beats}))
+        beats = [b if not isinstance(b.at, SentenceAnchor) else
+                 b.model_copy(update={"at": resolve(b.at, f"shots[{i}].beats[{j}].at") - shot_at[i]})
+                 for j, b in enumerate(sh.beats)]
+        shots.append(sh.model_copy(update={"at": shot_at[i], "beats": beats}))
     if problems:
         raise SceneError(problems)
     return scene.model_copy(update={"shots": shots})
@@ -310,14 +345,8 @@ def _check(scene: ToonScene, bank: Bank) -> list[str]:
     for who, char in scene.cast.items():
         if char not in bank.characters:
             p.append(f"cast.{who}: unknown character {char!r} (bank has {sorted(bank.characters)})")
-    last = -1.0
-    for i, shot in enumerate(scene.shots):
+    for i, shot in enumerate(scene.shots):  # shot order is checked as anchors resolve
         w = f"shots[{i}]"
-        if i == 0 and shot.at != 0:
-            p.append(f"{w}.at: the first shot must start at 0")
-        if shot.at <= last:
-            p.append(f"{w}.at: shots must start in increasing order")
-        last = shot.at
         set_def = bank.sets.get(shot.set)
         spots = set_def.spots if set_def else {}
         if set_def is None:
@@ -539,9 +568,9 @@ def _load(data: dict, bank: Bank, narration: str | None, duration: float | None)
 
 
 def scene_warnings(scene: ToonScene, duration: float) -> list[str]:
-    last = max((sh.at + b.at + (b.over or 0.0) for sh in scene.shots for b in sh.beats
+    last = max((float(sh.at) + b.at + (b.over or 0.0) for sh in scene.shots for b in sh.beats
                 if isinstance(b.at, float)), default=0.0)
-    last = max(last, scene.shots[-1].at)
+    last = max(last, float(scene.shots[-1].at))
     if last > duration:
         return [f"scene {scene.id}: its last beat ends at {last:g}s but the narration ends at "
                 f"{duration:g}s; the clip will be cut there"]

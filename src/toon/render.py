@@ -120,7 +120,7 @@ def frame(scene: ToonScene, bank: Bank, t: float, width: int = 1920, height: int
     dfps = bank.style.drawing_fps
     td = math.floor(t * dfps + 1e-9) / dfps          # drawings on twos; camera on ones
     fs = state_at(scene, bank, td, t)
-    td = max(td, scene.shots[fs.shot].at)
+    td = max(td, float(scene.shots[fs.shot].at))
     surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
     draw_frame(cairo.Context(surf), scene, bank, fs, td, width, height, boil=int(t * dfps + 1e-9))
     return composite(surf, width, height, bank.style.grain)
