@@ -240,3 +240,39 @@ async def test_mla_secondary_outage_after_a_primary_fallback_leaves_audio_untouc
     assert sorted(p.name for p in audio.iterdir()) == [
         "narration_en.mp3", "narration_zh-TW.mp3", "segment_000.mp3",
     ]
+
+
+async def test_fallback_marker_is_written_next_to_the_audio(run_tts, tmp_path):
+    ctx, _ = await run_tts(path="default", fail_scenes={"s1"})
+    marker = ctx.work_dir / "audio" / "tts_fallback.json"
+    assert json.loads(marker.read_text()) == {
+        "fallback_voices": {"zh-TW-default-f": "zh-TW-kokoro-f"}
+    }
+
+    ctx, _ = await run_tts(path="default", fail_scenes=set())
+
+    assert not marker.exists()
+
+
+async def test_mla_drift_failure_after_commit_cannot_lose_the_fallback(mla_project, monkeypatch):
+    """zh falls back, en succeeds, then the drift gate raises: context.json is never saved,
+    but the committed Kokoro audio carries its marker and publish still refuses."""
+    from pipeline.publish.stage import PreflightError, run_preflight
+
+    _engines_down_for(monkeypatch, {"zh-TW-HsiaoChenNeural"})
+    audio = mla_project.work_dir / "audio"
+
+    with (
+        patch("pipeline.stages.tts._get_audio_duration_ms", return_value=1000),
+        patch("pipeline.stages.tts._check_secondary_durations", side_effect=ValueError("drift")),
+        pytest.raises(ValueError, match="drift"),
+    ):
+        await TtsStage().run(mla_project)
+
+    assert (audio / "narration_zh-TW.mp3").read_text() == "kokorokokoro"
+    on_disk = PipelineContext(  # what context.json still says: no fallback recorded
+        project_id=1, source_url="x", locale="zh-TW", work_dir=mla_project.work_dir,
+        final_video_path=audio / "narration_zh-TW.mp3",
+    )
+    with pytest.raises(PreflightError, match="zh-TW-kokoro-f"):
+        run_preflight(ctx=on_disk, privacy="unlisted", schedule_iso=None)

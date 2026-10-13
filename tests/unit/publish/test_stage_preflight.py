@@ -109,3 +109,27 @@ def test_preflight_allows_a_fallback_voice_only_when_told_and_warns(ready_projec
     assert len(warned) == 1
     assert warned[0]["log_level"] == "warning"
     assert warned[0]["fallback_voices"] == {"zh-TW-default-f": "zh-TW-kokoro-f"}
+
+
+def _write_audio_marker(work_dir: Path) -> None:
+    audio = work_dir / "audio"
+    audio.mkdir(exist_ok=True)
+    (audio / "tts_fallback.json").write_text(
+        json.dumps({"fallback_voices": {"zh-TW-default-f": "zh-TW-kokoro-f"}})
+    )
+
+
+def test_preflight_refuses_when_the_audio_marker_records_a_fallback(ready_project: Path) -> None:
+    """The marker travels with the audio, so a lost context.json save can't hide a fallback."""
+    _write_audio_marker(ready_project)
+    ctx = _ctx(ready_project)
+    assert ctx.tts_fallback_voices == {}
+    with pytest.raises(PreflightError, match="zh-TW-kokoro-f"):
+        run_preflight(ctx=ctx, privacy="unlisted", schedule_iso=None)
+
+
+def test_preflight_audio_marker_also_yields_to_the_override(ready_project: Path) -> None:
+    _write_audio_marker(ready_project)
+    run_preflight(
+        ctx=_ctx(ready_project), privacy="unlisted", schedule_iso=None, allow_fallback_voice=True
+    )
