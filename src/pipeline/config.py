@@ -40,6 +40,8 @@ class PipelineConfig(BaseSettings):
     TTS_VOICE_ZH_TW: str = "zh-TW-HsiaoChenNeural"
     TTS_VOICE_JA: str = "ja-JP-NanamiNeural"
     TTS_VOICE_ES_MX: str = "es-MX-DaliaNeural"
+    # Local Kokoro model bundle (engine "kokoro"); fetched by scripts/install_kokoro_tts.sh
+    TTS_KOKORO_MODEL_DIR: Path = Path("~/.cache/content-creation/tts/kokoro-multi-lang-v1_1")
 
     # Video
     MAX_VIDEO_RESOLUTION: str = "720p"

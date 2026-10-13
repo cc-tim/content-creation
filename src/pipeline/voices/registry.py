@@ -82,5 +82,10 @@ class VoiceRegistry:
             from pipeline.voices.fish_audio_engine import FishAudioEngine
 
             return FishAudioEngine(api_key=PipelineConfig().FISH_AUDIO_API_KEY)
+        if profile.engine == "kokoro":
+            from pipeline.config import PipelineConfig
+            from pipeline.voices.kokoro_engine import KokoroEngine
+
+            return KokoroEngine(model_dir=PipelineConfig().TTS_KOKORO_MODEL_DIR)
         # TODO: elevenlabs engine
         raise VoiceNotFound(f"unknown engine '{profile.engine}' for voice {profile.id}")
