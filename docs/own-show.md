@@ -38,21 +38,49 @@ The porting pipeline keeps its existing rules. (Decided with Tim 2026-09-26.)
   `style.yaml` → `boil`).
 - **Mascot GuoGuo** (Tim, 2026-10-13): a child-size **king penguin** called GuoGuo appears
   **somewhere in every scene**, as a recurring easter egg (peeking, reacting in the background).
-  The design follows Tim's king-penguin plush photo (2026-10-13), which replaces the r7 A/B/C
-  options:
-  - a pear-shaped plush body;
-  - a black head with orange teardrop ear patches and blue bead eyes;
-  - a wide yellow collar band and a white belly;
-  - a blue-grey back and flippers;
-  - big black feet.
+  **GuoGuo is Tim's own king-penguin hand-puppet plush.** Reference photos (front, side, back,
+  top) are in `output/own-show/ref/guoguo/`. They are not in git; the Mac copy is the original.
+  "Make it vivid." The design traits:
+  - long-pile fluffy fur all over;
+  - a black head with a long black beak and an orange stripe on the lower mandible;
+  - blue glass eyes on the sides of the head;
+  - round orange patches low on each side of the head;
+  - a **yellow V-shaped throat bib**, not a band;
+  - a full white front;
+  - a **medium-grey** back and sides;
+  - flippers stuck out sideways, white in front and grey behind;
+  - stubby black feet.
+
+  These photos replace the store-plush photo and the r7 A/B/C options.
 - **Scene library:** every scene idea or tryout is recorded in
   [`own-show-scenes.md`](own-show-scenes.md) (brief in Tim's words, picks, status), even if it
   never reaches a video; files in `output/own-show/scenes/<nnn-slug>/`.
 
-## Style exploration — status (2026-10-13: **reopened; r7 variants awaiting Tim**)
+## Style exploration — status (2026-10-13: **LOCKED: 3D toy, Animal Crossing smooth look**)
 
-The v0 bank (round 5 / ✅ row below) is the implemented baseline. Tim reopened the style on
-2026-09-28, and two candidates were rejected:
+**Primary style (Tim, 2026-10-13):**
+- **3D toy, Animal Crossing smooth**: r7-3d look A, a Three.js tryout. It has soft vinyl
+  characters, a dollhouse room, a free camera, face-decal expressions, and deterministic
+  rendering.
+- Open fixes before it is bank-ready:
+  - Tim's hair: it reads "so strange" (lumpy beads). Three sculpted Animal Crossing-style
+    options are pending Tim's pick.
+  - GuoGuo: rebuild from the hand-puppet photos.
+  - The tryout's own weak points: the primitive-built lioness, mechanical motion, and hands
+    that don't clear the big head.
+- The tryout code is throwaway. A production 3D engine and bank still has to go through the
+  roadmap.
+
+**Backup style:**
+- **Drawn soft-cel rebuild** (r8): B's lean hoodie torso, C's stubby sleeve arms and the r7
+  expressions, in clean coloured lines with soft shading.
+- Also kept for reference: the r7 variants Tim called good.
+- Kept so a direction can be cross-checked ("sometimes we may want to verify on it"). It runs
+  on the existing 2.5D `src/toon` engine. Sprint 11 still serves it.
+
+**Retired:** v0 doodle (bank v0, round 5 / ✅ row below), the r8 plush look and 3D look B.
+
+**History:** Tim reopened the style on 2026-09-28, and two candidates were rejected:
 - **Editorial cut-paper** (branch deleted 2026-10-13).
 - **r6 AI style board** (2026-10-13): pixel art, clay, painted storybook and manga concept
   stills. Tim: "all not good".
@@ -82,7 +110,7 @@ Tryouts (throwaway; code + renders + comparison page) are in the EP1 project fol
 | ✅ | **FROZEN: Tim = likeness 2 + short crop A + navy hoodie, line A (marker)**, 2.5D code rig. Preset + model sheet in `r4/character_tim.py` → `r4/tim_model_sheet.png` (turnaround 0–180°, 6 expressions, palette, line rules) | Seed of the character bank. |
 | 6 | **AI style board** (`output/own-show/scenes/001-lioness-dishes/r6-style-board/`): beat 2 as pixel art, clay, painted storybook and manga, 2 GPT-Image stills each (~$1.40) | Tim: "all not good". |
 | 7 | **Cute-stickman variants on the toon engine** (`r7/`, throwaway: `stickman.py` + `head7.py`): v0 vs A cute stickman, B hoodie stickman, C Animal Crossing chunky, D noodle limbs. Each has 9 gestures, 8 expressions with Animal Crossing-style reaction marks (sparkles, anger mark, gloom, tears, Aha-bulb) and a 2×2 camera demo (pan, tilt, zoom, orbit). Also **GuoGuo** options A/B/C (`guoguo.py`) with a scale check next to Tim. **r7-3d:** the same beat as a 3D toy (Three.js) in an Animal Crossing look and a Sylvanian flocked look. | Tim liked **B's lean torso, C's stubby sleeve arms and the expressions**, but wants a **full style rebuild**, not a v0 tweak. GuoGuo is to follow his plush photo. |
-| 8 | **Drawn style rebuild** (`r8/`: `rebuild.py`, `clip.py`, `index.html`): the r7 picks in two new renderings, *soft-cel* (Animal Crossing feel: coloured lines, soft shading, warm skin, cozy coloured room) and *plush* (Sylvanian feel: fuzzy felt edges, fabric texture). Each has a turnaround, reactions, a room frame and an 8 s camera clip, plus GuoGuo from the photo. `r8/index.html` compares them 2×2 with the r7-3d toy pair. | Awaiting Tim's pick (drawn vs 3D × Animal Crossing vs Sylvanian). |
+| 8 | **Drawn style rebuild** (`r8/`: `rebuild.py`, `clip.py`, `index.html`): the r7 picks in two new renderings, *soft-cel* (Animal Crossing feel: coloured lines, soft shading, warm skin, cozy coloured room) and *plush* (Sylvanian feel: fuzzy felt edges, fabric texture). Each has a turnaround, reactions, a room frame and an 8 s camera clip, plus GuoGuo from the photo. `r8/index.html` compares them 2×2 with the r7-3d toy pair. | **Tim locked 3D toy, Animal Crossing smooth** (r7-3d look A). The drawn soft-cel is the backup. |
 
 **Animation grammar (Tim, 2026-09-26): "their grammar, my doodle look"** — reference: the opening
 of *How to raise calm kids like the Japanese* (Hana Explores, youtu.be/UdOx9lAbLvo). Take its
@@ -138,6 +166,15 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
    **Sprint 11** (greenlit 2026-10-13, branch `feat/e9-sprint11`) covers the style-independent
    ones. The style-dependent ones wait for the new style pick: laptop ✓/✗ screen art,
    `style.yaml` wiring and contact sheets. See README → *Toon*.
+   **2026-10-13:** the 2.5D `toon` engine is now the backup style's engine (drawn soft-cel).
+4b. **Production 3D toy engine** for the locked Animal Crossing look.
+   - Order: first finish the tryout fixes (Tim picks the hair, GuoGuo is rebuilt). Then the EM
+     folds a production 3D engine and bank into `docs/ROADMAP.md` (INTAKE), after Sprint 11
+     merges.
+   - Scope for the roadmap: a 3D character bank (Tim, the lioness, GuoGuo), face-decal
+     expressions, a pose library, and sets.
+   - Scenes are driven by the same scene-file contract, rendered headless and deterministic,
+     with compose integration and cross-machine goldens.
 5. Retarget critics/evaluators to the audience lens above before scene reviews start.
 6. Tim hands over the latest high-level script → scene breakdown together.
 
