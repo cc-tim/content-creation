@@ -329,6 +329,12 @@ Tests: `tests/integration/toy3d/test_state_goldens.py`, `tests/integration/toy3d
 
 ### Task 7: The worked scene and parity (S12-18, D1, D3)
 
+> **As built:** the snapshot driver is `tests/toy3d_snapshot.py` (a test helper with a `__main__`:
+> `refs`, `nodes`, `random`), not `tools/toy3d/render_tryout_refs.py`. The repo has no `tools/`,
+> and the Layer B goldens (task 6) and the denoise noise position need the same driver. The
+> engine renders the 7 frames pixel-identical to the snapshot (max diff 0), so the tolerance is
+> set by margin over a driver's drift, and the sensitivity table in `PROVENANCE.md` bounds it.
+
 **Files:** `assets/toy3d/scenes/001-beat2-break-in.yaml`; `tests/fixtures/toy3d/tryout_ref/`
 (7 PNGs at 960×540 + `PROVENANCE.md`); `tools/toy3d/render_tryout_refs.py` (renders the
 snapshot's own code, hash-checked); tests: `tests/integration/toy3d/test_parity_tryout.py`;
@@ -422,7 +428,7 @@ report to the lead.
 | S12-8/9/13/14u | `test_runner.py`, `test_render.py` | 4 | `ModuleNotFoundError: toy3d.runtime` | 20 × `ModuleNotFoundError: No module named 'toy3d.runtime'`, 5 × `… 'toy3d.render'`, 4 × `ImportError: cannot import name 'runtime'/'render' from 'toy3d'` (29 failed) | `57ccfe8` | `7b77d99` |
 | S12-11A/23p | `test_acting.py` (every frame against `snapshot_oracle.py`, a verbatim transcription of the snapshot's animation), `test_state_symbolic.py` | 5 | `ModuleNotFoundError: toy3d.acting` | 62 × `ModuleNotFoundError: No module named 'toy3d.acting'` (53 failed, 9 errors); `test_every_toy3d_capability_has_a_probe` passes (a table fence, mutation-checked) | `f35942e` | (this commit) |
 | S12-7r/11B/23j | `test_state_goldens.py` (node matrices minted from the snapshot's own scene graph: `tests/toy3d_snapshot.py nodes`), `test_style_wiring.py` | 6 | page stubs | against the committed stub page: 41 errors (`Toy3DRenderError: toy3d page: init failed: toy3d engine: not built yet`), 3 failed (the loud-init messages). Order deviation, recorded honestly: the engine port was written before these tests, then the red was observed against the committed stub | `dcf432d` | `1149dad` |
-| S12-18 | `test_parity_tryout.py` | 7 | scene file missing (the scene landed in task 2: the references are what's missing) | 7 × `FileNotFoundError: …/tryout_ref/PROVENANCE.md`; `AssertionError: assert [] == ['guo@0.714.png', …]` | (this commit) | |
+| S12-18 | `test_parity_tryout.py` | 7 | scene file missing (the scene landed in task 2: the references are what's missing) | 7 × `FileNotFoundError: …/tryout_ref/PROVENANCE.md`; `AssertionError: assert [] == ['guo@0.714.png', …]` | `6a16ac4` | (this commit) |
 | S12-12 | `test_goldens.py`, `test_golden_policy.py` | 8 | helper missing | | | |
 | S12-14…17 | composer/CLI/doctor/render/cadence | 9 | no toy3d dispatch | | | |
 
@@ -461,3 +467,4 @@ Each guard below was removed (one at a time, `scratchpad/mutate.py`) and its pin
 | 6 | the unread-key fence; the palette colour check | `test_a_bad_bank_value_fails_init_loudly` | red (both) |
 | 6 | the exposure read; the bloom strength read | `test_style_values_change_pixels` | red (the bloom mutant fails init: the unread fence catches it first) |
 | 6 | a WebGL renderer in state mode | `test_apply_state_creates_no_webgl_context_in_state_mode` | red |
+| 7 | the denoise noise position (skip 11060 → 11061); bloom 0.42 → 0.45 | `test_worked_scene_matches_the_frozen_tryout` | red (both) |
