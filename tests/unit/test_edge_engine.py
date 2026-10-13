@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from pipeline.voices.base import VoiceProfile
 from pipeline.voices.edge_engine import EdgeEngine
 
@@ -79,3 +81,77 @@ def test_edge_engine_leaves_a_fixed_upstream_endpoint_alone(tmp_path, monkeypatc
     _synthesize_with_fake_communicate(tmp_path)
 
     assert edge_tts.communicate.WSS_URL == upstream
+
+
+def _handshake_error(status: int):
+    import aiohttp
+    from multidict import CIMultiDict, CIMultiDictProxy
+    from yarl import URL
+
+    url = URL("wss://api.msedgeservices.com/tts/cognitiveservices/websocket/v1")
+    info = aiohttp.RequestInfo(
+        url=url, method="GET", headers=CIMultiDictProxy(CIMultiDict()), real_url=url
+    )
+    return aiohttp.WSServerHandshakeError(
+        request_info=info, history=(), status=status, message="Invalid response status"
+    )
+
+
+def _scripted_run(monkeypatch, outcomes):
+    """Patch EdgeEngine._run: each call pops an exception to raise, or None to succeed."""
+    calls = []
+
+    async def fake_run(text, voice, out_path):
+        calls.append(text)
+        err = outcomes.pop(0)
+        if err is not None:
+            raise err
+        Path(out_path).write_bytes(b"FAKE-MP3")
+
+    monkeypatch.setattr(EdgeEngine, "_run", staticmethod(fake_run))
+    return calls
+
+
+_HSIAOCHEN = VoiceProfile(
+    id="zh-TW-default-f", engine="edge", locale="zh-TW",
+    params={"voice": "zh-TW-HsiaoChenNeural"},
+)
+
+
+def test_edge_engine_retries_rate_limited_handshakes(tmp_path, monkeypatch):
+    """api.msedgeservices.com answers ~1 in 5 back-to-back requests with 429."""
+    calls = _scripted_run(monkeypatch, [_handshake_error(429), _handshake_error(429), None])
+    sleeps: list[float] = []
+
+    out = EdgeEngine(sleep=sleeps.append).synthesize("你好", tmp_path / "n.mp3", _HSIAOCHEN)
+
+    assert out.read_bytes() == b"FAKE-MP3"
+    assert len(calls) == 3
+    assert sleeps == [1.0, 2.0]
+
+
+def test_edge_engine_does_not_retry_a_refused_request(tmp_path, monkeypatch):
+    """A 403 is the endpoint refusing us: fail at once so a fallback voice can take over."""
+    import aiohttp
+
+    calls = _scripted_run(monkeypatch, [_handshake_error(403), None])
+    sleeps: list[float] = []
+
+    with pytest.raises(aiohttp.WSServerHandshakeError):
+        EdgeEngine(sleep=sleeps.append).synthesize("你好", tmp_path / "n.mp3", _HSIAOCHEN)
+
+    assert len(calls) == 1
+    assert sleeps == []
+
+
+def test_edge_engine_gives_up_after_its_retry_budget(tmp_path, monkeypatch):
+    import aiohttp
+
+    calls = _scripted_run(monkeypatch, [_handshake_error(429)] * 10)
+    sleeps: list[float] = []
+
+    with pytest.raises(aiohttp.WSServerHandshakeError):
+        EdgeEngine(sleep=sleeps.append).synthesize("你好", tmp_path / "n.mp3", _HSIAOCHEN)
+
+    assert len(calls) == 6
+    assert sleeps == [1.0, 2.0, 4.0, 8.0, 16.0]
