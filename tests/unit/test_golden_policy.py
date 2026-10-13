@@ -102,6 +102,14 @@ def _noisy(n_off, level, size=(100, 100)):
     return Image.fromarray(a)
 
 
+def _blob(side, level):
+    import numpy as np
+
+    a = np.full((100, 100, 3), 128, np.uint8)
+    a[40:40 + side, 40:40 + side] = 128 + level
+    return Image.fromarray(a)
+
+
 @pytest.fixture
 def grey(tmp_path):
     path = tmp_path / "g" / "grey.png"
@@ -126,13 +134,13 @@ def test_close_compare_runs_on_both_machines(monkeypatch, grey, platform):
     (lambda: _noisy(2000, 2), {**LOOSE, "mean": 0.1}, "mean"),             # many small: the mean
     (lambda: _noisy(200, 60), {**LOOSE, "max_frac": 0.001}, "frac8"),      # a few large: the fraction
     (lambda: _noisy(30, 120), {**LOOSE, "p999": 10.0}, "p999"),            # the tail
-    (lambda: _noisy(60, 200), {**LOOSE, "tile": 20.0}, "tile"),            # one local blob: a tile
+    (lambda: _blob(20, 120), {"mean": 10.0, "p999": 255.0, "max_frac": 1.0, "tile": 20.0}, "tile"),  # one blob
 ], ids=["mean", "frac8", "p999", "tile"])
 def test_close_compare_fails_beyond_each_limit(monkeypatch, grey, image, limits, metric):
     from tests.golden_policy import assert_close_to_golden
 
     monkeypatch.setattr(golden_policy.sys, "platform", "linux")
-    with pytest.raises(AssertionError, match=f"beyond tolerance.*{metric}"):
+    with pytest.raises(AssertionError, match=f"beyond tolerance on [^:]*{metric}"):
         assert_close_to_golden(image(), grey, **limits)
 
 
