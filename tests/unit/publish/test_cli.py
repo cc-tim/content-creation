@@ -195,3 +195,30 @@ def test_status_remote(project_with_context: Path, monkeypatch: pytest.MonkeyPat
         result = runner.invoke(publish_app, ["status", "42", "--remote"])
     assert result.exit_code == 0, result.output
     assert "unlisted" in result.output.lower()
+
+
+def _mark_fallback_narrated(project: Path) -> None:
+    ctx = PipelineContext.load(project / "context.json")
+    ctx.tts_fallback_voices = {"zh-TW-default-f": "zh-TW-kokoro-f"}
+    ctx.save()
+
+
+def test_publish_refuses_fallback_narration_without_the_flag(
+    project_with_context: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _mark_fallback_narrated(project_with_context)
+    monkeypatch.setenv("PIPELINE_OUTPUT_DIR", str(project_with_context.parent.parent))
+    with patch("pipeline.publish.cli._load_channel_config_path", return_value=CHANNELS_FIXTURE):
+        result = CliRunner().invoke(publish_app, ["42", "--dry-run"])
+    assert result.exit_code != 0
+    assert "--allow-fallback-voice" in result.output + str(result.exception)
+
+
+def test_publish_allow_fallback_voice_flag_lets_it_through(
+    project_with_context: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _mark_fallback_narrated(project_with_context)
+    monkeypatch.setenv("PIPELINE_OUTPUT_DIR", str(project_with_context.parent.parent))
+    with patch("pipeline.publish.cli._load_channel_config_path", return_value=CHANNELS_FIXTURE):
+        result = CliRunner().invoke(publish_app, ["42", "--dry-run", "--allow-fallback-voice"])
+    assert result.exit_code == 0, result.output

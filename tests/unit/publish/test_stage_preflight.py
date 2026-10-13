@@ -87,3 +87,25 @@ def test_preflight_invalid_metadata(ready_project: Path) -> None:
     ctx = _ctx(ready_project)
     with pytest.raises(PreflightError, match="metadata.*invalid"):
         run_preflight(ctx=ctx, privacy="unlisted", schedule_iso=None)
+
+
+def test_preflight_refuses_a_fallback_narrated_video(ready_project: Path) -> None:
+    ctx = _ctx(ready_project)
+    ctx.tts_fallback_voices = {"zh-TW-default-f": "zh-TW-kokoro-f"}
+    with pytest.raises(PreflightError, match="zh-TW-kokoro-f.*--allow-fallback-voice"):
+        run_preflight(ctx=ctx, privacy="unlisted", schedule_iso=None)
+
+
+def test_preflight_allows_a_fallback_voice_only_when_told_and_warns(ready_project: Path) -> None:
+    from structlog.testing import capture_logs
+
+    ctx = _ctx(ready_project)
+    ctx.tts_fallback_voices = {"zh-TW-default-f": "zh-TW-kokoro-f"}
+    with capture_logs() as logs:
+        run_preflight(
+            ctx=ctx, privacy="unlisted", schedule_iso=None, allow_fallback_voice=True
+        )
+    warned = [e for e in logs if e["event"] == "publish.preflight.fallback_voice"]
+    assert len(warned) == 1
+    assert warned[0]["log_level"] == "warning"
+    assert warned[0]["fallback_voices"] == {"zh-TW-default-f": "zh-TW-kokoro-f"}
