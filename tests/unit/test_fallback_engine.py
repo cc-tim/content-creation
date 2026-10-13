@@ -280,3 +280,13 @@ def test_registry_prerecorded_misses_share_the_run_health(tmp_path, monkeypatch)
     with pytest.raises(RuntimeError, match="mix"):
         _per_scene(registry, tmp_path, ["tim-zhtw"] * 3)
     assert calls["kokoro"] == []
+
+
+def test_fallback_engine_name_reports_the_engine_actually_speaking(tmp_path):
+    primary = _ScriptedEngine("edge", [VoiceEngineUnavailable("403")])
+    engine = _engine(primary, _ScriptedEngine("kokoro"))
+    assert engine.name == "edge"
+
+    engine.synthesize("一。", tmp_path / "a.mp3", _PRIMARY)
+
+    assert engine.name == "kokoro"
