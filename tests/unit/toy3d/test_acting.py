@@ -365,3 +365,34 @@ def test_the_spec_is_plain_json_for_any_scene(bank):
     for t in (1.0, 2.5, 30.0):
         spec = resolve(s, bank, t)
         assert json.loads(json.dumps(spec, allow_nan=False)) == spec, t
+
+
+def test_an_authored_pose_during_a_blend_takes_over_smoothly(bank):
+    """Phase 2 review I1: `to: typing` while the shock still blends in is a pose change from where
+    the fold is, not an expression beat that pops in when the shock completes."""
+    from toy3d.acting import resolve
+
+    sc = _scene(bank, [{"at": 1.0, "pose": "tim", "to": "shock", "over": 0.5},
+                       {"at": 1.3, "pose": "tim", "to": "typing", "over": 0.5}])
+    rz = [resolve(sc, bank, 1.25 + i / 100)["actors"]["tim"]["joints"]["arm_l.j1.rz"] for i in range(61)]
+    assert max(abs(b - a) for a, b in zip(rz, rz[1:], strict=False)) < 0.08
+    assert rz[-1] == pytest.approx(0.3, abs=1e-9)                 # typing's, once both blends are done
+    again = _scene(bank, [{"at": 1.0, "pose": "tim", "to": "shock", "over": 0.5},
+                          {"at": 1.3, "pose": "tim", "to": "shock", "over": 0.5}])  # already heading there
+    assert resolve(again, bank, 1.4) == resolve(_scene(bank, [{"at": 1.0, "pose": "tim", "to": "shock",
+                                                               "over": 0.5}]), bank, 1.4)
+
+
+def test_a_face_turns_the_short_way(bank):
+    """Phase 2 review M5: from 90° toward a target at -106° the lioness turns +164°, not -196°."""
+    from toy3d.acting import resolve
+
+    place = {"lioness": {"spot": "doorway_in", "pose": "stand", "expr": "stern"},
+             "guoguo": {"spot": "doorway_out", "pose": "seated", "expr": "neutral"}}
+    sc = _scene(bank, [{"at": 1.0, "face": "lioness", "to": "guoguo", "over": 1.0, "ease": "linear"}],
+                place=place, props={})
+    me, to = bank.sets["office"].spots["doorway_in"].pos, bank.sets["office"].spots["doorway_out"].pos
+    aim = math.atan2(to[0] - me[0], to[2] - me[2])                   # about -106°
+    short = (aim - math.radians(90) + math.pi) % (2 * math.pi) - math.pi
+    yaw = resolve(sc, bank, 1.5)["actors"]["lioness"]["root"]["yaw"]
+    assert yaw == pytest.approx(math.radians(90) + 0.5 * short) and short > 0

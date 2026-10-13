@@ -59,6 +59,13 @@ def test_guo_trace_is_the_snapshots():
     ("poses/guoguo.yaml", "channel: fidle", "channel: fiddle",
      r"poses/guoguo\.yaml: poses\.seated\.accents\.3\.channel: not a guoguo rig channel"),
     ("cameras/beat2.yaml", "ease: inout, to: 25.0", "ease: wobble, to: 25.0", r"cameras/beat2\.yaml: fov\.tweens\.0\.ease"),
+    # Phase 2 review M7: a face that draws decals draws one for every expression (no stale face)
+    ("expressions/tim.yaml", "  blink: {decal: tim_blink}\n", "  blink: {}\n",
+     r"expressions/tim\.yaml: expressions\.blink: no decal \(tim's other expressions draw one\)"),
+    # Phase 2 review M10: the engine programs' channels are the rig's
+    ("characters/guoguo.yaml", "channels: [look.dy, hop, sq, land, wob, flap, jig, raise, fidle, bob, body.rz]",
+     "channels: [look.dy, hop, sq, land, flap, jig, raise, fidle, bob, body.rz]",
+     r"characters/guoguo\.yaml: guoguo: GuoGuo's program reads \['wob'\], not channels of his rig"),
 ])
 def test_acting_fields_fail_naming_file_and_path(tmp_path, file, old, new, message):
     from toy3d.bank import BankError, default_root, load_bank
@@ -70,6 +77,18 @@ def test_acting_fields_fail_naming_file_and_path(tmp_path, file, old, new, messa
     assert old in text
     p.write_text(text.replace(old, new, 1))
     with pytest.raises(BankError, match=message):
+        load_bank(root)
+
+
+def test_the_walk_drives_only_rig_channels(tmp_path):
+    """Phase 2 review M10: the lioness's walk program writes body.rz; a rig without it fails at load."""
+    from toy3d.bank import BankError, default_root, load_bank
+
+    root = tmp_path / "bank"
+    shutil.copytree(default_root(), root)
+    p = root / "characters" / "lioness.yaml"
+    p.write_text(p.read_text().replace("channels: [root.ry, hips.py, body.rx, body.rz,", "channels: [root.ry, hips.py, body.rx,", 1))
+    with pytest.raises(BankError, match=r"characters/lioness\.yaml: walk: the walk drives \['body\.rz'\], not channels of her rig"):
         load_bank(root)
 
 
