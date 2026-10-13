@@ -49,6 +49,8 @@ class FallbackEngine(VoiceEngine):
 
     @property
     def name(self) -> str:
+        if self.health.down_reason is not None and self.fallback is not None:
+            return self.fallback.name
         return self.primary.name
 
     def synthesize(
