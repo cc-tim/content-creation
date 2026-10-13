@@ -1,7 +1,7 @@
 # Toy3D engine v0: the locked own-show look as a pipeline visual (E11, Sprint 12)
 
 **Status:** proposed by the EM (SPRINT, 2026-10-13); **greenlit by Tim on 2026-10-13**, with his
-answers to the open questions in §12. Phase 1 (the contract seam) is built on `feat/e11-sprint12`. Roadmap: `docs/ROADMAP.md` → E11 and Sprint 12. Test rows: `.agent-memory/engineering-manager/test-plan.md`
+answers to the open questions in §12. Phase 1 (the contract seam) and Phase 2 (the engine: bank, acting, page, parity, Layer C, compose/CLI/doctor) are built on `feat/e11-sprint12`, awaiting the EM's final REVIEW (plan: `docs/superpowers/plans/2026-10-13-e11-sprint12-phase2-engine.md`). Roadmap: `docs/ROADMAP.md` → E11 and Sprint 12. Test rows: `.agent-memory/engineering-manager/test-plan.md`
 → E11, S12-1…S12-21.
 
 ## 1. Problem

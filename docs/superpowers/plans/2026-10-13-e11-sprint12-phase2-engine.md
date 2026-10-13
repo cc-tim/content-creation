@@ -402,6 +402,12 @@ tests in `tests/unit/test_composer_toon.py`, `tests/unit/toy3d/test_cli.py`,
 
 ### Task 10: The two-machine demo (S12-19)
 
+> **As built (2026-10-13):** PASS on both machines; the evidence is `tmp/toy3d-v0/compose-smoke/`
+> (`smoke.py`, per-take JSON and logs, subtitle frames, the held-shot frames). The harness would not
+> let the builder write `REPORT.md`, so the summary went to the lead in the Phase 2 report. A finding
+> outside toy3d: the same prerecorded WAV narrates 0.08–0.10 s longer on the hub (TtsStage's MP3
+> transcode), so the two machines' cuts differ by about 3 frames per scene.
+
 Two prerecorded `say` takes, through the prerecorded path, compose s1 (a synthetic `clip`) and
 s2 (the worked scene, inline or referenced) on the Mac and in an isolated hub clone. Checks:
 - toy3d frames = round(narration × 30);
@@ -430,7 +436,7 @@ report to the lead.
 | S12-7r/11B/23j | `test_state_goldens.py` (node matrices minted from the snapshot's own scene graph: `tests/toy3d_snapshot.py nodes`), `test_style_wiring.py` | 6 | page stubs | against the committed stub page: 41 errors (`Toy3DRenderError: toy3d page: init failed: toy3d engine: not built yet`), 3 failed (the loud-init messages). Order deviation, recorded honestly: the engine port was written before these tests, then the red was observed against the committed stub | `dcf432d` | `1149dad` |
 | S12-18 | `test_parity_tryout.py` | 7 | scene file missing (the scene landed in task 2: the references are what's missing) | 7 × `FileNotFoundError: …/tryout_ref/PROVENANCE.md`; `AssertionError: assert [] == ['guo@0.714.png', …]` | `6a16ac4` | `b81254a` |
 | S12-12 | `test_goldens.py`, `test_golden_policy.py`, `tests/unit/toy3d/test_sheet.py` | 8 | helper missing | 10 × `ImportError: cannot import name 'assert_close_to_golden'`; `ModuleNotFoundError: No module named 'toy3d.sheet'`; `test_goldens.py` errors at collection on the same import | `cde5f97` | `971d526` (helper, sheet), `c94bf64` (the hub-minted goldens) |
-| S12-14…17 | `test_composer_toon.py`, `test_storyboard_validator.py`, `test_cli_doctor.py`, `tests/unit/toy3d/test_cli.py` (unit; the integration half follows) | 9 | no toy3d dispatch | 15 failed: 7 × `AttributeError: … no attribute 'check_toy3d'`; the scene id `001-beat2-break-in` → `assets/toon/scenes/…: scene file not found` (composer, validator, CLI); `DID NOT RAISE SceneError` (an id in both libraries). `test_pipeline_validate_fails_a_bad_toy3d_name_with_exit_two` passes: the Phase 1 seam already routes the validator (a pin) | `b651c18` | (this commit) |
+| S12-14…17 | `test_composer_toon.py`, `test_storyboard_validator.py`, `test_cli_doctor.py`, `tests/unit/toy3d/test_cli.py` (unit; the integration half follows) | 9 | no toy3d dispatch | 15 failed: 7 × `AttributeError: … no attribute 'check_toy3d'`; the scene id `001-beat2-break-in` → `assets/toon/scenes/…: scene file not found` (composer, validator, CLI); `DID NOT RAISE SceneError` (an id in both libraries). `test_pipeline_validate_fails_a_bad_toy3d_name_with_exit_two` passes: the Phase 1 seam already routes the validator (a pin) | `b651c18` | `6088dd5` |
 
 ### Mutation evidence
 
