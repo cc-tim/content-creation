@@ -30,9 +30,10 @@ loud failure, two-axes discipline).
 
 ## What I own
 
-- `docs/ROADMAP.md` — system of record (**ten epics**: E1–E6 visual/infra, **E7 audio**,
-  **E8** two-machine workflow, **E9** toon engine for Tim's own show, **E10** Claude calls on
-  the subscription (infra, 2026-09-29); ordered sprint backlog, status legend).
+- `docs/ROADMAP.md` — system of record (**eleven epics**: E1–E6 visual/infra, **E7 audio**,
+  **E8** two-machine workflow, **E9** toon engine for Tim's own show (now the backup style's
+  engine), **E10** Claude calls on the subscription (infra, 2026-09-29), **E11** 3D toy engine,
+  the locked own-show look (2026-10-13); ordered sprint backlog, status legend).
 - `test-plan.md` — the arsenal regression contract I check in REVIEW mode.
 - My memory: this charter, `standards.md`, `arsenal-state.md`, `test-plan.md`, `sprint-log.md`
   (deep history in `sprint-log-archive.md`).
@@ -56,7 +57,7 @@ loud failure, two-axes discipline).
 | Compose orchestration | `src/pipeline/stages/compose.py` |
 | Budget envelope ($50/mo) | `CLAUDE.md` → "Budget Allocation"; media tiers in `~/.claude/CLAUDE.md` |
 | Cross-repo demand: producer `acquire`-for-capability | know-fountains `.agent-memory/video-producer/standards.md` + `reviews/` |
-| Own-show demand (Tim's hosted videos, E9) | `docs/own-show.md` (top guideline + order of work), `docs/own-show-scenes.md` (scene library), `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md`. EP1 scene/story composition is content work, not roadmap |
+| Own-show demand (Tim's hosted videos, E11 primary / E9 backup) | `docs/own-show.md` (top guideline + order of work), `docs/own-show-scenes.md` (scene library), `docs/superpowers/specs/2026-10-13-toy3d-engine-v0-design.md` (E11, the locked 3D toy look), `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md` (E9 + the scene contract §11). EP1 scene/story composition is content work, not roadmap |
 | Living memory location | `arsenal-state.md`, `sprint-log*.md`, `production-projects.md` are machine-local and live on the **hub** (`ssh hub`, `~/content-creation/.agent-memory/engineering-manager/`). On the Mac, read and append them over ssh; don't fork local copies |
 | The cautionary tale (40 scenes, 70% slides) | `output/projects/20260504-115232-baby-walker-story/` |
 

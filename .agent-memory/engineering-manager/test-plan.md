@@ -265,6 +265,7 @@ elsewhere with a counted reason, and minted with `UPDATE_GOLDENS=1` on the hub o
   - Hub, at the exact HEAD: 205 passed / 0 skipped, goldens 4/4, parity worst 0.058, no churn.
   - Row S11-18 is new; it registers the R1 fix tests in the contract.
   - Since the 2026-10-13 style lock, these rows guard the **backup** (2.5D) engine. The scene-contract rows (S11-1…S11-3, S11-5, S11-7…S11-9, S11-12…S11-14, S11-17) are the ones the 3D engine INTAKE should re-target.
+  - **Re-targeted at the E11 INTAKE (2026-10-13):** row **S12-5** (E11 section) runs those cases as a conformance suite against both engines' catalogs. The S11 rows stay as they are.
 
 Spec: `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md` **§11** (the addendum). Every
 row gates PASS at a single REVIEW. Behaviour rows land **red first**: a test-only commit, then the
@@ -333,6 +334,53 @@ failed. Each mutation was restored, and the scratch source matched HEAD afterwar
 | §6.5 a separate code review happened | SDD ledger `.superpowers/sdd/2026-09-29-claude-cli-llm-backend/progress.md` | ✅ Per-task reviews, then a final Opus review ("with fixes", 2 Important + 11 minor), then a 12-item fix wave, then a scoped re-review ("all addressed") |
 | **F1 (REVIEW finding, gates 🟢):** site 12 `style_anchor` parses the real CLI answer shape. `"Medium\n\nSerif typography, cream background, …"` must give `('medium', 'Serif typography, cream background, …')`, so blank lines are skipped. Today the hint is `""` in 3 of 3 hub runs | `tests/unit/test_llm_call_sites.py::test_style_anchor_skips_blank_lines_in_the_answer` | ✅ fix `09fa1c6`; green on `53b1df3` (mutation → red: the pre-fix parser keeps blank lines; the hint dropped) |
 | **F2 (REVIEW finding, gates 🟢):** site 5 asserts `tier == "creative"`; the tier-flip mutation goes red | `tests/unit/test_direct_metadata.py::test_write_metadata_creates_file` | ✅ `b51efb3`; green on `53b1df3` (mutation → red: site 5 flipped to `check`) |
+
+## E11 — 3D toy engine & bank 🔵 (INTAKE 2026-10-13; Sprint 12 = v0, **proposed, not greenlit**)
+
+Spec: `docs/superpowers/specs/2026-10-13-toy3d-engine-v0-design.md`. Every row gates PASS. Phase 1
+(S12-1…S12-5) gates an **EM checkpoint REVIEW** before Phase 2. Behaviour rows land **red first**
+(a test-only commit, then the fix), and the EM mutation-checks the fences.
+
+**Golden policy for GPU renders (spec §8; a departure from E8's byte-exact skip-on-Mac policy, for
+toy3d only, pending Tim's OK):**
+- **Layer A:** the symbolic timeline, exact, default suite.
+- **Layer B:** the applied scene graph, ≤ 1e-6 on both machines.
+- **Layer C:** pixels at 960×540, **hub-canonical**, compared on **both** machines with a calibrated
+  tolerance, minted on the hub only.
+
+The EM's probe baseline (2026-10-13, tryout t = 4.6 s, 1080p):
+- the Mac (Metal) is byte-identical run to run;
+- the hub (GL-EGL, GTX 1050) wobbles ≤ 1 level;
+- Mac vs hub: mean 0.14/255, 0.05% of pixels > 8, max 129 (edges, fur tips);
+- hub ANGLE-Vulkan gives all-black frames;
+- the default flags fall back to SwiftShader.
+
+Sprint 12 run command (planned): `uv run pytest tests/unit/toon tests/unit/toy3d tests/unit/test_composer_toon.py tests/unit/test_golden_policy.py tests/director/test_storyboard_validator.py -q`.
+On **both** machines also run `uv run pytest --integration tests/integration/toy3d tests/integration/toon -q`.
+
+| Id | Capability | Test | Status |
+|----|------------|------|--------|
+| S12-1 | **Seam:** `load_scene` validates against any `SceneCatalog` (names + capabilities); the 2.5D `Bank` adapts; a toy3d catalog loads a toy3d scene; `toon.scene` has no module-level import of `toon.bank` or the 2.5D kit | `tests/unit/toon/test_contract_seam.py::test_load_scene_takes_any_catalog`, `::test_scene_module_does_not_import_the_2d_bank` (AST fence) | 🔲 planned (Phase 1) |
+| S12-2 | **Engine-relative "means what it renders":** a verb, beat field, prop kind, show kind, place field (`layer`) or fx the chosen engine doesn't render fails at load, naming the engine and the path; parametrised over both engines | `tests/unit/toon/test_contract_seam.py::test_field_the_engine_does_not_render_fails_naming_the_engine` | 🔲 planned (Phase 1) |
+| S12-3 | **`engine:` key:** optional, default `toon2d` (every existing scene and storyboard is unchanged); an unknown engine fails, listing the engines; compose and the validator dispatch by it | `tests/unit/toon/test_contract_seam.py::test_engine_key_defaults_and_unknown_fails` + `tests/unit/test_composer_toon.py::test_dispatches_by_scene_engine` | 🔲 planned (Phase 1) |
+| S12-4 | **Symbolic timeline:** `beats_at(scene, t)` is engine-neutral (names + eased k + camera preset/local time) and pure. The 2.5D `state_at` is rebuilt on it, and **scene 001 is byte-identical**: 41 of 41 frames against the sprint base, hub goldens 4/4 with no churn, parity ≤ 0.058 | `tests/unit/toon/test_symbolic_timeline.py` + `tests/unit/toon/test_goldens.py` + `tests/integration/toon/test_parity_001.py` + EM byte-identity check | 🔲 planned (Phase 1) |
+| S12-5 | **Contract conformance:** the Sprint 11 contract cases (S11-1…S11-3, S11-5, S11-7…S11-9, S11-12…S11-14, S11-17) fail the same way against both engines' catalogs where the field is engine-neutral | `tests/unit/toon/test_contract_conformance.py` | 🔲 planned (Phase 1) |
+| S12-6 | **Bank v0:** `assets/toy3d/bank/**` YAML loads into a typed `Toy3DBank`; every item carries `picked:` provenance; a missing or unknown field fails, naming the file and the field path; the bank holds **exactly** the frozen tryout picks (Tim H3, GuoGuo, the lioness, office + hall, the tryout props, the camera presets, look A) | `tests/unit/toy3d/test_bank.py` (incl. `::test_v0_bank_holds_exactly_the_picked_items`) | 🔲 planned |
+| S12-7 | **Look is bank data:** `style.yaml` (tone map, exposure, GTAO, shadows, bloom, env) and the palettes drive the render, so a changed value changes pixels; the engine modules hold no look constants (static fence, with an allow-list for tooling such as the mask key colour) | `tests/integration/toy3d/test_style_wiring.py` + `tests/unit/toy3d/test_engine_source_fences.py::test_no_look_constants_in_engine_js` | 🔲 planned |
+| S12-8 | **Runtime pin + backend allow-list (loud):** a pinned CfT build through Python `playwright`; darwin `metal` and linux `gl-egl` only; the WebGL renderer string is read at start; SwiftShader, Vulkan, an unlisted string or a missing build → `Toy3DRenderError`, naming the string and the fix (surfacing as `SceneRenderError` in compose) | `tests/unit/toy3d/test_runner.py::test_backend_allow_list_refuses_swiftshader_vulkan_and_unknown` + integration on both machines | 🔲 planned |
+| S12-9 | **Blank-frame guard:** a uniform frame (the hub ANGLE-Vulkan symptom) fails the render, and nothing is encoded or cached; EM mutation: force Vulkan on the hub → loud failure, not a black mp4 | `tests/unit/toy3d/test_runner.py::test_uniform_frame_fails_loud` | 🔲 planned |
+| S12-10 | **Determinism fences:** engine JS has no unseeded `Math.random`, `Date`, `performance.now`, `requestAnimationFrame`, or `fillText`/`strokeText` (wordless). The same frame rendered twice is byte-identical on the Mac and within the noise floor on the hub | `tests/unit/toy3d/test_engine_source_fences.py` + `tests/integration/toy3d/test_determinism.py` | 🔲 planned |
+| S12-11 | **Layers A and B:** symbolic state of the worked scene is exact (default suite). `applyState` in `mode: "state"` creates **no WebGL context**, and its named world matrices, visibility, decal ids and camera match `tests/fixtures/toy3d/state/*.json` to ≤ 1e-6 **on both machines** | `tests/unit/toy3d/test_state_symbolic.py` + `tests/integration/toy3d/test_state_goldens.py` | 🔲 planned |
+| S12-12 | **Layer C pixel goldens:** key frames of the worked scene + a cast model sheet at 960×540, hub-canonical, compared on **both** machines with a tolerant helper in `tests/golden_policy.py`; `UPDATE_GOLDENS` off-linux is an error; `PROVENANCE.md` records the browser build, both renderer strings, the driver, the noise floor and the thresholds. **Sensitivity set goes red:** an expression-decal swap on a close-up, a 5° shoulder rotation, one material colour shift, GuoGuo hidden, the fur shell count halved | `tests/integration/toy3d/test_goldens.py` + `tests/unit/test_golden_policy.py` + `tests/fixtures/toy3d/goldens/` | 🔲 planned |
+| S12-13 | **Cache key:** covers the scene, the **Bank object** (`model_dump_json`), the engine JS, the vendored three hash, the browser build, the renderer string, the size and the fps; any change re-renders; a hit doesn't launch the browser | `tests/unit/toy3d/test_render.py::test_cache_key_covers_every_input`, `::test_cache_hit_launches_no_browser` | 🔲 planned |
+| S12-14 | **Two-axes fence:** the clip has exactly round(duration × `COMPOSE_FPS`) frames. A longer narration holds the last shot; a shorter one warns and cuts (the same contract as E9). The mp4 is written as `.part` → rename | `tests/integration/toy3d/test_render.py::test_clip_frame_count_equals_narration` | 🔲 planned |
+| S12-15 | **fps fence + cadence (standards anatomy 9):** toy3d renders at `COMPOSE_FPS` (the guard fails if either rate changes alone); a camera move through compose's concat normalisation has no near-duplicate steps | `tests/unit/test_composer_toon.py::test_toy3d_fps_matches_compose_concat` + `tests/integration/toy3d/test_cadence.py` | 🔲 planned |
+| S12-16 | **Adapter + validator:** `render_scene` renders a `toon` visual with `engine: toy3d`. Any failure → `SceneRenderError` with a `suggested_fix`, and **never a silent render on the 2.5D engine**. The validator branch fails a bad toy3d name at the review gate (`pipeline validate` exit 2). `toon` stays out of `_TEXT_VISUALS` | `tests/unit/test_composer_toon.py` (toy3d cases) + `tests/director/test_storyboard_validator.py` (toy3d cases) | 🔲 planned |
+| S12-17 | **CLI + doctor:** `pipeline toon validate\|render` handle toy3d scenes (engine read from the file); the `pipeline doctor` toy3d check (pinned build present, renderer allow-listed, a one-frame non-blank smoke) fails loudly with an install hint; **doctor passes on both machines** | `tests/unit/toy3d/test_cli.py` + `tests/unit/test_cli_doctor.py::test_check_toy3d_*` + EM-run doctor on both machines | 🔲 planned |
+| S12-18 | **Acceptance: parity with the locked look (gating):** `assets/toy3d/scenes/001-beat2-break-in.yaml` matches reference frames frozen from the r7-3d snapshot at greenlight (`tests/fixtures/toy3d/tryout_ref/`, Mac Metal, ≥ 6 key times): within the parity tolerance on the Mac, and the cross-machine tolerance on the hub. A side-by-side sheet goes to Tim, and **Tim confirms it still meets his bar** | `tests/integration/toy3d/test_parity_tryout.py` + `tmp/toy3d-v0/parity/side_*.png` + Tim's words in the sprint-log | 🔲 planned |
+| S12-19 | **Real-scene demo (gating, standards anatomy 6):** a throwaway two-scene smoke project (a `clip` + the toy3d scene; prerecorded narration in two takes of different length) composes **on both machines**. The toy3d frames = narration × 30; `blackdetect` is clean; subtitles are kept; the cadence is clean; ms per frame is recorded for each machine | evidence `tmp/toy3d-v0/compose-smoke/` (`REPORT.md`, ffprobe, blackdetect, frame timings) | 🔲 planned |
+| S12-20 | **Non-goal fence:** `assets/toy3d/scenes/` holds only the worked scene (no EP1 scenes); the bank holds only picked items; the 2.5D render paths are unchanged except the seam; `assets/toon/**` and `tests/fixtures/toon/**` are unchanged | `tests/unit/toy3d/test_scenes.py::test_only_the_worked_scene` + S12-6 + EM diff | 🔲 planned |
+| S12-21 | Full suite, `ruff check src/ tests/` and `mypy src/` clean **on both machines**, with `src/toy3d` packaged (web assets included); **a separate code review has happened** | `uv run pytest -q` + ruff + mypy (both machines) + the review ledger | 🔲 planned |
 
 ## Cross-cutting
 

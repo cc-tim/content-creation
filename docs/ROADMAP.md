@@ -16,7 +16,7 @@
 > video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
 > the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-10-13 (follow-up REVIEW: **Sprint 11 = PASS → 🟢, cleared to merge**, `feat/e9-sprint11` at `d1c346c`. R1–R4 are closed. The fresh code review found 0 Critical, 2 Important and 9 Minor; all are fixed red first, and spec §11.6 records the rulings. The EM ran everything itself. Mac: 1506 passed / 62 skipped; ruff and mypy are clean (161 files). All 9 new red commits are red when re-run. 25 of 25 mutations go red, including M13, M17b and M18. Scene 001 is byte-identical to master (41 of 41 frames). Hub, at the exact HEAD: 205 passed / 0 skipped, goldens 4/4, parity worst 0.058, no churn. The demo's resolved cuts are unchanged. **Style lock (Tim, 2026-10-13: 3D toy):** the 2.5D toon engine is now the backup style's engine. The 3D engine needs an INTAKE after the merge; see E9.) · Prior: 2026-10-13 (REVIEW: **Sprint 11 = REWORK (narrow)** on `feat/e9-sprint11` at `2feed6e`. The EM re-ran everything. The full suite gives 1483 passed / 62 skipped; ruff and mypy are clean. All 9 red commits are red when re-run. 22 of 25 mutations go red. Scene 001 is byte-identical to master (12 of 12 frames). On the hub: goldens 4/4, parity worst 0.058, no fixture churn, and the two-take demo reproduces with every cut on its resolved frame. Four things must change before merge: R1, the separate code review has not happened; R2, compose's `storyboard_file` wiring is not pinned by any test; R3, the drift tolerance's upper side is not pinned; R4, `over: 0` on a `show` and a negative `over` still load silently. Filed in Later: edge-tts returns 403, a production blocker (7.2.8 is already the latest on PyPI); the toon cache key hashes the bank files, not the `Bank` object; prerecorded MP3 padding.) · Prior: 2026-10-13 (SPRINT: **Sprint 11 = E9 item 2, finishing own-show step 3**, Tim-greenlit: "for step three, could you complete?". Only the style-independent scene-contract residuals are built. Laptop ✓/✗ screens, `style.yaml` wiring and contact sheets are held, because Tim reopened step 1 (style). Spec addendum: toon spec §11. Test-plan rows S11-1…S11-16. Sprint 11 goes ahead of E5 part 1b.) · Prior: 2026-09-29 (follow-up REVIEW on master `53b1df3`: **E10 v1 = PASS → 🟢**. The F1 and F2 tests are green, 3 of 3 mutations went red, and the full suite gives 1440 / 62. Sprint 10 is merged as `53b1df3`. The Pillow `getdata` deprecation is filed with the dark-image item in Later: removal would silently disable the dark check.) · Prior: 2026-09-29 (REVIEW: **Sprint 10 (E5 loud-failure sweep, part 1) = PASS → 🟢**, `feat/e5-loud-failure-sweep` at `bb16aa0`, merge cleared. The EM ran everything itself: the branch suite gave 1378 passed / 59 skipped, and the merged tree (post-E10 master + branch) gave 1440 / 62; ruff and mypy were clean. 18 of 18 mutations went red, and the A4 smoke was re-run at HEAD with 3 extra live checks. The hub path audit found 0 disagreements. It also found that hub project `1776850327_B`'s final holds 5 black runs (~61 s) and the project was published; see Sprint 10. Parked items are placed in Later, with atomic scene-cache writes at the top.) · Prior: 2026-09-29 (REVIEW: E10 v1 = ADVISE, cleared to merge; it has since merged to master `2add7c2` with F1 and F2). · 2026-09-29 (SPRINT + INTAKE: Sprint 10 greenlit; new infra epic E10). · 2026-09-28 (third REVIEW, master `2f6fb35`: **Sprint 9 (E9 v0) = PASS → 🟢 shipped**). Earlier history: `.agent-memory/engineering-manager/sprint-log.md` and `sprint-log-archive.md`. · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-10-13 (INTAKE + SPRINT, Tim: "yes, do both". **New epic E11, the 3D toy engine**, the production engine for the locked own-show look. **Sprint 12 = E11 v0** is proposed, not greenlit; spec `docs/superpowers/specs/2026-10-13-toy3d-engine-v0-design.md`; rows S12-1…S12-21. EM probes on both machines found that the hub is **not** SwiftShader-only: headless Chrome gets WebGL2 on its GTX 1050 through ANGLE GL-EGL. Frame time at 1080p is ~85 ms on the Mac (Metal) and ~188 ms on the hub. Byte-exact goldens can't hold across machines (Mac vs hub: mean 0.14/255, max 129 on edges and fur tips). Hub ANGLE-Vulkan silently renders **black** frames. E9's held items and item 3 are re-homed to E11; E9 is now the backup engine, in maintenance. Sprint 11 is merged (`55670c9`). Queue: Sprint 12 → E5 part 1b → E8 item 2. E11 bank-fill sprints jump ahead of E8 item 2 once Tim's EP1 script names what it needs.) · Prior: 2026-10-13 (follow-up REVIEW: **Sprint 11 = PASS → 🟢, cleared to merge**, `feat/e9-sprint11` at `d1c346c`. R1–R4 are closed. The fresh code review found 0 Critical, 2 Important and 9 Minor; all are fixed red first, and spec §11.6 records the rulings. The EM ran everything itself. Mac: 1506 passed / 62 skipped; ruff and mypy are clean (161 files). All 9 new red commits are red when re-run. 25 of 25 mutations go red, including M13, M17b and M18. Scene 001 is byte-identical to master (41 of 41 frames). Hub, at the exact HEAD: 205 passed / 0 skipped, goldens 4/4, parity worst 0.058, no churn. The demo's resolved cuts are unchanged. **Style lock (Tim, 2026-10-13: 3D toy):** the 2.5D toon engine is now the backup style's engine. The 3D engine needs an INTAKE after the merge; see E9.) · Prior: 2026-10-13 (REVIEW: **Sprint 11 = REWORK (narrow)** on `feat/e9-sprint11` at `2feed6e`. The EM re-ran everything. The full suite gives 1483 passed / 62 skipped; ruff and mypy are clean. All 9 red commits are red when re-run. 22 of 25 mutations go red. Scene 001 is byte-identical to master (12 of 12 frames). On the hub: goldens 4/4, parity worst 0.058, no fixture churn, and the two-take demo reproduces with every cut on its resolved frame. Four things must change before merge: R1, the separate code review has not happened; R2, compose's `storyboard_file` wiring is not pinned by any test; R3, the drift tolerance's upper side is not pinned; R4, `over: 0` on a `show` and a negative `over` still load silently. Filed in Later: edge-tts returns 403, a production blocker (7.2.8 is already the latest on PyPI); the toon cache key hashes the bank files, not the `Bank` object; prerecorded MP3 padding.) · Prior: 2026-10-13 (SPRINT: **Sprint 11 = E9 item 2, finishing own-show step 3**, Tim-greenlit: "for step three, could you complete?". Only the style-independent scene-contract residuals are built. Laptop ✓/✗ screens, `style.yaml` wiring and contact sheets are held, because Tim reopened step 1 (style). Spec addendum: toon spec §11. Test-plan rows S11-1…S11-16. Sprint 11 goes ahead of E5 part 1b.) · Prior: 2026-09-29 (follow-up REVIEW on master `53b1df3`: **E10 v1 = PASS → 🟢**. The F1 and F2 tests are green, 3 of 3 mutations went red, and the full suite gives 1440 / 62. Sprint 10 is merged as `53b1df3`. The Pillow `getdata` deprecation is filed with the dark-image item in Later: removal would silently disable the dark check.) · Prior: 2026-09-29 (REVIEW: **Sprint 10 (E5 loud-failure sweep, part 1) = PASS → 🟢**, `feat/e5-loud-failure-sweep` at `bb16aa0`, merge cleared. The EM ran everything itself: the branch suite gave 1378 passed / 59 skipped, and the merged tree (post-E10 master + branch) gave 1440 / 62; ruff and mypy were clean. 18 of 18 mutations went red, and the A4 smoke was re-run at HEAD with 3 extra live checks. The hub path audit found 0 disagreements. It also found that hub project `1776850327_B`'s final holds 5 black runs (~61 s) and the project was published; see Sprint 10. Parked items are placed in Later, with atomic scene-cache writes at the top.) · Prior: 2026-09-29 (REVIEW: E10 v1 = ADVISE, cleared to merge; it has since merged to master `2add7c2` with F1 and F2). · 2026-09-29 (SPRINT + INTAKE: Sprint 10 greenlit; new infra epic E10). · 2026-09-28 (third REVIEW, master `2f6fb35`: **Sprint 9 (E9 v0) = PASS → 🟢 shipped**). Earlier history: `.agent-memory/engineering-manager/sprint-log.md` and `sprint-log-archive.md`. · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -104,12 +104,15 @@ unchanged by either.)
   ones, drawings at 12/s, soft line boil by default. Clip length = narration (two-axes fence
   in code). Every failure is a `SceneRenderError`. `pipeline toon validate|render|sheet`; a
   doctor toon check. See E9.
-  - **Sprint 11 🟢 (2026-10-13, merge pending)** added the scene contract. Every field means what
+  - **Sprint 11 🟢 (2026-10-13, merged `55670c9`)** added the scene contract. Every field means what
     it renders or fails at load. Errors name the scene file or the storyboard file. Shots take
     `at: {sentence: n, plus: s}` and follow the narration. There is a drift warning, and
     `toon validate --narration/--duration` prints sentences and shot windows.
-  - **Since the 2026-10-13 style lock (3D toy), this is the backup style's engine.**
-- **Known gaps (the demand):** true book-page-turn animation · animated overlay *entrance*
+  - **Since the 2026-10-13 style lock (3D toy), this is the backup style's engine.** Its bank
+    still holds the retired v0 doodle look, not the r8 soft-cel backup (see E9 item 4). The locked
+    look's engine is **E11** (🔵, Sprint 12 proposed).
+- **Known gaps (the demand):** **the locked own-show 3D toy look isn't a pipeline visual yet; only
+  a throwaway tryout renders it (E11, Sprint 12 proposed)** · true book-page-turn animation · animated overlay *entrance*
   (E3 v2), lower-thirds, CapCut subtitles · coarse recompose loop (E6) · `namecard`/`map` and
   `generated_image` silent `text_card` downgrades (E5 part 2) · non-atomic scene-cache writes (an
   interrupted mux costs one refused run; Later, top). *(Claude-backed stages are restored on
@@ -129,9 +132,10 @@ See `.agent-memory/engineering-manager/arsenal-state.md` for the living inventor
 
 ## Epics
 
-Five are **arsenal-direction** epics (the demand-driven backlog: programmatic charts,
-programmatic animation, animated overlays, the **audio arsenal** (E7), and, newest, the
-**toon engine** for Tim's own hosted shows (E9, 2026-09-27)). Five are **cross-cutting
+Six are **arsenal-direction** epics (the demand-driven backlog: programmatic charts,
+programmatic animation, animated overlays, the **audio arsenal** (E7), the **toon engine** for
+Tim's own hosted shows (E9, 2026-09-27; now the backup style's engine), and, newest, the **3D toy
+engine** for the locked own-show look (E11, 2026-10-13)). Five are **cross-cutting
 infrastructure** that the arsenal needs in order to be traceable, safe, and iterable (E4–E6,
 **E8** two-machine workflow & render portability, 2026-09-24, and **E10** Claude calls on the
 subscription, 2026-09-29).
@@ -168,7 +172,10 @@ s21 as the acceptance vehicle.
     headless, analytic page-curl mesh, reuses the `BookSceneSpec` geometry contract,
     Pillow v2 kept as fallback; "test example" = the benchmark/review-sheet harness in
     that plan's Slice 1). Demand-future, not demand-now — sits below Sprint 6 in the
-    queue. *(Idea B, INTAKE 2026-05-26.)*
+    queue. *(Idea B, INTAKE 2026-05-26.)* **Cross-link (E11 INTAKE, 2026-10-13):** Blender still
+    isn't installed. E11 will put a headless Three.js runner in the pipeline (pinned Chrome, GPU
+    on both machines), so a future page-turn should weigh reusing that runner before adopting
+    Blender. Decide when the page-turn has demand.
   - **🔵 AI image-to-video motion (beyond camera moves)** — true generated motion
     (parallax, subject/element animation) for beats where a static image + Ken Burns
     still reads as a slide. Uses the `generate-video` skill tier ($0.029/sec budget →
@@ -177,7 +184,9 @@ s21 as the acceptance vehicle.
     Demand-future, not demand-now. *(Idea C, INTAKE 2026-05-26.)* **First concrete demand
     (2026-09-27):** the own-show Seedance accent-shot test (restyle a toon animatic, ~$1, needs
     Tim's BytePlus ModelArk account; `docs/own-show.md` next step 3). It stays here and is **not**
-    part of E9 v0.
+    part of E9 v0. **Since the 2026-10-13 style lock**, the input to restyle would be an **E11** (3D
+    toy) render rather than a 2.5D animatic. The test is still on hold for Tim's account, and it
+    stays in E2, not E11.
 - **Source:** chart handoff open-Q1; narrative-history handoff; future-tasks; 3D
   book-page renderer eval plan (2026-05-13); `generate-video` skill (image→video tier).
 - **Depends on:** E1 (animated reveal needs the static chart substrate). ✅
@@ -276,7 +285,9 @@ a `confidence`/`rationale` decision table the user reviews before TTS.
   RF7 probes both cached files, so the next run refuses with `cached scene failed` and deletes
   them, and the run after that re-renders. Write to a temp file, then `os.replace`. That turns
   "one refused run" into "a clean re-render". The spec's deferral premise ("I1's cleanup covers
-  the failure case") was wrong for signals.
+  the failure case") was wrong for signals. **Queue (E11 INTAKE, 2026-10-13):** it comes after
+  Sprint 12, or before it if Tim's GuoGuo freeze lags the greenlight (about 0.25 session, and
+  independent of Sprint 12's files).
 - **🔵 Loud-failure sweep, part 2: silent `text_card` downgrades** (split out of Sprint 10).
   `namecard`/`map` render as a text card (`composer/base.py:461-470`), and a `generated_image`
   provider failure renders the narration as a text card (`composer/image.py:177-181`); the
@@ -419,8 +430,16 @@ copy; a project is owned by exactly one machine at a time.**
   slice (atomic scene-cache writes) is recommended just ahead of item 2.
   **Re-ordered 2026-10-13:** Sprint 11 (E9 item 2, Tim-greenlit) goes first, then E5 part 1b,
   then item 2.
+  **Re-ordered 2026-10-13 (E11 INTAKE):** Sprint 11 merged. Sprint 12 (E11 v0, proposed) is next,
+  then E5 part 1b, then item 2. E5 part 1b fills the gap if GuoGuo isn't frozen when Tim
+  greenlights. E11 bank-fill sprints go ahead of item 2 once Tim's EP1 script names what they need.
+  - **E8 cross-links for E11:** the 3D engine renders on both machines, Mac Metal ~85 ms and hub
+    GL-EGL ~188 ms a frame at 1080p. So own-show finals render wherever the project lives (the Mac
+    today), and item 2's ownership lock governs any move.
+  - Item 3's draft profile is where an E11 draft render (960×540, GTAO off) would be marked
+    non-publishable.
 
-### E9 — Toon engine & resource bank (own-show character animation)  `[arsenal]`  🟢 *v0 shipped (Sprint 9; EM REVIEW PASS 2026-09-28 after two REWORK rounds); item 2 = **Sprint 11** 🟢 (Tim-greenlit 2026-10-13, style-independent part only; EM REVIEW 1 = REWORK, then follow-up REVIEW at `d1c346c` = **PASS**, cleared to merge); item 3 open; **style LOCKED 2026-10-13 on a 3D toy look; this 2.5D engine is now the backup style's engine** (see below)*
+### E9 — Toon engine & resource bank (own-show character animation)  `[arsenal]`  🟢 *v0 shipped (Sprint 9; EM REVIEW PASS 2026-09-28 after two REWORK rounds); item 2 = **Sprint 11** 🟢 (merged `55670c9`); **style LOCKED 2026-10-13 on a 3D toy look: this 2.5D engine is now the backup style's engine, in maintenance**. The production look is **E11**. The held items and item 3 were re-homed at the E11 INTAKE (2026-10-13)*
 A deterministic **2.5D hand-drawn character-animation** visual type for Tim's own hosted videos
 (`docs/own-show.md` is the top guideline for those videos and overrides the porting defaults).
 A code rig (cairo) draws the frozen character (Tim: likeness 2, short crop A, navy hoodie,
@@ -464,21 +483,25 @@ are YAML files that name bank items and always render the same frames. The pipel
   doodle look (2026-09-28) and the editorial cut-paper look (2026-10-13). `docs/own-show.md`
   step 4b holds the record. What the lock changes here (the EM noted it at the Sprint 11
   follow-up REVIEW):
-  - **The production engine for the locked look is not in E9.** It needs an INTAKE after
-    Sprint 11 merges. It is likely a new epic: a 3D bank, face-decal expressions, a pose
-    library, sets, a headless deterministic render, compose integration and hub goldens.
-  - **Sprint 11's scene contract is the part that carries over.** own-show 4b says the 3D
-    engine is "driven by the same scene-file contract". That contract is the scene schema,
-    sentence anchors, the splitter, drift warnings, loud load errors and source-named
-    `SceneError`. `toon.scene` validates against the 2.5D `Bank` (poses, spots, `PROP_KINDS`,
-    hair), so the INTAKE should scope a bank-neutral seam, not a second scene language.
-  - **Own-show step 3 is met for the backup engine only.** The locked look meets it once the
-    3D engine consumes the same contract.
-  - **The held items no longer get a "restyle sprint" here.** These are laptop ✓/✗, the
-    `style.yaml` wiring and the contact sheets. The INTAKE decides whether each becomes a 3D
-    bank requirement or stays backup-engine work.
-  - **Item 3** (word-level timing, A-roll transitions, vertical framing and a `direct.py`
-    entry) doesn't depend on the engine. The INTAKE decides where it lives.
+  - **The production engine for the locked look is E11** (INTAKE 2026-10-13; Sprint 12 = v0,
+    proposed).
+  - **Sprint 11's scene contract carries over, as one scene language.** That contract is the
+    scene schema, sentence anchors, the splitter, drift warnings, loud load errors and
+    source-named `SceneError`. Sprint 12's Phase 1 makes `toon.scene` validate against a
+    `SceneCatalog` protocol (names plus per-engine capabilities) instead of the 2.5D `Bank`. It
+    adds an `engine:` key (default `toon2d`) and splits an engine-neutral symbolic timeline out
+    of `state_at`. Scene 001 stays byte-identical. From then on the contract is shared code that
+    E11 actively extends; E9 keeps the 2.5D engine.
+  - **Own-show step 3 is met for the backup engine only.** The locked look meets it when E11
+    v0 passes.
+  - **Held items and item 3, re-homed (E11 INTAKE):**
+    - 2c laptop ✓/✗ → E11 item 3, a 3D bank item from Tim's pick.
+    - 2b `style.yaml` wiring → designed in for the locked look: the E11 look is bank data
+      (Sprint 12 row S12-7). For the backup engine it waits on item 4.
+    - 2d contact sheets → E11 item 4 for the 3D bank; for the backup, item 4.
+    - Item 3 (after v0) → E11 items 3, 8 and 9. Those are word-level timing, A-roll
+      transitions, vertical framing, a `direct.py` entry, explainer graphics, and more
+      characters and sets.
   - **The two-axes fence is unchanged.** Any engine's scene lasts exactly as long as its
     narration.
 - **Items:**
@@ -486,12 +509,12 @@ are YAML files that name bank items and always render the same frames. The pipel
      `2f6fb35`; EM REVIEW PASS 2026-09-28. It renders at 30 fps with drawings at 12/s (Tim's
      pick A), which matches compose's concat rate. See Sprint 9.
   2. **🟢 v0 residuals → Sprint 11** (parked by the v0 final review, 2026-09-28; **Tim greenlit
-     finishing step 3 on 2026-10-13**; EM follow-up REVIEW = PASS at `d1c346c`, merge pending).
-     The demand is EP1 scene authoring. Sprint 11 built the style-independent part: a, the 2b
-     splitter / card key / `SceneError` file name, the 2d `validate` flags, e and f. **Held:**
-     c (laptop ✓/✗), the 2b `style.yaml` wiring and the 2d contact sheets. Since the style lock
-     they are re-homed at the 3D INTAKE (see "Style LOCKED" above). Scope table: spec §11.1. The
-     items as filed:
+     finishing step 3 on 2026-10-13**; EM follow-up REVIEW = PASS at `d1c346c`; merged
+     `55670c9`). The demand is EP1 scene authoring. Sprint 11 built the style-independent part:
+     a, the 2b splitter / card key / `SceneError` file name, the 2d `validate` flags, e and f.
+     **Held:** c (laptop ✓/✗), the 2b `style.yaml` wiring and the 2d contact sheets. They were
+     re-homed at the E11 INTAKE (see "Style LOCKED" above). Scope table: spec §11.1. The items as
+     filed:
      - **a. Loud-failure debt.** Some fields are still accepted and silently ignored: `ease` on
        `show`, `over`/`ease` on `hide`, `flicker`/`blink`/`out` on plates, and top-level hair
        keys beside `layers:`. Spec §5 documents them; they should fail at load (standards:
@@ -521,7 +544,11 @@ are YAML files that name bank items and always render the same frames. The pipel
      - **g. ~~Frame rate~~ → fixed in Sprint 9 as REWORK R1** (30 fps, drawings 12/s; guard +
        cadence tests). ~~The leftover "on twos" wording in spec §4/§5~~ was fixed in the
        Sprint 11 spec edit (2026-10-13).
-  3. **⚪ After v0 (spec §10, unscoped):**
+  3. **→ re-homed to E11 (INTAKE 2026-10-13).** ~~After v0 (spec §10, unscoped)~~. Word-level
+     timing, host A-roll ↔ toon transitions, Shorts/vertical framing and the conditional
+     `stages/direct.py` entry don't depend on the engine; they are now E11 item 9. More
+     characters and sets come from Tim's picks for the locked look (E11 item 3). Explainer
+     graphics are E11 item 8. As filed:
      - word-level timing (Whisper word timestamps)
      - more characters and sets, from Tim's picks only
      - explainer-graphic kinds (map, timeline, arrows between cards). These are wordless and
@@ -531,6 +558,15 @@ are YAML files that name bank items and always render the same frames. The pipel
      - Shorts/vertical framing
      - a `stages/direct.py` taxonomy entry, only if EP1's scene breakdown shows the director
        should emit `toon`
+  4. **⚪ Dormant: a backup restyle** (filed at the E11 INTAKE, 2026-10-13). The 2.5D bank still
+     renders the **retired v0 doodle look**. The backup style, the r8 drawn soft-cel, exists only
+     as a throwaway tryout (`style-tryouts/r8/`). So today the backup is a cross-check sketch,
+     not a pipeline-renderable style.
+     - If Tim ever activates it: port r8 into `assets/toon/bank/`, with Tim's picks; wire
+       `style.yaml` `line`/`palette` (the held 2b item); add the pose and prop contact sheets
+       (2d); and re-mint the scene 001 goldens with Tim's eyeball. The ⚪ `bob` lift fix (Later)
+       rides along.
+     - **Trigger:** Tim activates the backup. Not before.
 - **Non-goal (Tim, 2026-09-27):** no EP1 scene or story composition until Tim gives the
   outline and plot. Composing EP1 scenes is content work (`own-show.md` step 6) and does not
   belong on this roadmap. Scene 001 appears only as v0's worked example and acceptance test.
@@ -626,6 +662,88 @@ Opus, checks on Haiku". Claude Code CLI 2.1.283 is installed on both machines.
        stages run one at a time, and the dashboard runs jobs off its event loop. Wrap them or
        amend the spec wording.
      - `docs/workflows.html` still says "Claude Sonnet API". Ask Tim before editing it (CLAUDE.md).
+
+### E11 — 3D toy engine & bank (the locked own-show look)  `[arsenal]`  🔵 *new epic (INTAKE 2026-10-13, Tim: "yes, do both"); v0 = **Sprint 12**, proposed, not greenlit*
+The production engine for the own-show style Tim **locked on 2026-10-13: a 3D toy in the smooth
+Animal Crossing look** (r7-3d look A). Characters, sets, props, poses, expressions and camera feels
+become bank data from Tim's picks. Scenes are files in the **same scene contract** as E9. Renders
+are headless and deterministic, run through compose like any scene, and are guarded by goldens on
+both machines.
+- **Demand:** `docs/own-show.md` next step 4b ("production 3D toy engine … driven by the same
+  scene-file contract, rendered headless and deterministic, with compose integration and
+  cross-machine goldens"). The style-lock record is under "Style exploration — status". Tim's
+  direction (2026-10-13): pan, tilt and zoom must be easy, and GuoGuo appears in every scene.
+- **Precedent:** the throwaway r7-3d tryout
+  (`output/projects/20260724-hybrid-ai-agent-controller/style-tryouts/r7-3d/`: `scene.js`,
+  `render.mjs`, `stage.html`, README "With more time I'd…") for the look and the builders. `src/toon`
+  for the bank/scene/render/goldens shape.
+- **Why a new epic, not E9:** a different runtime (Three.js in headless Chrome, not cairo), a
+  different bank (3D meshes, joint poses, face decals, materials), different determinism physics
+  (GPU rasterisation) and its own backlog. The scene contract is **shared**, through a seam that
+  doesn't depend on either bank, not a second scene format. E9 keeps the 2.5D backup engine.
+- **Two axes:** production quality (visual). **Zero runtime**: the clip lasts exactly as long as
+  the narration (the shared contract's fence, plus a frame-count test). **Locale-portable:** it is
+  wordless. The contract rejects free text, and the engine JS has a no-`fillText` fence.
+- **Engineering decisions (INTAKE 2026-10-13; EM probes on both machines, scratch only):**
+
+  | Question | Decision | Evidence / why |
+  |---|---|---|
+  | Render runtime | Headless Chrome + **Three.js r170**, vendored (MIT, `SHA256SUMS`). Driven from Python by a uv-locked **`playwright`**, which launches a **pinned Chrome for Testing** build. No Node on the render path; no Remotion; no Blender. | The locked look *is* this renderer's output (vinyl materials, GTAO, bloom, Neutral tone mapping), so another renderer would change what Tim locked. Blender isn't installed. CfT 151 (playwright build 1234) is already on both machines. The hub's Node is nvm-only and not on a systemd `PATH`. |
+  | GPU backend | Allow-list: Mac `--use-angle=metal`, hub `--use-angle=gl-egl` (GTX 1050). Read the WebGL renderer string at start and **refuse** SwiftShader, Vulkan or anything unlisted, loudly. A **blank-frame guard** means a uniform frame is never encoded or cached. | The hub is **not** SwiftShader-only: GL-EGL gives WebGL2 on the GTX 1050. Default flags silently fall back to SwiftShader on both machines, and it didn't finish one 1080p frame in 10 min on the Mac. Hub ANGLE-Vulkan returns all-black frames with no error. |
+  | Determinism and cross-machine goldens | **Three layers.** A: the symbolic timeline state, Python, exact, default suite. B: the applied scene graph from JS (no GL context), ≤ 1e-6 on both machines. C: pixel goldens, **hub-canonical**, 960×540, compared **on both machines** with a calibrated tolerance; minted on the hub only. | Mac Metal is byte-identical run to run, and across Chrome 155 and CfT 151. Hub GL-EGL wobbles ≤ 1 level. Mac vs hub: mean 0.14/255, 0.05% of pixels > 8, max 129 on silhouette edges and fur tips. So byte-exact `golden_policy` can't hold. A tolerance alone could miss a small decal swap, so layers A and B catch logic exactly. |
+  | Render speed vs compose | Fine as is. At 1080p, including the PNG transfer, the Mac takes ~85 ms a frame (~12 fps) and the hub ~188 ms (~5 fps). 3 min of toy footage ≈ 8 min on the Mac or 17 min on the hub; the scene cache makes re-renders free. Speed work and a draft profile are deferred (item 7). | Measured over 30-frame runs. |
+  | Bank format | **YAML with `picked:` provenance** (the E9 precedent). Python validates it, and the page gets resolved JSON. Geometry is **code-built** (the tryout's builders, parameterised by bank data). A **`gltf:` part source** (frozen GLB + sha256) is reserved for sculpted parts, built when the first pick needs one. **Expressions** are per-character named face decals drawn in code. **Poses** are per-character named joint rotations, with a class and optional loops; they blend on the beat's `over`/`ease`. **The look** (palette, post, lights) is `style.yaml` bank data, with no look constants in engine code. | Picks frozen as diffable data. Sculpts come later as GLBs: AI 3D-gen options → Tim picks → frozen, which fits own-show's "randomness at design time". The E9 `style.yaml` residual is closed by design. |
+  | Scene-contract seam | One scene language. `toon.scene` validates against a **`SceneCatalog` protocol**: names plus **per-engine capability tables** (verbs, beat fields, prop kinds, show kinds, `layer`, fx). An optional **`engine:`** key (default `toon2d`). A field the chosen engine doesn't render fails at load, naming the engine. An **engine-neutral symbolic timeline** is split out of `state_at`. Scene 001 stays byte-identical. | The EM's Sprint 11 REVIEW 2 note. Sprint 11's "means what it renders" is engine-relative: `layer:` and `fx: glow` are 2.5D-only. |
+  | Compose integration | Keep the `toon` visual type; `composer/toon.py` dispatches on the scene's `engine`. It keeps the same duration fence, `SceneRenderError`, validator branch, fps guard and cadence. **No engine fallback**: a toy3d failure never quietly renders on 2.5D. | One storyboard contract. No duplicated validator, still-gate or overlay wiring. |
+  | Fur and cost hot spots | GuoGuo's shell fur (22 shells per part) is the per-frame and cross-machine-variance hot spot. v0 keeps the tryout's fidelity and records ms per frame. **Fur LOD** by on-screen size comes later: GuoGuo is mostly a small background easter egg. GTAO, MSAA 4× half-float and bloom → a draft profile later (item 7). **$0 per render** (local GPU). The only possible spend is design-time AI 3D-mesh options, Tim-gated. | The diff map concentrates on fur tips. The fur code is in the tryout. |
+
+- **Cross-links (not merged):**
+  - **E9:** the shared scene contract (Sprint 11), and 2.5D is the backup engine. E9's held
+    items and item 3 are re-homed here.
+  - **E2:** the Seedance accent-shot test would now restyle an E11 render; it stays E2.
+  - **E4:** the look's `style.yaml` as a Style Manifest element (deferred).
+  - **E6:** a bank browser and scene preview (deferred).
+  - **E8:**
+    - hub-canonical goldens via `tests/golden_policy.py`, gaining a tolerant compare;
+    - a `pipeline doctor` toy3d check;
+    - item 2's ownership lock decides where a project renders;
+    - item 3's draft profile marks draft renders non-publishable.
+- **Items:**
+  1. **🔵 v0 = Sprint 12 (proposed).** Phase 1: the contract seam, with an EM checkpoint. Phase 2:
+     - the bank v0 from the frozen tryout picks (Tim H3, GuoGuo, the lioness, office + hall);
+     - the runner;
+     - `toon` dispatch;
+     - three-layer goldens;
+     - parity with the locked clip;
+     - the two-machine compose demo.
+  2. **⚪ Camera verbs in scene files** (pan, tilt, zoom and orbit with `over`/`ease`). Tim:
+     "the camera must turn easily". This extends the contract; the 2.5D engine rejects the verbs
+     through its capability table. **First post-v0 candidate.**
+  3. **⚪ Bank fill from Tim's picks, driven by EP1's scene breakdown:** more poses, expressions,
+     props and sets, including the **laptop ✓/✗ screen states** (re-homed from E9 2c). Options →
+     Tim picks → frozen. **Trigger:** Tim's EP1 script.
+  4. **⚪ Bank tooling:** model, expression, pose and prop contact sheets for picks (re-homed from
+     E9 2d). Probably rides item 3's first sprint.
+  5. **⚪ Motion quality:** IK (planted hands, paws on hips), secondary motion (overshoot and
+     settle), and hands that clear the big head. Tryout note 2.
+  6. **⚪ Sculpted parts through `gltf:`** (hair, apron, hoodie, a non-primitive lioness), from AI
+     3D-gen options or Blender if it is installed later; plus lighting polish (light probes, a
+     window area light, contact shadows). Tryout notes 3–4.
+  7. **⚪ Speed and drafts:**
+     - raw `readPixels` instead of PNG + base64;
+     - a 960×540 draft with GTAO off, using E8 item 3's non-publishable flag;
+     - fur LOD.
+  8. **⚪ Explainer graphics in 3D** (map, timeline, arrows between cards; wordless). Re-homed from
+     E9 item 3.
+  9. **⚪ Contract-level, engine-independent** (re-homed from E9 item 3; applies to both engines):
+     - word-level timing, behind the `sentence_starts` seam;
+     - host A-roll ↔ toy transitions (compose-side);
+     - Shorts/vertical framing, per engine (in 3D it's a camera aspect change);
+     - a `stages/direct.py` taxonomy entry, only if EP1's breakdown shows the director should emit
+       toon scenes (it would ride E5 part 2's `direct.py`-touching sprint).
+- **Non-goal (Tim):** no EP1 scene or story composition until Tim gives the script. That is
+  content work (`own-show.md` step 6). The only scene v0 ships is the worked example: the locked
+  r7-3d beat.
 
 ---
 
@@ -1244,7 +1362,7 @@ block is the sprint shape. The spec is the design and is not restated here.
   item 3 (draft encoder profile). The E8 item 1 (B) follow-up REVIEW (the s31 tofu) is still
   pending.
 
-### Sprint 11 — E9 item 2: finishing own-show step 3 (scene contract: loud failures, splitter, source names, sentence-anchored shots)  `[E9]`  🟢 *greenlit by Tim 2026-10-13; built on `feat/e9-sprint11`; EM REVIEW 1 at `2feed6e` = REWORK (narrow, R1–R4) → follow-up REVIEW at `d1c346c` = **PASS**, cleared to merge (not yet pushed or merged)*
+### Sprint 11 — E9 item 2: finishing own-show step 3 (scene contract: loud failures, splitter, source names, sentence-anchored shots)  `[E9]`  🟢 *greenlit by Tim 2026-10-13; built on `feat/e9-sprint11`; EM REVIEW 1 at `2feed6e` = REWORK (narrow, R1–R4) → follow-up REVIEW at `d1c346c` = **PASS**; **merged to master `55670c9`** and pushed (`a2eb6cc`)*
 
 **EM follow-up REVIEW (2026-10-13, `d1c346c`) = PASS.** R1–R4 are closed, and every claim was
 re-run by the EM.
@@ -1348,13 +1466,11 @@ of the EM's mutation run and probes.
     it is pre-existing. Filed in Later.
 - **Recommended, not gating:** a caplog pin for `toon.scene.drift` (M18).
 
-**Then:** R1–R4 passed the follow-up REVIEW, so Sprint 11 is 🟢 and cleared to merge onto
-master.
-- **Next:** the 3D toy engine INTAKE (own-show step 4b), once Sprint 11 merges and Tim has
-  finished the tryout fixes. Its place relative to E5 part 1b and E8 item 2 is decided at that
-  INTAKE.
-- **Otherwise the queue is unchanged** (E5 part 1b, then E8 item 2), **unless** a port video is
-  due. edge-tts is down on both machines, so TTS (see Later) would then jump the queue.
+**Then:** R1–R4 passed the follow-up REVIEW, so Sprint 11 is 🟢 and merged (`55670c9`).
+- ~~**Next:** the 3D toy engine INTAKE~~. **Done 2026-10-13: new epic E11, with Sprint 12
+  proposed.** The queue is now Sprint 12 → E5 part 1b → E8 item 2 (see Sprint 12).
+- ~~edge-tts is down on both machines, so TTS would jump the queue~~. An off-roadmap fix merged at
+  `ce9e4b8` (see Later 🔴); the jump is suspended unless a port run still fails.
 **Spec (build from this):** `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md` §11 (the
 addendum). This block is the sprint shape.
 - **Greenlight:** Tim, 2026-10-13: "for step three, could you complete?" Own-show step 3 is
@@ -1420,8 +1536,113 @@ addendum). This block is the sprint shape.
 - **Needs Tim before the build starts:** see the sprint-log entry for 2026-10-13. Briefly:
   confirm the held set; accept sentence anchors in place of word-level timing; the zh-TW quote
   convention (default: a terminator inside 「」 still breaks; the closer stays with its sentence).
-- **Then:** E5 part 1b (atomic scene-cache writes, with the dark-retry cache key), then E8
-  item 2. The held E9 items return as the restyle sprint once Tim picks a style.
+- **Then:** ~~E5 part 1b (atomic scene-cache writes, with the dark-retry cache key), then E8
+  item 2. The held E9 items return as the restyle sprint once Tim picks a style.~~ Superseded at
+  the E11 INTAKE (2026-10-13). Sprint 12 comes first, and the held items are re-homed (E9, "Style
+  LOCKED").
+
+### Sprint 12 — E11 v0: the locked 3D toy look as a pipeline visual (contract seam + engine + bank v0 + goldens)  `[E11]`  🔵 *proposed by the EM 2026-10-13 (Tim asked for the plan: "yes, do both"); **not greenlit**; not built*
+
+**Spec (build from this):** `docs/superpowers/specs/2026-10-13-toy3d-engine-v0-design.md`. This
+block is the sprint shape. It has two phases and an **EM checkpoint REVIEW after Phase 1**.
+- **Goal:** a scene file with `engine: toy3d` renders the locked look deterministically through
+  compose on both machines. It uses the same scene contract as the 2.5D engine, and its goldens
+  hold on both machines.
+- **Demand source:** `docs/own-show.md` step 4b; the style lock (2026-10-13); the EM's Sprint 11
+  REVIEW 2 notes (a bank-neutral seam, one scene format); Tim, 2026-10-13: "yes, do both".
+- **Axis:** production quality (visual). **Zero runtime:** clip frames = round(narration ×
+  `COMPOSE_FPS`), the shared contract's fence (S12-14).
+- **Scope IN, Phase 1 (contract seam; red first; 2.5D byte-identical):**
+  1. `load_scene` takes a `SceneCatalog` protocol, and the 2.5D `Bank` adapts to it. `toon.scene`
+     no longer imports `toon.bank` or the 2.5D kit at module level.
+  2. Per-engine capability tables: verbs, beat fields, prop kinds, show kinds, place fields and fx.
+     A field the chosen engine doesn't render fails at load, naming the engine.
+  3. An optional `engine:` scene key (default `toon2d`). An unknown engine fails, listing the
+     engines.
+  4. `toon.timeline.beats_at`: the engine-neutral symbolic state. The 2.5D `state_at` is rebuilt on
+     it, and scene 001 stays byte-identical.
+  5. A contract conformance suite: the Sprint 11 malformed-scene cases fail the same way against
+     both engines' catalogs.
+- **Scope IN, Phase 2 (engine):**
+  6. `assets/toy3d/bank/` holds the frozen tryout picks only:
+     - Tim (H3);
+     - GuoGuo (frozen by Tim at greenlight);
+     - the lioness;
+     - the office + hall set with its props;
+     - camera presets as keyframe paths;
+     - look A as `style.yaml`.
+
+     Every item carries `picked:` provenance. `src/toy3d/bank.py` holds the Pydantic models and the
+     catalog.
+  7. `src/toy3d/web/`:
+     - the engine, cast and set modules ported from `scene.js`, parameterised by bank data;
+     - vendored three r170;
+     - `stage.html` with the seeded RNG;
+     - a page API: `init`, `renderState`, `applyState`, `info`.
+  8. `src/toy3d/render.py`:
+     - Python `playwright` launches the pinned CfT build;
+     - the backend allow-list and renderer-string assertion;
+     - the blank-frame guard;
+     - frames piped into ffmpeg at `COMPOSE_FPS`, with an atomic `.part` → rename;
+     - the cache key, which hashes the Bank object.
+  9. `composer/toon.py` dispatches on `engine`; the validator branch, `pipeline toon validate|render`
+     and a `pipeline doctor` toy3d check.
+  10. Goldens in three layers (spec §8), with the tolerant helper in `tests/golden_policy.py`.
+  11. The worked scene `assets/toy3d/scenes/001-beat2-break-in.yaml`: the locked r7-3d beat, 8.0 s.
+      Parity references are frozen from the r7-3d snapshot at greenlight.
+  12. Real-scene demo: a two-scene compose (a `clip` + toy3d, two narration takes) on both machines.
+- **Scope OUT (deferred):**
+  - camera verbs in scene files (E11 item 2);
+  - more bank items, including laptop ✓/✗ (item 3);
+  - contact sheets (item 4);
+  - IK and secondary motion, and fixing the tryout's weak points (item 5). v0 **reproduces the
+    locked clip faithfully, weak points included**;
+  - glTF/sculpted parts and lighting polish (item 6);
+  - speed, draft and fur LOD (item 7);
+  - explainer graphics (item 8);
+  - word-level timing, transitions, vertical and `direct.py` (item 9);
+  - a `pipeline toon render --engine` cross-check override;
+  - the Style Manifest element (E4) and the dashboard surface (E6);
+  - EP1 scenes (non-goal).
+- **Dependencies:**
+  - Sprint 11 merged ✅ (`55670c9`).
+  - Frozen picks: Tim H3 ✅, the lioness and the set as in the tryout ✅, **GuoGuo ⏳** (Tim
+    freezes him at greenlight; until then E5 part 1b fills the slot).
+  - The pinned CfT build is on both machines ✅. The hub GPU path is proven by the EM probe ✅.
+  - New dependency: Python `playwright`.
+  - **Sync the hub to master** before any hub row. The hub checkout is at `68c14ad`, behind the
+    Sprint 11 merge and `ce9e4b8`.
+- **Unblocks:** own-show scenes in the locked look through the pipeline (step 4b). Once Tim's
+  script names what EP1 needs, it lets bank-fill sprints add picks as data. It **does NOT**:
+  - add runtime;
+  - compose any EP1 scene;
+  - add bank items beyond the frozen tryout picks;
+  - give authorable camera moves (item 2);
+  - improve on the tryout's motion or sculpting.
+- **Acceptance:** test-plan rows **S12-1…S12-21** (E11 section), all gating:
+  - Phase 1 rows S12-1…S12-5 at the checkpoint;
+  - red first, with the EM mutation-checking the fences;
+  - **scene 001 byte-identical** (41 of 41 frames; hub goldens 4/4, no churn; parity ≤ 0.058);
+  - goldens on both machines with the calibrated tolerance and the sensitivity set red;
+  - parity with the locked clip, and **Tim confirms it still meets his bar**;
+  - the two-machine demo;
+  - `uv run pytest -q`, `ruff check src/ tests/` and `mypy src/` clean on both machines;
+  - a separate code review has happened.
+- **Cost:** $0 (local GPU, free dependencies; no API calls). The demo narration uses the
+  prerecorded path (`say` takes, as in S11-16) or the TTS fallback.
+- **Size:** about 3 sessions plus a hub pass: Phase 1 about 0.75; Phase 2 about 2; goldens,
+  calibration and the demo about 0.5. Sprint 9 is the scale reference.
+- **Needs Tim before the build:**
+  1. Greenlight the scope, including the lioness, so the worked scene *is* the locked clip and
+     parity covers all of it. The cheaper option is Tim + GuoGuo + the set only, with parity on
+     the lioness-free windows, about 0.3 session less.
+  2. Freeze GuoGuo, or say "freeze at the greenlight snapshot".
+  3. Accept the Python `playwright` dependency and vendored three.js r170 (~1.5 MB, MIT).
+  4. Accept the toy3d golden policy: tolerance, compared on both machines, three layers. This is
+     a departure from E8's byte-exact skip-on-Mac policy, for GPU renders only.
+- **Then:** E5 part 1b (or before Sprint 12, if the GuoGuo freeze lags), then E8 item 2. E11
+  bank-fill sprints go ahead of E8 item 2 once Tim's EP1 script names its needs. E11 item 2
+  (camera verbs) is the first post-v0 E11 candidate.
 
 ### Later / unscoped backlog
 - **🔴 edge-tts returns 403, a production blocker (filed 2026-10-13 at the Sprint 11 REVIEW;
@@ -1439,6 +1660,12 @@ addendum). This block is the sprint shape.
     - pin an upstream fix when one ships;
     - both.
   - About 0.25 session. It jumps the queue the moment a port video is due.
+  - **Update 2026-10-13 (seen at the E11 INTAKE):** master `ce9e4b8` merged a TTS outage fix
+    off-roadmap. It moves the edge endpoint and adds retries. It adds a loud Kokoro local fallback
+    for zh-TW, with an `audio/tts_fallback.json` marker, and publish preflight refuses fallback
+    narration. The commit cites two code reviews. **Not EM-reviewed;** the status stays 🔴 until a
+    real port TTS run is seen green. The queue jump is suspended meanwhile. Check also whether it
+    touches the ⚪ "prerecorded narration silently falls back to TTS" item below.
 - **⚪ Toon cache key hashes the bank files, not the `Bank` the workers draw from (E9 hygiene;
   Sprint 11 follow-up).**
   - Since S11-11, the workers render from the caller's `Bank` object.
@@ -1448,13 +1675,15 @@ addendum). This block is the sprint shape.
   - `test_cache_key_changes_when_a_bank_file_changes` must then change a value, not just a
     comment.
   - Since the 2026-10-13 style lock this is backup-engine hygiene. The 3D engine's cache key
-    should hash its bank object from the start.
+    hashes its bank object from the start (E11, Sprint 12 row S12-13).
 - **⚪ A timed `move` with `bob` leaves a residual lift (E9 hygiene, backup engine; found by the
   Sprint 11 code review R1 and noted in spec §11.6).**
   - At the end of the move the character sits above its spot. Scene 001's lioness ends 0.025
     above `doorway`.
   - The fix churns the scene 001 goldens, so it was not made in Sprint 11. It goes with any
-    later golden regeneration of the backup engine, with Tim eyeballing the change.
+    later golden regeneration of the backup engine, with Tim eyeballing the change. That would be
+    E9 item 4, the dormant backup restyle. Sprint 12 must keep scene 001 byte-identical, so it
+    does **not** take this fix.
 - **⚪ Prerecorded MP3 padding skews scene timing (E6 compose; own-show relevant; found by the
   S11-16 demo).**
   - The pipeline times a prerecorded take by the transcoded MP3's container duration, which
