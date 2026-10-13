@@ -369,7 +369,8 @@ async def _resynth_secondary_selective(
     the updated text + durations.
     """
     config = PipelineConfig()
-    registry = VoiceRegistry(config.VOICES_DIR)
+    # Unchanged segments keep the primary voice's audio, so a fallback would mix voices.
+    registry = VoiceRegistry(config.VOICES_DIR, auto_fallback=False)
     if ctx.secondary_voice_id:
         sec_engine, sec_profile = registry.resolve(ctx.secondary_voice_id)
     else:

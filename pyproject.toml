@@ -29,6 +29,9 @@ dependencies = [
     "python-multipart>=0.0.27",
     "cairocffi>=1.7",
     "numpy>=1.26",
+    "sherpa-onnx>=1.13.8",
+    "sherpa-onnx-core>=1.13.8",
+    "opencc-python-reimplemented>=0.1.7",
 ]
 
 [project.scripts]

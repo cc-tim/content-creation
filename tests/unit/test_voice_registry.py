@@ -78,7 +78,7 @@ def test_registry_lists_built_in_voice(tmp_path):
 
 
 def test_registry_resolve_returns_engine_and_profile(tmp_path):
-    registry = _seed_registry(tmp_path)
+    registry = VoiceRegistry(_seed_registry(tmp_path)._dir, auto_fallback=False)
     engine, profile = registry.resolve("zh-TW-default-f")
     assert isinstance(engine, EdgeEngine)
     assert profile.locale == "zh-TW"
@@ -171,3 +171,16 @@ def test_registry_rejects_cosyvoice_engine(tmp_path):
     registry = VoiceRegistry(tmp_path)
     with pytest.raises(VoiceNotFound, match="unknown engine 'cosyvoice'"):
         registry.resolve("gone")
+
+
+def test_registry_resolves_kokoro_engine(tmp_path):
+    from pipeline.voices.kokoro_engine import KokoroEngine
+
+    (tmp_path / "registry.json").write_text(
+        '{"voices": [{"id": "zh-TW-kokoro-f", "engine": "kokoro", '
+        '"locale": "zh-TW", "params": {"sid": 3}}]}',
+        encoding="utf-8",
+    )
+    engine, profile = VoiceRegistry(tmp_path, auto_fallback=False).resolve("zh-TW-kokoro-f")
+    assert isinstance(engine, KokoroEngine)
+    assert profile.params["sid"] == 3

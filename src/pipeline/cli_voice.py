@@ -104,7 +104,8 @@ def test_voice(
     out: Path = typer.Option(Path("voice_test.mp3"), "--out"),
 ) -> None:
     """Synthesize a short sample for a voice profile."""
-    registry = _registry()
+    # Hearing this voice is the point: no fallback voice may stand in for it.
+    registry = VoiceRegistry(PipelineConfig().VOICES_DIR, auto_fallback=False)
     engine, profile = registry.resolve(voice_id)
     engine.synthesize(text, out, profile)
     typer.echo(f"wrote {out}")

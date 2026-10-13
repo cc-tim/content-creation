@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import re
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -15,6 +18,7 @@ import structlog
 from pipeline.config import PipelineConfig
 from pipeline.stages.base import PipelineContext, PipelineStage
 from pipeline.utils.srt import SrtEntry, write_srt
+from pipeline.voices.fallback_engine import write_fallback_marker
 from pipeline.voices.registry import VoiceRegistry
 
 logger = structlog.get_logger()
@@ -220,6 +224,10 @@ async def _synthesize_pass(
 
 
 class TtsStage(PipelineStage):
+    def __init__(self, auto_fallback: bool | None = None) -> None:
+        # None: PIPELINE_TTS_AUTO_FALLBACK decides. False: the requested voice or a failure.
+        self.auto_fallback = auto_fallback
+
     @property
     def name(self) -> str:
         return "tts"
@@ -228,7 +236,7 @@ class TtsStage(PipelineStage):
         logger.info("tts.start", locale=ctx.locale)
 
         config = PipelineConfig()
-        registry = VoiceRegistry(config.VOICES_DIR)
+        registry = VoiceRegistry(config.VOICES_DIR, auto_fallback=self.auto_fallback)
         if ctx.voice_id:
             engine, profile = registry.resolve(ctx.voice_id)
         else:
@@ -276,23 +284,38 @@ class TtsStage(PipelineStage):
             from pipeline.storyboard import Storyboard
             sb_for_dispatch = Storyboard.load(ctx.storyboard_path)
 
-        narration_path, subtitle_path, segment_timings = await _synthesize_pass(
-            segments=segments,
-            scene_ids=scene_ids,
-            scene_pauses_ms=scene_pauses_ms,
-            audio_dir=audio_dir,
-            locale_tag=ctx.locale,
-            engine=engine,
-            profile=profile,
-            seg_prefix="segment",
-            registry=registry,
-            storyboard=sb_for_dispatch,
-            project_root=ctx.work_dir,
-        )
+        # Both passes synthesize into a staging dir; audio/ is replaced only once every
+        # pass has produced audio, so a failed run (e.g. the MLA pass hitting the outage
+        # the primary pass fell back from) never leaves half-swapped narration behind.
+        staging = Path(tempfile.mkdtemp(prefix=".tts-staging-", dir=audio_dir))
+        try:
+            narration_path, subtitle_path, segment_timings = await _synthesize_pass(
+                segments=segments,
+                scene_ids=scene_ids,
+                scene_pauses_ms=scene_pauses_ms,
+                audio_dir=staging,
+                locale_tag=ctx.locale,
+                engine=engine,
+                profile=profile,
+                seg_prefix="segment",
+                registry=registry,
+                storyboard=sb_for_dispatch,
+                project_root=ctx.work_dir,
+            )
+            secondary = None
+            if ctx.secondary_locale:
+                secondary = await self._synthesize_secondary(
+                    ctx, registry, staging, scene_pauses_ms
+                )
+            _commit_staged_audio(staging, audio_dir)
+            write_fallback_marker(audio_dir, registry.fallbacks_used())
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
 
-        ctx.narration_path = narration_path
-        ctx.subtitle_path = subtitle_path
-        ctx.segment_timings = segment_timings
+        ctx.narration_path = audio_dir / narration_path.name
+        ctx.subtitle_path = audio_dir / subtitle_path.name
+        ctx.segment_timings = _rebase_timings(segment_timings, audio_dir)
+        ctx.tts_fallback_voices = registry.fallbacks_used()
 
         # Persist primary durations + text hashes so the next run can detect
         # stale durations (after a text edit) and skip re-measuring otherwise.
@@ -301,26 +324,29 @@ class TtsStage(PipelineStage):
 
             sb_for_persist = Storyboard.load(ctx.storyboard_path)
             _persist_measured_durations(
-                sb_for_persist, segment_timings, ctx.locale,
+                sb_for_persist, ctx.segment_timings, ctx.locale,
             )
             sb_for_persist.save(ctx.storyboard_path)
 
-        logger.info("tts.complete", segments=len(segments), path=str(narration_path))
+        _log_complete(
+            "tts.complete", ctx.tts_fallback_voices,
+            segments=len(segments), path=str(ctx.narration_path), voice=profile.id,
+        )
 
-        # --- Secondary (MLA) pass ---
-        if ctx.secondary_locale:
-            ctx = await self._run_secondary_tts(ctx, registry, audio_dir, scene_pauses_ms)
+        # --- Secondary (MLA) pass: bookkeeping + drift gate on the committed audio ---
+        if secondary is not None:
+            self._finish_secondary(ctx, registry, audio_dir, *secondary)
 
         return ctx
 
-    async def _run_secondary_tts(
+    async def _synthesize_secondary(
         self,
         ctx: PipelineContext,
         registry: VoiceRegistry,
         audio_dir: Path,
         scene_pauses_ms: list[int],
-    ) -> PipelineContext:
-        """Run a second TTS pass for secondary_locale using scene.narration_alt."""
+    ) -> tuple[Path, Path, list[dict[str, Any]], Any]:
+        """Synthesize the secondary_locale pass from scene.narration_alt into audio_dir."""
         logger.info("tts.secondary.start", locale=ctx.secondary_locale)
 
         if not ctx.storyboard_path or not ctx.storyboard_path.exists():
@@ -356,13 +382,29 @@ class TtsStage(PipelineStage):
             storyboard=storyboard,
             project_root=ctx.work_dir,
         )
+        return sec_narration_path, sec_subtitle_path, sec_timings, sec_profile
 
-        ctx.secondary_narration_path = sec_narration_path
-        ctx.secondary_subtitle_path = sec_subtitle_path
+    def _finish_secondary(
+        self,
+        ctx: PipelineContext,
+        registry: VoiceRegistry,
+        audio_dir: Path,
+        sec_narration_path: Path,
+        sec_subtitle_path: Path,
+        sec_timings: list[dict[str, Any]],
+        sec_profile: Any,
+    ) -> None:
+        """Record the committed secondary audio, persist its durations, run the drift gate."""
+        from pipeline.storyboard import Storyboard
 
-        # Persist secondary durations + text hashes. The storyboard was already
-        # loaded for synth; re-load to pick up any writeback from primary, then
-        # add the secondary measurements and save.
+        assert ctx.storyboard_path is not None
+        sec_locale = ctx.secondary_locale or "en"
+        sec_timings = _rebase_timings(sec_timings, audio_dir)
+        ctx.secondary_narration_path = audio_dir / sec_narration_path.name
+        ctx.secondary_subtitle_path = audio_dir / sec_subtitle_path.name
+
+        # Persist secondary durations + text hashes on top of the primary writeback.
+        storyboard = Storyboard.load(ctx.storyboard_path)
         _persist_measured_durations(storyboard, sec_timings, sec_locale)
         storyboard.save(ctx.storyboard_path)
 
@@ -376,12 +418,36 @@ class TtsStage(PipelineStage):
             tolerance_ms_override=ctx.mla_drift_tolerance_ms,
         )
 
-        logger.info(
-            "tts.secondary.complete",
-            locale=ctx.secondary_locale,
-            path=str(sec_narration_path),
+        _log_complete(
+            "tts.secondary.complete", registry.fallbacks_used(),
+            locale=ctx.secondary_locale, path=str(ctx.secondary_narration_path),
+            voice=sec_profile.id,
         )
-        return ctx
+
+
+def _commit_staged_audio(staging: Path, audio_dir: Path) -> None:
+    """Move every staged file over its counterpart in audio_dir (same filesystem)."""
+    for staged in staging.iterdir():
+        os.replace(staged, audio_dir / staged.name)
+
+
+def _rebase_timings(timings: list[dict[str, Any]], audio_dir: Path) -> list[dict[str, Any]]:
+    """Point segment paths at audio_dir after the staged files moved there."""
+    return [
+        {**t, "path": str(audio_dir / Path(t["path"]).name)} if t.get("path") else t
+        for t in timings
+    ]
+
+
+def _log_complete(event: str, fallback_voices: dict[str, str], **fields: Any) -> None:
+    """TTS summary line; a warning naming the fallback voices when any voice switched."""
+    if fallback_voices:
+        logger.warning(
+            event, **fields, fallback_voices=fallback_voices,
+            note="Narrated by FALLBACK voice(s): listen; publish refuses without --allow-fallback-voice.",
+        )
+    else:
+        logger.info(event, **fields)
 
 
 def _visual_width(text: str) -> int:

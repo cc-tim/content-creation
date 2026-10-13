@@ -39,6 +39,9 @@ class PipelineContext:
     subtitle_path: Path | None = None
     segment_timings: list[dict[str, Any]] | None = None
     voice_id: str | None = None
+    # Registry voice id -> the fallback voice that actually narrated it in the last TTS run
+    # (primary engine was unavailable). Empty when every voice was its own. Publish checks it.
+    tts_fallback_voices: dict[str, str] = field(default_factory=dict)
 
     # Stage 5: Compose
     final_video_path: Path | None = None

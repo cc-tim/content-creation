@@ -368,6 +368,7 @@ async def test_tts_passes_scene_id_to_engine(sample_context):
         patch("pipeline.stages.tts._get_audio_duration_ms", return_value=1000),
     ):
         mock_reg_cls.return_value.default_for_locale.return_value = stub_pair
+        mock_reg_cls.return_value.fallbacks_used.return_value = {}
         await stage.run(sample_context)
 
     assert seen_scene_ids == ["hook_1", "ctx_1"]
@@ -448,7 +449,7 @@ def test_secondary_tts_reads_narration_alt():
         Scene(id="s2", section="context", narration="主要二", narration_est_sec=5.0,
               narration_alt={}),
     ]
-    # Mirror the segment-collection logic from _run_secondary_tts.
+    # Mirror the segment-collection logic from _synthesize_secondary.
     en_segments = [s.narration_alt.get("en", "") for s in scenes]
     assert en_segments == ["english one", ""]
 
