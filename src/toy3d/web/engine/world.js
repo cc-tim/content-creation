@@ -138,6 +138,7 @@ export function buildWorld(bank, { width, height, mode }) {
   function applyState(spec) {
     // poseAll: the door, the cast, then (with world matrices current) the bulb, puffs and screen
     room.doorHinge.rotation.y = spec.door.angle;
+    room.restChair();
     const byCharacter = {};
     for (const [actor, s] of Object.entries(spec.actors)) {
       if (!actors[s.character]) throw new Error(`toy3d: no character ${s.character} (${actor}) in this world`);

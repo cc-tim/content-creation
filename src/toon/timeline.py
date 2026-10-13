@@ -123,6 +123,7 @@ class Change:
     bob: float | None = None    # move: the lift (toon2d)
     since: float = 0.0          # seconds since the beat started (accents, envelopes, walk cycles)
     over: float = 0.0           # the beat's over: (0: instant)
+    expr_set: bool = False      # pose: the beat names its expression (else `expr` is inherited)
 
 
 @dataclass(frozen=True)
@@ -222,7 +223,7 @@ def beats_at(scene: ToonScene, t: float, t_cam: float | None = None) -> Symbolic
         elif v == "pose":
             pose, expr = names[b.pose]
             to_pose, to_expr = b.to or pose, b.expr or expr
-            changes.append(Change("pose", b.pose, to_pose, to_expr, k, None, since, over))
+            changes.append(Change("pose", b.pose, to_pose, to_expr, k, None, since, over, b.expr is not None))
             if k >= 1.0:
                 names[b.pose] = (to_pose, to_expr)
         elif v == "prop":

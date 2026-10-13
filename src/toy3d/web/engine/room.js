@@ -285,7 +285,14 @@ export function buildOffice(scene, set, M) {
     sp.rotation.order = 'YXZ'; sp.rotation.set(Math.PI / 2, a, 0);
     sph(0.03, mFrame, chair, [Math.sin(a) * 0.22, 0.03, Math.cos(a) * 0.22]);
   }
-  return { doorHinge, chair, drawScreen };
+  // The seat at rest at its spot: every frame starts here, so a turn or a push from an earlier frame
+  // never leaks into one where nobody sits in it.
+  const seatSpot = set.spots.desk_seat;
+  function restChair() {
+    chair.position.set(...seatSpot.pos);
+    chair.rotation.y = THREE.MathUtils.degToRad(seatSpot.yaw);
+  }
+  return { doorHinge, chair, drawScreen, restChair };
 }
 
 // ---- dust puffs the door kicks up (seeded positions; the spec drives their k) ----
