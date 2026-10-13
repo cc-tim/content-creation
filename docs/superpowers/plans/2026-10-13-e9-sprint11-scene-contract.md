@@ -1121,4 +1121,5 @@ S11-17 changes behaviour, so it lands red first.
 
 | Item | Test | Red evidence | Red commit | Fix / pin commit |
 |------|------|--------------|------------|------------------|
-| R2 (S11-8) | `test_compose_v2.py::test_compose_passes_the_storyboard_file_to_render_scene` | M13 (compose passes `storyboard_file=None`): `AssertionError: assert [None] == [PosixPath('/…/storyboard_zh-TW.json')]` | n/a (pin) | |
+| R2 (S11-8) | `test_compose_v2.py::test_compose_passes_the_storyboard_file_to_render_scene` | M13 (compose passes `storyboard_file=None`): `AssertionError: assert [None] == [PosixPath('/…/storyboard_zh-TW.json')]` | n/a (pin) | `aabd8ef` |
+| R3 (S11-14) | `test_composer_toon.py::test_validator_warns_when_seconds_timed_shots_drift_from_narration` (+13.4/12.6 none, 13.6/12.4 warn) | M17b (`DRIFT_TOLERANCE = 3.0`): `AssertionError: assert (0 == 1)` at 13.6 s | n/a (pin) | |

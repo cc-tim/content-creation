@@ -172,6 +172,8 @@ def test_validator_warns_when_seconds_timed_shots_drift_from_narration(tmp_path)
     assert ("shots 2–4 are in seconds and won't follow the narration (authored 13.0 s, narration 16.2 s); "
             "anchor them with `at: {sentence: n}`") in w.issue
     assert drift(ref, 13.5) == [] and drift(ref, 12.5) == []       # within 0.5 s
+    assert drift(ref, 13.4) == [] and drift(ref, 12.6) == []       # just under it
+    assert len(drift(ref, 13.6)) == 1 and len(drift(ref, 12.4)) == 1  # just over it (EM R3)
     assert drift({"type": "toon", **anchored_001()}, 16.2) == []   # anchored shots follow it
     partly = anchored_001()
     partly["shots"][2]["at"], partly["shots"][3]["at"] = 6.2, 9.7
