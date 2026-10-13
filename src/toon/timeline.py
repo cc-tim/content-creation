@@ -90,8 +90,9 @@ def _progress(b: Beat, rel: float) -> float | None:
     at = float(b.at)  # SentenceAnchor is resolved to a float before state_at ever runs
     if rel < at:
         return None
-    k = 1.0 if b.over <= 0 else min((rel - at) / b.over, 1.0)
-    return EASES[b.ease](k)
+    over = b.over or 0.0  # optional beat fields are None when not given: instant, smooth
+    k = 1.0 if over <= 0 else min((rel - at) / over, 1.0)
+    return EASES[b.ease or "smooth"](k)
 
 
 def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = None) -> FrameState:
@@ -132,7 +133,7 @@ def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = 
             door = lerp(door, 1.0 if b.door == "open" else 0.0, k)
         elif v == "move":
             c, dest = chars[b.move], spots[b.to]
-            c.root = lerp(c.root, V(*dest.pos), k) + V(0, b.bob * abs(math.sin(k * 9)), 0)
+            c.root = lerp(c.root, V(*dest.pos), k) + V(0, (b.bob or 0.0) * abs(math.sin(k * 9)), 0)
             c.yaw = lerp(c.yaw, dest.yaw, k)
         elif v == "face":
             c, o = chars[b.face], chars[b.to]
@@ -159,7 +160,7 @@ def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = 
             if b.out:
                 s.mode, s.smoke = "out", rel - at
         elif v == "show":
-            dur = b.over if b.over > 0 else POP
+            dur = b.over if b.over is not None and b.over > 0 else POP
             key = graphic_key(b.show)
             graphics[key] = GraphicState(key, b.show, min((rel - at) / dur, 1.0))
         elif v == "hide":

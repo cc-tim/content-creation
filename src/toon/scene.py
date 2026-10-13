@@ -16,13 +16,33 @@ Ease = Literal["linear", "smooth", "out", "back"]
 VERBS = ("door", "move", "pose", "face", "prop", "show", "hide", "camera")
 SHOW_KINDS = ("speed_lines", "bubble", "anger", "x_card", "check_pill")
 PROP_USE_FIELDS = ("on", "held_by", "b", "count")
-# Per bank-prop kind: (use fields it needs, use fields it draws, states a `to:` beat animates).
-# Anything else would load cleanly and be silently ignored by the renderer, so it is rejected.
-PROP_KINDS: dict[str, tuple[frozenset[str], frozenset[str], frozenset[str]]] = {
-    "idea_bulb": (frozenset({"on"}), frozenset({"on", "b"}), frozenset({"b"})),
-    "plate": (frozenset({"held_by"}), frozenset({"held_by"}), frozenset()),
-    "plate_stack": (frozenset({"count"}), frozenset({"count"}), frozenset({"count"})),
+PROP_BEAT_FLAGS = ("flicker", "blink", "out")
+# Per bank-prop kind: (use fields it needs, use fields it draws, states a `to:` beat animates,
+# beat flags it honours). Anything else would load cleanly and be silently ignored by the
+# renderer, so it is rejected.
+PROP_KINDS: dict[str, tuple[frozenset[str], frozenset[str], frozenset[str], frozenset[str]]] = {
+    "idea_bulb": (frozenset({"on"}), frozenset({"on", "b"}), frozenset({"b"}), frozenset(PROP_BEAT_FLAGS)),
+    "plate": (frozenset({"held_by"}), frozenset({"held_by"}), frozenset(), frozenset()),
+    "plate_stack": (frozenset({"count"}), frozenset({"count"}), frozenset({"count"}), frozenset()),
 }
+# Per verb: the optional beat fields timeline.state_at reads. Any other field set on a beat would
+# load and be silently ignored, so it fails instead. On top of the table: `ease` only shapes a
+# change that has an `over:`, and a prop beat's over/ease only time a `to:` change (its flags
+# are per prop kind, PROP_KINDS).
+BEAT_FIELDS: dict[str, frozenset[str]] = {
+    "door": frozenset({"over", "ease"}),
+    "move": frozenset({"over", "ease", "to", "bob"}),
+    "pose": frozenset({"over", "ease", "to", "expr"}),
+    "face": frozenset({"over", "ease", "to"}),
+    "prop": frozenset({"over", "ease", "to", *PROP_BEAT_FLAGS}),
+    "show": frozenset({"over"}),  # the pop length
+    "hide": frozenset(),
+    "camera": frozenset(),
+}
+# Why a verb takes no timing: the reason an over:/ease: on it fails with.
+_UNTIMED = {"camera": "a camera beat is a cut to a new preset",
+            "hide": "a hide beat is instant",
+            "show": "a show beat pops in, and only over: (the pop length) times it"}
 
 
 class _SceneLoader(yaml.SafeLoader):
@@ -124,11 +144,12 @@ class Beat(_Strict):
 
     `camera: <preset>` is a cut to another bank camera preset at `at`, not a blend: the new
     preset's own push/truck/punch restarts from the beat, so `over`/`ease` are rejected on it.
+    Optional fields are None when not given; BEAT_FIELDS says which ones each verb reads.
     """
 
     at: float | SentenceAnchor
-    over: float = 0.0
-    ease: Ease = "smooth"
+    over: float | None = None   # None: not given (instant; a show pops in over 0.25 s)
+    ease: Ease | None = None    # None: not given (smooth)
     door: Literal["open", "close"] | None = None
     move: str | None = None
     pose: str | None = None
@@ -139,7 +160,7 @@ class Beat(_Strict):
     camera: str | None = None
     to: str | dict[str, float] | None = None
     expr: str | None = None
-    bob: float = 0.0
+    bob: float | None = None
     flicker: Flicker | bool | None = None
     blink: Blink | None = None
     out: bool | None = None
@@ -154,6 +175,9 @@ class Beat(_Strict):
     @property
     def verb(self) -> str:
         return next(v for v in VERBS if getattr(self, v) is not None)
+
+
+BEAT_OPTIONAL = tuple(f for f in Beat.model_fields if f != "at" and f not in VERBS)
 
 
 class Shot(_Strict):
@@ -306,7 +330,7 @@ def _a(kind: str) -> str:
 
 
 def _check_prop_use(pu: PropUse, uw: str, kind: str) -> list[str]:
-    need, draws, _ = PROP_KINDS[kind]
+    need, draws = PROP_KINDS[kind][:2]
     p: list[str] = []
     for field in PROP_USE_FIELDS:
         value = getattr(pu, field)
@@ -322,8 +346,8 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
     p: list[str] = []
     placed = shot.place
     v = b.verb
-    if v in ("door", "show", "hide", "camera") and b.to is not None:
-        p.append(f"{bw}.to: not valid with a {v} beat")
+    pu = shot.props.get(b.prop) if v == "prop" else None
+    kind = bank.props[pu.kind].kind if pu is not None and pu.kind in bank.props else None
     if v == "move":
         if b.move not in placed:
             p.append(f"{bw}.move: {b.move!r} is not placed in this shot")
@@ -346,13 +370,11 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
         if b.face not in placed or not isinstance(b.to, str) or b.to not in placed:
             p.append(f"{bw}: face needs two characters placed in this shot")
     elif v == "prop":
-        pu = shot.props.get(b.prop)
         if pu is None:
             p.append(f"{bw}.prop: unknown prop use {b.prop!r} in this shot")
         if isinstance(b.to, str):
             p.append(f"{bw}.to: prop beats take a mapping like {{b: 0.3}}")
-        elif isinstance(b.to, dict) and pu is not None and pu.kind in bank.props:
-            kind = bank.props[pu.kind].kind
+        elif isinstance(b.to, dict) and kind is not None:
             states = PROP_KINDS[kind][2]
             for key in b.to:
                 if key not in states:
@@ -380,23 +402,35 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank,
             p.append(f"{bw}.hide: {b.hide!r} does not match a graphic shown earlier in this shot (shown: {keys})")
         elif isinstance(b.at, float) and shown[b.hide] > b.at:
             p.append(f"{bw}.hide: {b.hide!r} was shown at {shown[b.hide]:g}s, after this hide at {b.at:g}s")
-    elif v == "camera":
-        if b.camera not in bank.cameras:
-            p.append(f"{bw}.camera: unknown camera {b.camera!r}")
-        for field in ("over", "ease"):
-            if field in b.model_fields_set:
-                p.append(f"{bw}.{field}: a camera beat is a cut to a new preset; {field} does not apply")
-    # Check verb-specific fields on other verbs
-    if v != "pose" and b.expr is not None:
-        p.append(f"{bw}.expr: only valid with a pose beat")
-    if v != "prop" and b.flicker is not None:
-        p.append(f"{bw}.flicker: only valid with a prop beat")
-    if v != "prop" and b.blink is not None:
-        p.append(f"{bw}.blink: only valid with a prop beat")
-    if v != "prop" and b.out:
-        p.append(f"{bw}.out: only valid with a prop beat")
-    if v != "move" and b.bob != 0.0:
-        p.append(f"{bw}.bob: only valid with a move beat")
+    elif v == "camera" and b.camera not in bank.cameras:
+        p.append(f"{bw}.camera: unknown camera {b.camera!r}")
+    return p + _check_beat_fields(b, bw, kind)
+
+
+def _unread(verb: str, field: str) -> str:
+    if field in ("over", "ease") and verb in _UNTIMED:
+        return f"{_UNTIMED[verb]}; {field} does not apply"
+    users = [u for u, fields in BEAT_FIELDS.items() if field in fields]
+    return f"only valid with {_a(users[0])} beat" if len(users) == 1 else f"not valid with {_a(verb)} beat"
+
+
+def _check_beat_fields(b: Beat, bw: str, kind: str | None) -> list[str]:
+    """Every optional field set on a beat must be one the timeline reads for its verb (and, on a
+    prop beat, for its prop kind; `kind` is None when the prop doesn't resolve)."""
+    p: list[str] = []
+    v = b.verb
+    for field in BEAT_OPTIONAL:
+        if getattr(b, field) is None:
+            continue
+        if field not in BEAT_FIELDS[v]:
+            p.append(f"{bw}.{field}: {_unread(v, field)}")
+        elif v == "prop" and field in ("over", "ease") and b.to is None:
+            p.append(f"{bw}.{field}: a prop beat times only a to: change; {field} does nothing without to:")
+        elif field == "ease" and not (b.over or 0.0) > 0:
+            p.append(f"{bw}.ease: does nothing without over: (the change is instant)")
+        elif v == "prop" and field in PROP_BEAT_FLAGS and kind is not None and field not in PROP_KINDS[kind][3]:
+            takers = sorted(k for k, spec in PROP_KINDS.items() if field in spec[3])
+            p.append(f"{bw}.{field}: {_a(kind)} prop ignores {field} (only {', '.join(takers)} takes it)")
     return p
 
 
@@ -437,7 +471,7 @@ def load_scene(data: dict, bank: Bank, narration: str | None = None,
 
 
 def scene_warnings(scene: ToonScene, duration: float) -> list[str]:
-    last = max((sh.at + b.at + b.over for sh in scene.shots for b in sh.beats
+    last = max((sh.at + b.at + (b.over or 0.0) for sh in scene.shots for b in sh.beats
                 if isinstance(b.at, float)), default=0.0)
     last = max(last, scene.shots[-1].at)
     if last > duration:
