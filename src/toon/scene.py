@@ -182,7 +182,7 @@ class Beat(_Strict):
     bob: float | None = None
     flicker: Flicker | bool | None = None
     blink: Blink | None = None
-    out: bool | None = None
+    out: Literal[True] | None = None  # `out: false` would do nothing, so only true is taken
 
     @model_validator(mode="after")
     def _one_verb(self):
@@ -507,6 +507,8 @@ def _check_beat(b: Beat, bw: str, shot: Shot, spots: dict, bank: Bank) -> list[s
             p.append(f"{bw}.prop: unknown prop use {b.prop!r} in this shot")
         if isinstance(b.to, str):
             p.append(f"{bw}.to: prop beats take a mapping like {{b: 0.3}}")
+        elif b.to == {}:
+            p.append(f"{bw}.to: is empty; a prop beat animates a state like {{b: 0.3}}")
         elif isinstance(b.to, dict) and kind is not None:
             states = PROP_KINDS[kind][2]
             for key in b.to:
@@ -557,6 +559,8 @@ def _check_beat_fields(b: Beat, bw: str, kind: str | None) -> list[str]:
             p.append(f"{bw}.{field}: a prop beat times only a to: change; {field} does nothing without to:")
         elif field == "ease" and not (b.over or 0.0) > 0:
             p.append(f"{bw}.ease: does nothing without over: (the change is instant)")
+        elif field == "bob" and not (b.over or 0.0) > 0:
+            p.append(f"{bw}.bob: needs over: (an instant move would leave a fixed lift, not a bob)")
         elif v == "prop" and field in PROP_BEAT_FLAGS and kind is not None and field not in PROP_KINDS[kind][3]:
             takers = sorted(k for k, spec in PROP_KINDS.items() if field in spec[3])
             p.append(f"{bw}.{field}: {_a(kind)} prop ignores {field} (only {', '.join(takers)} takes it)")
