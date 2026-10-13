@@ -177,9 +177,14 @@ def _check_look(path: Path, ch: Character) -> None:
     for i, layer in enumerate(layers or []):
         unknown += [(f"hair.layers[{i}].{k}", HAIR_LAYER_KEYS) for k in layer if k not in HAIR_LAYER_KEYS]
     # Beside `layers:` the layered drawing reads only `layers` and `bun`: a top-level per-layer
-    # key, or `none`, would load and be silently ignored.
+    # key would load and be silently ignored, and `none: true` silently drops every layer.
     beside = [f"{path}: hair.{k}: ignored beside hair.layers (only layers and bun are read there)"
-              for k in ch.hair if layers is not None and (k in HAIR_LAYER_KEYS or k == "none")]
+              for k in ch.hair if layers is not None and k in HAIR_LAYER_KEYS]
+    if layers is not None and "none" in ch.hair:
+        beside.append(f"{path}: hair.none: beside hair.layers, `none: true` wins and every layer is "
+                      f"dropped (`none: false` does nothing); keep one of them")
+    if layers == []:  # draw_hair would fall back to the top-level hair: the default look
+        beside.append(f"{path}: hair.layers: is empty; give at least one layer, or drop layers")
     if unknown or beside:
         raise BankError("; ".join([*(f"{path}: {where}: unknown key (known: {sorted(keys)})"
                                      for where, keys in unknown), *beside]))
