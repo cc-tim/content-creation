@@ -180,3 +180,43 @@ def test_evaluate_reports_page_errors_like_every_call():
     assert PlaywrightPage(_StubPage([7]), [], build="x").evaluate("() => 7") == 7
     with pytest.raises(Toy3DRenderError, match="evaluate failed: boom"):
         PlaywrightPage(_StubPage([PlaywrightError("Page.evaluate: Error: boom")]), [], build="x").evaluate("() => 1")
+
+
+def test_a_page_console_error_fails_the_next_call():
+    """Phase 2 review I5: three reports a shader that fails to compile with console.error and keeps
+    drawing without it; a console error the page logged fails the next call, naming it."""
+    from toy3d.runtime import PlaywrightPage, Toy3DRenderError
+
+    errors = []
+    page = PlaywrightPage(_StubPage([{"renderer": "x", "mode": "render"}]), errors, build="x")
+    page.info()
+    errors.append("console error: THREE.WebGLProgram: Shader Error 1282 - VALIDATE_STATUS false")
+    with pytest.raises(Toy3DRenderError, match="Shader Error 1282"):
+        page.info()
+
+
+def test_start_refuses_a_disallowed_backend_and_records_an_allowed_one(tmp_path, monkeypatch):
+    """Phase 2 review I4: every caller (clips, stills, doctor) starts a page through one gate."""
+    import json
+
+    from toy3d import runtime
+    from toy3d.bank import load_bank
+
+    class Page:
+        def __init__(self, renderer):
+            self.renderer = renderer
+
+        def init(self, bank, w, h, mode):
+            self.args = (w, h, mode)
+
+        def info(self):
+            return {"renderer": self.renderer, "build": runtime.BROWSER_VERSION, "mode": "render"}
+
+    monkeypatch.setattr(runtime, "PLATFORM", "darwin")
+    bank = load_bank()
+    with pytest.raises(runtime.Toy3DRenderError, match="SwiftShader"):
+        runtime.start(Page(SWIFTSHADER), bank, 64, 36)
+    assert not runtime.renderer_record_path().exists()
+    info = runtime.start(Page(METAL), bank, 64, 36)
+    assert info["renderer"] == METAL
+    assert json.loads(runtime.renderer_record_path().read_text())["renderer"] == METAL

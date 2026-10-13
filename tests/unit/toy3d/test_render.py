@@ -46,8 +46,9 @@ def _spec(scene, bank, t):
 
 
 class FakePage:
-    def __init__(self, renderer=METAL, uniform_at=None, fail_at=None, init_error=None):
+    def __init__(self, renderer=METAL, uniform_at=None, fail_at=None, init_error=None, empty_at=None):
         self.renderer, self.uniform_at, self.fail_at, self.init_error = renderer, uniform_at, fail_at, init_error
+        self.empty_at = empty_at
         self.specs = []
         self.inited = None
 
@@ -72,7 +73,13 @@ class FakePage:
             raise RuntimeError("Target page, context or browser has been closed")
         w, h = self.inited[:2]
         img = Image.new("RGB", (w, h), (40, 40, 40))
-        if i != self.uniform_at:
+        if i == self.empty_at:              # the background and a vignette: a world that drew nothing
+            import numpy as np
+
+            y, x = np.mgrid[0:h, 0:w]
+            r = np.hypot((x - w / 2) / w, (y - h / 2) / h)
+            img = Image.fromarray(np.dstack([(230 - 60 * r).astype(np.uint8)] * 3))
+        elif i != self.uniform_at:
             img.putpixel((i % w, 0), (250, 10, 10))
         buf = io.BytesIO()
         img.save(buf, "PNG")
@@ -320,3 +327,23 @@ def test_toy3d_no_longer_depends_on_the_2d_bank():
     toon_dir = Path(toon.__file__).parent
     assert toon_dir / "beats.py" in src
     assert not {toon_dir / "bank.py", toon_dir / "timeline.py", toon_dir / "engine" / "rig.py"} & src
+
+
+
+def test_a_background_only_frame_fails_loud(scene, bank, tmp_path):
+    """Phase 2 review M2: a frame with nothing drawn but the background and its vignette isn't
+    uniform, but it isn't a frame either."""
+    from toy3d.runtime import Toy3DRenderError
+
+    out = tmp_path / "s.mp4"
+    with pytest.raises(Toy3DRenderError, match="frame 4 .*nothing but the background"):
+        _render(scene, bank, out, 0.5, Factory({"empty_at": 4}))
+    assert _leftovers(out) == []
+
+
+def test_a_render_never_touches_another_renders_partial_file(scene, bank, tmp_path):
+    """Phase 2 review M3: two renders of one clip at once must not share a temp file."""
+    other = tmp_path / "s.part.mp4"
+    other.write_bytes(b"another render's frames")
+    _render(scene, bank, tmp_path / "s.mp4", 0.2)
+    assert other.read_bytes() == b"another render's frames"

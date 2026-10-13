@@ -11,6 +11,20 @@ from pipeline.cli import app
 
 runner = CliRunner()
 REPO = Path(__file__).resolve().parents[3]
+METAL = "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)"
+
+
+def _still(w, h, uniform=False):
+    from io import BytesIO
+
+    from PIL import Image
+
+    img = Image.new("RGB", (w, h), (9, 9, 9))
+    if not uniform:
+        img.paste((240, 200, 40), (w // 4, h // 4, w // 2, h // 2))
+    buf = BytesIO()
+    img.save(buf, "PNG")
+    return buf.getvalue()
 
 
 def test_toon_validate_loads_a_toy3d_scene_against_the_toy3d_catalog(monkeypatch):
@@ -63,19 +77,19 @@ def test_toon_render_stills_of_a_toy3d_scene_use_the_toy3d_engine(monkeypatch, t
         def init(self, bank, w, h, mode):
             seen.append(("init", w, h, mode))
 
+        def info(self):
+            return {"renderer": METAL, "build": runtime.BROWSER_VERSION, "mode": "render"}
+
         def render_state(self, spec):
             seen.append(("frame", spec["frame"]))
-            from io import BytesIO
-
-            from PIL import Image
-            buf = BytesIO()
-            Image.new("RGB", (64, 36), (9, 9, 9)).save(buf, "PNG")
-            return buf.getvalue()
+            return _still(1920, 1080)
 
     @contextmanager
     def fake_open(w, h, mode="render", **kw):
         yield Page()
 
+    monkeypatch.setenv("TOY3D_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setattr(runtime, "PLATFORM", "darwin")
     monkeypatch.setattr(runtime, "open_page", fake_open)
     monkeypatch.setattr("toon.render.frame", lambda *a, **k: (_ for _ in ()).throw(AssertionError("2.5D")))
     res = runner.invoke(app, ["toon", "render", "001-beat2-break-in", "--out", str(tmp_path), "--stills", "2.4,4"])
@@ -111,3 +125,43 @@ def test_pipeline_validate_fails_a_bad_toy3d_name_with_exit_two(tmp_path, monkey
     res = runner.invoke(app, ["validate", "--project-id", pdir.name])
     assert res.exit_code == 2, res.output
     assert "unknown camera 'front34_push'" in res.output
+
+
+
+def _fake_stills(monkeypatch, tmp_path, renderer, uniform=False):
+    from contextlib import contextmanager
+
+    from toy3d import runtime
+
+    class Page:
+        def init(self, bank, w, h, mode):
+            self.size = (w, h)
+
+        def info(self):
+            return {"renderer": renderer, "build": runtime.BROWSER_VERSION, "mode": "render"}
+
+        def render_state(self, spec):
+            return _still(*self.size, uniform=uniform)
+
+    @contextmanager
+    def fake_open(w, h, mode="render", **kw):
+        yield Page()
+
+    monkeypatch.setenv("TOY3D_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setattr(runtime, "PLATFORM", "darwin")
+    monkeypatch.setattr(runtime, "open_page", fake_open)
+
+
+def test_toy3d_stills_refuse_a_software_renderer(monkeypatch, tmp_path):
+    """Phase 2 review I4: stills go through the same backend gate as clips; nothing is written."""
+    _fake_stills(monkeypatch, tmp_path, "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device), SwiftShader driver)")
+    res = runner.invoke(app, ["toon", "render", "001-beat2-break-in", "--out", str(tmp_path / "o"), "--stills", "4"])
+    assert res.exit_code == 1 and "SwiftShader" in res.output
+    assert not list((tmp_path / "o").glob("*.png"))
+
+
+def test_toy3d_stills_refuse_a_blank_frame(monkeypatch, tmp_path):
+    _fake_stills(monkeypatch, tmp_path, METAL, uniform=True)
+    res = runner.invoke(app, ["toon", "render", "001-beat2-break-in", "--out", str(tmp_path / "o"), "--stills", "4"])
+    assert res.exit_code == 1 and "uniform" in res.output
+    assert not list((tmp_path / "o").glob("*.png"))
