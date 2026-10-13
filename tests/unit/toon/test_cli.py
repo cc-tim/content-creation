@@ -84,8 +84,9 @@ def test_validate_with_narration_prints_the_sentence_table(tmp_path):
     starts = sentence_starts(N3, 13.44)
     for n, (t, sentence) in enumerate(zip(starts, split_sentences(N3), strict=True), 1):
         assert f"{n:>3}  {t:6.2f}s  {sentence}" in res.stdout
-    assert f"{starts[1]:6.2f}s  {{sentence: 2}}" in res.stdout             # each shot's start
-    assert f"{starts[2] + 2:6.2f}s  {{sentence: 3, plus: 2}}" in res.stdout
+    # each shot's resolved window at this narration (code review R1 I2), then its anchor
+    assert f"{starts[1]:6.2f} – {starts[2]:6.2f} s  {{sentence: 2}}" in res.stdout
+    assert f"{starts[2] + 2:6.2f} – {13.44:6.2f} s  {{sentence: 3, plus: 2}}" in res.stdout
     assert "WARN" not in res.stdout
     warn = runner.invoke(app, ["toon", "validate", "001-lioness-dishes", "--duration", "16.2"])
     assert warn.exit_code == 0, warn.stdout                                # warnings: still 0

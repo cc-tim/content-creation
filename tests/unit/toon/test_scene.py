@@ -606,3 +606,19 @@ def test_over_values_mean_what_they_render():
     popped = load_scene(mini(**{"at": 1.0, "show": {"anger": "tim"}}), BANK)
     (g,) = state_at(popped, BANK, 1.05, 1.05).graphics
     assert g.k == pytest.approx(0.2)                        # no over: the 0.25 s pop
+
+
+def test_a_seconds_beat_outside_an_anchored_shot_names_its_window():
+    # Code review R1 I2: a beat in seconds inside an anchored shot can fit one take and not
+    # another. It stays a load error (a mid-video beat is never dropped silently), and the error
+    # names the shot's anchor and its window at this narration.
+    d = anchored_001()
+    d["shots"][1]["beats"].append({"at": 3.5, "show": {"x_card": "bulb", "at": [0.5, 0.5]}})
+    assert load_scene(d, BANK, narration=N3, duration=13.44).shots[1].beats[-1].at == 3.5  # fits
+    with pytest.raises(SceneError, match=r"shots\[1\]\.beats\[7\]\.at: 3\.5s is outside the shot \(0–3\.17s\): "
+                                         r"shot 2 \{sentence: 2\} → 2\.50–5\.67 s at this narration \(9\.0 s\); "
+                                         r"anchor the beat \(at: \{sentence: n, plus: s\}\) or move it"):
+        load_scene(d, BANK, narration=N3, duration=9.0)
+    plain = mini(**{"at": 9.0, "door": "open"})                # a scene in seconds keeps the plain error
+    with pytest.raises(SceneError, match=r"9s is outside the shot \(0–4s\)$"):
+        load_scene(plain, BANK)
