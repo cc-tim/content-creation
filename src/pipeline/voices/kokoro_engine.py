@@ -59,9 +59,26 @@ def _load_sherpa_kokoro(model_dir: Path) -> Any:
     return sherpa_onnx.OfflineTts(config)
 
 
+# Everything _load_sherpa_kokoro points sherpa-onnx at. sherpa exits the whole process
+# (exit 255 from C++) on a missing or empty file, so check them in Python first.
+_BUNDLE_FILES = (
+    "model.onnx", "voices.bin", "tokens.txt", "lexicon-us-en.txt", "lexicon-zh.txt",
+    "date-zh.fst", "phone-zh.fst", "number-zh.fst",
+)
+_BUNDLE_DIRS = ("dict", "espeak-ng-data")
+
+
 def _default_tts_factory(model_dir: Path) -> Any:
-    if not (model_dir / "model.onnx").exists():
-        raise FileNotFoundError(f"Kokoro model not found in {model_dir}; {_INSTALL_HINT}")
+    missing = [
+        *(f for f in _BUNDLE_FILES if not (model_dir / f).is_file()
+          or (model_dir / f).stat().st_size == 0),
+        *(d for d in _BUNDLE_DIRS if not (model_dir / d).is_dir()),
+    ]
+    if missing:
+        raise FileNotFoundError(
+            f"Kokoro bundle in {model_dir} is incomplete, missing: {', '.join(missing)}; "
+            f"{_INSTALL_HINT}"
+        )
     return _load_sherpa_kokoro(model_dir)
 
 
