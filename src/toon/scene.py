@@ -248,12 +248,15 @@ def shot_length(scene: ToonScene, i: int) -> float:
 
 # A terminator run, then any closing quotes or brackets right after it: they belong to the
 # sentence they close (spec §11.2 b2), so no sentence starts with a closer.
-_BREAK = re.compile(r"([.!?。！？…]+)([」』”’）)\]】》〉\"']*)")
+_BREAK = re.compile(r"([.!?。！？…]+)([」』”’）)\]】》〉»›\"']*)")
 # A "." after one of these words, or after a one-letter word (U.S., J. K., e.g., a.m.; not the
-# pronoun "I"), is an abbreviation, not a break. en + es-419. The known cost: "…moved to the
-# U.S. Then…" stays one sentence; `pipeline toon validate --narration` prints the split.
-ABBREVIATIONS = frozenset({"mr", "mrs", "ms", "dr", "prof", "st", "vs", "etc", "sr", "sra", "srta"})
-_WORD_BEFORE = re.compile(r"(?<![A-Za-z])[A-Za-z]+$")
+# pronoun "I"), is an abbreviation, not a break. en + es-419 (EE. UU., Dra., Ud.). The known
+# cost: "…moved to the U.S. Then…" stays one sentence; `pipeline toon validate --narration`
+# prints the split. Words are Latin letters with accents (día, camión), never CJK, so 他在U.S.
+# still reads "U" as a one-letter word.
+ABBREVIATIONS = frozenset({"mr", "mrs", "ms", "dr", "prof", "st", "vs", "etc",
+                           "sr", "sra", "srta", "dra", "ud", "uds", "ee", "uu"})
+_WORD_BEFORE = re.compile(r"(?<![A-Za-zÀ-ɏ])[A-Za-zÀ-ɏ]+$")
 
 
 def _abbreviation(before: str) -> bool:

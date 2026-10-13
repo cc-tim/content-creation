@@ -1130,4 +1130,4 @@ S11-17 changes behaviour, so it lands red first.
 
 | Item | Test | Observed red | Red commit | Fix commit |
 |------|------|--------------|------------|------------|
-| I1 es-419 splitter | `test_scene.py::test_sentences_count_real_breaks_only` (+7 es-419 / CJK cases) | 6 of 7 red: `['Fue un buen día. Luego se fue.']` (1 sentence), `['Vive en EE.', 'UU.', 'desde 2010.', 'Le gusta.']`, `['«Me voy.', '» Luego se fue.']`; `他在U.S.工作。` green (pins that CJK isn't joined) | | |
+| I1 es-419 splitter | `test_scene.py::test_sentences_count_real_breaks_only` (+7 es-419 / CJK cases) | 6 of 7 red: `['Fue un buen día. Luego se fue.']` (1 sentence), `['Vive en EE.', 'UU.', 'desde 2010.', 'Le gusta.']`, `['«Me voy.', '» Luego se fue.']`; `他在U.S.工作。` green (pins that CJK isn't joined) | `01c4ca7` | |
