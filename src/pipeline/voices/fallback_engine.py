@@ -87,19 +87,18 @@ class FallbackEngine(VoiceEngine):
         try:
             result = self.primary.synthesize(text, out_path, profile, scene_id=scene_id)
         except VoiceEngineUnavailable as exc:
+            if self.fallback is None or self.fallback_profile is None:
+                raise VoiceEngineUnavailable(
+                    f"{exc} at scene {scene_id}; voice {profile.id} has no fallback voice. "
+                    f"Re-run TTS once {self.health.engine} is back."
+                ) from exc
             if self.health.succeeded:
                 raise RuntimeError(
                     f"TTS voice {profile.id} became unavailable mid-run at scene {scene_id}: "
                     f"{exc}. Earlier scenes already used {self.health.engine} voices, so "
-                    f"falling back would mix two voices in one narration. Re-run TTS"
-                    + (
-                        f", or narrate the whole run with --voice {self.fallback_profile.id}."
-                        if self.fallback_profile is not None
-                        else "."
-                    )
+                    f"falling back would mix two voices in one narration. Re-run TTS, or "
+                    f"narrate the whole run with --voice {self.fallback_profile.id}."
                 ) from exc
-            if self.fallback is None:
-                raise
             self.health.down_reason = str(exc)
             return self._synthesize_fallback(text, out_path, profile, scene_id)
         if self.health.down_reason is None:
