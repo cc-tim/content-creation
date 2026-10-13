@@ -3,6 +3,8 @@ picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d7
 kind: idea_bulb
 anchor: [0.0, 0.76, 0.0]            # above the head it sits on
 drift: {bob: 0.025, bob_rate: 2.4, tilt: 0.05, tilt_rate: 1.7}
-out: {over: 0.5, droop: 0.06, tilt: 0.3, smoke: 3, stagger: 0.12, smoke_span: 0.9}
+out: {over: 0.5, droop: 0.06, tilt: 0.3, smoke: 3, stagger: 0.12, smoke_span: 0.9,
+      rise: [0.1, 0.3], grow: [0.6, 1.6], alpha: 0.55, sway: {amp: 0.02, rate: 3.0, phase_step: 2.0}}
 glow: {base: 0.55, amp: 0.05, rate: 5.0}
 rays: {amp: 0.06, rate: 6.0, min_level: 0.5}
+lit_min: 0.05                       # the glass reads lit above this level

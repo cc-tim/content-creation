@@ -231,12 +231,18 @@ class Spot(_Strict):
     seat: Literal["chair"] | None = None
 
 
+class Dust(_Strict):
+    span: tuple[float, float]         # k = seg(since the open, a, b)
+    grow: tuple[float, float]         # each puff's scale · (a + b · e_out(k)), drifting e_out(k) along
+    alpha: float                      # opacity · (1 - k)
+
+
 class Door(_Strict):
     open: float                       # radians: the swing on the door beat (its ease)…
     rest: float                       # …then a spring: rest + (open - rest)·e^(-decay·u)·cos(freq·u)
     decay: float
     freq: float
-    dust: tuple[float, float]         # puffs: seg(since, a, b)
+    dust: Dust                        # the puffs an open kicks up
 
 
 class Laptop(_Strict):
@@ -269,13 +275,23 @@ class BulbDrift(_Strict):
     tilt_rate: float
 
 
+class Sway(_Strict):
+    amp: float
+    rate: float
+    phase_step: float                 # puff i sways at phase i · phase_step
+
+
 class BulbOut(_Strict):
-    over: float
-    droop: float
-    tilt: float
-    smoke: int
+    over: float                       # dead = e_out(seg(since out, 0, over))
+    droop: float                      # the bulb sinks droop · dead…
+    tilt: float                       # …and tips tilt · dead
+    smoke: int                        # puffs, each k_i = seg(since out, stagger·i, smoke_span + stagger·i)
     stagger: float
     smoke_span: float
+    rise: tuple[float, float]         # puff height above the bulb: a + b·k
+    grow: tuple[float, float]         # puff scale · (a + b·k)
+    alpha: float                      # opacity · (1 - k)
+    sway: Sway
 
 
 class BulbGlow(_Strict):
@@ -298,6 +314,7 @@ class PropDef(_Strict):
     out: BulbOut
     glow: BulbGlow
     rays: BulbRays
+    lit_min: float                    # the glass reads lit above this level
     palette: dict[str, Colour] = {}
     params: dict[str, Any] = {}
 

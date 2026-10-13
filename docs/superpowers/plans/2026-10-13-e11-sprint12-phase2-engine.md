@@ -71,6 +71,14 @@ Sprint 12. **Port source:** `style-tryouts/r7-3d/frozen-v7-20261013/` (SHA256SUM
     `since ≥ from`, and stay on.
   - **An expression-only pose beat** (`to` equals the current pose) only swaps the face decal. It
     starts nothing and ends no loop.
+- **P2-R1a (found by the every-frame oracle, Task 5):** a full pose resets the body channels
+  only. The cheated turns (`root.*`, `seat.*`, `look.*`, P2-R3) stay where they are unless the pose
+  names them, so Tim's chair turn (3.78) survives his full shock pose (3.9), as in the snapshot.
+  A pose beat's decal switches only when its `expr` differs from the expression `beats_at`
+  inherits (a later beat without `expr` inherits the last *completed* one and must not undo a
+  switch still blending in). The walk's terms enter the fold at the move's place in play order,
+  so later poses blend them away (the snapshot's `lerp(-swing, …, pk)`). A face aims at where its
+  target is at `t` (the snapshot's `aim(lion.root.position)`), not where earlier changes left it.
 - **P2-R2, engine programs are code; their parameters are bank data:**
   - the lioness's walk cycle on `move`: phase from the distance walked, a step envelope settling
     `1/settle` s after arrival;
@@ -412,7 +420,7 @@ report to the lead.
 | S12-6/20/23a, S12-5 A2 | `tests/unit/toy3d/test_bank.py`, conformance with the real catalog | 2 | `ModuleNotFoundError: toy3d` | 9 × `ModuleNotFoundError: No module named 'toy3d'`; 2 × `SceneError: engine: toy3d has no bank yet`; the conformance suite errors at collection on the same | `c4af74a` | `ca14f7f` |
 | S12-7s/10s | `test_engine_source_fences.py` | 3 | files missing | `FileNotFoundError` on `vendor/three-0.170.0/SHA256SUMS` and `stage.html`; `AssertionError: no engine modules` (×2) | `5e00b45` | `1216373` |
 | S12-8/9/13/14u | `test_runner.py`, `test_render.py` | 4 | `ModuleNotFoundError: toy3d.runtime` | 20 × `ModuleNotFoundError: No module named 'toy3d.runtime'`, 5 × `… 'toy3d.render'`, 4 × `ImportError: cannot import name 'runtime'/'render' from 'toy3d'` (29 failed) | `57ccfe8` | `7b77d99` |
-| S12-11A/23p | `test_acting.py` (every frame against `snapshot_oracle.py`, a verbatim transcription of the snapshot's animation), `test_state_symbolic.py` | 5 | `ModuleNotFoundError: toy3d.acting` | 62 × `ModuleNotFoundError: No module named 'toy3d.acting'` (53 failed, 9 errors); `test_every_toy3d_capability_has_a_probe` passes (a table fence, mutation-checked) | (this commit) | |
+| S12-11A/23p | `test_acting.py` (every frame against `snapshot_oracle.py`, a verbatim transcription of the snapshot's animation), `test_state_symbolic.py` | 5 | `ModuleNotFoundError: toy3d.acting` | 62 × `ModuleNotFoundError: No module named 'toy3d.acting'` (53 failed, 9 errors); `test_every_toy3d_capability_has_a_probe` passes (a table fence, mutation-checked) | `f35942e` | (this commit) |
 | S12-7r/11B/23j | `test_state_goldens.py`, `test_style_wiring.py` | 6 | page stubs | | | |
 | S12-18 | `test_parity_tryout.py` | 7 | scene file missing | | | |
 | S12-12 | `test_goldens.py`, `test_golden_policy.py` | 8 | helper missing | | | |
@@ -435,3 +443,16 @@ Each guard below was removed (one at a time, `scratchpad/mutate.py`) and its pin
 | 4 | the early page-error exit in `wait_ready` | `test_a_page_that_fails_to_load_is_reported_at_once_…` | red (was a 600 s timeout; the stub now fails fast) |
 | 4 | submodule and enclosing-package imports in `import_closure` | `test_import_closure_follows_submodule_imports` | red (both; was green before that test) |
 | 4 | `exclude={"root"}` in the key | `test_the_bank_root_is_not_in_the_key` | red |
+| 5 | full-pose reset of the cheated turns (`TURNS`) | `test_tim_matches_the_snapshot_every_frame` | red |
+| 5 | `until_next: stop` on loops; on osc accents (the fade) | `test_tim_…`; `test_guoguo_…` (every frame) | red (both) |
+| 5 | the expression-only beat (`to` = current pose) | `test_lioness_…` (the 4.61 blink would replay the jabs) | red |
+| 5 | the decal switch against the inherited expression | `test_tim_…` (the shock face) | red |
+| 5 | the flag threshold 0.05 → 0.5 | `test_a_flag_turns_on_once_its_pose_is_five_percent_in` | red (was green on the worked scene's frames; that test was added) |
+| 5 | the walk's place in the fold | `test_lioness_…` | red |
+| 5 | the aim, the hop speed, the flipper whip | `test_guoguo_…` | red (each) |
+| 5 | the door spring; the dust of the latest open | `test_door_…`; `test_a_closing_door_…` | red (both) |
+| 5 | the bulb level rounding; flicker; blink | `test_bulb_…`; `test_flicker_…`; `test_blink_…` | red (each) |
+| 5 | `loop: false`; standing GuoGuo's whole-body turn | `test_loop_false_…`; `test_standing_guoguo_…` | red (both) |
+| 5 | the laptop's typing stop | `test_the_laptop_stops_filling_when_the_typist_stops` | red (was green: the worked scene caps at 11 lines before the stop matters; that test was added) |
+| 5 | a camera tween starting early | `test_camera_…` | red |
+| 5 | a capability probe removed | `test_every_toy3d_capability_has_a_probe` | red |

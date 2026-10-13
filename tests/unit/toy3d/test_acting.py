@@ -313,3 +313,21 @@ def test_unplaced_cast_is_not_in_the_frame(bank):
 
     place = {"tim": {"spot": "desk_seat", "pose": "typing", "expr": "neutral"}}
     assert set(resolve(_scene(bank, place=place, props={}), bank, 0.5)["actors"]) == {"tim"}
+
+
+def test_a_flag_turns_on_once_its_pose_is_five_percent_in(bank):
+    from toy3d.acting import resolve
+
+    sc = _scene(bank, [{"at": 1.0, "pose": "lioness", "to": "point", "over": 1.0, "ease": "linear"}])
+    assert "finger" not in resolve(sc, bank, 1.04)["actors"]["lioness"]["flags"]
+    assert "finger" in resolve(sc, bank, 1.1)["actors"]["lioness"]["flags"]
+    assert "finger" in resolve(sc, bank, 3.5)["actors"]["lioness"]["flags"]          # and stays on
+
+
+def test_the_laptop_stops_filling_when_the_typist_stops(bank):
+    from toy3d.acting import resolve
+
+    sc = _scene(bank, [{"at": 1.0, "pose": "tim", "to": "shock"}])
+    laptop = bank.sets["office"].laptop
+    assert resolve(sc, bank, 0.5)["laptop"]["lines"] == laptop.lines + math.floor(0.5 * laptop.rate)
+    assert resolve(sc, bank, 3.0)["laptop"]["lines"] == laptop.lines + math.floor(1.0 * laptop.rate)

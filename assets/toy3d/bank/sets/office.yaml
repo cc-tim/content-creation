@@ -8,6 +8,7 @@ spots:
   shelf_top: {pos: [-0.26, 1.04, -1.72]}                    # on the bookshelf, in frame every beat
   turntable: {pos: [1.85, 0.0, 0.65]}                       # open floor: the design views
 # The door swings in on its beat, then rings on a spring (scene.js poseDoor), puffing dust.
-door: {open: 1.9, rest: 1.62, decay: 7.0, freq: 26.0, dust: [0.06, 0.9]}
+door: {open: 1.9, rest: 1.62, decay: 7.0, freq: 26.0,
+       dust: {span: [0.06, 0.9], grow: [0.4, 1.4], alpha: 0.7}}
 # The laptop's code bars fill while the actor at desk_seat holds a pose flagged `typing`.
 laptop: {spot: desk_seat, lines: 4, rate: 2.2, max_lines: 11, cursor_rate: 3.0}

@@ -6,7 +6,6 @@ from __future__ import annotations
 import ast
 import contextlib
 import hashlib
-import importlib
 import io
 import os
 import subprocess
@@ -21,7 +20,7 @@ from PIL import Image
 import toon
 import toy3d
 from toon.scene import ToonScene
-from toy3d import runtime
+from toy3d import acting, runtime
 from toy3d.bank import Toy3DBank
 from toy3d.runtime import BROWSER_VERSION, Page, Toy3DRenderError
 
@@ -148,7 +147,7 @@ def render_clip(scene: ToonScene, bank: Toy3DBank, out_path: Path, duration: flo
     if cached(_record_key(scene, bank, duration, width, height)):
         return out_path
     if resolve is None:
-        resolve = importlib.import_module("toy3d.acting").resolve   # the acting resolver (task 5)
+        resolve = acting.resolve
     factory = page_factory or runtime.open_page
     fps = bank.style.fps
     n = round(duration * fps)
