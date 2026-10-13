@@ -147,7 +147,7 @@ by default it is instant.
 | `pose` | `to:` a pose and/or `expr:` an expression | An expression change alone is a pose beat with only `expr:`. `to:` cannot switch sit ↔ stand; cut to a new shot instead. |
 | `move` | `to:` a set spot, optional `bob` | |
 | `face` | `to:` another placed character | |
-| `show` | one graphic: `{speed_lines: who}`, `{bubble: [icons], from: who}`, `{anger: who}`, `{x_card: icon, at: [x, y]}`, `{check_pill: icon, at: [x, y]}` | Pops in (0.25 s default; `over:` sets it). `from:` is for bubbles only; `at:` and an optional slug `id:` (never drawn) are for cards only. A show whose key is still visible fails (§11.2 b1). |
+| `show` | one graphic: `{speed_lines: who}`, `{bubble: [icons], from: who}`, `{anger: who}`, `{x_card: icon, at: [x, y]}`, `{check_pill: icon, at: [x, y]}` | Pops in (0.25 s default; `over:` sets it). `from:` is for bubbles only; `at:` and an optional slug `id:` (never drawn) are for cards only. A show whose key is still visible fails (§11.2 b1). `over: 0` appears at once, and a negative `over` fails on any verb (§11.6). |
 | `hide` | the graphic's key, `<kind>:<target>` (for example `bubble:lioness`; a card's target is its `id:` when it has one) | Must take down a graphic that is showing in the shot. |
 | `prop` | `to: {b: …}` (idea_bulb brightness), `to: {count: …}` (plate_stack), `flicker`, `blink`, `out` | In v0, brightness `to: {b: …}` over time **is** the fade; there is no separate `fade` state. A plate has no animatable state. |
 | `door` | `open` / `close` | |
@@ -336,7 +336,9 @@ one break, decimals don't break, and an ellipsis followed directly by text doesn
 - The camera `over`/`ease` check uses `is not None`; it no longer reads `model_fields_set`. This
   falls out of (a).
 - Render workers get the caller's `Bank` (serialised) instead of reloading it from disk. The
-  frames then come from the bank that was validated and hashed into the cache key.
+  frames then come from the bank that was validated. (The clip's cache key still hashes the bank
+  *files* on disk, not this object: an edit landing between load and render keys the new files.
+  That gap is a Later item in the roadmap.)
 
 **f. Shot starts follow the narration, without word-level timing.**
 - **The defect:** shot starts are absolute seconds. When the narration length changes (a TTS
@@ -444,3 +446,10 @@ Where the build went past this section's letter, the plan
   on the first sentence.
 - The drift warning is its own function, `drift_warnings`; compose logs it as
   `toon.scene.drift`, apart from the `toon.scene.cut` warning.
+- Shot order (the first shot at 0, then strictly increasing) is checked once, as the anchors
+  resolve, so a misordered scene fails with the order problems alone, not also with bogus
+  "outside the shot" windows.
+- **`over` values mean what they render** (EM REVIEW 1, R4; row S11-17). A negative `over` fails
+  at load on any verb; it used to load and act as instant. `over: 0` on a `show` is an instant
+  appear with no pop; it used to load and still pop over 0.25 s. A `show` with no `over` keeps
+  the 0.25 s pop. A `blink` needs a positive `over`: one of 0 s or less never showed.

@@ -130,8 +130,8 @@ _WORKER: dict = {}
 
 
 def _init_worker(scene_json: str, bank_json: str, width: int, height: int) -> None:
-    # The caller's bank, not a reload from disk: frames come from the bank that was validated
-    # and hashed into the cache key, even if a bank file changed since.
+    # The caller's bank, not a reload from disk: frames come from the bank that was validated,
+    # even if a bank file changed since. (cache_key still hashes the bank files on disk.)
     _WORKER.update(scene=ToonScene.model_validate_json(scene_json), bank=Bank.model_validate_json(bank_json),
                    width=width, height=height)
 
