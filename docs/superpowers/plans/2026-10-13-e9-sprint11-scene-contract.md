@@ -1062,7 +1062,7 @@ task's red step (a commit can't record its own SHA).
 | S11-2 | `test_scene.py::test_every_beat_field_is_read_or_rejected` | 1 | `ImportError: cannot import name 'BEAT_FIELDS'` | `ImportError: cannot import name 'BEAT_FIELDS' from 'toon.scene'` | `ee11844` | `1e2cc36` |
 | S11-3 | `test_scene.py::test_prop_beat_flags_rejected_on_kinds_that_ignore_them` | 1 | `DID NOT RAISE` (6 of 6) | `DID NOT RAISE` on 6 of 6 | `ee11844` | `1e2cc36` |
 | S11-10 | `test_bank.py::test_prop_kinds_match_bank_prop_kinds` | 1 | green (fence) | green (fence; passes on master) | `ee11844` | `1e2cc36` |
-| S11-4 | `test_bank.py::test_hair_keys_beside_layers_rejected` | 2 | `DID NOT RAISE` (3 of 3) | `DID NOT RAISE <class 'toon.bank.BankError'>` on 3 of 3 (fill, fringe, none); the bun case green | | |
+| S11-4 | `test_bank.py::test_hair_keys_beside_layers_rejected` | 2 | `DID NOT RAISE` (3 of 3) | `DID NOT RAISE <class 'toon.bank.BankError'>` on 3 of 3 (fill, fringe, none); the bun case green | `f4f91d3` | |
 | S11-5 | `test_scene.py::test_show_of_a_visible_graphic_key_is_rejected` | 3 | `DID NOT RAISE` | | | |
 | S11-6 | `test_timeline.py::test_two_cards_one_icon_with_ids_both_show` | 3 | `SceneError: …show.id: Extra inputs are not permitted` | | | |
 | S11-7 | `test_scene.py::test_sentences_count_real_breaks_only` | 4 | 「」/straight-quote/abbreviation cases differ | | | |
