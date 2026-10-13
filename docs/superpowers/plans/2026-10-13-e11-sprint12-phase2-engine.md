@@ -79,6 +79,37 @@ Sprint 12. **Port source:** `style-tryouts/r7-3d/frozen-v7-20261013/` (SHA256SUM
   switch still blending in). The walk's terms enter the fold at the move's place in play order,
   so later poses blend them away (the snapshot's `lerp(-swing, …, pk)`). A face aims at where its
   target is at `t` (the snapshot's `aim(lion.root.position)`), not where earlier changes left it.
+- **P2-R1b (the code reviews, Task 11):** `Change` carries `to_set` / `expr_set` (internal
+  `beats_at` data, not authored fields). A pose beat with a `to` blends that pose in from
+  wherever the fold is, unless it is the pose already heading in. A beat without `to` changes
+  the face only. An authored `expr` switches the face as its beat starts. A face turns the short
+  way round.
+- **P2-R10, seats (Phase 2 review I2, M6, M8):** toy3d refuses at load, so the validator and the
+  CLI refuse too, through `SceneCatalog.scene_problems`, which runs once every name resolves:
+  - a seated character's move;
+  - a move into a seat;
+  - a seat for a character with no `seat_height`;
+  - sitting without a seat, or standing in one;
+  - a partial pose as a placement.
+
+  So the laptop's typist is the character placed at its seat.
+- **P2-R11, never silent at runtime (Phase 2 review I4, I5, M1, M2):**
+  - `runtime.start` is the one way in for clips, stills and doctor: init, the backend allow-list
+    and the renderer record.
+  - Console errors fail the next page call. three's `onShaderError` throws. A lost WebGL context
+    fails `renderState`.
+  - A watchdog (`CALL_TIMEOUT`) stops a hung call's driver and browser: `evaluate` has no timeout.
+  - A frame whose strongest edge is under 24 levels is an empty world.
+- **P2-R12, the engine-neutral timeline (A3 m2):** `beats_at`, its dataclasses, `_progress`, `POP`
+  and the eases live in `toon/beats.py`; `toon.timeline` and `toon.engine.mathx` re-export them.
+  Loading the contract and the timeline loads no 2.5D code. The 2.5D renderer refuses a
+  non-toon2d scene (A3 m1).
+- **P2-R13, the clip cache key (A3 I1, Phase 2 review M4):** the key hashes:
+  - each frame's resolved spec (computed once, and reused for the render);
+  - every vendored three.js file;
+  - the module-level import closure of `src/toy3d`.
+
+  The toy3d bank is its own `SceneCatalog`, so compose renders with the bank it validated (A3 m5).
 - **P2-R2, engine programs are code; their parameters are bank data:**
   - the lioness's walk cycle on `move`: phase from the distance walked, a step envelope settling
     `1/settle` s after arrival;
@@ -420,6 +451,12 @@ Evidence goes in `tmp/toy3d-v0/compose-smoke/REPORT.md`.
 
 ### Task 11: Gates on both machines and the review (S12-21, A3)
 
+> **As built:** the two reviews' findings are folded in red-first: the Phase 1 review (A3, range
+> `5d0f9b3..045e47e`: 0 Critical, 3 Important, 7 Minor) and a fresh review of Phase 2 (range
+> `8d78e95..94de1da`: 0 Critical, 5 Important, 10 Minor). The findings and their dispositions
+> are under "Code reviews" below, and their ledger rows close the red-run ledger. The gates on
+> both machines ran after the last fix.
+
 The full suite, ruff and mypy on the Mac and in the hub clone. Fold in the Phase 1 code review's
 findings (A3) red-first. Run a separate review of the Phase 2 diff. Then the ledger and the
 report to the lead.
@@ -437,6 +474,20 @@ report to the lead.
 | S12-18 | `test_parity_tryout.py` | 7 | scene file missing (the scene landed in task 2: the references are what's missing) | 7 × `FileNotFoundError: …/tryout_ref/PROVENANCE.md`; `AssertionError: assert [] == ['guo@0.714.png', …]` | `6a16ac4` | `b81254a` |
 | S12-12 | `test_goldens.py`, `test_golden_policy.py`, `tests/unit/toy3d/test_sheet.py` | 8 | helper missing | 10 × `ImportError: cannot import name 'assert_close_to_golden'`; `ModuleNotFoundError: No module named 'toy3d.sheet'`; `test_goldens.py` errors at collection on the same import | `cde5f97` | `971d526` (helper, sheet), `c94bf64` (the hub-minted goldens) |
 | S12-14…17 | `test_composer_toon.py`, `test_storyboard_validator.py`, `test_cli_doctor.py`, `tests/unit/toy3d/test_cli.py` (unit; the integration half follows) | 9 | no toy3d dispatch | 15 failed: 7 × `AttributeError: … no attribute 'check_toy3d'`; the scene id `001-beat2-break-in` → `assets/toon/scenes/…: scene file not found` (composer, validator, CLI); `DID NOT RAISE SceneError` (an id in both libraries). `test_pipeline_validate_fails_a_bad_toy3d_name_with_exit_two` passes: the Phase 1 seam already routes the validator (a pin) | `b651c18` | `6088dd5` |
+
+| A3-I2 | `test_state_at_folds_a_face_before_a_later_move` | 11 | a pin | passes on arrival; the "faces fold last" mutant goes red | `2b840ae` | (a pin) |
+| A3-I3 | `test_a_cast_name_is_checked_as_its_character`, `test_a_pose_beat_is_checked_as_its_character` | 11 | pins | pass on arrival; both reviewer mutants and both `_check` cast-name mutants go red | `2b840ae` | (pins) |
+| A3-m2 | `test_the_contract_and_the_symbolic_timeline_load_no_2d_engine_code` (subprocess), `test_toy3d_no_longer_depends_on_the_2d_bank` | 11 | modules loaded | `toon.bank`, `toon.timeline`, `numpy`, … in `sys.modules`; `bank.py` / `timeline.py` in toy3d's sources | `2b840ae` | `4b86fec` |
+| A3-m1 | `test_the_2d_renderer_refuses_a_toy3d_scene`; `test_an_engine_without_a_renderer_is_a_scene_render_error` | 11 | no guard | `DID NOT RAISE ToonRenderError`; the compose guard pin passes (now reachable) | `2b840ae` | `4b86fec` |
+| A3-m4 | `test_an_unknown_character_is_one_problem_not_a_cascade`, `test_a_field_no_engine_reads_on_that_verb_says_which_verb_does` | 11 | messages | 3 problems for one unknown character; "toy3d doesn't render bob on any beat (toon2d does)" | `2b840ae` | `4b86fec` |
+| A3-m3, m6, m7 | `test_toy3d_takes_the_place_fields_its_table_lists`, `test_the_render_field_lists_are_the_models_optional_render_fields`, `test_the_spec_is_plain_json_for_any_scene` | 11 | pins | pass on arrival; each mutant red | `2b840ae` | (pins) |
+| A3-I1, P2-M4 | `test_the_key_follows_the_python_that_shapes_each_frame`, `test_the_key_covers_the_vendored_files_not_just_their_sums` | 11 | key unchanged | `assert eased != base` failed; the patched vendor file left the key the same | `2b840ae` | `4b86fec` |
+| A3-m5 | `test_toy3d_validation_and_rendering_read_one_bank` | 11 | two loads | `assert len(loads) == 1` (2) | `2b840ae` | `4b86fec` |
+| P2-I1 (face), P2-I3 | `test_an_expression_beat_during_a_blend_switches_the_face_when_it_starts`, `test_no_state_leaks_between_frames` | 11 | the reviewer's repros | `tim_shock` at 1.25 (want `tim_neutral`); the chair at t 3.0 rotated (m00 0.732) after t 1.0 | `24db608` | `61686c1` |
+| P2-I3 | `test_a_still_matches_the_same_frame_of_a_clip` | 11 | a pin | passes on arrival (after `61686c1`); without the seat reset it goes red | `21ed9ae` | (a pin) |
+| P2-I4, I5, M1, M2, M3 | `test_a_page_console_error_fails_the_next_call`, `test_start_…`, `tests/integration/toy3d/test_runtime.py`, `test_a_background_only_frame_fails_loud`, `test_a_render_never_touches_another_renders_partial_file`, `test_toy3d_stills_refuse_*` | 11 | silent | 6 unit failures (no raise; no `runtime.start`; the stale partial overwritten); 3 integration (no `CALL_TIMEOUT`; no raise after `loseContext`; none after `console.error`) | `b136382` | `57ad1d8` |
+| P2-I1 (pose), I2, M5, M6, M7, M10 | `test_an_authored_pose_during_a_blend_takes_over_smoothly`, `test_a_face_turns_the_short_way`, `tests/unit/toy3d/test_seats.py`, `test_bank.py` (decal, programs) | 11 | unchecked | 11 failed: a 0.79 rad pop; −196° instead of +164°; 6 × `DID NOT RAISE SceneError` / no validator error; 3 bank cases | `5d3d7c0` | `0d8c0e9` |
+| P2-M9 | `test_toy3d_render_never_loads_the_2d_renderer`, `test_a_toy3d_render_failure_is_an_error_line_not_a_traceback` | 11 | cairo; traceback | exit 1 on the blocked `toon.render` import; the `PlaywrightError` escaped | `21ed9ae` | `b85d3d3` |
 
 ### Mutation evidence
 
@@ -482,3 +533,46 @@ Each guard below was removed (one at a time, `scratchpad/mutate.py`) and its pin
 | 9 | the composer's toy3d branch; the CLI's toy3d branch | `test_dispatches_by_scene_engine`; `tests/unit/toy3d/test_cli.py` | red (both) |
 | 9 | the both-libraries refusal | `test_a_scene_id_in_both_libraries_is_refused` | red |
 | 9 | doctor's renderer check; its frame check; its renderer record | `test_check_toy3d_*` | red (each) |
+| 11 | each of the review fixes above | its test | red (each, under the hardened mutation script: no stale bytecode); two redundant pairs stay green alone: the context check before and after a render, and the error check before and after a call |
+
+## Code reviews
+
+**Phase 1, A3** (a fresh reviewer, `5d0f9b3..045e47e`; relayed by the lead). It found 0 Critical,
+3 Important and 7 Minor, and confirmed the seam: `state_at` was identical at base and branch over a
+1,500-scene seeded fuzz. Every finding is fixed or pinned (ledger rows A3-*):
+- I1 the cache key;
+- I2 the face-before-move pin;
+- I3 per-character scoping;
+- m1 the 2.5D renderer's engine guard;
+- m2 `toon/beats.py`;
+- m3 toy3d's `loop`;
+- m4 the messages;
+- m5 one bank;
+- m6 the render-field fence;
+- m7 plain-JSON specs.
+
+**Phase 2** (a fresh reviewer, `8d78e95..94de1da`). It found 0 Critical, 5 Important and 10
+Minor, and checked fine: the route handler, the lifecycle, the stamp order, the cache key's
+coverage, the GTAO reseed, and that compose never falls back.
+
+| Finding | Disposition |
+|---|---|
+| I1 an overlapping pose pops; an expression mid-blend ignored | `to_set` / `expr_set` (P2-R1b): `61686c1`, `0d8c0e9` |
+| I2 seated actors and seat spots fail silently | refused at load, validator included (P2-R10): `0d8c0e9` |
+| I3 the chair leaks between frames | the seat rests every frame, plus a still = clip-frame pin: `61686c1`, `21ed9ae` |
+| I4 CLI stills skip the backend gate | `runtime.start` for every caller, plus a frame check per still: `57ad1d8` |
+| I5 shader errors and a lost context are silent | console errors, `onShaderError`, a context check: `57ad1d8` |
+| M1 the per-call timeout is a no-op | the watchdog: `57ad1d8` |
+| M2 the blank check misses an empty world | an edge check: `57ad1d8` |
+| M3 a fixed temp name | `mkstemp`: `57ad1d8` |
+| M4 the key misses vendor edits | vendored files hashed: `4b86fec` |
+| M5 no angle wrap | the short way: `0d8c0e9` |
+| M6 a partial pose as a placement | refused (P2-R10): `0d8c0e9` |
+| M7 a null decal keeps the previous face | a face with decals needs one per expression: `0d8c0e9` |
+| M8 the typist by placement spot | moot under P2-R10: the typist can't leave the seat, and nobody moves into it |
+| M9 the CLI imports cairo for toy3d; tracebacks | `b85d3d3` |
+| M10 program channels unchecked | checked at bank load: `0d8c0e9` |
+
+Left as is, by name:
+- A door closing during its spring snaps by at most 0.05 rad.
+- The "standing in a seat" refusal can't be reached with the v0 bank: Tim has only sit poses.
