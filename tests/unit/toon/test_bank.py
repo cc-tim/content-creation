@@ -89,3 +89,25 @@ def test_prop_kinds_match_bank_prop_kinds():
     from toon.scene import PROP_KINDS
 
     assert set(PROP_KINDS) == set(get_args(PropDef.model_fields["kind"].annotation))
+
+
+@pytest.mark.parametrize("key", ["fill: ink", "fringe: saw", "none: true"])
+def test_hair_keys_beside_layers_rejected(tmp_path, key):
+    # Beside `layers:` the layered drawing reads only `layers` and `bun`; a top-level per-layer
+    # key (or `none`) would load and be silently ignored.
+    root = tmp_path / "bank"
+    shutil.copytree(default_root(), root)
+    p = root / "characters" / "tim.yaml"
+    text = p.read_text()
+    assert "hair:\n  layers:\n" in text
+    p.write_text(text.replace("hair:\n  layers:\n", f"hair:\n  {key}\n  layers:\n", 1))
+    with pytest.raises(BankError, match=rf"tim\.yaml: hair\.{key.split(':')[0]}: ignored beside hair\.layers"):
+        load_bank(root)
+
+
+def test_a_bun_beside_layers_loads(tmp_path):
+    root = tmp_path / "bank"
+    shutil.copytree(default_root(), root)
+    p = root / "characters" / "tim.yaml"
+    p.write_text(p.read_text().replace("hair:\n  layers:\n", "hair:\n  bun: [0.0, 0.5, -0.6, 0.3]\n  layers:\n", 1))
+    assert load_bank(root).characters["tim"].hair["bun"] == [0.0, 0.5, -0.6, 0.3]
