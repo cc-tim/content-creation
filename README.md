@@ -511,14 +511,15 @@ The voice registry (`voices/registry.json`) selects the voice. Each locale's def
 | ja-JP | `ja-JP-NanamiNeural` | `ja-JP-KeitaNeural` | none |
 | es-MX | `es-MX-DaliaNeural` | `es-MX-JorgeNeural` | none |
 
-**Auto-fallback:** a registry voice can name `params.fallback_voice_id`; the three zh-TW edge voices name a Kokoro voice. The fallback engages only when edge is classified unavailable: a 401/403, or a 429/5xx/connection failure that outlasts 5 retries (1–16 s). Config bugs and text-specific errors still fail. The decision covers the whole TTS run (all scenes, per-scene voices and prerecorded misses alike):
+**Auto-fallback:** a registry voice can name `params.fallback_voice_id`; the three zh-TW edge voices name a Kokoro voice. The fallback engages only when edge is classified unavailable: a 401/403/404/410, or a 429/5xx/connection failure that outlasts 5 retries (1–16 s). Config bugs (including an unreachable `HTTPS_PROXY`) and text-specific errors still fail. The decision covers the whole TTS run (all scenes, per-scene voices and prerecorded misses alike):
 
 | Situation | Result |
 |-----------|--------|
 | Edge is unavailable before any edge voice has produced audio this run | Every voice with a fallback switches to it for the rest of the run. `tts.fallback.engaged` is logged at error level, `tts.complete` becomes a warning naming the fallback, and `ctx.tts_fallback_voices` records it. |
 | Edge becomes unavailable after some scenes already used it | TTS stops with an error, so one narration never mixes two voices |
 | `pipeline voice test`, `compose voice-variant`, MLA selective resynth | No fallback, ever: you get the requested voice or an error |
-| Publishing a project whose `ctx.tts_fallback_voices` is non-empty | Preflight refuses. Re-run TTS when edge is back, or listen and pass `--allow-fallback-voice` |
+| Any pass of the run fails (e.g. an MLA secondary voice with no fallback during the outage) | Nothing in `audio/` is replaced: both passes synthesize into a staging dir and are committed together |
+| Publishing a project whose `ctx.tts_fallback_voices` or `audio/tts_fallback.json` records a fallback | Preflight refuses. Re-run TTS when edge is back, or listen and pass `--allow-fallback-voice`. The marker file is written with the committed audio and removed by a clean run |
 
 Kokoro reads Traditional text through OpenCC `tw2s` (character variants only; its word lexicon is Simplified), is loudness-matched to edge (−19 LUFS), and logs `tts.kokoro.unvoiced_chars` for characters it would drop or misread (emoji, rare CJK). Reword those lines.
 
