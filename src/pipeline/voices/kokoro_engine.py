@@ -12,6 +12,26 @@ from pipeline.voices.base import VoiceEngine, VoiceProfile
 
 _INSTALL_HINT = "run scripts/install_kokoro_tts.sh (downloads ~350 MB, one time per machine)"
 
+# Characters the zh frontend drops but that have a plain reading.
+_READING_FIXES = str.maketrans({"〇": "零"})
+
+
+@lru_cache(maxsize=1)
+def _taiwan_to_simplified() -> Any:
+    from opencc import OpenCC
+
+    return OpenCC("tw2s")
+
+
+def _prepare_text(text: str) -> str:
+    """Text as the Kokoro zh frontend reads it right.
+
+    Its lexicon has Simplified multi-character words only, so Traditional text falls back
+    to per-character readings (銀行 → yín xíng). tw2s converts character variants only, so
+    Taiwan vocabulary (影片, 軟體) is still what gets said. Subtitles keep the original text.
+    """
+    return _taiwan_to_simplified().convert(text.translate(_READING_FIXES))
+
 
 @lru_cache(maxsize=2)
 def _load_sherpa_kokoro(model_dir: Path) -> Any:
@@ -101,7 +121,7 @@ class KokoroEngine(VoiceEngine):
 
         if self._tts is None:
             self._tts = self._tts_factory(self._model_dir)
-        audio = self._tts.generate(text, sid=int(sid), speed=speed)
+        audio = self._tts.generate(_prepare_text(text), sid=int(sid), speed=speed)
         if len(audio.samples) == 0:
             raise RuntimeError(f"kokoro returned no audio for {profile.id}: {text[:40]!r}")
 
