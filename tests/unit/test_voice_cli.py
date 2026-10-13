@@ -107,3 +107,39 @@ def test_voice_add_prerecorded(tmp_path, monkeypatch):
     assert profile["engine"] == "prerecorded"
     assert profile["params"]["recording_dir"] == str(rec_dir)
     assert profile["params"]["fallback_voice_id"] == "zh-TW-default-f"
+
+
+def test_voice_test_plays_the_requested_voice_or_fails(tmp_path, monkeypatch):
+    """`voice test` is for hearing this voice: never substitute its fallback."""
+    from pipeline.voices.base import VoiceEngineUnavailable
+    from pipeline.voices.edge_engine import EdgeEngine
+    from pipeline.voices.kokoro_engine import KokoroEngine
+
+    voices = tmp_path / "voices"
+    voices.mkdir()
+    (voices / "registry.json").write_text(json.dumps({"voices": [
+        {"id": "zh-TW-default-f", "engine": "edge", "locale": "zh-TW",
+         "params": {"voice": "zh-TW-HsiaoChenNeural", "fallback_voice_id": "zh-TW-kokoro-f"}},
+        {"id": "zh-TW-kokoro-f", "engine": "kokoro", "locale": "zh-TW", "params": {"sid": 3}},
+    ]}))
+    monkeypatch.setenv("PIPELINE_VOICES_DIR", str(voices))
+    kokoro_calls: list[str] = []
+
+    def edge(self, text, out_path, profile, scene_id=None):
+        raise VoiceEngineUnavailable("edge refused synthesis (HTTP 403)")
+
+    def kokoro(self, text, out_path, profile, scene_id=None):
+        kokoro_calls.append(text)
+        out_path.write_text("kokoro")
+        return out_path
+
+    monkeypatch.setattr(EdgeEngine, "synthesize", edge)
+    monkeypatch.setattr(KokoroEngine, "synthesize", kokoro)
+
+    result = CliRunner().invoke(
+        voice_app, ["test", "zh-TW-default-f", "--out", str(tmp_path / "t.mp3")]
+    )
+
+    assert result.exit_code != 0
+    assert isinstance(result.exception, VoiceEngineUnavailable)
+    assert kokoro_calls == []

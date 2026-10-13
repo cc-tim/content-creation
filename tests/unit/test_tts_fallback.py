@@ -32,7 +32,10 @@ def run_tts(tmp_path, monkeypatch):
     (voices_dir / "registry.json").write_text(registry, encoding="utf-8")
     monkeypatch.setenv("PIPELINE_VOICES_DIR", str(voices_dir))
 
-    async def _run(*, path: str, fail_scenes: set[str], per_scene_first_only: bool = False):
+    async def _run(
+        *, path: str, fail_scenes: set[str], per_scene_first_only: bool = False,
+        auto_fallback: bool | None = None,
+    ):
         def edge(self, text, out_path, profile, scene_id=None):
             if scene_id in fail_scenes:
                 raise VoiceEngineUnavailable("edge refused synthesis (HTTP 403)")
@@ -71,7 +74,7 @@ def run_tts(tmp_path, monkeypatch):
         ctx.storyboard_path = storyboard_path
         ctx.voice_id = "tim-zhtw" if path == "prerecorded" else None
         with patch("pipeline.stages.tts._get_audio_duration_ms", return_value=1000):
-            ctx = await TtsStage().run(ctx)
+            ctx = await TtsStage(auto_fallback=auto_fallback).run(ctx)
         ctx.save()
         audio = work_dir / "audio"
         return ctx, [(audio / f"segment_{i:03d}.mp3").read_text() for i in range(3)]
@@ -132,3 +135,34 @@ async def test_tts_complete_summary_names_the_fallback_voice(run_tts):
     assert len(complete) == 1
     assert complete[0]["log_level"] == "warning"
     assert complete[0]["fallback_voices"] == {"zh-TW-default-f": "zh-TW-kokoro-f"}
+
+
+async def test_tts_stage_without_auto_fallback_fails_on_an_outage(run_tts):
+    """compose voice-variant runs TtsStage(auto_fallback=False): hear that voice or fail."""
+    with pytest.raises(VoiceEngineUnavailable):
+        await run_tts(path="default", fail_scenes={"s1"}, auto_fallback=False)
+
+
+def test_voice_variant_runs_tts_without_auto_fallback(tmp_path):
+    from unittest.mock import MagicMock
+
+    from typer.testing import CliRunner
+
+    from pipeline.cli_compose import compose_app
+    from tests.unit.test_voice_variant import _make_parent_project
+
+    _make_parent_project(tmp_path)
+    orchestrator = MagicMock()
+    with (
+        patch("pipeline.cli_compose._resolve_projects_dir", return_value=tmp_path / "projects"),
+        patch("pipeline.orchestrator.Orchestrator", orchestrator),
+        patch("pipeline.cli_compose.asyncio.run"),
+    ):
+        result = CliRunner().invoke(compose_app, [
+            "voice-variant", "--from-project", "1776997800", "--voice", "zh-TW-default-f",
+        ])
+
+    assert result.exit_code == 0, result.output
+    stages = orchestrator.call_args.args[0]
+    tts_stage = next(s for s in stages if isinstance(s, TtsStage))
+    assert tts_stage.auto_fallback is False

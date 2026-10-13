@@ -504,3 +504,33 @@ def test_resynth_selective_handles_empty_narration_alt(tmp_path):
 
 if __name__ == "__main__":  # pragma: no cover
     pytest.main([__file__, "-v"])
+
+
+def test_resynth_selective_never_switches_to_a_fallback_voice(tmp_path):
+    """Kept segments were narrated by the primary voice; a fallback here would mix voices."""
+    sb = Storyboard(
+        scenes=[Scene(id="s1", section="hook", narration="主1",
+                      narration_est_sec=5, narration_alt={"en": "EN one"})],
+        theme=Theme(),
+    )
+    work_dir = tmp_path / "proj"
+    audio_dir = work_dir / "audio"
+    audio_dir.mkdir(parents=True)
+    sb.save(work_dir / "storyboard.json")
+    ctx = PipelineContext(
+        project_id=1, source_url="x", locale="zh-TW", work_dir=work_dir,
+        secondary_locale="en", storyboard_path=work_dir / "storyboard.json",
+    )
+    fake_registry = MagicMock()
+    fake_registry.default_for_locale.return_value = (_FakeEngine(), MagicMock())
+
+    with patch("pipeline.cli_mla.VoiceRegistry", return_value=fake_registry) as registry_cls, \
+         patch("pipeline.cli_mla._get_audio_duration_ms", return_value=1000), \
+         patch("pipeline.cli_mla._concatenate_audio"), \
+         patch("pipeline.cli_mla.write_srt"):
+        asyncio.run(_resynth_secondary_selective(
+            ctx=ctx, storyboard=sb, audio_dir=audio_dir, sec_locale="en",
+            rewritten_scene_ids={"s1"},
+        ))
+
+    assert registry_cls.call_args.kwargs.get("auto_fallback") is False
