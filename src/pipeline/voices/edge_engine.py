@@ -8,6 +8,7 @@ from pathlib import Path
 import aiohttp
 import edge_tts
 import edge_tts.communicate
+import edge_tts.constants
 import structlog
 from edge_tts.constants import TRUSTED_CLIENT_TOKEN
 
@@ -30,14 +31,21 @@ _RETRY_STATUSES = frozenset({429, 503})
 _RETRY_DELAYS_SEC = (1.0, 2.0, 4.0, 8.0, 16.0)
 
 
-def _ensure_synth_endpoint() -> None:
+def _ensure_synth_endpoint() -> bool:
+    """Point edge_tts at the working endpoint; True while this module's override is in use."""
     if _LEGACY_SYNTH_HOST in edge_tts.communicate.WSS_URL:
         edge_tts.communicate.WSS_URL = _SYNTH_WSS_URL
+    # edge_tts.constants keeps the release's own URL, so a fixed release reads False here.
+    return (
+        edge_tts.communicate.WSS_URL == _SYNTH_WSS_URL
+        and _LEGACY_SYNTH_HOST in edge_tts.constants.WSS_URL
+    )
 
 
 class EdgeEngine(VoiceEngine):
     def __init__(self, sleep: Callable[[float], None] = time.sleep) -> None:
         self._sleep = sleep
+        self._endpoint_logged = False
 
     @property
     def name(self) -> str:
@@ -55,7 +63,12 @@ class EdgeEngine(VoiceEngine):
         if not voice:
             raise ValueError(f"edge voice profile {profile.id} is missing params.voice")
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        _ensure_synth_endpoint()
+        overridden = _ensure_synth_endpoint()
+        if not self._endpoint_logged:
+            # Without the query string: it carries the client token.
+            endpoint = edge_tts.communicate.WSS_URL.split("?", 1)[0]
+            logger.info("tts.edge.endpoint", endpoint=endpoint, overridden=overridden)
+            self._endpoint_logged = True
         for attempt, delay in enumerate((*_RETRY_DELAYS_SEC, None), start=1):
             try:
                 asyncio.run(self._run(text, voice, out_path))
