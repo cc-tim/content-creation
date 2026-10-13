@@ -36,11 +36,34 @@ The porting pipeline keeps its existing rules. (Decided with Tim 2026-09-26.)
   Tim felt it as constant trembling. The default is now *soft*: the drawing holds its shape and
   the lines only shimmer faintly. `full` and `still` remain available per scene (bank
   `style.yaml` → `boil`).
+- **Mascot GuoGuo** (Tim, 2026-10-13): a child-size **king penguin** called GuoGuo appears
+  **somewhere in every scene**, as a recurring easter egg (peeking, reacting in the background).
+  The design follows Tim's king-penguin plush photo (2026-10-13), which replaces the r7 A/B/C
+  options:
+  - a pear-shaped plush body;
+  - a black head with orange teardrop ear patches and blue bead eyes;
+  - a wide yellow collar band and a white belly;
+  - a blue-grey back and flippers;
+  - big black feet.
 - **Scene library:** every scene idea or tryout is recorded in
   [`own-show-scenes.md`](own-show-scenes.md) (brief in Tim's words, picks, status), even if it
   never reaches a video; files in `output/own-show/scenes/<nnn-slug>/`.
 
-## Style exploration — status (2026-09-26: **character + line frozen**)
+## Style exploration — status (2026-10-13: **reopened; r7 variants awaiting Tim**)
+
+The v0 bank (round 5 / ✅ row below) is the implemented baseline. Tim reopened the style on
+2026-09-28, and two candidates were rejected:
+- **Editorial cut-paper** (branch deleted 2026-10-13).
+- **r6 AI style board** (2026-10-13): pixel art, clay, painted storybook and manga concept
+  stills. Tim: "all not good".
+
+**Tim's direction (2026-10-13):**
+- Express the human through expression and gesture, "more like a cute stickman".
+- The current locked character is fine; he wants to see more variants of it.
+- The camera must turn easily (pan, tilt, zoom).
+- References: *Animal Crossing: New Horizons* and *Sylvanian Families*.
+- He asked to see both readings of those references: drawn variants (r7) and a 3D toy look
+  (r7-3d).
 
 Tryouts (throwaway; code + renders + comparison page) are in the EP1 project folder under
 `style-tryouts/` — open `style-tryouts/index.html`. All tested on one beat: typing at the desk
@@ -57,6 +80,9 @@ Tryouts (throwaway; code + renders + comparison page) are in the EP1 project fol
 | 4d | Hairline raised (forehead y 0.62 → 0.70) + **short crop** top (even short spikes, near-straight fringe, receding corners kept); variants A all-black crop (default) / B crop over grey buzzed sides / C = 4c. Likeness sheet + desk beat re-rendered with A + level 2 | **Tim: "A it is — my character is settled."** |
 | 5 | **Tryout scene 1** — Tim's lioness brief, run as: brief → beat table → option sheets (lioness A/B/C, bulb A/B, draft stills) → timed animatic (bulb vs campfire) → wordless v2. Library entry **001** | Tim: lioness A, bulb, "your calls" on timing; **animation must be wordless**; keep every idea findable → scene library. |
 | ✅ | **FROZEN: Tim = likeness 2 + short crop A + navy hoodie, line A (marker)**, 2.5D code rig. Preset + model sheet in `r4/character_tim.py` → `r4/tim_model_sheet.png` (turnaround 0–180°, 6 expressions, palette, line rules) | Seed of the character bank. |
+| 6 | **AI style board** (`output/own-show/scenes/001-lioness-dishes/r6-style-board/`): beat 2 as pixel art, clay, painted storybook and manga, 2 GPT-Image stills each (~$1.40) | Tim: "all not good". |
+| 7 | **Cute-stickman variants on the toon engine** (`r7/`, throwaway: `stickman.py` + `head7.py`): v0 vs A cute stickman, B hoodie stickman, C Animal Crossing chunky, D noodle limbs. Each has 9 gestures, 8 expressions with Animal Crossing-style reaction marks (sparkles, anger mark, gloom, tears, Aha-bulb) and a 2×2 camera demo (pan, tilt, zoom, orbit). Also **GuoGuo** options A/B/C (`guoguo.py`) with a scale check next to Tim. **r7-3d:** the same beat as a 3D toy (Three.js) in an Animal Crossing look and a Sylvanian flocked look. | Tim liked **B's lean torso, C's stubby sleeve arms and the expressions**, but wants a **full style rebuild**, not a v0 tweak. GuoGuo is to follow his plush photo. |
+| 8 | **Drawn style rebuild** (`r8/`: `rebuild.py`, `clip.py`, `index.html`): the r7 picks in two new renderings, *soft-cel* (Animal Crossing feel: coloured lines, soft shading, warm skin, cozy coloured room) and *plush* (Sylvanian feel: fuzzy felt edges, fabric texture). Each has a turnaround, reactions, a room frame and an 8 s camera clip, plus GuoGuo from the photo. `r8/index.html` compares them 2×2 with the r7-3d toy pair. | Awaiting Tim's pick (drawn vs 3D × Animal Crossing vs Sylvanian). |
 
 **Animation grammar (Tim, 2026-09-26): "their grammar, my doodle look"** — reference: the opening
 of *How to raise calm kids like the Japanese* (Hana Explores, youtu.be/UdOx9lAbLvo). Take its
@@ -108,10 +134,12 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
      doesn't judder;
    - hub-canonical goldens, and a compose smoke run on the hub.
 
-   Before the first EP1 scene file, clear E9 residuals a–c in `docs/ROADMAP.md`, which include
-   the laptop ✓/✗ screens. See README → *Toon*.
+   Before the first EP1 scene file, clear the E9 residuals in `docs/ROADMAP.md`.
+   **Sprint 11** (greenlit 2026-10-13, branch `feat/e9-sprint11`) covers the style-independent
+   ones. The style-dependent ones wait for the new style pick: laptop ✓/✗ screen art,
+   `style.yaml` wiring and contact sheets. See README → *Toon*.
 5. Retarget critics/evaluators to the audience lens above before scene reviews start.
 6. Tim hands over the latest high-level script → scene breakdown together.
 
-Housekeeping: fal key is flagged exhausted (`python3 ~/.claude/bin/keymanager.py reset fal tim`
-after a top-up; still used for Flux images).
+Housekeeping: the fal key works again (it rendered the r6 Flux pass on 2026-10-13). It's still
+used for Flux images.
