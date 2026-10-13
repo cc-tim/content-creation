@@ -18,6 +18,7 @@ import structlog
 from pipeline.config import PipelineConfig
 from pipeline.stages.base import PipelineContext, PipelineStage
 from pipeline.utils.srt import SrtEntry, write_srt
+from pipeline.voices.fallback_engine import write_fallback_marker
 from pipeline.voices.registry import VoiceRegistry
 
 logger = structlog.get_logger()
@@ -307,6 +308,7 @@ class TtsStage(PipelineStage):
                     ctx, registry, staging, scene_pauses_ms
                 )
             _commit_staged_audio(staging, audio_dir)
+            write_fallback_marker(audio_dir, registry.fallbacks_used())
         finally:
             shutil.rmtree(staging, ignore_errors=True)
 

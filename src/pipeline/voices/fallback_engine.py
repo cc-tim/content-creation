@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -8,6 +9,27 @@ import structlog
 from pipeline.voices.base import VoiceEngine, VoiceEngineUnavailable, VoiceProfile
 
 logger = structlog.get_logger()
+
+
+# Written next to the narration it describes, in the same step that commits that audio,
+# so the record can't be lost the way an unsaved context.json can.
+FALLBACK_MARKER = "tts_fallback.json"
+
+
+def write_fallback_marker(audio_dir: Path, fallbacks: dict[str, str]) -> None:
+    """Record the voices that narrated as fallbacks; remove the marker when there were none."""
+    marker = audio_dir / FALLBACK_MARKER
+    if fallbacks:
+        marker.write_text(json.dumps({"fallback_voices": fallbacks}, indent=2), encoding="utf-8")
+    else:
+        marker.unlink(missing_ok=True)
+
+
+def read_fallback_marker(audio_dir: Path) -> dict[str, str]:
+    marker = audio_dir / FALLBACK_MARKER
+    if not marker.exists():
+        return {}
+    return dict(json.loads(marker.read_text(encoding="utf-8")).get("fallback_voices") or {})
 
 
 @dataclass

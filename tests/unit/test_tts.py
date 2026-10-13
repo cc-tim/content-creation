@@ -368,6 +368,7 @@ async def test_tts_passes_scene_id_to_engine(sample_context):
         patch("pipeline.stages.tts._get_audio_duration_ms", return_value=1000),
     ):
         mock_reg_cls.return_value.default_for_locale.return_value = stub_pair
+        mock_reg_cls.return_value.fallbacks_used.return_value = {}
         await stage.run(sample_context)
 
     assert seen_scene_ids == ["hook_1", "ctx_1"]
