@@ -164,3 +164,19 @@ def test_render_state_decodes_the_png_data_url():
     assert PlaywrightPage(_StubPage([url]), []).render_state({"frame": 0}) == png
     with pytest.raises(Toy3DRenderError, match="not a PNG data URL"):
         PlaywrightPage(_StubPage(["data:image/jpeg;base64,AAAA"]), []).render_state({"frame": 0})
+
+
+def test_info_names_the_browser_build_the_page_cannot_see():
+    """The page's user agent is reduced (Chrome/151.0.0.0); the build comes from the browser."""
+    from toy3d.runtime import PlaywrightPage
+
+    page = PlaywrightPage(_StubPage([{"renderer": "ANGLE Metal Renderer", "mode": "render"}]), [], build="151.0.7922.34")
+    assert page.info() == {"renderer": "ANGLE Metal Renderer", "mode": "render", "build": "151.0.7922.34"}
+
+
+def test_evaluate_reports_page_errors_like_every_call():
+    from toy3d.runtime import PlaywrightPage, Toy3DRenderError
+
+    assert PlaywrightPage(_StubPage([7]), [], build="x").evaluate("() => 7") == 7
+    with pytest.raises(Toy3DRenderError, match="evaluate failed: boom"):
+        PlaywrightPage(_StubPage([PlaywrightError("Page.evaluate: Error: boom")]), [], build="x").evaluate("() => 1")
