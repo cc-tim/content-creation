@@ -165,3 +165,28 @@ def test_toy3d_stills_refuse_a_blank_frame(monkeypatch, tmp_path):
     res = runner.invoke(app, ["toon", "render", "001-beat2-break-in", "--out", str(tmp_path / "o"), "--stills", "4"])
     assert res.exit_code == 1 and "uniform" in res.output
     assert not list((tmp_path / "o").glob("*.png"))
+
+
+def test_toy3d_render_never_loads_the_2d_renderer(monkeypatch, tmp_path):
+    """Phase 2 review M9: a toy3d scene's render doesn't import cairo's engine."""
+    import sys
+
+    _fake_stills(monkeypatch, tmp_path, METAL)
+    monkeypatch.setitem(sys.modules, "toon.render", None)          # importing it would fail
+    res = runner.invoke(app, ["toon", "render", "001-beat2-break-in", "--out", str(tmp_path / "o"), "--stills", "4"])
+    assert res.exit_code == 0, res.output
+
+
+def test_a_toy3d_render_failure_is_an_error_line_not_a_traceback(monkeypatch, tmp_path):
+    """Phase 2 review M9: a browser that fails to launch is an ERROR line and exit 1."""
+    from playwright.sync_api import Error as PlaywrightError
+
+    from toy3d import runtime
+
+    def no_launch(*a, **k):
+        raise PlaywrightError("BrowserType.launch: Target page, context or browser has been closed")
+
+    monkeypatch.setattr(runtime, "open_page", no_launch)
+    res = runner.invoke(app, ["toon", "render", "001-beat2-break-in", "--out", str(tmp_path / "o"), "--stills", "4"])
+    assert res.exit_code == 1 and "ERROR  " in res.output and "BrowserType.launch" in res.output
+    assert res.exception is None or isinstance(res.exception, SystemExit)
