@@ -217,24 +217,40 @@ def shot_length(scene: ToonScene, i: int) -> float:
     return scene.duration - scene.shots[i].at if scene.duration is not None else math.inf
 
 
-_TERMINATORS = re.compile(r"[.!?。！？…]+")
+# A terminator run, then any closing quotes or brackets right after it: they belong to the
+# sentence they close (spec §11.2 b2), so no sentence starts with a closer.
+_BREAK = re.compile(r"([.!?。！？…]+)([」』”’）)\]】》〉\"']*)")
+# A "." after one of these words, or after a one-letter word (U.S., J. K., e.g., a.m.; not the
+# pronoun "I"), is an abbreviation, not a break. en + es-419. The known cost: "…moved to the
+# U.S. Then…" stays one sentence; `pipeline toon validate --narration` prints the split.
+ABBREVIATIONS = frozenset({"mr", "mrs", "ms", "dr", "prof", "st", "vs", "etc", "sr", "sra", "srta"})
+_WORD_BEFORE = re.compile(r"(?<![A-Za-z])[A-Za-z]+$")
+
+
+def _abbreviation(before: str) -> bool:
+    m = _WORD_BEFORE.search(before)
+    return m is not None and ((len(m.group()) == 1 and m.group() != "I") or m.group().lower() in ABBREVIATIONS)
 
 
 def split_sentences(narration: str) -> list[str]:
     """The narration's sentences, as `at: {sentence: n}` anchors count them.
 
-    A run of terminators is one break ("What?!", "他走了。……"). A lone "." between digits is a
-    decimal point ("3.5"). An ellipsis ("……", "...") followed directly by more text is a pause
-    inside the sentence ("我……不知道。"); followed by a space or the end, it ends the sentence.
+    A run of terminators is one break ("What?!", "他走了。……"), and the closing quotes right
+    after it stay with it (「我走了。」). A lone "." between digits is a decimal point ("3.5"), and
+    one after an abbreviation ("U.S.", "Dr.") is no break. An ellipsis ("……", "...") followed
+    directly by more text is a pause inside the sentence ("我……不知道。"); followed by a space or
+    the end, it ends the sentence.
     """
     text = narration.strip()
     parts, start = [], 0
-    for m in _TERMINATORS.finditer(text):
-        run, end = m.group(), m.end()
-        nxt = text[end:end + 1]
-        if run == "." and text[m.start() - 1:m.start()].isdigit() and nxt.isdigit():
+    for m in _BREAK.finditer(text):
+        run, end = m.group(1), m.end()
+        before, nxt = text[:m.start()], text[end:end + 1]
+        if run == "." and before[-1:].isdigit() and nxt.isdigit():
             continue
         if set(run) <= {".", "…"} and run != "." and nxt and not nxt.isspace():
+            continue
+        if run == "." and _abbreviation(before):
             continue
         parts.append(text[start:end])
         start = end
