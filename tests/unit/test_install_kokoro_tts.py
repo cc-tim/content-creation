@@ -90,3 +90,16 @@ def test_install_is_a_no_op_on_a_complete_target(tmp_path, bundle_sha):
 
     assert again.returncode == 0
     assert "already installed" in again.stdout
+
+
+def test_install_treats_an_empty_bundle_file_as_incomplete(tmp_path, bundle_sha):
+    """Same rule as KokoroEngine: an empty file (an interrupted write) is a missing file."""
+    target = tmp_path / "cache" / _NAME
+    assert _run(tmp_path, target, bundle_sha).returncode == 0
+    (target / "voices.bin").write_bytes(b"")
+
+    again = _run(tmp_path, target, bundle_sha)
+
+    assert again.returncode == 0, again.stderr
+    assert "already installed" not in again.stdout
+    assert (target / "voices.bin").read_bytes() == b"voices.bin"
