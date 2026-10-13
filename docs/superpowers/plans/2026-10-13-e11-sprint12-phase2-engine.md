@@ -430,7 +430,7 @@ report to the lead.
 | S12-7r/11B/23j | `test_state_goldens.py` (node matrices minted from the snapshot's own scene graph: `tests/toy3d_snapshot.py nodes`), `test_style_wiring.py` | 6 | page stubs | against the committed stub page: 41 errors (`Toy3DRenderError: toy3d page: init failed: toy3d engine: not built yet`), 3 failed (the loud-init messages). Order deviation, recorded honestly: the engine port was written before these tests, then the red was observed against the committed stub | `dcf432d` | `1149dad` |
 | S12-18 | `test_parity_tryout.py` | 7 | scene file missing (the scene landed in task 2: the references are what's missing) | 7 × `FileNotFoundError: …/tryout_ref/PROVENANCE.md`; `AssertionError: assert [] == ['guo@0.714.png', …]` | `6a16ac4` | `b81254a` |
 | S12-12 | `test_goldens.py`, `test_golden_policy.py`, `tests/unit/toy3d/test_sheet.py` | 8 | helper missing | 10 × `ImportError: cannot import name 'assert_close_to_golden'`; `ModuleNotFoundError: No module named 'toy3d.sheet'`; `test_goldens.py` errors at collection on the same import | `cde5f97` | `971d526` (helper, sheet), `c94bf64` (the hub-minted goldens) |
-| S12-14…17 | `test_composer_toon.py`, `test_storyboard_validator.py`, `test_cli_doctor.py`, `tests/unit/toy3d/test_cli.py` (unit; the integration half follows) | 9 | no toy3d dispatch | 15 failed: 7 × `AttributeError: … no attribute 'check_toy3d'`; the scene id `001-beat2-break-in` → `assets/toon/scenes/…: scene file not found` (composer, validator, CLI); `DID NOT RAISE SceneError` (an id in both libraries). `test_pipeline_validate_fails_a_bad_toy3d_name_with_exit_two` passes: the Phase 1 seam already routes the validator (a pin) | (this commit) | |
+| S12-14…17 | `test_composer_toon.py`, `test_storyboard_validator.py`, `test_cli_doctor.py`, `tests/unit/toy3d/test_cli.py` (unit; the integration half follows) | 9 | no toy3d dispatch | 15 failed: 7 × `AttributeError: … no attribute 'check_toy3d'`; the scene id `001-beat2-break-in` → `assets/toon/scenes/…: scene file not found` (composer, validator, CLI); `DID NOT RAISE SceneError` (an id in both libraries). `test_pipeline_validate_fails_a_bad_toy3d_name_with_exit_two` passes: the Phase 1 seam already routes the validator (a pin) | `b651c18` | (this commit) |
 
 ### Mutation evidence
 
@@ -470,3 +470,9 @@ Each guard below was removed (one at a time, `scratchpad/mutate.py`) and its pin
 | 7 | the denoise noise position (skip 11060 → 11061); bloom 0.42 → 0.45 | `test_worked_scene_matches_the_frozen_tryout` | red (both) |
 | 8 | the frame limits widened (p99.9 30, >8 0.003, tile 30) | `test_a_five_degree_shoulder_fails` | red |
 | 8 | the tile metric dropped; UPDATE_GOLDENS allowed off the hub | `test_golden_policy.py` | red (both) |
+| 9 | the clip length from the scene instead of the narration | `test_clip_frame_count_equals_narration` (integration; a pin: green on arrival) | red |
+| 9 | toy3d at 24 fps | `test_toy3d_cadence_survives_compose_concat_normalisation` (a pin); `test_toy3d_fps_matches_compose_concat` | red (both) |
+| 9 | **M10**: the CLI's `_load` on the 2.5D bank | `test_toon_validate_loads_a_toy3d_scene_against_the_toy3d_catalog` | red |
+| 9 | the composer's toy3d branch; the CLI's toy3d branch | `test_dispatches_by_scene_engine`; `tests/unit/toy3d/test_cli.py` | red (both) |
+| 9 | the both-libraries refusal | `test_a_scene_id_in_both_libraries_is_refused` | red |
+| 9 | doctor's renderer check; its frame check; its renderer record | `test_check_toy3d_*` | red (each) |

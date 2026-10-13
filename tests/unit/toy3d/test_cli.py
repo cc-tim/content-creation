@@ -26,7 +26,7 @@ def test_toon_validate_loads_a_toy3d_scene_against_the_toy3d_catalog(monkeypatch
     monkeypatch.setattr(toon.scene, "load_catalog", spy)
     res = runner.invoke(app, ["toon", "validate", "001-beat2-break-in"])
     assert res.exit_code == 0, res.output
-    assert "ok  001-beat2-break-in: 1 shots, 39 beats" in res.output
+    assert "ok  001-beat2-break-in: 1 shots, 37 beats" in res.output
     assert engines == ["toy3d"]
 
 

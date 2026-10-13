@@ -103,7 +103,8 @@ def _record_key(scene, bank, duration, width, height) -> str | None:
     return cache_key(scene, bank, duration, width, height, record["renderer"])
 
 
-def _check_frame(png: bytes, i: int, t: float, width: int, height: int) -> None:
+def check_frame(png: bytes, i: int, t: float, width: int, height: int) -> None:
+    """A readable PNG of the asked size that isn't one colour, or a loud Toy3DRenderError."""
     try:
         img = Image.open(io.BytesIO(png))
         img.load()
@@ -131,7 +132,7 @@ def _frames(page: Page, scene, bank, resolve: Resolve, n: int, fps: int, width: 
     for i in range(n):
         t = i / fps
         png = page.render_state(resolve(scene, bank, t))
-        _check_frame(png, i, t, width, height)
+        check_frame(png, i, t, width, height)
         yield png
 
 

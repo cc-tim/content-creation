@@ -709,6 +709,13 @@ def scenes_root() -> Path:
     return default_root().parent / "scenes"
 
 
+def scene_libraries() -> dict[str, Path]:
+    """Each engine's scene library: a scene id resolves in whichever holds it."""
+    from toy3d.bank import default_root as toy3d_root  # toy3d's library sits beside its bank
+
+    return {"toon2d": scenes_root(), "toy3d": toy3d_root().parent / "scenes"}
+
+
 _REPO = Path(__file__).resolve().parents[2]
 
 
@@ -721,9 +728,17 @@ def source_name(path: Path) -> str:
 
 
 def scene_path(ref: str) -> Path:
-    """A scene id (`001-lioness-dishes` → assets/toon/scenes/<id>.yaml) or a path to a YAML file."""
+    """A path to a scene YAML, or a scene id, found in the one engine library that holds it
+    (`001-lioness-dishes` → assets/toon/scenes/, `001-beat2-break-in` → assets/toy3d/scenes/)."""
     path = Path(ref)
-    return path if path.suffix in (".yaml", ".yml") else scenes_root() / f"{ref}.yaml"
+    if path.suffix in (".yaml", ".yml"):
+        return path
+    found = {engine: root / f"{ref}.yaml" for engine, root in scene_libraries().items()
+             if (root / f"{ref}.yaml").exists()}
+    if len(found) > 1:
+        raise SceneError([f"scene id {ref!r} is in both libraries ({', '.join(source_name(p) for p in found.values())}): "
+                          f"pass the file's path"])
+    return next(iter(found.values()), scenes_root() / f"{ref}.yaml")
 
 
 def read_scene(ref: str) -> SceneData:

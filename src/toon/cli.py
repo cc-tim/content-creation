@@ -1,4 +1,5 @@
-"""`pipeline toon …` — validate, render and review own-show 2.5D scenes."""
+"""`pipeline toon …` — validate, render and review own-show scenes, on the engine each file names
+(the 2.5D doodle engine, or the 3D toy engine: E11)."""
 from __future__ import annotations
 
 import math
@@ -78,6 +79,9 @@ def render(scene: str = typer.Argument(...), out: Path = typer.Option(None),
     bank, s = _load(scene, narration, duration)
     out = out or _REPO / "output" / "own-show" / "scenes" / s.id
     out.mkdir(parents=True, exist_ok=True)
+    if s.engine == "toy3d":
+        _render_toy3d(s, out, width, height, stills)
+        return
     if stills:
         for t in (float(x) for x in stills.split(",")):
             Image.fromarray(frame(s, bank, t, width, height)[..., [2, 1, 0]]).save(out / f"{s.id}_{t:05.2f}.png")
@@ -87,6 +91,31 @@ def render(scene: str = typer.Argument(...), out: Path = typer.Option(None),
         typer.echo("ERROR  scene has no duration; pass --duration")
         raise typer.Exit(code=1)
     typer.echo(render_clip(s, bank, out / f"{s.id}.mp4", s.duration, width, height))
+
+
+def _render_toy3d(s, out: Path, width: int, height: int, stills: str) -> None:
+    """A toy3d scene: stills from one page, or the clip through toy3d's cached runner."""
+    from toy3d import render as toy3d_render
+    from toy3d import runtime
+    from toy3d.acting import resolve
+    from toy3d.bank import load_bank
+
+    bank = load_bank()
+    try:
+        if stills:
+            with runtime.open_page(width, height, "render") as page:
+                page.init(runtime.bank_payload(bank), width, height, "render")
+                for t in (float(x) for x in stills.split(",")):
+                    (out / f"{s.id}_{t:05.2f}.png").write_bytes(page.render_state(resolve(s, bank, t)))
+            typer.echo(f"stills → {out}")
+            return
+        if s.duration is None:
+            typer.echo("ERROR  scene has no duration; pass --duration")
+            raise typer.Exit(code=1)
+        typer.echo(toy3d_render.render_clip(s, bank, out / f"{s.id}.mp4", s.duration, width, height))
+    except runtime.Toy3DRenderError as exc:
+        typer.echo(f"ERROR  {exc}")
+        raise typer.Exit(code=1) from exc
 
 
 @toon_app.command("sheet")
