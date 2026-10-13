@@ -5,6 +5,7 @@ from pathlib import Path
 
 from pipeline.voices.base import VoiceEngine, VoiceNotFound, VoiceProfile
 from pipeline.voices.edge_engine import EdgeEngine
+from pipeline.voices.fallback_engine import FallbackEngine
 
 
 class VoiceRegistry:
@@ -71,6 +72,19 @@ class VoiceRegistry:
 
     # ---- engine factory ----
     def _engine_for(self, profile: VoiceProfile) -> VoiceEngine:
+        engine = self._base_engine_for(profile)
+        # Prerecorded profiles use params.fallback_voice_id for missing recordings instead.
+        fallback_id = profile.params.get("fallback_voice_id")
+        if not fallback_id or profile.engine == "prerecorded":
+            return engine
+        from pipeline.config import PipelineConfig
+
+        if not PipelineConfig().TTS_AUTO_FALLBACK:
+            return engine
+        fallback_profile = self.get(fallback_id)
+        return FallbackEngine(engine, self._base_engine_for(fallback_profile), fallback_profile)
+
+    def _base_engine_for(self, profile: VoiceProfile) -> VoiceEngine:
         if profile.engine == "edge":
             return EdgeEngine()
         if profile.engine == "prerecorded":
