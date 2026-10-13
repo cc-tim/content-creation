@@ -99,3 +99,41 @@ def test_validate_anchored_scene_without_narration_names_the_flag(tmp_path):
     res = runner.invoke(app, ["toon", "validate", str(_anchored_file(tmp_path))])
     assert res.exit_code == 1 and isinstance(res.exception, SystemExit), res.exception
     assert "--narration" in res.stdout
+
+
+def _scene_file(tmp_path, beats=(), **changes):
+    """MINI as a scene file, with `beats` in its one shot; a change of None drops that key."""
+    import copy
+
+    import yaml
+
+    from tests.unit.toon.test_scene import MINI
+
+    data = copy.deepcopy(MINI)
+    data["shots"][0]["beats"] = list(beats)
+    for key, value in changes.items():
+        if value is None:
+            data.pop(key)
+        else:
+            data[key] = value
+    path = tmp_path / "scene.yaml"
+    path.write_text(yaml.safe_dump(data))
+    return path
+
+
+def test_validate_prints_each_problem_whole(tmp_path):
+    # Code review R1 M3: problem texts can hold "; ", so the CLI prints SceneError.problems one
+    # per line instead of splitting the joined message.
+    path = _scene_file(tmp_path, beats=[{"at": 1.0, "camera": "two_shot", "over": 0.5}])
+    res = runner.invoke(app, ["toon", "validate", str(path)])
+    assert res.exit_code == 1
+    assert (f"ERROR  {path}: shots[0].beats[0].over: a camera beat is a cut to a new preset; "
+            f"over does not apply\n") in res.stdout
+
+
+def test_validate_narration_without_a_duration_names_the_flag(tmp_path):
+    # Code review R1 M4: --narration on a scene with no duration used to print nothing about it.
+    path = _scene_file(tmp_path, duration=None)
+    res = runner.invoke(app, ["toon", "validate", str(path), "--narration", "One. Two."])
+    assert res.exit_code == 0, res.stdout
+    assert "--duration" in res.stdout
