@@ -147,8 +147,8 @@ by default it is instant.
 | `pose` | `to:` a pose and/or `expr:` an expression | An expression change alone is a pose beat with only `expr:`. `to:` cannot switch sit ↔ stand; cut to a new shot instead. |
 | `move` | `to:` a set spot, optional `bob` | |
 | `face` | `to:` another placed character | |
-| `show` | one graphic: `{speed_lines: who}`, `{bubble: [icons], from: who}`, `{anger: who}`, `{x_card: icon, at: [x, y]}`, `{check_pill: icon, at: [x, y]}` | Pops in (0.25 s default). `from:` is for bubbles only, and `at:` is for cards only. |
-| `hide` | the graphic's key, `<kind>:<target>` (for example `bubble:lioness`) | Must match a graphic shown earlier in the shot. |
+| `show` | one graphic: `{speed_lines: who}`, `{bubble: [icons], from: who}`, `{anger: who}`, `{x_card: icon, at: [x, y]}`, `{check_pill: icon, at: [x, y]}` | Pops in (0.25 s default; `over:` sets it). `from:` is for bubbles only; `at:` and an optional slug `id:` (never drawn) are for cards only. A show whose key is still visible fails (§11.2 b1). |
+| `hide` | the graphic's key, `<kind>:<target>` (for example `bubble:lioness`; a card's target is its `id:` when it has one) | Must take down a graphic that is showing in the shot. |
 | `prop` | `to: {b: …}` (idea_bulb brightness), `to: {count: …}` (plate_stack), `flicker`, `blink`, `out` | In v0, brightness `to: {b: …}` over time **is** the fade; there is no separate `fade` state. A plate has no animatable state. |
 | `door` | `open` / `close` | |
 | `camera` | a bank camera preset | A **cut** to that preset at the beat, not a blend. The new preset's own push, truck or punch restarts from the beat. `over` and `ease` are rejected. |
@@ -158,10 +158,9 @@ Prop uses are checked per kind as well. An `idea_bulb` needs `on:`, a `plate` ne
 
 **Rules, enforced when the scene loads:**
 - **Wordless:** graphics, bubbles and screens take icon names from the registry. There is no
-  free-text field. Unknown fields are rejected, and so are most fields that a verb or a prop
-  kind would ignore. A few timing and flicker fields are still ignored silently: `ease` on
-  `show`, `over`/`ease` on `hide`, and `flicker`/`blink`/`out` on plates. These are tracked in
-  the roadmap.
+  free-text field. Unknown fields are rejected, and so is every field that a verb or a prop
+  kind would ignore (Sprint 11, §11.2 a): for example `ease` on `show`, `over`/`ease` on
+  `hide`, `ease` without `over`, and `flicker`/`blink`/`out` on plates.
 - **Every name resolves** to a bank item, set spot, camera or icon. Otherwise it fails with the
   file and path.
 - **Limited-motion defaults:** drawings at 12/s (about 2.5 frames each at 30 fps), camera on ones, pop-ins of 0.25 s with
@@ -169,7 +168,8 @@ Prop uses are checked per kind as well. An `idea_bulb` needs `on:`, a `plate` ne
 - **Timing:** `at` is seconds within the shot. Inside a pipeline storyboard, a beat may say
   `at: {sentence: n}`. v0 resolves that by splitting the scene's narration into sentences and
   sharing the scene's audio duration out by character count. That is an approximation; exact
-  syncing comes later.
+  syncing comes later. Since Sprint 11 a shot's `at` takes the same anchor, and both take
+  `plus: s` (§11.2 f).
 - **Duration:** in the pipeline, the scene lasts as long as its narration. If the narration
   is longer, the last shot holds, still boiling. If it is shorter than the last beat, loading
   warns and the scene is cut at the narration's end.
@@ -415,3 +415,32 @@ one break, decimals don't break, and an ellipsis followed directly by text doesn
 
 **Risk.** Some of this would be stranded if the new style leaves scene files behind, for example
 a pure AI-video look. The scene contract is built to outlive the drawing code, not that pivot.
+
+### 11.5 Tim's decisions (2026-10-13)
+
+The SPRINT proposal left three questions for Tim before the build. His answers, passed on by the
+coordinator when the build started:
+
+1. **Hold the style-dependent items:** laptop ✓/✗ screen art, the `style.yaml` line/palette
+   wiring, and the pose/prop contact sheets wait for the style pick (§11.4). Sprint 11 does not
+   build them.
+2. **Shot timing = sentence anchors** (`at: {sentence: n, plus: s}`), a loud failure when shots
+   resolve out of order, and the drift warning (§11.2 f). Word-level timing stays E9 item 3.
+3. **zh-TW quote rule:** a 。 inside 「」 ends a sentence, and the closing 」 stays with it.
+   `他說：「我走了。」然後離開。` gives `他說：「我走了。」` + `然後離開。` (§11.2 b2).
+
+### 11.6 Build rulings (Sprint 11 plan)
+
+Where the build went past this section's letter, the plan
+(`docs/superpowers/plans/2026-10-13-e9-sprint11-scene-contract.md`, "Rulings") records why:
+
+- `ease` without `over` fails too: with no `over` the change is instant and every ease maps
+  1 → 1, so the field would be silently ignored.
+- A second `hide` of an already hidden key fails (a no-op beat).
+- `none:` beside `layers:` fails like the per-layer keys: only `layers` and `bun` are read there.
+- The one-letter-word abbreviation rule skips the pronoun "I" ("Neither did I. We left." is two
+  sentences).
+- Closers also include ASCII `"` and `'` and 】》〉], so `She said "Stop." Then…` keeps its quote
+  on the first sentence.
+- The drift warning is its own function, `drift_warnings`; compose logs it as
+  `toon.scene.drift`, apart from the `toon.scene.cut` warning.
