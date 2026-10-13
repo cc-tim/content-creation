@@ -445,19 +445,23 @@ def _changes_the_timeline(verb, field, extra):
 
 
 def test_every_beat_field_is_read_or_rejected():
-    # scene.BEAT_FIELDS is the one table of the optional beat fields the timeline reads per
-    # verb. A field in it must load and change what state_at returns; any other must fail.
-    from toon.scene import BEAT_FIELDS, BEAT_OPTIONAL, VERBS, Beat
+    # TOON2D.beat_fields (toon.catalog) is the one table of the optional beat fields the 2.5D
+    # timeline reads per verb. A field in it must load and change what state_at returns; any
+    # other must fail.
+    from toon.catalog import TOON2D
+    from toon.scene import BEAT_OPTIONAL, VERBS, Beat
 
-    assert set(BEAT_FIELDS) == set(VERBS)
+    beat_fields = TOON2D.beat_fields
+
+    assert set(beat_fields) == set(VERBS)
     assert set(BEAT_OPTIONAL) == set(Beat.model_fields) - {"at", *VERBS}
     for verb in VERBS:
         for field in BEAT_OPTIONAL:
             if field in _FENCE_BASE[verb]:
                 continue  # the base beat already sets it (and loads)
-            extra = {"over": 1.0} if field in ("ease", "bob") and "over" in BEAT_FIELDS[verb] else {}
+            extra = {"over": 1.0} if field in ("ease", "bob") and "over" in beat_fields[verb] else {}
             data = _fence_scene(verb, **extra, **{field: _FENCE_VALUE[field]})
-            if field in BEAT_FIELDS[verb]:
+            if field in beat_fields[verb]:
                 load_scene(data, BANK)
                 assert _changes_the_timeline(verb, field, extra), (verb, field)
             else:

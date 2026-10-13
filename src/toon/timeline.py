@@ -108,7 +108,8 @@ def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = 
     for who, pl in shot.place.items():
         sp = spots[pl.spot]
         chars[who] = CharState(who, scene.cast[who], pose_of(bank, pl.pose, pl.expr), pl.pose, pl.expr,
-                               bank.poses[pl.pose].hip, V(*sp.pos), sp.yaw, pl.layer, pl.loop)
+                               bank.poses[pl.pose].hip, V(*sp.pos), sp.yaw, pl.layer or "split",
+                               True if pl.loop is None else pl.loop)
     props = {}
     for name, pu in shot.props.items():
         d = bank.props[pu.kind]
