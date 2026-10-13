@@ -668,3 +668,16 @@ def test_falsy_beat_fields_mean_what_they_render():
                 d["shots"][0]["beats"].insert(0, {"at": 0.5, "prop": "idea", "flicker": True})
                 stops = load_scene(d, BANK)
                 assert {state_at(stops, BANK, t, t).props["idea"].mode for t in (1.2, 1.3, 1.4)} == {"on"}
+
+
+def test_a_hide_before_its_show_says_which_comes_first():
+    # Code review R1 M11: at the same time, the timeline plays beats as listed.
+    same = mini(**{"at": 1.0, "hide": "anger:tim"})
+    same["shots"][0]["beats"].append({"at": 1.0, "show": {"anger": "tim"}})
+    with pytest.raises(SceneError, match=r"beats\[0\]\.hide: 'anger:tim' is shown at 1s by shots\[0\]\.beats\[1\], "
+                                         r"listed after this hide at the same time; list the hide after it"):
+        load_scene(same, BANK)
+    later = mini(**{"at": 1.0, "hide": "anger:tim"})
+    later["shots"][0]["beats"].append({"at": 2.0, "show": {"anger": "tim"}})
+    with pytest.raises(SceneError, match=r"beats\[0\]\.hide: 'anger:tim' was shown at 2s, after this hide at 1s"):
+        load_scene(later, BANK)
