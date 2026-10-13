@@ -16,7 +16,7 @@
 > video). Rule: `standards.md` → "Production-project greenlight gate". This roadmap stays
 > the *capability* backlog; production projects do not get roadmap lines.
 
-**Last updated:** 2026-10-13 (REVIEW: **Sprint 11 = REWORK (narrow)** on `feat/e9-sprint11` at `2feed6e`. The EM re-ran everything. The full suite gives 1483 passed / 62 skipped; ruff and mypy are clean. All 9 red commits are red when re-run. 22 of 25 mutations go red. Scene 001 is byte-identical to master (12 of 12 frames). On the hub: goldens 4/4, parity worst 0.058, no fixture churn, and the two-take demo reproduces with every cut on its resolved frame. Four things must change before merge: R1, the separate code review has not happened; R2, compose's `storyboard_file` wiring is not pinned by any test; R3, the drift tolerance's upper side is not pinned; R4, `over: 0` on a `show` and a negative `over` still load silently. Filed in Later: edge-tts returns 403, a production blocker (7.2.8 is already the latest on PyPI); the toon cache key hashes the bank files, not the `Bank` object; prerecorded MP3 padding.) · Prior: 2026-10-13 (SPRINT: **Sprint 11 = E9 item 2, finishing own-show step 3**, Tim-greenlit: "for step three, could you complete?". Only the style-independent scene-contract residuals are built. Laptop ✓/✗ screens, `style.yaml` wiring and contact sheets are held, because Tim reopened step 1 (style). Spec addendum: toon spec §11. Test-plan rows S11-1…S11-16. Sprint 11 goes ahead of E5 part 1b.) · Prior: 2026-09-29 (follow-up REVIEW on master `53b1df3`: **E10 v1 = PASS → 🟢**. The F1 and F2 tests are green, 3 of 3 mutations went red, and the full suite gives 1440 / 62. Sprint 10 is merged as `53b1df3`. The Pillow `getdata` deprecation is filed with the dark-image item in Later: removal would silently disable the dark check.) · Prior: 2026-09-29 (REVIEW: **Sprint 10 (E5 loud-failure sweep, part 1) = PASS → 🟢**, `feat/e5-loud-failure-sweep` at `bb16aa0`, merge cleared. The EM ran everything itself: the branch suite gave 1378 passed / 59 skipped, and the merged tree (post-E10 master + branch) gave 1440 / 62; ruff and mypy were clean. 18 of 18 mutations went red, and the A4 smoke was re-run at HEAD with 3 extra live checks. The hub path audit found 0 disagreements. It also found that hub project `1776850327_B`'s final holds 5 black runs (~61 s) and the project was published; see Sprint 10. Parked items are placed in Later, with atomic scene-cache writes at the top.) · Prior: 2026-09-29 (REVIEW: E10 v1 = ADVISE, cleared to merge; it has since merged to master `2add7c2` with F1 and F2). · 2026-09-29 (SPRINT + INTAKE: Sprint 10 greenlit; new infra epic E10). · 2026-09-28 (third REVIEW, master `2f6fb35`: **Sprint 9 (E9 v0) = PASS → 🟢 shipped**). Earlier history: `.agent-memory/engineering-manager/sprint-log.md` and `sprint-log-archive.md`. · **Maintainer:** engineering-manager subagent
+**Last updated:** 2026-10-13 (follow-up REVIEW: **Sprint 11 = PASS → 🟢, cleared to merge**, `feat/e9-sprint11` at `d1c346c`. R1–R4 are closed. The fresh code review found 0 Critical, 2 Important and 9 Minor; all are fixed red first, and spec §11.6 records the rulings. The EM ran everything itself. Mac: 1506 passed / 62 skipped; ruff and mypy are clean (161 files). All 9 new red commits are red when re-run. 25 of 25 mutations go red, including M13, M17b and M18. Scene 001 is byte-identical to master (41 of 41 frames). Hub, at the exact HEAD: 205 passed / 0 skipped, goldens 4/4, parity worst 0.058, no churn. The demo's resolved cuts are unchanged. **Style lock (Tim, 2026-10-13: 3D toy):** the 2.5D toon engine is now the backup style's engine. The 3D engine needs an INTAKE after the merge; see E9.) · Prior: 2026-10-13 (REVIEW: **Sprint 11 = REWORK (narrow)** on `feat/e9-sprint11` at `2feed6e`. The EM re-ran everything. The full suite gives 1483 passed / 62 skipped; ruff and mypy are clean. All 9 red commits are red when re-run. 22 of 25 mutations go red. Scene 001 is byte-identical to master (12 of 12 frames). On the hub: goldens 4/4, parity worst 0.058, no fixture churn, and the two-take demo reproduces with every cut on its resolved frame. Four things must change before merge: R1, the separate code review has not happened; R2, compose's `storyboard_file` wiring is not pinned by any test; R3, the drift tolerance's upper side is not pinned; R4, `over: 0` on a `show` and a negative `over` still load silently. Filed in Later: edge-tts returns 403, a production blocker (7.2.8 is already the latest on PyPI); the toon cache key hashes the bank files, not the `Bank` object; prerecorded MP3 padding.) · Prior: 2026-10-13 (SPRINT: **Sprint 11 = E9 item 2, finishing own-show step 3**, Tim-greenlit: "for step three, could you complete?". Only the style-independent scene-contract residuals are built. Laptop ✓/✗ screens, `style.yaml` wiring and contact sheets are held, because Tim reopened step 1 (style). Spec addendum: toon spec §11. Test-plan rows S11-1…S11-16. Sprint 11 goes ahead of E5 part 1b.) · Prior: 2026-09-29 (follow-up REVIEW on master `53b1df3`: **E10 v1 = PASS → 🟢**. The F1 and F2 tests are green, 3 of 3 mutations went red, and the full suite gives 1440 / 62. Sprint 10 is merged as `53b1df3`. The Pillow `getdata` deprecation is filed with the dark-image item in Later: removal would silently disable the dark check.) · Prior: 2026-09-29 (REVIEW: **Sprint 10 (E5 loud-failure sweep, part 1) = PASS → 🟢**, `feat/e5-loud-failure-sweep` at `bb16aa0`, merge cleared. The EM ran everything itself: the branch suite gave 1378 passed / 59 skipped, and the merged tree (post-E10 master + branch) gave 1440 / 62; ruff and mypy were clean. 18 of 18 mutations went red, and the A4 smoke was re-run at HEAD with 3 extra live checks. The hub path audit found 0 disagreements. It also found that hub project `1776850327_B`'s final holds 5 black runs (~61 s) and the project was published; see Sprint 10. Parked items are placed in Later, with atomic scene-cache writes at the top.) · Prior: 2026-09-29 (REVIEW: E10 v1 = ADVISE, cleared to merge; it has since merged to master `2add7c2` with F1 and F2). · 2026-09-29 (SPRINT + INTAKE: Sprint 10 greenlit; new infra epic E10). · 2026-09-28 (third REVIEW, master `2f6fb35`: **Sprint 9 (E9 v0) = PASS → 🟢 shipped**). Earlier history: `.agent-memory/engineering-manager/sprint-log.md` and `sprint-log-archive.md`. · **Maintainer:** engineering-manager subagent
 
 ---
 
@@ -104,6 +104,11 @@ unchanged by either.)
   ones, drawings at 12/s, soft line boil by default. Clip length = narration (two-axes fence
   in code). Every failure is a `SceneRenderError`. `pipeline toon validate|render|sheet`; a
   doctor toon check. See E9.
+  - **Sprint 11 🟢 (2026-10-13, merge pending)** added the scene contract. Every field means what
+    it renders or fails at load. Errors name the scene file or the storyboard file. Shots take
+    `at: {sentence: n, plus: s}` and follow the narration. There is a drift warning, and
+    `toon validate --narration/--duration` prints sentences and shot windows.
+  - **Since the 2026-10-13 style lock (3D toy), this is the backup style's engine.**
 - **Known gaps (the demand):** true book-page-turn animation · animated overlay *entrance*
   (E3 v2), lower-thirds, CapCut subtitles · coarse recompose loop (E6) · `namecard`/`map` and
   `generated_image` silent `text_card` downgrades (E5 part 2) · non-atomic scene-cache writes (an
@@ -415,7 +420,7 @@ copy; a project is owned by exactly one machine at a time.**
   **Re-ordered 2026-10-13:** Sprint 11 (E9 item 2, Tim-greenlit) goes first, then E5 part 1b,
   then item 2.
 
-### E9 — Toon engine & resource bank (own-show character animation)  `[arsenal]`  🟢 *v0 shipped (Sprint 9; EM REVIEW PASS 2026-09-28 after two REWORK rounds); item 2 = **Sprint 11** (Tim-greenlit 2026-10-13, style-independent part only; built on `feat/e9-sprint11`, EM REVIEW 2026-10-13 = **REWORK**, narrow); item 3 open; **style reopened** (see below)*
+### E9 — Toon engine & resource bank (own-show character animation)  `[arsenal]`  🟢 *v0 shipped (Sprint 9; EM REVIEW PASS 2026-09-28 after two REWORK rounds); item 2 = **Sprint 11** 🟢 (Tim-greenlit 2026-10-13, style-independent part only; EM REVIEW 1 = REWORK, then follow-up REVIEW at `d1c346c` = **PASS**, cleared to merge); item 3 open; **style LOCKED 2026-10-13 on a 3D toy look; this 2.5D engine is now the backup style's engine** (see below)*
 A deterministic **2.5D hand-drawn character-animation** visual type for Tim's own hosted videos
 (`docs/own-show.md` is the top guideline for those videos and overrides the porting defaults).
 A code rig (cairo) draws the frozen character (Tim: likeness 2, short crop A, navy hoodie,
@@ -453,21 +458,40 @@ are YAML files that name bank items and always render the same frames. The pipel
     `pipeline doctor`.
   - Retargeting the audience-lens critics is `own-show.md` step 5 (content/critic work, not
     tracked here).
-- **Style reopened (own-show step 1).** Tim rejected the v0 doodle look on 2026-09-28. On
-  2026-10-13 he also rejected the editorial cut-paper candidate (branch
-  `art/toon-editorial-tryout`, deleted, never merged). A tryout of a "totally different style"
-  on scene 001 runs in parallel. **The v0 bank stays the implemented baseline until Tim picks.**
-  Work that depends on the look waits for that pick. Scene-contract work (what a scene file
-  says, its timing, its failures) does not. Source: the coordinator's dispatch, 2026-10-13.
+- **Style LOCKED (own-show step 1, Tim 2026-10-13): 3D toy, in the smooth Animal Crossing look**
+  (the r7-3d look A Three.js tryout). The drawn soft-cel look (`r8/`) is the backup style, and
+  **this 2.5D `toon` engine is now the backup style's engine.** Earlier, Tim rejected the v0
+  doodle look (2026-09-28) and the editorial cut-paper look (2026-10-13). `docs/own-show.md`
+  step 4b holds the record. What the lock changes here (the EM noted it at the Sprint 11
+  follow-up REVIEW):
+  - **The production engine for the locked look is not in E9.** It needs an INTAKE after
+    Sprint 11 merges. It is likely a new epic: a 3D bank, face-decal expressions, a pose
+    library, sets, a headless deterministic render, compose integration and hub goldens.
+  - **Sprint 11's scene contract is the part that carries over.** own-show 4b says the 3D
+    engine is "driven by the same scene-file contract". That contract is the scene schema,
+    sentence anchors, the splitter, drift warnings, loud load errors and source-named
+    `SceneError`. `toon.scene` validates against the 2.5D `Bank` (poses, spots, `PROP_KINDS`,
+    hair), so the INTAKE should scope a bank-neutral seam, not a second scene language.
+  - **Own-show step 3 is met for the backup engine only.** The locked look meets it once the
+    3D engine consumes the same contract.
+  - **The held items no longer get a "restyle sprint" here.** These are laptop ✓/✗, the
+    `style.yaml` wiring and the contact sheets. The INTAKE decides whether each becomes a 3D
+    bank requirement or stays backup-engine work.
+  - **Item 3** (word-level timing, A-roll transitions, vertical framing and a `direct.py`
+    entry) doesn't depend on the engine. The INTAKE decides where it lives.
+  - **The two-axes fence is unchanged.** Any engine's scene lasts exactly as long as its
+    narration.
 - **Items:**
   1. **🟢 v0: engine + bank + scene file + `toon` visual type** (Sprint 9). Shipped on master
      `2f6fb35`; EM REVIEW PASS 2026-09-28. It renders at 30 fps with drawings at 12/s (Tim's
      pick A), which matches compose's concat rate. See Sprint 9.
-  2. **🔵 v0 residuals → Sprint 11** (parked by the v0 final review, 2026-09-28; **Tim greenlit
-     finishing step 3 on 2026-10-13**). The demand is EP1 scene authoring. Sprint 11 builds the
-     style-independent part: a, the 2b splitter / card key / `SceneError` file name, the 2d
-     `validate` flags, e and f. **Held until Tim's style pick:** c (laptop ✓/✗), the 2b
-     `style.yaml` wiring and the 2d contact sheets. Scope table: spec §11.1. The items as filed:
+  2. **🟢 v0 residuals → Sprint 11** (parked by the v0 final review, 2026-09-28; **Tim greenlit
+     finishing step 3 on 2026-10-13**; EM follow-up REVIEW = PASS at `d1c346c`, merge pending).
+     The demand is EP1 scene authoring. Sprint 11 built the style-independent part: a, the 2b
+     splitter / card key / `SceneError` file name, the 2d `validate` flags, e and f. **Held:**
+     c (laptop ✓/✗), the 2b `style.yaml` wiring and the 2d contact sheets. Since the style lock
+     they are re-homed at the 3D INTAKE (see "Style LOCKED" above). Scope table: spec §11.1. The
+     items as filed:
      - **a. Loud-failure debt.** Some fields are still accepted and silently ignored: `ease` on
        `show`, `over`/`ease` on `hide`, `flicker`/`blink`/`out` on plates, and top-level hair
        keys beside `layers:`. Spec §5 documents them; they should fail at load (standards:
@@ -1220,7 +1244,35 @@ block is the sprint shape. The spec is the design and is not restated here.
   item 3 (draft encoder profile). The E8 item 1 (B) follow-up REVIEW (the s31 tofu) is still
   pending.
 
-### Sprint 11 — E9 item 2: finishing own-show step 3 (scene contract: loud failures, splitter, source names, sentence-anchored shots)  `[E9]`  🔵 *greenlit by Tim 2026-10-13; built on `feat/e9-sprint11` (`2feed6e`, 22 commits over `d1d4ca2`, not pushed or merged); EM REVIEW 2026-10-13 = **REWORK** (narrow: R1–R4 below)*
+### Sprint 11 — E9 item 2: finishing own-show step 3 (scene contract: loud failures, splitter, source names, sentence-anchored shots)  `[E9]`  🟢 *greenlit by Tim 2026-10-13; built on `feat/e9-sprint11`; EM REVIEW 1 at `2feed6e` = REWORK (narrow, R1–R4) → follow-up REVIEW at `d1c346c` = **PASS**, cleared to merge (not yet pushed or merged)*
+
+**EM follow-up REVIEW (2026-10-13, `d1c346c`) = PASS.** R1–R4 are closed, and every claim was
+re-run by the EM.
+- **R1:** a fresh reviewer read `d1d4ca2..2feed6e` and found 0 Critical, 2 Important (I1 es-419
+  splitter, I2 retake window) and 9 Minor (M3–M11). All 11 were fixed red first. Spec §11.6
+  records the rulings.
+  - The two judgement calls are accepted. I2 stays a load error, which is the loud-failure
+    posture, and the message now names the anchor and the window. M8 follows Tim's 。」 rule.
+  - The raw review text isn't archived. The plan's R1 ledger is the record.
+- **R2/R3/M18:** the mutations that survived REVIEW 1 now go red: M13 compose `storyboard_file`
+  → `None`; M17b tolerance 3.0, plus 0.7 and 0.3; M18 drift log removed.
+- **R4 → S11-17:** a negative `over` fails on every verb (the EM probed camera too). `over: 0`
+  on a show gives k = 1.0 at its start. A `blink` with `over: 0` fails. Scene 001 uses none of
+  these.
+- **Gates (EM-run).**
+  - Mac at `d1c346c`: 1506 passed / 62 skipped. ruff is clean, and mypy is clean on 161 files.
+  - Red first: the 9 new red commits touch tests plus the plan only, and all re-run red at their
+    own SHA.
+  - Mutations: 25 of 25 go red (R2/R3/R4/M18 and every R1 fix).
+  - Scene 001 is byte-identical to master `a2e9b55`: 41 of 41 frames at 960×540.
+- **Hub.** The builder said it wasn't needed, but `timeline.py` changed after the REVIEW 1 hub
+  pass (the show `over` semantics), so the EM re-ran it. An isolated clone at the exact HEAD
+  gives `--integration` toon 205 passed / 0 skipped. Goldens are 4/4 with `UPDATE_GOLDENS`
+  unset, parity is `[0, 0, 0.004, 0, 0, 0.058]`, and there is no fixture churn.
+- **S11-16 demo:** not re-run. The resolved cut starts for N3 at 12.456 s and 14.928 s are
+  identical at `2feed6e` and HEAD, and compose is unchanged, so the hub demo from REVIEW 1
+  stands.
+- **Two-axes claim held.** No new silent fallback.
 
 **EM REVIEW 1 (2026-10-13) = REWORK, narrow.** The build is sound, but the acceptance list
 includes "a separate code review has happened", and it hasn't. Three small pins or gaps came out
@@ -1296,9 +1348,13 @@ of the EM's mutation run and probes.
     it is pre-existing. Filed in Later.
 - **Recommended, not gating:** a caplog pin for `toon.scene.drift` (M18).
 
-**Then:** after R1–R4 pass the follow-up REVIEW, Sprint 11 flips to 🟢 and is cleared to merge
-onto master. The queue after that is unchanged (E5 part 1b, then E8 item 2), **unless** a port
-video is due. edge-tts is down on both machines, so TTS (see Later) would then jump the queue.
+**Then:** R1–R4 passed the follow-up REVIEW, so Sprint 11 is 🟢 and cleared to merge onto
+master.
+- **Next:** the 3D toy engine INTAKE (own-show step 4b), once Sprint 11 merges and Tim has
+  finished the tryout fixes. Its place relative to E5 part 1b and E8 item 2 is decided at that
+  INTAKE.
+- **Otherwise the queue is unchanged** (E5 part 1b, then E8 item 2), **unless** a port video is
+  due. edge-tts is down on both machines, so TTS (see Later) would then jump the queue.
 **Spec (build from this):** `docs/superpowers/specs/2026-09-27-toon-bank-v0-design.md` §11 (the
 addendum). This block is the sprint shape.
 - **Greenlight:** Tim, 2026-10-13: "for step three, could you complete?" Own-show step 3 is
@@ -1391,6 +1447,14 @@ addendum). This block is the sprint shape.
   - The bank is all YAML and fully modelled, so the fix is to hash `bank.model_dump_json()`.
   - `test_cache_key_changes_when_a_bank_file_changes` must then change a value, not just a
     comment.
+  - Since the 2026-10-13 style lock this is backup-engine hygiene. The 3D engine's cache key
+    should hash its bank object from the start.
+- **⚪ A timed `move` with `bob` leaves a residual lift (E9 hygiene, backup engine; found by the
+  Sprint 11 code review R1 and noted in spec §11.6).**
+  - At the end of the move the character sits above its spot. Scene 001's lioness ends 0.025
+    above `doorway`.
+  - The fix churns the scene 001 goldens, so it was not made in Sprint 11. It goes with any
+    later golden regeneration of the backup engine, with Tim eyeballing the change.
 - **⚪ Prerecorded MP3 padding skews scene timing (E6 compose; own-show relevant; found by the
   S11-16 demo).**
   - The pipeline times a prerecorded take by the transcoded MP3's container duration, which
