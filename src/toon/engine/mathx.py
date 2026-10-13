@@ -115,4 +115,9 @@ def rrect(x, y, w, h, r, n=6):
     return pts
 
 
-EASES = {"linear": e_lin, "smooth": smooth, "out": e_out, "back": e_back}
+def e_inout(x):
+    """Cubic in-out: the toy3d tryout's `ease` (r7-3d scene.js), the camera's and the turns'."""
+    return 4 * x * x * x if x < 0.5 else 1 - (-2 * x + 2) ** 3 / 2
+
+
+EASES = {"linear": e_lin, "smooth": smooth, "out": e_out, "back": e_back, "inout": e_inout}

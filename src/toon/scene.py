@@ -22,7 +22,7 @@ from toon.catalog import (
     load_catalog,
 )
 
-Ease = Literal["linear", "smooth", "out", "back"]
+Ease = Literal["linear", "smooth", "out", "back", "inout"]
 CARD_KINDS = ("x_card", "check_pill")
 PROP_USE_FIELDS = ("on", "held_by", "b", "count")
 # Optional fields that are render options, checked against each engine's capability table.

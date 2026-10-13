@@ -121,6 +121,8 @@ class Change:
     expr: str | None = None     # pose: the expression it blends to
     k: float = 1.0
     bob: float | None = None    # move: the lift (toon2d)
+    since: float = 0.0          # seconds since the beat started (accents, envelopes, walk cycles)
+    over: float = 0.0           # the beat's over: (0: instant)
 
 
 @dataclass(frozen=True)
@@ -135,6 +137,16 @@ class PropAt:
     smoke: float                # seconds since it went out
     blink: float | None         # a blink's level, while it lasts
     flicker: Flicker | None
+    since: float | None = None  # seconds since its latest started beat (None: none yet)
+
+
+@dataclass(frozen=True)
+class DoorAt:
+    """The latest started door beat, for engines whose door moves on its own after it (a spring)."""
+    value: float                # the folded openness, as `door`
+    to: str                     # "open" | "close"
+    since: float
+    over: float
 
 
 @dataclass(frozen=True)
@@ -163,6 +175,7 @@ class SymbolicState:
     props: tuple[PropAt, ...]
     graphics: tuple[GraphicAt, ...]
     fx: tuple
+    door_at: DoorAt | None = None
 
 
 def beats_at(scene: ToonScene, t: float, t_cam: float | None = None) -> SymbolicState:
@@ -180,10 +193,11 @@ def beats_at(scene: ToonScene, t: float, t_cam: float | None = None) -> Symbolic
     names = {a.name: (a.pose, a.expr) for a in actors}  # pose/expression once a blend completes
     work: dict[str, dict] = {
         name: {"item": pu.kind, "on": pu.on, "held_by": pu.held_by, "b": 1.0 if pu.b is None else pu.b,
-               "count": pu.count or 0, "mode": "on", "smoke": 0.0, "blink": None}
+               "count": pu.count or 0, "mode": "on", "smoke": 0.0, "blink": None, "since": None}
         for name, pu in shot.props.items()}
     flickers: dict[str, Flicker | None] = {}
     door = 0.0
+    door_beat: tuple[str, float, float] | None = None  # (to, since, over) of the latest door beat
     changes: list[Change] = []
     graphics: dict[str, GraphicAt] = {}
     preset, cam_from = shot.camera, 0.0  # a camera beat cuts to its preset, whose move restarts
@@ -197,20 +211,23 @@ def beats_at(scene: ToonScene, t: float, t_cam: float | None = None) -> Symbolic
         if k is None:
             continue
         v, at = b.verb, float(b.at)
+        since, over = rel - at, b.over or 0.0
         if v == "door":
             door = lerp(door, 1.0 if b.door == "open" else 0.0, k)
+            door_beat = (b.door, since, over)
         elif v == "move":
-            changes.append(Change("move", b.move, b.to, None, k, b.bob))
+            changes.append(Change("move", b.move, b.to, None, k, b.bob, since, over))
         elif v == "face":
-            changes.append(Change("face", b.face, b.to, None, k))
+            changes.append(Change("face", b.face, b.to, None, k, None, since, over))
         elif v == "pose":
             pose, expr = names[b.pose]
             to_pose, to_expr = b.to or pose, b.expr or expr
-            changes.append(Change("pose", b.pose, to_pose, to_expr, k))
+            changes.append(Change("pose", b.pose, to_pose, to_expr, k, None, since, over))
             if k >= 1.0:
                 names[b.pose] = (to_pose, to_expr)
         elif v == "prop":
             s = work[b.prop]
+            s["since"] = since
             if isinstance(b.to, dict):
                 for key, val in b.to.items():
                     cur = s[key]
@@ -230,8 +247,9 @@ def beats_at(scene: ToonScene, t: float, t_cam: float | None = None) -> Symbolic
 
     props = tuple(PropAt(name, flicker=flickers.get(name), **s) for name, s in work.items())
     camera = CameraAt(preset, rel_cam - cam_from, shot_length(scene, i) - cam_from)
+    door_at = DoorAt(door, *door_beat) if door_beat is not None else None
     return SymbolicState(i, shot.set, t_draw, door, camera, actors, tuple(changes), props,
-                         tuple(graphics.values()), tuple(shot.fx))
+                         tuple(graphics.values()), tuple(shot.fx), door_at)
 
 
 def state_at(scene: ToonScene, bank: Bank, t_draw: float, t_cam: float | None = None) -> FrameState:
