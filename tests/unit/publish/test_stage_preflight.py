@@ -89,21 +89,21 @@ def test_preflight_invalid_metadata(ready_project: Path) -> None:
         run_preflight(ctx=ctx, privacy="unlisted", schedule_iso=None)
 
 
-def test_preflight_refuses_a_fallback_narrated_video(ready_project: Path) -> None:
+def test_preflight_treats_the_context_record_as_informational(ready_project: Path) -> None:
+    """Only the marker next to the audio counts: ctx can be stale (or predate the marker)."""
     ctx = _ctx(ready_project)
     ctx.tts_fallback_voices = {"zh-TW-default-f": "zh-TW-kokoro-f"}
-    with pytest.raises(PreflightError, match="zh-TW-kokoro-f.*--allow-fallback-voice"):
-        run_preflight(ctx=ctx, privacy="unlisted", schedule_iso=None)
+    run_preflight(ctx=ctx, privacy="unlisted", schedule_iso=None)
 
 
 def test_preflight_allows_a_fallback_voice_only_when_told_and_warns(ready_project: Path) -> None:
     from structlog.testing import capture_logs
 
-    ctx = _ctx(ready_project)
-    ctx.tts_fallback_voices = {"zh-TW-default-f": "zh-TW-kokoro-f"}
+    _write_audio_marker(ready_project)
     with capture_logs() as logs:
         run_preflight(
-            ctx=ctx, privacy="unlisted", schedule_iso=None, allow_fallback_voice=True
+            ctx=_ctx(ready_project), privacy="unlisted", schedule_iso=None,
+            allow_fallback_voice=True,
         )
     warned = [e for e in logs if e["event"] == "publish.preflight.fallback_voice"]
     assert len(warned) == 1

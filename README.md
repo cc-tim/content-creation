@@ -521,7 +521,7 @@ The voice registry (`voices/registry.json`) selects the voice. Each locale's def
 | Edge becomes unavailable after some scenes already used it | TTS stops with an error, so one narration never mixes two voices |
 | `pipeline voice test`, `compose voice-variant`, MLA selective resynth | No fallback, ever: you get the requested voice or an error |
 | Any pass of the run fails (e.g. an MLA secondary voice with no fallback during the outage) | Nothing in `audio/` is replaced: both passes synthesize into a staging dir and are committed together |
-| Publishing a project whose `ctx.tts_fallback_voices` or `audio/tts_fallback.json` records a fallback | Preflight refuses. Re-run TTS when edge is back, or listen and pass `--allow-fallback-voice`. The marker file is written with the committed audio and removed by a clean run |
+| Publishing a project whose `audio/tts_fallback.json` records a fallback | Preflight refuses. Re-run TTS when edge is back, or listen and pass `--allow-fallback-voice`. The marker is the only record publish trusts. TTS writes it before committing fallback audio and removes it after committing clean audio, and `compose promote-voice` carries or clears it with the audio. `ctx.tts_fallback_voices` is informational only |
 
 Kokoro reads Traditional text through OpenCC `tw2s` (character variants only; its word lexicon is Simplified), is loudness-matched to edge (−19 LUFS), and logs `tts.kokoro.unvoiced_chars` for characters it would drop or misread (emoji, rare CJK). Reword those lines.
 

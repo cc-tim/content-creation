@@ -1,6 +1,7 @@
 # tests/unit/test_voice_variant.py
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -286,3 +287,63 @@ def test_promote_voice_errors_without_parent_project_id(tmp_path):
 
     assert result.exit_code != 0
     assert "not a voice variant" in result.output.lower() or "parent_project_id" in result.output.lower()
+
+
+def _promote(tmp_path):
+    with (
+        patch("pipeline.cli_compose._resolve_projects_dir", return_value=tmp_path / "projects"),
+        patch("pipeline.cli_compose.asyncio.run"),
+    ):
+        return CliRunner().invoke(compose_app, [
+            "promote-voice", "--from-project", "1776997800_tim-zhtw-fish",
+        ])
+
+
+def test_promote_voice_skips_directories_in_the_variant(tmp_path):
+    """A stray dir (e.g. a TTS staging dir) must not abort promote half-way through."""
+    parent_dir = _make_parent_project(tmp_path)
+    variant_dir = _make_variant_project(tmp_path, parent_dir)
+    stray = variant_dir / "audio" / ".tts-staging-abc123"
+    stray.mkdir()
+    (stray / "segment_000.mp3").write_text("half")
+    (variant_dir / "compose" / "scenes" / "tmp").mkdir()
+
+    result = _promote(tmp_path)
+
+    assert result.exit_code == 0, result.output
+    assert (parent_dir / "audio" / "narration.wav").read_bytes() == b"wav"
+    assert not (parent_dir / "audio" / ".tts-staging-abc123").exists()
+    assert (parent_dir / "compose" / "scenes" / "s1_final.mp4").read_bytes() == b"s1final"
+
+
+def test_promote_voice_clears_a_fallback_marker_the_variant_does_not_have(tmp_path):
+    """The parent's old audio was fallback-narrated; the promoted variant audio is not."""
+    parent_dir = _make_parent_project(tmp_path)
+    _make_variant_project(tmp_path, parent_dir)
+    (parent_dir / "audio" / "tts_fallback.json").write_text(
+        json.dumps({"fallback_voices": {"zh-TW-default-f": "zh-TW-kokoro-f"}})
+    )
+    parent_ctx = PipelineContext.load(parent_dir / "context.json")
+    parent_ctx.tts_fallback_voices = {"zh-TW-default-f": "zh-TW-kokoro-f"}
+    parent_ctx.save()
+
+    assert _promote(tmp_path).exit_code == 0
+
+    assert not (parent_dir / "audio" / "tts_fallback.json").exists()
+    assert PipelineContext.load(parent_dir / "context.json").tts_fallback_voices == {}
+
+
+def test_promote_voice_carries_the_variant_fallback_record(tmp_path):
+    parent_dir = _make_parent_project(tmp_path)
+    variant_dir = _make_variant_project(tmp_path, parent_dir)
+    record = {"tim-zhtw-fish": "zh-TW-kokoro-f"}
+    (variant_dir / "audio" / "tts_fallback.json").write_text(json.dumps({"fallback_voices": record}))
+    variant_ctx = PipelineContext.load(variant_dir / "context.json")
+    variant_ctx.tts_fallback_voices = record
+    variant_ctx.save()
+
+    assert _promote(tmp_path).exit_code == 0
+
+    marker = json.loads((parent_dir / "audio" / "tts_fallback.json").read_text())
+    assert marker == {"fallback_voices": record}
+    assert PipelineContext.load(parent_dir / "context.json").tts_fallback_voices == record

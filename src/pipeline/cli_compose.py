@@ -567,6 +567,7 @@ def clean(
 def _do_promote(variant_name: str, projects_dir: Path, ask_delete: bool = False) -> None:
     """Copy variant audio + scenes to parent, update parent context, re-compose."""
     from pipeline.stages.compose import ComposeStage
+    from pipeline.voices.fallback_engine import FALLBACK_MARKER
 
     variant_dir = projects_dir / variant_name
     if not variant_dir.exists():
@@ -587,11 +588,16 @@ def _do_promote(variant_name: str, projects_dir: Path, ask_delete: bool = False)
 
     parent_ctx = PipelineContext.load(parent_dir / "context.json")
 
-    # 1. Copy audio directory (all files)
+    # 1. Copy audio directory (files only: a stray dir such as a TTS staging dir would
+    #    abort the copy half-way). The TTS fallback marker travels with the audio, so a
+    #    parent marker the variant doesn't have is stale and goes.
     parent_audio = parent_dir / "audio"
     parent_audio.mkdir(exist_ok=True)
     for f in (variant_dir / "audio").iterdir():
-        shutil.copy2(f, parent_audio / f.name)
+        if f.is_file():
+            shutil.copy2(f, parent_audio / f.name)
+    if not (variant_dir / "audio" / FALLBACK_MARKER).exists():
+        (parent_audio / FALLBACK_MARKER).unlink(missing_ok=True)
 
     # 2. Copy scene files (overwrite parent's existing scenes)
     parent_scenes = parent_dir / "compose" / "scenes"
@@ -599,7 +605,8 @@ def _do_promote(variant_name: str, projects_dir: Path, ask_delete: bool = False)
     variant_scenes = variant_dir / "compose" / "scenes"
     if variant_scenes.exists():
         for f in variant_scenes.iterdir():
-            shutil.copy2(f, parent_scenes / f.name)
+            if f.is_file():
+                shutil.copy2(f, parent_scenes / f.name)
 
     # 3. Delete stale raw concat files so ComposeStage re-concatenates from new scenes
     for raw_name in ("raw.mp4", "raw_no_overlay.mp4"):
@@ -618,6 +625,7 @@ def _do_promote(variant_name: str, projects_dir: Path, ask_delete: bool = False)
             return p
 
     parent_ctx.voice_id = variant_ctx.voice_id
+    parent_ctx.tts_fallback_voices = dict(variant_ctx.tts_fallback_voices)
     parent_ctx.segment_timings = variant_ctx.segment_timings
     parent_ctx.subtitle_path = _remap_to_parent(variant_ctx.subtitle_path)
     parent_ctx.narration_path = _remap_to_parent(variant_ctx.narration_path)

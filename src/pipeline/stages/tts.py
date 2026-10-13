@@ -258,6 +258,7 @@ class TtsStage(PipelineStage):
 
         audio_dir = ctx.work_dir / "audio"
         audio_dir.mkdir(parents=True, exist_ok=True)
+        _sweep_stale_staging(audio_dir)
 
         segments = extract_narration_segments(script_text)
         logger.info("tts.segments", count=len(segments))
@@ -307,8 +308,14 @@ class TtsStage(PipelineStage):
                 secondary = await self._synthesize_secondary(
                     ctx, registry, staging, scene_pauses_ms
                 )
+            # Fail-safe order: a crash between the steps may cause a false publish refusal,
+            # never fallback audio without its marker.
+            fallbacks = registry.fallbacks_used()
+            if fallbacks:
+                write_fallback_marker(audio_dir, fallbacks)
             _commit_staged_audio(staging, audio_dir)
-            write_fallback_marker(audio_dir, registry.fallbacks_used())
+            if not fallbacks:
+                write_fallback_marker(audio_dir, fallbacks)  # removes a stale marker
         finally:
             shutil.rmtree(staging, ignore_errors=True)
 
@@ -423,6 +430,15 @@ class TtsStage(PipelineStage):
             locale=ctx.secondary_locale, path=str(ctx.secondary_narration_path),
             voice=sec_profile.id,
         )
+
+
+def _sweep_stale_staging(audio_dir: Path) -> None:
+    """Remove staging dirs a killed run left behind (a finished run always removes its own)."""
+    stale = sorted(p for p in audio_dir.glob(".tts-staging-*") if p.is_dir())
+    for path in stale:
+        shutil.rmtree(path, ignore_errors=True)
+    if stale:
+        logger.info("tts.staging.swept", dirs=[p.name for p in stale])
 
 
 def _commit_staged_audio(staging: Path, audio_dir: Path) -> None:
