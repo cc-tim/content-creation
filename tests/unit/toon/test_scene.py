@@ -516,3 +516,61 @@ def test_scene_error_names_its_source(tmp_path):
         load_scene(scene_data_from_visual(ref, origin), BANK)
     with pytest.raises(SceneError, match=r"^x\.yaml: shots\[0\]\.camera"):   # explicit source=
         load_scene(bad, BANK, source="x.yaml")
+
+
+# -- Sprint 11 (spec §11.2 f): shot starts follow the narration --
+
+# Spec §11.3's demo narration (s2 of the Sprint 9 smoke; edge-tts 13.44 s): three sentences.
+N3 = "提姆靈光一閃，想到一個好點子。獅子太太氣沖沖衝進來，要他馬上去洗碗。提姆只好站到水槽前，看著靈感一點點熄滅。"
+
+
+def anchored_001(plus=2.0):
+    """Scene 001 with shots 2–4 on N3's sentences: 2 → sentence 2, 3 → 3, 4 → 3 + plus."""
+    d = read_scene("001-lioness-dishes")
+    d["shots"][1]["at"] = {"sentence": 2}
+    d["shots"][2]["at"] = {"sentence": 3}
+    d["shots"][3]["at"] = {"sentence": 3, "plus": plus}
+    return d
+
+
+def test_shot_sentence_anchor_follows_the_narration():
+    authored = [[b["at"] for b in sh.get("beats", [])] for sh in read_scene("001-lioness-dishes")["shots"]]
+    for duration in (13.44, 16.0):
+        starts = sentence_starts(N3, duration)
+        s = load_scene(anchored_001(), BANK, narration=N3, duration=duration)
+        assert [sh.at for sh in s.shots] == pytest.approx([0.0, starts[1], starts[2], starts[2] + 2.0])
+        assert [[b.at for b in sh.beats] for sh in s.shots] == authored  # seconds beats: no stretch
+    fast = load_scene(anchored_001(), BANK, narration=N3, duration=9.0)  # a much faster take
+    assert fast.shots[3].at == pytest.approx(sentence_starts(N3, 9.0)[2] + 2.0)
+    assert "cut" in scene_warnings(fast, 9.0)[0]
+    d = anchored_001()  # a beat anchor resolves relative to its shot's resolved start, plus included
+    d["shots"][2]["beats"].append({"at": {"sentence": 3, "plus": 0.5}, "prop": "idea",
+                                   "blink": {"b": 0.35, "over": 0.15}})
+    assert load_scene(d, BANK, narration=N3, duration=13.44).shots[2].beats[-1].at == pytest.approx(0.5)
+
+
+def test_shot_anchors_resolving_out_of_order_fail_loudly():
+    two = anchored_001()
+    two["shots"][2]["at"] = {"sentence": 2}
+    with pytest.raises(SceneError, match=r"shots\[2\]\.at: \{sentence: 2\} → 3\.73s is not after "
+                                         r"shots\[1\] at \{sentence: 2\} → 3\.73s"):
+        load_scene(two, BANK, narration=N3, duration=13.44)
+    overtaken = anchored_001()
+    overtaken["shots"][2]["at"] = 8.0
+    assert load_scene(overtaken, BANK, narration=N3, duration=13.44).shots[2].at == 8.0
+    with pytest.raises(SceneError, match=r"shots\[2\]\.at: 8s is not after shots\[1\] at \{sentence: 2\} → 9\.33s"):
+        load_scene(overtaken, BANK, narration=N3, duration=33.6)
+    first = anchored_001()
+    first["shots"][0]["at"] = {"sentence": 2}
+    with pytest.raises(SceneError, match=r"shots\[0\]\.at: \{sentence: 2\} → 3\.73s; the first shot must start at 0"):
+        load_scene(first, BANK, narration=N3, duration=13.44)
+    past = anchored_001()
+    past["shots"][1]["at"] = {"sentence": 4}
+    with pytest.raises(SceneError, match=r"shots\[1\]\.at: sentence 4, but narration has 3"):
+        load_scene(past, BANK, narration=N3, duration=13.44)
+    with pytest.raises(SceneError, match=r"shots\[1\]\.at: sentence anchors need the scene's narration"):
+        load_scene(anchored_001(), BANK)
+    beyond = anchored_001()  # a beat's plus: past its shot's end
+    beyond["shots"][1]["beats"].append({"at": {"sentence": 2, "plus": 9.0}, "door": "close"})
+    with pytest.raises(SceneError, match=r"shots\[1\]\.beats\[7\]\.at: 9s is outside the shot"):
+        load_scene(beyond, BANK, narration=N3, duration=13.44)
