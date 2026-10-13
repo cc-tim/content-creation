@@ -8,6 +8,7 @@ from pathlib import Path
 import aiohttp
 import edge_tts
 import edge_tts.communicate
+import edge_tts.exceptions
 import structlog
 from edge_tts.constants import TRUSTED_CLIENT_TOKEN
 
@@ -25,12 +26,15 @@ _SYNTH_WSS_URL = (
     f"?Ocp-Apim-Subscription-Key={TRUSTED_CLIENT_TOKEN}"
 )
 # That endpoint throttles: ~1 in 5 back-to-back requests gets a 429 (no Retry-After) and
-# the next one usually succeeds. 401/403 are not retried: the endpoint refuses us.
-_REFUSED_STATUSES = frozenset({401, 403})
+# the next one usually succeeds. Not retried: 401/403 (it refuses us) and 404/410 (it
+# moved, as the legacy host's 403 did), which mean edge is unavailable.
+_UNAVAILABLE_STATUSES = frozenset({401, 403, 404, 410})
 _RETRY_EXCEPTIONS = (
-    aiohttp.ClientConnectorError,
+    aiohttp.ClientOSError,  # includes ClientConnectorError (DNS, refused, unreachable)
+    aiohttp.ClientConnectionResetError,
     aiohttp.ServerDisconnectedError,
     asyncio.TimeoutError,
+    edge_tts.exceptions.WebSocketError,
 )
 _RETRY_DELAYS_SEC = (1.0, 2.0, 4.0, 8.0, 16.0)
 
@@ -93,13 +97,19 @@ class EdgeEngine(VoiceEngine):
                 asyncio.run(self._run(text, voice, out_path))
                 return out_path
             except aiohttp.WSServerHandshakeError as exc:
-                if exc.status in _REFUSED_STATUSES:
+                if exc.status in _UNAVAILABLE_STATUSES:
                     raise VoiceEngineUnavailable(
                         f"edge refused synthesis for {voice} (HTTP {exc.status})"
                     ) from exc
                 if not _is_retryable_status(exc.status):
                     raise
                 error: Exception = exc
+            except aiohttp.ClientProxyConnectionError as exc:
+                # Our proxy setting, not an edge outage: never a reason to switch voices.
+                raise RuntimeError(
+                    f"edge-tts could not connect through the proxy {exc.host}:{exc.port} "
+                    f"({exc.os_error}); check HTTPS_PROXY / HTTP_PROXY."
+                ) from exc
             except _RETRY_EXCEPTIONS as exc:
                 error = exc
             if delay is None:
