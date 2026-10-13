@@ -259,6 +259,18 @@ ABBREVIATIONS = frozenset({"mr", "mrs", "ms", "dr", "prof", "st", "vs", "etc",
 _WORD_BEFORE = re.compile(r"(?<![A-Za-zÀ-ɏ])[A-Za-zÀ-ɏ]+$")
 
 
+def _closers(found: str, sentence: str) -> str:
+    """The closers right after a terminator that close something in this sentence. A straight "
+    is ambiguous: it closes only an unmatched opening " (in 他走了。"你好。" it opens the next one)."""
+    open_quote = sentence.count('"') % 2 == 1
+    for i, ch in enumerate(found):
+        if ch == '"':
+            if not open_quote:
+                return found[:i]
+            open_quote = False
+    return found
+
+
 def _abbreviation(before: str) -> bool:
     m = _WORD_BEFORE.search(before)
     return m is not None and ((len(m.group()) == 1 and m.group() != "I") or m.group().lower() in ABBREVIATIONS)
@@ -270,17 +282,18 @@ def split_sentences(narration: str) -> list[str]:
     A run of terminators is one break ("What?!", "他走了。……"), and the closing quotes right
     after it stay with it (「我走了。」). A lone "." between digits is a decimal point ("3.5"), and
     one after an abbreviation ("U.S.", "Dr.") is no break. An ellipsis ("……", "...") followed
-    directly by more text is a pause inside the sentence ("我……不知道。"); followed by a space or
-    the end, it ends the sentence.
+    directly by more text is a pause inside the sentence ("我……不知道。"); followed by a space,
+    the end, or a closing quote (「我不知道……」他沉默了。), it ends the sentence.
     """
     text = narration.strip()
     parts, start = [], 0
     for m in _BREAK.finditer(text):
-        run, end = m.group(1), m.end()
+        run, closers = m.group(1), _closers(m.group(2), text[start:m.start()])
+        end = m.start(2) + len(closers)
         before, nxt = text[:m.start()], text[end:end + 1]
         if run == "." and before[-1:].isdigit() and nxt.isdigit():
             continue
-        if set(run) <= {".", "…"} and run != "." and nxt and not nxt.isspace():
+        if set(run) <= {".", "…"} and run != "." and not closers and nxt and not nxt.isspace():
             continue
         if run == "." and _abbreviation(before):
             continue
