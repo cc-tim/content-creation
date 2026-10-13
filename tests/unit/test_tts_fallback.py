@@ -276,3 +276,34 @@ async def test_mla_drift_failure_after_commit_cannot_lose_the_fallback(mla_proje
     )
     with pytest.raises(PreflightError, match="zh-TW-kokoro-f"):
         run_preflight(ctx=on_disk, privacy="unlisted", schedule_iso=None)
+
+
+# ---- fail-safe ordering of marker vs audio commit (follow-up 1) ----
+
+
+async def test_marker_lands_before_fallback_audio(run_tts, tmp_path):
+    """A crash between the two steps may only cause a false refusal, never unmarked Kokoro."""
+    marker = tmp_path / "project" / "audio" / "tts_fallback.json"
+    with (
+        patch("pipeline.stages.tts._commit_staged_audio", side_effect=OSError("disk gone")),
+        pytest.raises(OSError, match="disk gone"),
+    ):
+        await run_tts(path="default", fail_scenes={"s1"})
+
+    assert json.loads(marker.read_text()) == {
+        "fallback_voices": {"zh-TW-default-f": "zh-TW-kokoro-f"}
+    }
+
+
+async def test_old_marker_survives_until_clean_audio_is_committed(run_tts, tmp_path):
+    marker = tmp_path / "project" / "audio" / "tts_fallback.json"
+    await run_tts(path="default", fail_scenes={"s1"})
+    assert marker.exists()
+
+    with (
+        patch("pipeline.stages.tts._commit_staged_audio", side_effect=OSError("disk gone")),
+        pytest.raises(OSError, match="disk gone"),
+    ):
+        await run_tts(path="default", fail_scenes=set())
+
+    assert marker.exists()  # the Kokoro audio is still what's on disk
