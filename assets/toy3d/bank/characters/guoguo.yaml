@@ -1,0 +1,17 @@
+# GuoGuo: Tim's king-penguin hand-puppet plush, frozen at v7 (Tim approved, 2026-10-13). Black head
+# to the flipper-top line all round, yellow V-bib, flush blue bead eyes, long beak ~14° down with an
+# orange lower-mandible stripe, big orange cheek patches, white front / grey back, sideways
+# white-front paddle flippers, longer legs, black feet, shell fur. Seated on the shelf in rooms
+# (pose class sit), standing for the design views (class stand). scene.js makeGuo / poseGuo.
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js makeGuo/poseGuo; GuoGuo v7 approved by Tim"}
+rig:
+  kind: guoguo
+  channels: [look.dy, hop, sq, land, wob, flap, jig, raise, fidle, bob, body.rz]
+# How his acting signals drive the plush (scene.js poseGuo, verbatim coefficients).
+guoguo:
+  hop_scale: {sit: 0.6, stand: 1.0}      # seated hops are smaller
+  look: {seat_yaw: 0.12, body_share: 0.35, head_clamp: 0.55}   # seated: the head does most turning
+  squash: {sq: -0.14, speed: 0.1, speed_full: 1.4, land: -0.16, wob: 0.06}
+  flippers: {flap: 0.55, jig: 1.0, raise: 0.25}
+  fur_push: {base: -0.45, speed: -0.22, land: -0.5, wob: 0.25, whip: -0.5, whip_threshold: 0.05}
+  wide_eyes: {eye: 1.25, pupil: 0.6}

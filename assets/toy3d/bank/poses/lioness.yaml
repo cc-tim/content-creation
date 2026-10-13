@@ -1,0 +1,48 @@
+# The lioness's poses (radians, metres): scene.js poseLion, frozen v7. Her walk cycle comes from
+# the move beat (characters/lioness.yaml `walk`); these poses ride on it.
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js poseLion"}
+poses:
+  stand:
+    class: stand
+    channels:
+      hips.py: 0.17
+      arm_l.j1.rz: -0.12
+      arm_r.j1.rz: -0.12
+    loops:
+      - {channel: tail.rx, wave: sin, amp: 0.1, rate: 1.7}
+      - {channel: tail.ry, wave: sin, amp: 0.35, rate: 2.3}
+  listen:   # ears flick at the door, just before she bursts in (peak 0.35 s in)
+    class: stand
+    partial: true
+    accents:
+      - {type: bump, channels: {ear_l.rz: 0.25, ear_r.rz: -0.25}, at: [0.35], width: 0.08}
+  brace:    # leans in through the door
+    class: stand
+    partial: true
+    channels: {body.rx: 0.1}
+  upright:
+    class: stand
+    partial: true
+    channels: {body.rx: 0.0}
+  turned:   # 90° → 45°, cheated toward the camera
+    class: stand
+    partial: true
+    channels: {root.ry: -0.7853981633974483}
+  akimbo:   # the far paw on her hip
+    class: stand
+    partial: true
+    channels: {arm_l.j1.rx: -0.2, arm_l.j1.rz: -0.85, arm_l.j2.rz: 1.95}
+  point:    # jabs a finger at Tim twice; the bubble's "!" pulses with the jabs
+    class: stand
+    partial: true
+    channels:
+      body.rx: 0.07
+      neck.rx: 0.09
+      neck.ry: 0.22
+      arm_r.j1.rx: -1.62
+      arm_r.j1.rz: 0.88
+      arm_r.j2.rx: -0.08
+    flags: [{name: finger}]
+    accents:
+      - {type: bump, channels: {arm_r.j1.rx: -0.16, body.rx: 0.064}, at: [0.42, 0.66], width: 0.06}
+      - {type: bump, channels: {bubble_bang: 0.25}, at: [0.42, 0.66], width: 0.07}

@@ -1,0 +1,10 @@
+# Tim: the Animal Crossing-style villager, hair H3 (textured crop; Tim's pick, 2026-10-13), round
+# wire glasses, navy hoodie. Frozen v7 (scene.js makeTim).
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js makeTim; hair H3 (Tim)"}
+rig:
+  kind: tim
+  channels: [seat.ry, seat.pz, hips.px, hips.py, torso.rx, torso.rz, neck.rx, neck.ry, neck.rz,
+             arm_l.j1.rx, arm_l.j1.rz, arm_l.j2.rx, arm_l.j2.rz,
+             arm_r.j1.rx, arm_r.j1.rz, arm_r.j2.rx, arm_r.j2.rz,
+             leg_l.j1.rx, leg_l.j2.rx, leg_r.j1.rx, leg_r.j2.rx]
+seat_height: 0.3      # his root sits this high in the chair at a seat spot

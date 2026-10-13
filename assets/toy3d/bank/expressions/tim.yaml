@@ -1,0 +1,9 @@
+# Tim's face decals (drawn by code: web/engine/faces.js), frozen v7 (scene.js TIM_FACE).
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js TIM_FACE"}
+expressions:
+  neutral: {decal: tim_neutral}
+  blink: {decal: tim_blink}
+  shock:
+    decal: tim_shock
+    # the sweat drop pops 0.18 s in and slides down (scene.js T.sweat, poseTim)
+    sweat: {appear: [0.18, 0.43], fall: [0.38, 2.1], y0: 0.08, dy: -0.07}

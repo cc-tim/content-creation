@@ -409,7 +409,7 @@ report to the lead.
 | Row | Test | Task | Expected red | Observed red | Red commit | Fix commit |
 |-----|------|------|--------------|--------------|------------|------------|
 | S12-22 | `test_symbolic_timeline.py` (inout, since) + conformance (inout on both engines) | 1 | literal error; no `since` | `KeyError: 'inout'` (EASES); `shots.0.beats.0.ease: Input should be 'linear', 'smooth', 'out' or 'back'` on both engines; `ImportError: cannot import name 'DoorAt'` | `61426df` | `de1fddc` |
-| S12-6/20/23a, S12-5 A2 | `tests/unit/toy3d/test_bank.py`, conformance with the real catalog | 2 | `ModuleNotFoundError: toy3d` | 9 × `ModuleNotFoundError: No module named 'toy3d'`; 2 × `SceneError: engine: toy3d has no bank yet`; the conformance suite errors at collection on the same | | |
+| S12-6/20/23a, S12-5 A2 | `tests/unit/toy3d/test_bank.py`, conformance with the real catalog | 2 | `ModuleNotFoundError: toy3d` | 9 × `ModuleNotFoundError: No module named 'toy3d'`; 2 × `SceneError: engine: toy3d has no bank yet`; the conformance suite errors at collection on the same | `c4af74a` | |
 | S12-7s/10s | `test_engine_source_fences.py` | 3 | files missing | | | |
 | S12-8/9/13/14u | `test_runner.py`, `test_render.py` | 4 | `ModuleNotFoundError: toy3d.runtime` | | | |
 | S12-11A/23p | `test_acting.py`, `test_state_symbolic.py` | 5 | `ModuleNotFoundError: toy3d.acting` | | | |

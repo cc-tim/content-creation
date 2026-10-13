@@ -152,5 +152,6 @@ def load_catalog(engine: str) -> SceneCatalog:
         from toon.bank import load_bank
         return load_bank()
     if engine == "toy3d":
-        raise SceneError(["engine: toy3d has no bank yet (E11 Sprint 12 phase 2 builds it)"])
+        from toy3d.bank import load_bank as load_toy3d_bank
+        return load_toy3d_bank().catalog
     raise SceneError([f"engine: unknown engine {engine!r} (engines: {', '.join(ENGINES)})"])

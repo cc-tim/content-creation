@@ -1,0 +1,8 @@
+# The speech bubble: a billboard beside the speaker's head holding pictograms only (wordless).
+# Frozen v7 (scene.js bubble, poseBubble): the dirty-plates pictogram and the "!".
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js bubble/poseBubble"}
+icons: [dishes, bang]
+offset: {right: 0.42, up: 0.62}      # from the speaker's head, in camera axes
+bob: {amp: 0.025, rate: 2.2}
+pop: {scale: 1.1}                    # e_back pop over the show beat's over
+bang: {signal: bubble_bang}          # the "!" grows by the speaker's bubble_bang signal

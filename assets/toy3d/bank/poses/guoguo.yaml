@@ -1,0 +1,36 @@
+# GuoGuo's poses: scene.js poseGuo, frozen v7 (Tim approved GuoGuo v7, 2026-10-13). His channels are
+# acting signals (hop, squash, flap, …) that his rig mixes into the body, flippers and fur
+# (characters/guoguo.yaml `guoguo`). Seated in rooms (class sit), standing for design views.
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js poseGuo"}
+poses:
+  seated:   # idle on the shelf: head wander, breathing bob, sway, flipper paddle; all calm down
+    class: sit
+    accents:
+      - {type: osc, channel: look.dy, wave: sin, amp: 0.12, rate: 1.3, until_next: {fade: 0.1}}
+      - {type: osc, channel: bob, wave: abs_sin, amp: 0.006, rate: 3.2, until_next: {fade: 0.1}}
+      - {type: osc, channel: body.rz, wave: sin, amp: 0.035, rate: 3.2, until_next: {fade: 0.1}}
+      - {type: osc, channel: fidle, wave: sin, amp: 0.08, rate: 2.6, until_next: {fade: 0.1}}
+  startled: # the door bursts in: hop, flap hard, squash on landing, jiggle, shiver, wide eyes
+    class: sit
+    flags: [{name: wide_eyes, from: 0.03}]
+    accents:
+      - {type: half_sine, channel: hop, amp: 0.17, span: [0.09, 0.47]}
+      - {type: bump, channels: {sq: 1.0}, at: [0.06], width: 0.03}
+      - {type: bump, channels: {land: 1.0}, at: [0.5], width: 0.045}
+      - {type: decay_sine, channel: wob, amp: 1.0, start: 0.53, decay: 6.0, freq: 30.0}
+      - {type: flap, channel: flap, amp: 1.0, start: 0.03, end: 1.03, hz: 6.5}
+      - {type: decay_sine, channel: jig, amp: 0.12, start: 1.03, decay: 5.0, freq: 24.0}
+      - {type: hold, channel: raise, amp: 1.0, after: 0.03, fade: [1.23, 1.83]}
+      - {type: osc, channel: body.rz, wave: sin, amp: 0.015, rate: 47.0, after: 0.03, fade: [2.4, 3.2]}
+  flinch:   # flinches with Tim's shock
+    class: sit
+    accents:
+      - {type: half_sine, channel: hop, amp: 0.05, span: [0.03, 0.21]}
+      - {type: bump, channels: {land: 0.5}, at: [0.23], width: 0.04}
+      - {type: flap, channel: flap, amp: 0.7, start: 0.02, end: 0.45, hz: 7.0}
+  look_off: # looks back at Tim, cheated 0.3 rad off
+    class: sit
+    partial: true
+    channels: {look.dy: -0.3}
+  standing: # the design views: the standing build, neutral
+    class: stand

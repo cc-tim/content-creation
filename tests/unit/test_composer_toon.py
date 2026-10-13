@@ -218,11 +218,12 @@ def test_dispatches_by_scene_engine(tmp_path, monkeypatch):
                       13.0, "16:9", tmp_path)
     assert rendered == ["toon2d"]
     toy = {"type": "toon", **copy.deepcopy(MINI), "engine": "toy3d"}
-    with pytest.raises(SceneRenderError, match=r"toy3d has no bank yet"):
+    toy3d_catalog = r"unknown camera 'front34_push' \(bank has \['beat2'"   # checked against toy3d's bank
+    with pytest.raises(SceneRenderError, match=toy3d_catalog):
         base.render_scene({"id": "s2", "narration": "One.", "visual": toy}, 4.0, "16:9", tmp_path)
     ref = tmp_path / "toy.yaml"                                    # a reference: the file's engine
     ref.write_text(yaml.safe_dump({**copy.deepcopy(MINI), "engine": "toy3d"}))
-    with pytest.raises(SceneRenderError, match=r"toy3d has no bank yet"):
+    with pytest.raises(SceneRenderError, match=toy3d_catalog):
         base.render_scene({"id": "s3", "narration": "One.", "visual": {"type": "toon", "scene": str(ref)}},
                           4.0, "16:9", tmp_path)
     assert rendered == ["toon2d"]                                  # never a 2.5D fallback

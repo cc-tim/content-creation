@@ -1,0 +1,60 @@
+# Scene 001, beat 2: the break-in, in the locked 3D toy look (E11). The r7-3d look-A clip, frozen
+# at v7 (Tim, 2026-10-13): style-tryouts/r7-3d/frozen-v7-20261013/ (SHA256SUMS d9c61f63…5d75).
+# The snapshot's beat times (scene.js `T`) become contract beats. Two of them sit between frames
+# (2.21, 4.61) because the snapshot's steps there are strict (`t > 2.2`, `t > 4.6`) and land on
+# frame times. The ear flick has its own early beat, because its Gaussian rises before the door.
+id: 001-beat2-break-in
+engine: toy3d
+duration: 8.0
+cast: {tim: tim, lioness: lioness, guoguo: guoguo}
+shots:
+  - at: 0.0
+    set: office
+    camera: beat2
+    place:
+      tim: {spot: desk_seat, pose: typing, expr: neutral}
+      lioness: {spot: doorway_out, pose: stand, expr: stern}
+      guoguo: {spot: shelf_top, pose: seated, expr: neutral}
+    props:
+      idea: {kind: idea_bulb, on: tim, b: 1.0}
+    beats:
+      - {at: 0.0, face: guoguo, to: tim}                       # GuoGuo watches Tim type
+      - {at: 1.25, pose: tim, expr: blink}
+      - {at: 1.33, pose: tim, expr: neutral}
+      - {at: 1.9, pose: lioness, to: listen}                   # her ears flick at the door (2.25)
+      # the door bursts open
+      - {at: 2.2, door: open, over: 0.14, ease: out}
+      - {at: 2.2, pose: guoguo, to: startled}
+      - {at: 2.21, pose: lioness, to: brace}                   # leans in from just after 2.2
+      - {at: 2.26, face: guoguo, to: lioness, over: 0.26, ease: inout}
+      - {at: 2.3, move: lioness, to: doorway_in, over: 0.7, ease: out}
+      - {at: 2.5, pose: lioness, to: upright}
+      - {at: 2.75, pose: lioness, to: turned, over: 0.4, ease: inout}
+      - {at: 2.9, pose: lioness, to: akimbo, over: 0.3, ease: inout}
+      - {at: 3.0, pose: lioness, to: point, over: 0.2, ease: back}
+      - {at: 3.02, pose: tim, expr: blink}
+      - {at: 3.09, pose: tim, expr: neutral}
+      - {at: 3.12, show: {bubble: [dishes, bang], from: lioness}, over: 0.32}
+      # Tim turns, then the shock
+      - {at: 3.78, pose: tim, to: turned, over: 0.34, ease: back}
+      - {at: 3.9, pose: tim, to: shock, expr: shock, over: 0.2, ease: out}
+      - {at: 3.9, pose: tim, to: pushed, over: 0.35, ease: out}
+      - {at: 3.9, pose: guoguo, to: flinch}
+      - {at: 3.94, face: guoguo, to: tim, over: 0.3, ease: inout}
+      - {at: 3.94, pose: guoguo, to: look_off, over: 0.3, ease: inout}
+      - {at: 4.61, pose: lioness, expr: blink}
+      - {at: 4.68, pose: lioness, expr: stern}
+      # the idea flickers out (the snapshot's FLICKER table)
+      - {at: 3.9, prop: idea, to: {b: 0.1}}
+      - {at: 3.98, prop: idea, to: {b: 0.9}}
+      - {at: 4.06, prop: idea, to: {b: 0.15}}
+      - {at: 4.12, prop: idea, to: {b: 0.85}}
+      - {at: 4.98, prop: idea, to: {b: 0.15}}
+      - {at: 5.05, prop: idea, to: {b: 0.75}}
+      - {at: 5.13, prop: idea, to: {b: 0.08}}
+      - {at: 5.19, prop: idea, to: {b: 0.6}}
+      - {at: 5.25, prop: idea, to: {b: 0.05}}
+      - {at: 5.32, prop: idea, to: {b: 0.45}}
+      - {at: 5.37, prop: idea, to: {b: 0.0}}
+      - {at: 5.44, prop: idea, to: {b: 0.25}}
+      - {at: 5.5, prop: idea, to: {b: 0.0}, out: true}

@@ -1,0 +1,5 @@
+# GuoGuo's 3/4 design view, standing at the turntable spot (scene.js STILLS.guo; A_guo.png).
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js STILLS.guo"}
+pos: [0.9000000000000001, 0.52, 1.75]
+target: {start: [1.85, 0.33, 0.65]}
+fov: {start: 30.0}

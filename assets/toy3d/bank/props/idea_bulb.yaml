@@ -1,0 +1,8 @@
+# The idea bulb above a character's head, frozen v7 (scene.js bulb, poseBulb, puffs).
+picked: {date: "2026-10-13", source: "r7-3d frozen v7 (SHA256SUMS d9c61f63…5d75), scene.js bulb/poseBulb"}
+kind: idea_bulb
+anchor: [0.0, 0.76, 0.0]            # above the head it sits on
+drift: {bob: 0.025, bob_rate: 2.4, tilt: 0.05, tilt_rate: 1.7}
+out: {over: 0.5, droop: 0.06, tilt: 0.3, smoke: 3, stagger: 0.12, smoke_span: 0.9}
+glow: {base: 0.55, amp: 0.05, rate: 5.0}
+rays: {amp: 0.06, rate: 6.0, min_level: 0.5}

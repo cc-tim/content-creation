@@ -1,0 +1,17 @@
+# GuoGuo's standing 3/4 design view (scene.js STILLS.guo at t = 0.714: A_guo.png): the room at the
+# start of the beat, GuoGuo standing neutral on the turntable spot. A model-sheet scene, not an
+# EP1 scene, so it lives under tests/fixtures (S12-20). Evaluated at t = 0.714.
+id: guo-design-view
+engine: toy3d
+duration: 1.0
+cast: {tim: tim, lioness: lioness, guoguo: guoguo}
+shots:
+  - at: 0.0
+    set: office
+    camera: guo_34
+    place:
+      tim: {spot: desk_seat, pose: typing, expr: neutral}
+      lioness: {spot: doorway_out, pose: stand, expr: stern}
+      guoguo: {spot: turntable, pose: standing, expr: neutral}
+    props:
+      idea: {kind: idea_bulb, on: tim, b: 1.0}
