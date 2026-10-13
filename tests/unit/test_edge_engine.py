@@ -156,3 +156,44 @@ def test_edge_engine_gives_up_after_its_retry_budget(tmp_path, monkeypatch):
 
     assert len(calls) == 6
     assert sleeps == [1.0, 2.0, 4.0, 8.0, 16.0]
+
+
+def test_edge_engine_logs_the_synthesis_endpoint_once_per_engine(tmp_path, monkeypatch):
+    import edge_tts.communicate
+    from structlog.testing import capture_logs
+
+    monkeypatch.setattr(edge_tts.communicate, "WSS_URL", _LEGACY_WSS_URL)
+    _scripted_run(monkeypatch, [None, None])
+    engine = EdgeEngine()
+
+    with capture_logs() as logs:
+        engine.synthesize("一", tmp_path / "a.mp3", _HSIAOCHEN)
+        engine.synthesize("二", tmp_path / "b.mp3", _HSIAOCHEN)
+
+    events = [e for e in logs if e["event"] == "tts.edge.endpoint"]
+    assert events == [
+        {
+            "event": "tts.edge.endpoint",
+            "log_level": "info",
+            "endpoint": "wss://api.msedgeservices.com/tts/cognitiveservices/websocket/v1",
+            "overridden": True,
+        }
+    ]
+
+
+def test_edge_engine_logs_an_upstream_endpoint_as_not_overridden(tmp_path, monkeypatch):
+    import edge_tts.communicate
+    from structlog.testing import capture_logs
+
+    monkeypatch.setattr(
+        edge_tts.communicate, "WSS_URL", "wss://speech.example.invalid/v2?Ocp-Apim-Subscription-Key=abc"
+    )
+    _scripted_run(monkeypatch, [None])
+
+    with capture_logs() as logs:
+        EdgeEngine().synthesize("一", tmp_path / "a.mp3", _HSIAOCHEN)
+
+    events = [e for e in logs if e["event"] == "tts.edge.endpoint"]
+    assert [(e["endpoint"], e["overridden"]) for e in events] == [
+        ("wss://speech.example.invalid/v2", False)
+    ]
