@@ -5,7 +5,8 @@
       "engine": "edge",
       "locale": "zh-TW",
       "params": {
-        "voice": "zh-TW-HsiaoChenNeural"
+        "voice": "zh-TW-HsiaoChenNeural",
+        "fallback_voice_id": "zh-TW-kokoro-f"
       },
       "display_name": "HsiaoChen (edge, default)",
       "meta": {
@@ -24,7 +25,8 @@
       "engine": "edge",
       "locale": "zh-TW",
       "params": {
-        "voice": "zh-TW-YunJheNeural"
+        "voice": "zh-TW-YunJheNeural",
+        "fallback_voice_id": "zh-TW-kokoro-m"
       },
       "display_name": "YunJhe (edge)",
       "meta": {
@@ -43,7 +45,8 @@
       "engine": "edge",
       "locale": "zh-TW",
       "params": {
-        "voice": "zh-TW-HsiaoYuNeural"
+        "voice": "zh-TW-HsiaoYuNeural",
+        "fallback_voice_id": "zh-TW-kokoro-f"
       },
       "display_name": "HsiaoYu (edge)",
       "meta": {
@@ -55,6 +58,44 @@
         "fits": ["educational", "factual", "explainer"],
         "avoid": ["high-emotional", "parenting-intimate"],
         "notes": "Second female zh-TW voice. Cleaner and more formal than HsiaoChen — better for news/explainer, less suited for emotionally warm content."
+      }
+    },
+    {
+      "id": "zh-TW-kokoro-f",
+      "engine": "kokoro",
+      "locale": "zh-TW",
+      "params": {
+        "sid": 3
+      },
+      "display_name": "Kokoro zf_001 (local, edge fallback)",
+      "meta": {
+        "gender": "female",
+        "age": "young-adult",
+        "pace": "medium",
+        "register": "neutral",
+        "emotional_range": "low-medium",
+        "fits": ["fallback", "educational", "explainer"],
+        "avoid": ["taiwan-accent-required"],
+        "notes": "Local Kokoro v1.1-zh (Apache-2.0, sherpa-onnx, no network). Mainland Mandarin accent. Auto-fallback for the zh-TW edge female voices when edge is down."
+      }
+    },
+    {
+      "id": "zh-TW-kokoro-m",
+      "engine": "kokoro",
+      "locale": "zh-TW",
+      "params": {
+        "sid": 59
+      },
+      "display_name": "Kokoro zm_010 (local, edge fallback)",
+      "meta": {
+        "gender": "male",
+        "age": "young-adult",
+        "pace": "medium",
+        "register": "neutral",
+        "emotional_range": "low",
+        "fits": ["fallback", "factual", "explainer"],
+        "avoid": ["taiwan-accent-required"],
+        "notes": "Local Kokoro v1.1-zh (Apache-2.0, sherpa-onnx, no network). Mainland Mandarin accent. Auto-fallback for YunJhe when edge is down."
       }
     },
     {
