@@ -190,7 +190,28 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
    - Scenes are driven by the same scene-file contract, rendered headless and deterministic,
      with compose integration and cross-machine goldens.
 5. Retarget critics/evaluators to the audience lens above before scene reviews start.
-6. Tim hands over the latest high-level script → scene breakdown together.
+6. ~~Tim hands over the latest high-level script → scene breakdown together.~~ **EP1 plot agreed
+   (2026-10-16), session draft "[Life with AI] EP1. Hybrid AI Controller". Tim may still revise
+   the script.**
+   - **Audience:** widened to tech-curious people, not only developers.
+   - **Core:** a few spare minutes (the school run with his daughter) are enough to keep the
+     project alive in your head and catch an agent going off track.
+   - **"Hybrid" on both ends:** any assistant app in front (Claude / ChatGPT, talking to Tim's
+     MCP of project tools), and any agent behind (Claude Code, Codex, DeepSeek…, started by the
+     controller tool app). Tim moved off his own STT voice agent to MCP.
+   - **Shape A, "Before / After"** (Tim's pick):
+     1. Toon cold open: the "before" morning.
+     2. Hook on camera.
+     3. Toon + phone: **Past**, back from a holiday.
+     4. Toon + real demo: **Working**, school-run check-ins that catch a drifting agent.
+     5. Toon: **Future**, an idea at the sink, a second agent tries it out, and the bulb stays
+        lit (the payoff for 001).
+     6. On camera + diagram: how it works, plus "I tried my own voice assistant first".
+     7. Toon + screen: **hybrid payoff**, swapping agents when one goes down.
+     8. Close.
+   - **Dropped as outdated:** the STT / voice-agent chapters, the voice-selection blooper and the
+     long tmux/Tailscale walkthrough.
+   - **First scene tryout:** 002 in [`own-show-scenes.md`](own-show-scenes.md).
 
 Housekeeping: the fal key works again (it rendered the r6 Flux pass on 2026-10-13). It's still
 used for Flux images.
