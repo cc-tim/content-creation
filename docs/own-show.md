@@ -191,7 +191,8 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
      with compose integration and cross-machine goldens.
 5. Retarget critics/evaluators to the audience lens above before scene reviews start.
 6. ~~Tim hands over the latest high-level script → scene breakdown together.~~ **EP1 plot agreed
-   (2026-10-16), session draft "[Life with AI] EP1. Hybrid AI Controller". Tim may still revise
+   (2026-10-16), session draft "[Life with AI] EP1. Hybrid AI Controller"; retitled
+   "[Work with AI] EP1. Hybrid AI Controller" (Tim, 2026-10-29). Tim may still revise
    the script.**
    - **Audience:** widened to tech-curious people, not only developers.
    - **Core:** a few spare minutes (the school run with his daughter) are enough to keep the
@@ -211,7 +212,8 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
      8. Close.
    - **Dropped as outdated:** the STT / voice-agent chapters, the voice-selection blooper and the
      long tmux/Tailscale walkthrough.
-   - **First scene tryout:** 002 in [`own-show-scenes.md`](own-show-scenes.md).
+   - **First scene tryout:** 002 in [`own-show-scenes.md`](own-show-scenes.md) — v4 OK'd by Tim
+     (2026-10-29).
 
 Housekeeping: the fal key works again (it rendered the r6 Flux pass on 2026-10-13). It's still
 used for Flux images.

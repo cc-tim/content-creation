@@ -13,7 +13,7 @@ when the rig changes, so the entry records what was decided, not just where the 
 | # | Scene | Status | Episode | Files |
 |---|---|---|---|---|
 | 001 | Locked in → the lioness → dishes → the idea fades | tryout · animatic v2 (wordless, bulb) — **meets Tim's expectation** (quality bar) | not assigned | `output/own-show/scenes/001-lioness-dishes/` · engine scene `assets/toon/scenes/001-lioness-dishes.yaml` |
-| 002 | Before: the school run (lioness bursts in → you leave → the bulb fades) | tryout · v4 (3D toy, Tim's face A + flat mouth); daughter = koala round 3 B, where she comes in awaits Tim | EP1 scene 1 (cold open) | `output/own-show/scenes/002-before-school-run/` (open `index.html`; wording in `scene.md`) |
+| 002 | Before: the school run (lioness bursts in → you leave → the bulb fades) | tryout · v4 (3D toy, Tim's face A + flat mouth) · **OK'd by Tim 2026-10-29**; daughter = koala round 3 B, not in this scene (no placement pick yet, not blocking) | EP1 scene 1 (cold open) | `output/own-show/scenes/002-before-school-run/` (open `index.html`; wording in `scene.md`) |
 
 ## 001 · Locked in → the lioness → dishes → the idea fades
 
@@ -63,6 +63,8 @@ when the rig changes, so the entry records what was decided, not just where the 
   the koala to school"** (her acting from scene 001; a "!" bubble stands in). 12.6 s.
 - **v3 (2026-10-19):** v2 with Tim's "dead fish" A eyes as his default face.
 - **v4 (2026-10-19):** v3 with v0's flat mouth instead of the smile, and a blink that matches.
+- **Tim's OK (2026-10-29):** scene 1's open items are cleared — v4 stands and the "!" bubble stays
+  as the stand-in. No daughter placement pick; not blocking.
 - **Tim's picks:**
   - **Default face = "dead fish" A eyes + v0's flat mouth** (v0 lid: heavy flat lids, pupils hanging
     under them; no smile), for Tim in every scene. Eyes picked 2026-10-17, the flat mouth 2026-10-19.
