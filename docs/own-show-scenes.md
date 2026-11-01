@@ -125,3 +125,6 @@ when the rig changes, so the entry records what was decided, not just where the 
 - **Scene 2 outline (Tim, 2026-11-02):** **A · numbers**. C (the chapter card) is optional and kept for now.
   Tim says all the points quickly in scene 2; the slide probably isn't shown again in later scenes.
 - **GuoGuo size (Tim, 2026-11-02): 12% smaller** in scene 003, so he fits fully under the desk.
+- **Working-icon sheet v1 (2026-11-02):** A a floating coral asterisk beside the laptop, B a floating loading ring,
+  C the asterisk on the screen with the camera behind the empty chair (`options/working_icon_v1.png`,
+  bank copies in `toy3d-icon/{A,B,C}/`).
