@@ -139,3 +139,6 @@ when the rig changes, so the entry records what was decided, not just where the 
   (lying on your side), but "the posture need some fix, looks weird".
 - **Sofa A posture fix v2 (2026-11-02):** body flat on the cushion, head upright on the armrest (neck counter-tilt),
   legs stacked on the seat; no GuoGuo on the sofa. `options/sofa_A_fix_v2.png`, pose `side_v1` in `toy3d-sofa/A`.
+- **Sofa A fix v3 (2026-11-02):** Tim: "not the head posture, should be body and legs". Head back to sheet v1's tilt; body
+  sunk onto the seat and moved off the back cushion, legs stretched along the sofa (feet away from the camera), head at
+  the armrest end. Also shown from a higher camera. `options/sofa_A_fix_v3.png`, poses `side_v7`/`side_v8`.
