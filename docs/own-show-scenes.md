@@ -124,3 +124,4 @@ when the rig changes, so the entry records what was decided, not just where the 
   character `scale` now applies to GuoGuo (tryout branch).
 - **Scene 2 outline (Tim, 2026-11-02):** **A · numbers**. C (the chapter card) is optional and kept for now.
   Tim says all the points quickly in scene 2; the slide probably isn't shown again in later scenes.
+- **GuoGuo size (Tim, 2026-11-02): 12% smaller** in scene 003, so he fits fully under the desk.
