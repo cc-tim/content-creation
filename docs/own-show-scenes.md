@@ -113,3 +113,8 @@ when the rig changes, so the entry records what was decided, not just where the 
   "agree, proceed". These are listed in `scene.md`.
 - **GuoGuo (Tim, 2026-11-02):** "let GuoGuo stay at where the screen I belong, it have no actions or
   expression for scene 1". He sits wherever you are (on your side of the split screen) and stays still.
+- **Minimal-look sheet v1 (2026-11-02):** the desk shot drawn three ways: A plain colour, B a soft floor
+  patch, C faint room outlines (`options/minimal_look_v1.png`). Engine switch `params.minimal` on the
+  office set, tryout branch `tryout/ep1-s002`; bank copies per look in `toy3d-look/{A,B,C}/`.
+- **EP1 scene 2 outline slide mock (2026-11-02):** A numbers, B icons, C A as a chapter card, plus a motion
+  preview of the shrink-to-corner and pop-in (`output/own-show/scenes/ep1-s2-outline/`, source `outline.html`).
