@@ -32,6 +32,12 @@ The porting pipeline keeps its existing rules. (Decided with Tim 2026-09-26.)
   — no words drawn on screen, so a scene works in any language. Laptop/phone screens show icons
   (bars, ✓/✗, progress), bubbles hold pictograms, cards hold icons. Words live only in the
   narration and subtitles, which the pipeline makes per locale.
+- **Less detail: the animation amplifies the narration** (Tim, 2026-11-02): show only what
+  carries the idea. Tim plus the one or two props that say where he is (desk + chair + laptop,
+  a sofa, a toilet, a handrail), on a plain ground, not a full room or a full walk cycle. The
+  narration and subtitles carry the information; the animation amplifies that one idea, so
+  the viewer's eye goes straight to it. Tim's reason: we spent too much detail on things like
+  a full walk just to show "I'm working".
 - **Line boil = soft shimmer** (Tim, 2026-09-28): full boil re-jitters every line 12×/s, and
   Tim felt it as constant trembling. The default is now *soft*: the drawing holds its shape and
   the lines only shimmer faintly. `full` and `still` remain available per scene (bank
@@ -214,6 +220,27 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
      long tmux/Tailscale walkthrough.
    - **First scene tryout:** 002 in [`own-show-scenes.md`](own-show-scenes.md) — v4 OK'd by Tim
      (2026-10-29).
+7. **New opening and outline (Tim, 2026-11-02).** Shape A's scene order is being reworked to
+   Tim's video outline. The first three scenes are built first:
+   1. **Cold open, toon:** library **003 · Steer from anywhere**. It replaces 002, which stays in
+      the library unassigned. Claude keeps working at the desk while you're on the sofa, on the
+      toilet or on the train; then the way you talk to it changes (eating a snack and just
+      talking, "agree, proceed" from the toilet). Timed to Tim's voice cut.
+   2. **On camera:** a quick intro of yourself → the video's title → you shrink to a corner →
+      an outline slide.
+   3. **On camera:** how you use AI agents and the problem you ran into, with screen recordings
+      and animation inserts added later. Tim records the talking footage first.
+
+   **The outline** (Tim's words; it differs from the manuscript in content and order):
+   1. The problem: forget what I am doing? (Not because you are old, but because of context
+      switching.)
+   2. Use Claude CLI (desktop) + mobile together, and build a similar workflow.
+   3. We don't read that much info/text on mobile.
+   4. Setup: tmux (terminal management), Tailscale (secure connection), project
+      scope/metadata/API.
+   5. MCP tool on your chat app, plus a helper app.
+   6. Target scenarios: working, and the future.
+   7. Beyond the tool: what (I guess) will matter more.
 
 Housekeeping: the fal key works again (it rendered the r6 Flux pass on 2026-10-13). It's still
 used for Flux images.

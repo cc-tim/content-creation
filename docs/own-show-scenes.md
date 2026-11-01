@@ -13,7 +13,8 @@ when the rig changes, so the entry records what was decided, not just where the 
 | # | Scene | Status | Episode | Files |
 |---|---|---|---|---|
 | 001 | Locked in → the lioness → dishes → the idea fades | tryout · animatic v2 (wordless, bulb) — **meets Tim's expectation** (quality bar) | not assigned | `output/own-show/scenes/001-lioness-dishes/` · engine scene `assets/toon/scenes/001-lioness-dishes.yaml` |
-| 002 | Before: the school run (lioness bursts in → you leave → the bulb fades) | tryout · v4 (3D toy, Tim's face A + flat mouth) · **OK'd by Tim 2026-10-29**; daughter = koala round 3 B, not in this scene (no placement pick yet, not blocking) | EP1 scene 1 (cold open) | `output/own-show/scenes/002-before-school-run/` (open `index.html`; wording in `scene.md`) |
+| 002 | Before: the school run (lioness bursts in → you leave → the bulb fades) | tryout · v4 (3D toy, Tim's face A + flat mouth) · **OK'd by Tim 2026-10-29**; daughter = koala round 3 B, not in this scene (no placement pick yet, not blocking) | not assigned (was EP1 scene 1 until 2026-11-02, replaced by 003) | `output/own-show/scenes/002-before-school-run/` (open `index.html`; wording in `scene.md`) |
+| 003 | Steer from anywhere (Claude works at the desk while you're on the sofa / toilet / train; then you just talk to it) | brief written · nothing rendered; timed to Tim's voice cut | EP1 scene 1 (cold open) | `output/own-show/scenes/003-steer-from-anywhere/` (wording in `scene.md`) |
 
 ## 001 · Locked in → the lioness → dishes → the idea fades
 
@@ -90,3 +91,23 @@ when the rig changes, so the entry records what was decided, not just where the 
   any more, because the koala kind exists only on the tryout branch.
 - **Files:** `toy3d/scenes/002-before-school-run.yaml` (v1 kept as `.v1.yaml`) ·
   `renders/002_v{1,2,3,4}.mp4` · `scene.md` · `index.html` · `options/`.
+
+## 003 · Steer from anywhere
+
+- **Brief (Tim, 2026-11-02):** the new EP1 cold open. It replaces 002.
+  - **Part 1, under "Have you enter the usage of AI that you can keep steering the working progress
+    no matter if your are in front of desktop or not? …":** "Claude working on my computer and I'm
+    sitting in front of computer (typing keyboard), then I am switching from place to place (stand and
+    walk out from my computer, then start a split screen, left screen is keeping exactly same as Claude
+    working (spinning banner). At the right screen, in order is 1. me laying on the sofa and focus
+    watching on mobile phone, 2. Sitting on the toilet 3. Standing inside the crowded train, and
+    grabbing handrails."
+  - **Part 2, under "And among the all, the way of communication could be changed, maybe through
+    talking …":** "1. Laying down on sofa, eating snack, only to talk with mobile 2. Sitting on the
+    toilet but face is very focus on pooping, and squeeze out a short sentence: 'agree, proceed'."
+- **First scene under the less-detail rule** (`own-show.md`): you plus one or two key props per place,
+  on a plain ground.
+- **Timing:** Tim cuts the voice track first; the shots are timed to it.
+- **Open picks:** the minimal look, the laptop's "working" icon, new props (phone, sofa, snack, toilet,
+  handrail, a minimal crowd), new poses, the split screen, where GuoGuo goes, and a ✓ bubble on
+  "agree, proceed". These are listed in `scene.md`.
