@@ -118,3 +118,9 @@ when the rig changes, so the entry records what was decided, not just where the 
   office set, tryout branch `tryout/ep1-s002`; bank copies per look in `toy3d-look/{A,B,C}/`.
 - **EP1 scene 2 outline slide mock (2026-11-02):** A numbers, B icons, C A as a chapter card, plus a motion
   preview of the shrink-to-corner and pop-in (`output/own-show/scenes/ep1-s2-outline/`, source `outline.html`).
+- **Tim's picks (2026-11-02):** minimal look **C · faint room outlines**. GuoGuo is "too obvious": make him
+  about 5–6% smaller and **hide him under the desk**. At 5.5% smaller his head pokes through the desktop
+  and at 12% he fits, so the size is back with Tim (`options/guoguo_under_desk_v1.png`). Engine: the
+  character `scale` now applies to GuoGuo (tryout branch).
+- **Scene 2 outline (Tim, 2026-11-02):** **A · numbers**. C (the chapter card) is optional and kept for now.
+  Tim says all the points quickly in scene 2; the slide probably isn't shown again in later scenes.
