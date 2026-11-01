@@ -131,3 +131,7 @@ when the rig changes, so the entry records what was decided, not just where the 
 - **Working icon (Tim, 2026-11-02): A**, the coral asterisk, "spins … filled white circle background and 1~2
   smaller white bubble to point linking to the desktop". Built as `toy3d-icon/A2`. C rejected: "not showing the
   screen in animation to show a fake screen" (now a rule in `own-show.md`).
+- **Sofa sheet v1 (2026-11-02):** A lying on your side facing the camera, phone at your chest; B slumped deep in
+  the sofa, phone under your chin. Lying flat on the back was tried and dropped (head twists, phone edge-on).
+  `options/sofa_v1.png`, bank copies in `toy3d-sofa/{A,B}/`. Engine: sofa piece, hidden desk, phone holds
+  (flags `phone_<hold>`), tryout branch.
