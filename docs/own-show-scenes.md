@@ -142,3 +142,6 @@ when the rig changes, so the entry records what was decided, not just where the 
 - **Sofa A fix v3 (2026-11-02):** Tim: "not the head posture, should be body and legs". Head back to sheet v1's tilt; body
   sunk onto the seat and moved off the back cushion, legs stretched along the sofa (feet away from the camera), head at
   the armrest end. Also shown from a higher camera. `options/sofa_A_fix_v3.png`, poses `side_v7`/`side_v8`.
+- **Sofa A v4 (2026-11-02):** Tim: keep the original camera; fix v3's flat stacked legs were still wrong. New shape:
+  back propped on the armrest, A1 one knee up / A2 both knees up (legs bend side-on to the camera).
+  `options/sofa_A_v4.png`, poses `lounge_knee`/`lounge_knees`, phone hold `lounge`.
