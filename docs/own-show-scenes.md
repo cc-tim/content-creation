@@ -109,5 +109,7 @@ when the rig changes, so the entry records what was decided, not just where the 
   on a plain ground.
 - **Timing:** Tim cuts the voice track first; the shots are timed to it.
 - **Open picks:** the minimal look, the laptop's "working" icon, new props (phone, sofa, snack, toilet,
-  handrail, a minimal crowd), new poses, the split screen, where GuoGuo goes, and a ✓ bubble on
+  handrail, a minimal crowd), new poses, the split screen, and a ✓ bubble on
   "agree, proceed". These are listed in `scene.md`.
+- **GuoGuo (Tim, 2026-11-02):** "let GuoGuo stay at where the screen I belong, it have no actions or
+  expression for scene 1". He sits wherever you are (on your side of the split screen) and stays still.
