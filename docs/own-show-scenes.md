@@ -135,3 +135,5 @@ when the rig changes, so the entry records what was decided, not just where the 
   the sofa, phone under your chin. Lying flat on the back was tried and dropped (head twists, phone edge-on).
   `options/sofa_v1.png`, bank copies in `toy3d-sofa/{A,B}/`. Engine: sofa piece, hidden desk, phone holds
   (flags `phone_<hold>`), tryout branch.
+- **Tim (2026-11-02):** GuoGuo stays **under the desk the whole scene** (replaces "wherever you are"). Sofa: **A**
+  (lying on your side), but "the posture need some fix, looks weird".
