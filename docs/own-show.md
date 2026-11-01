@@ -38,6 +38,10 @@ The porting pipeline keeps its existing rules. (Decided with Tim 2026-09-26.)
   narration and subtitles carry the information; the animation amplifies that one idea, so
   the viewer's eye goes straight to it. Tim's reason: we spent too much detail on things like
   a full walk just to show "I'm working".
+- **No fake screens** (Tim, 2026-11-02): animation never shows made-up app UI on a laptop or
+  phone screen. Show what the device is doing with an icon outside the screen (e.g. Claude's
+  coral asterisk in a white bubble, with a thought-bubble trail to the laptop). Real screens
+  appear only as real screen recordings.
 - **Line boil = soft shimmer** (Tim, 2026-09-28): full boil re-jitters every line 12×/s, and
   Tim felt it as constant trembling. The default is now *soft*: the drawing holds its shape and
   the lines only shimmer faintly. `full` and `still` remain available per scene (bank

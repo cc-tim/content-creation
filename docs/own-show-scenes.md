@@ -128,3 +128,6 @@ when the rig changes, so the entry records what was decided, not just where the 
 - **Working-icon sheet v1 (2026-11-02):** A a floating coral asterisk beside the laptop, B a floating loading ring,
   C the asterisk on the screen with the camera behind the empty chair (`options/working_icon_v1.png`,
   bank copies in `toy3d-icon/{A,B,C}/`).
+- **Working icon (Tim, 2026-11-02): A**, the coral asterisk, "spins … filled white circle background and 1~2
+  smaller white bubble to point linking to the desktop". Built as `toy3d-icon/A2`. C rejected: "not showing the
+  screen in animation to show a fake screen" (now a rule in `own-show.md`).
