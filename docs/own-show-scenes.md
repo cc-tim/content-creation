@@ -137,3 +137,5 @@ when the rig changes, so the entry records what was decided, not just where the 
   (flags `phone_<hold>`), tryout branch.
 - **Tim (2026-11-02):** GuoGuo stays **under the desk the whole scene** (replaces "wherever you are"). Sofa: **A**
   (lying on your side), but "the posture need some fix, looks weird".
+- **Sofa A posture fix v2 (2026-11-02):** body flat on the cushion, head upright on the armrest (neck counter-tilt),
+  legs stacked on the seat; no GuoGuo on the sofa. `options/sofa_A_fix_v2.png`, pose `side_v1` in `toy3d-sofa/A`.
