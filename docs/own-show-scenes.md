@@ -145,3 +145,5 @@ when the rig changes, so the entry records what was decided, not just where the 
 - **Sofa A v4 (2026-11-02):** Tim: keep the original camera; fix v3's flat stacked legs were still wrong. New shape:
   back propped on the armrest, A1 one knee up / A2 both knees up (legs bend side-on to the camera).
   `options/sofa_A_v4.png`, poses `lounge_knee`/`lounge_knees`, phone hold `lounge`.
+- **Sofa decision (Tim, 2026-11-02):** "prefer the original version (first one)" — keep sheet v1 A (side-lying, the
+  original pose and camera). Fixes v2–v4 are kept for reference only. **Paused here;** next is the toilet.

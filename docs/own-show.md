@@ -246,5 +246,9 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
    6. Target scenarios: working, and the future.
    7. Beyond the tool: what (I guess) will matter more.
 
+   **Resume (2026-11-02):** scene 1 (library 003) picks so far are in its `scene.md` "Resume here". Next: the toilet
+   option sheet. Scene 2's slide is A (numbers). Waiting on Tim: scene 1 audio, scene 2–3 footage. Engine tryout code
+   is on the local branch `tryout/ep1-s002` (worktree `.worktrees/ep1-s002-tryout`).
+
 Housekeeping: the fal key works again (it rendered the r6 Flux pass on 2026-10-13). It's still
 used for Flux images.
