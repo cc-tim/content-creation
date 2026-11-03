@@ -218,3 +218,9 @@ when the rig changes, so the entry records what was decided, not just where the 
   cover the mouth)". Built: `train_m45` camera, bench on the far wall (left of frame), outlines `#8f9cae` at 45%, phone hold
   `show` + opt-in `params.phone_screen` (soft glow + a small Claude asterisk, no UI), 4d `toilet_read_high` / `read_high`.
   Whole scene `renders/003_scene1_v9.mp4`.
+- **Round 3 (Tim, 2026-11-03):** "row 5 try to use C, and … suggest camera angle … to let the image of talking to phone more obvious;
+  row 6 … A then B (peeking the phone), then smile and speak, then back to A; 4b just lift one hand to hold the phone; 4c … tilt
+  camera a bit more to show character side, and display the train inside contour (just part and extend outward)". Built: 4b pose
+  `lie_side_one` + hold `one` (`toy3d-row4/sofa-1hR3`); 4c A4 (Tim −10°, strap left hand, phone right `show_r`, far-wall window
+  band / ceiling / door lines fading outward); row 5 C2 (popcorn; hard cut at 3.2 s to camera `talk34`, pose `lie_voice`, hold
+  `voice`, `tim_talk_big`, `soundwaves.js` arcs); row 6 A2 (A → B → smile + bubble → A). Whole scene `renders/003_scene1_v10.mp4`.
