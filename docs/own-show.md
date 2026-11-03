@@ -248,21 +248,16 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
    6. Target scenarios: working, and the future.
    7. Beyond the tool: what (I guess) will matter more.
 
-   **Resume (2026-11-03):** scene 1 (library 003) has Tim's voice cut and a timed script (`scene.md` → *Script*,
-   shown with the audio on the EP1 board; tap a row to play from there). Picks and open elements are in that
-   `scene.md`, in script order. Waiting on Tim: scene 2–3
-   footage. Scene 2's slide is A (numbers).
-   **2026-11-03 later:** "Looks good, proceed" = a text bubble (exception above); the little robot is Claude's design
-   (possible recurring bank character); the buff doge follows the Swole Doge meme. Row 1 sheet v1 (work in progress +
-   day → night): Tim picked C (Claude + ChatGPT logos) and L3 (window time-lapse, no Tim in the 24/7 part); row 1 v2
-   preview is up. Tim is re-recording the voice a bit faster. Tryout engine: branch `tryout/ep1-s002`.
-   **Board format (Tim, 2026-11-03):** per scene, the voice + script rows first; picks, the full draft, plot/rules,
-   outline, library and archive are collapsed. Any scene whose `scene.md` has a `**Voice:**` link and a `## Script`
-   table (Time | Animation | Line | Clip) gets this view. **Per-row review (Tim, 2026-11-03: "split videos by each
-   row … difficult to know which second is at which row"):** a `**Preview:**` link makes the latest cut the sticky main
-   player (row label + time burned in, tapping a row seeks it); the Clip column holds one clip per row
-   (`renders/rows/`). Re-cut both with the scratchpad `rows_cut.py` pattern after each row change. Engine tryout code
-   is on the local branch `tryout/ep1-s002` (worktree `.worktrees/ep1-s002-tryout`).
+   **Resume (paused 2026-11-03):** scene 1 (library 003) is fully drafted, **v10** (0:00–1:09 on Tim's voice v1):
+   `output/own-show/scenes/003-steer-from-anywhere/renders/003_scene1_v10.mp4`, one clip per row in `renders/rows/`; the
+   board's scene 1 card plays it row by row (▶ Play row, loop, ⧉ Pop out). Rows 1–3 OK'd; rows 4–6 on their third round of
+   Tim's notes. **Next:** Tim reviews v10 → apply notes per row. Still open: GuoGuo appears twice during 4c (desk + bench);
+   Tim's faster voice cut (retime all rows from it). Picks/defaults and per-row history: `scene.md` + `own-show-scenes.md`.
+   **Engine:** all tryout work is merged on the local branch `tryout/ep1-s002` (worktree `.worktrees/ep1-s002-tryout`; not
+   pushed, throwaway → E11). Per-row bank copies + scenes: `003-steer-from-anywhere/toy3d-row{1..6}/`. Render/cut scripts
+   (row1_v3/v4, row2, row3, row4, row4c, row4d, row5, row6, sofa1h, row4_cut, rows_cut) were in the session scratchpad
+   and are copied to `003-steer-from-anywhere/scripts/` so the next session can re-render. The bubble text font (Arial
+   Rounded) is Mac-only. Scene 2's slide is A (numbers); scenes 2–3 wait on Tim's footage.
 
 Housekeeping: the fal key works again (it rendered the r6 Flux pass on 2026-10-13). It's still
 used for Flux images.
