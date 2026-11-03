@@ -200,3 +200,9 @@ when the rig changes, so the entry records what was decided, not just where the 
   straps), 4d the toilet (sheet `options/toilet_v1.png`: A chunky white front-on / B side + door frame / C pastel toy; built
   for row 6 too). Drafts use A. Engine `train.js`, `toilet.js` (branches merged into `tryout/ep1-s002`). Cut:
   `toy3d-row4/row4_video.mp4`; preview `renders/003_rows1-4_v6.mp4` + clips per row.
+- **Row 4 notes (Tim, 2026-11-03):** "4a should be tired eye -> stand out -> walk out; 4b is ok; 4c … camera … side tilt like 45
+  degrees, show some people on the left side of seat (could include GuoGuo), those standing gray men … only contour …, the
+  phone … like I am reading the phone; 4d should start reading phone once sit down"; "toilet go A (front view)". v2: 4a =
+  row 2 clip 4.9–8.8 s (0:31.5–0:35.4), 4c `train_45` camera + bench (`bench_guo`) + outline passengers + `read_phone`
+  (`toy3d-row4c/A2`), 4d `toilet_read` with the `read` phone hold (`toy3d-row4d/A2`). Preview `renders/003_rows1-4_v7.mp4`.
+- **Rows 5–6:** being built (snack sheet; straining-face sheet; the "Looks good, proceed" text bubble).
