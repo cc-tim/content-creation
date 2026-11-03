@@ -32,6 +32,8 @@ The porting pipeline keeps its existing rules. (Decided with Tim 2026-09-26.)
   — no words drawn on screen, so a scene works in any language. Laptop/phone screens show icons
   (bars, ✓/✗, progress), bubbles hold pictograms, cards hold icons. Words live only in the
   narration and subtitles, which the pipeline makes per locale.
+  **One exception (Tim, 2026-11-03):** scene 003's "Looks good, proceed" text bubble, an inside joke
+  ("no harm to break our rule"). It needs a version per locale.
 - **Less detail: the animation amplifies the narration** (Tim, 2026-11-02): show only what
   carries the idea. Tim plus the one or two props that say where he is (desk + chair + laptop,
   a sofa, a toilet, a handrail), on a plain ground, not a full room or a full walk cycle. The
@@ -248,8 +250,11 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
 
    **Resume (2026-11-03):** scene 1 (library 003) has Tim's voice cut and a timed script (`scene.md` → *Script*,
    shown with the audio on the EP1 board; tap a row to play from there). Picks and open elements are in that
-   `scene.md`, in script order. Waiting on Tim: how "Looks good, proceed" shows, robot/buff-doge references, scene 2–3
+   `scene.md`, in script order. Waiting on Tim: scene 2–3
    footage. Scene 2's slide is A (numbers).
+   **2026-11-03 later:** "Looks good, proceed" = a text bubble (exception above); the little robot is Claude's design
+   (possible recurring bank character); the buff doge follows the Swole Doge meme. Row 1 sheet v1 (work in progress +
+   day → night) is out; Tim is re-recording the voice a bit faster. Tryout engine: branch `tryout/ep1-s002`.
    **Board format (Tim, 2026-11-03):** per scene, the voice + script rows first; picks, the full draft, plot/rules,
    outline, library and archive are collapsed. Any scene whose `scene.md` has a `**Voice:**` link and a `## Script`
    table (Time | Animation | Line) gets this view. Engine tryout code

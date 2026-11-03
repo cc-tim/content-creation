@@ -163,5 +163,11 @@ when the rig changes, so the entry records what was decided, not just where the 
   - [Sitting on the toilet but face is very focus on pooping, but in the middle, quickly change face expression and
     showing a dialogue "Looks good, proceed" with mouth talking to the phone] → "what we're hoping to achieve… is continuity"
   - Timed rows are in `scene.md` → *Script* (the EP1 board reads them from there). The place-to-place note is split
-    4a–4d so sofa / train / toilet each land on their reason (suggested). Open with Tim: how "Looks good, proceed"
-    shows (it isn't in the voice cut; the wordless rule), and references for the little robot and the buff doge.
+    4a–4d so sofa / train / toilet each land on their reason (suggested).
+- **Tim's answers (2026-11-03):** "Looks good, proceed" is a **text bubble**: "this is a inside joke, so no harm to break our
+  rule". Little robot: "you build it, might be our future character". Buff doge: "yes, reference is Swole Doge meme". Tim
+  will send a slightly faster voice cut; times get redone from it.
+- **Row 1 sheet v1 (2026-11-03):** many tasks A several task bubbles / B one bubble + progress bars / C task bubbles +
+  progress rings; day → night L1 light only (blue room, the laptop lights your face) / L2 + a floating sun → moon / L3 +
+  the faint window fills with sky. `options/row1_wip_daynight_v1.png`, bank copies in `toy3d-row1/<variant>/`; engine
+  keys `minimal.working.more|progress`, `minimal.sky` (tryout branch).
