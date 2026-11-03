@@ -14,7 +14,7 @@ when the rig changes, so the entry records what was decided, not just where the 
 |---|---|---|---|---|
 | 001 | Locked in → the lioness → dishes → the idea fades | tryout · animatic v2 (wordless, bulb) — **meets Tim's expectation** (quality bar) | not assigned | `output/own-show/scenes/001-lioness-dishes/` · engine scene `assets/toon/scenes/001-lioness-dishes.yaml` |
 | 002 | Before: the school run (lioness bursts in → you leave → the bulb fades) | tryout · v4 (3D toy, Tim's face A + flat mouth) · **OK'd by Tim 2026-10-29**; daughter = koala round 3 B, not in this scene (no placement pick yet, not blocking) | not assigned (was EP1 scene 1 until 2026-11-02, replaced by 003) | `output/own-show/scenes/002-before-school-run/` (open `index.html`; wording in `scene.md`) |
-| 003 | Steer from anywhere (Claude works at the desk while you're on the sofa / toilet / train; then you just talk to it) | brief written · nothing rendered; timed to Tim's voice cut | EP1 scene 1 (cold open) | `output/own-show/scenes/003-steer-from-anywhere/` (wording in `scene.md`) |
+| 003 | Steer from anywhere (Claude works at the desk while you're on the sofa / toilet / train; then you just talk to it) | voice cut in (2026-11-03) · script timed in `scene.md` · picking elements | EP1 scene 1 (cold open) | `output/own-show/scenes/003-steer-from-anywhere/` (wording in `scene.md`) |
 
 ## 001 · Locked in → the lioness → dishes → the idea fades
 
@@ -146,4 +146,22 @@ when the rig changes, so the entry records what was decided, not just where the 
   back propped on the armrest, A1 one knee up / A2 both knees up (legs bend side-on to the camera).
   `options/sofa_A_v4.png`, poses `lounge_knee`/`lounge_knees`, phone hold `lounge`.
 - **Sofa decision (Tim, 2026-11-02):** "prefer the original version (first one)" — keep sheet v1 A (side-lying, the
-  original pose and camera). Fixes v2–v4 are kept for reference only. **Paused here;** next is the toilet.
+  original pose and camera). Fixes v2–v4 are kept for reference only.
+- **Voice cut + new script (Tim, 2026-11-03):** Tim's voice track (`audio/voice_v1.m4a`, 1:09, Whisper word
+  timings in `audio/voice_v1.whisper.json`) with a [ ] animation note per line. It replaces the 2-part brief:
+  - [Base: Claude working on my computer and I'm sitting in front of computer (typing keyboard)] [1. Show up multiple
+    working progress 2. Show up the lighting day and night] → "We're in the age that AI can work in parallel…24/7 for you."
+  - [Looks very focus but then quickly get the sleeping eyes and decide to stand and walk out] → "But have you enter the
+    AI usage that you can keep steering the working progress even your are not in front of desktop?"
+  - [Little robot growing into the buff doge (head swap by the little robot)] → "Because no matter how AI capabilities grow"
+  - [Switching from place to place (reuse the stand-and-walk-out, then a split screen, left keeps Claude working
+    (spinning banner); right in order: 1. me laying on the sofa focused on the phone, 2. standing inside the crowded
+    train grabbing handrails, 3. entering and sitting on the toilet)] → "The condition for a human won't change, we're
+    constrained by low focus span…or the time too fragmented…or … we're just a mortal"
+  - [Laying down on sofa, eating snack, while scrolling phone, show mouth talking with mobile] → "And among the all, the
+    way to communicate also changing, typing is not that convenient"
+  - [Sitting on the toilet but face is very focus on pooping, but in the middle, quickly change face expression and
+    showing a dialogue "Looks good, proceed" with mouth talking to the phone] → "what we're hoping to achieve… is continuity"
+  - Timed rows are in `scene.md` → *Script* (the EP1 board reads them from there). The place-to-place note is split
+    4a–4d so sofa / train / toilet each land on their reason (suggested). Open with Tim: how "Looks good, proceed"
+    shows (it isn't in the voice cut; the wordless rule), and references for the little robot and the buff doge.
