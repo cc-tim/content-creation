@@ -177,3 +177,9 @@ when the rig changes, so the entry records what was decided, not just where the 
   row 1 v2: 1a (0:00–0:10.4, you typing; two Claude sparks + a ChatGPT knot, rings filling) and 1b (0:10.4–0:15.5, empty
   desk; a day cycle through the window with a light patch sliding across the floor). `renders/003_row1_v2.mp4` (voice v1),
   bank copies `toy3d-row1/v2-*`; engine keys `working.logo|spin_rate|more[].logo|ring_*`, `progress.rate`, `minimal.cycle`.
+- **Row 1 v3 (Tim, 2026-11-03):** "icon shouldn't be rotating along, and ChatGPT icon need refactor to make it more like one.
+  And bubbles need animation (popping to first one, then second then third)"; 1b: "from start first zoom out a bit (meaning
+  to see whole room), and the lighting looks weird". Built: logos extruded from the real marks (Wikimedia path data), icons
+  still, pop-in at 2.0 / 6.0 / 8.2 s (`working.pop`, `pop_dur`), 1b camera `wide_pull` (min_desk as an orbit, pulled back
+  over 1.3 s), window light = soft additive patch + shaft (`cycle.shaft`), calmer room tints. `renders/003_row1_v3.mp4`.
+- **Row 2 (Tim, 2026-11-03):** "no need to sitting back, just reuse the row 1 opening" — row 2 opens on the 1a shot.
