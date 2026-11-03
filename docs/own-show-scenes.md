@@ -213,3 +213,8 @@ when the rig changes, so the entry records what was decided, not just where the 
   `minimal.say.text`, per-locale later) + mouth flaps (`tim_talk6_*`), bubble gone by 1:08.45.
 - **Whole scene preview v8:** `renders/003_scene1_v8.mp4` (0:00–1:09, row label + time) + a clip per row in `renders/rows/`.
   All tryout branches merged into `tryout/ep1-s002`.
+- **Row 4 v3 (Tim, 2026-11-03):** 4c "more like -45 degree … seat is at left side; the contour … change the color and make the line
+  more transparent; I should see the phone screen, so phone should tilt away from me"; 4d "phone should be higher (top will
+  cover the mouth)". Built: `train_m45` camera, bench on the far wall (left of frame), outlines `#8f9cae` at 45%, phone hold
+  `show` + opt-in `params.phone_screen` (soft glow + a small Claude asterisk, no UI), 4d `toilet_read_high` / `read_high`.
+  Whole scene `renders/003_scene1_v9.mp4`.
