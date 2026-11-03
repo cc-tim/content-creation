@@ -187,4 +187,9 @@ when the rig changes, so the entry records what was decided, not just where the 
   pop 2 at 4.7 s. **Row 2 v1:** focused face → sleepy A (head loll) at 0:19 → hands off, push back → cut to standing → walks
   out of frame on "…desktop". Sleepy-eyes sheet v1: A heavy lids / B nodding off / C the yawn (`options/sleepy_eyes_v1.png`,
   bank `toy3d-row2/`, faces in `faces.js`, branch `tryout/ep1-s003-row2` merged into `tryout/ep1-s002`). Preview
-  `renders/003_rows1-2_v4.mp4`. Row 3 (robot → buff doge) in progress.
+  `renders/003_rows1-2_v4.mp4`.
+- **Row 3 v1 (2026-11-03):** little robot sheet v1 — A bean bot (cream, dark visor, coral antenna) / B tin-toy bot (sky-blue
+  boxy) / C capsule bot (hovering mint pill); buff doge draft v1 (Swole Doge body, robot A's head, Tim's height). Grow clip:
+  cutaway on the plain ground, robot A pops in, swells, a puff hides the swap, the doge lands and flexes on "grows"
+  (default staging). Engine `bots.js` + `minimal.bots` (branch `tryout/ep1-s003-row3`, merged). Bank `toy3d-row3/`.
+- **Review cut v5:** `renders/003_rows1-3_v5.mp4` (row label + time burned in) and one clip per row in `renders/rows/`.

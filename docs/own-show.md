@@ -258,7 +258,10 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
    preview is up. Tim is re-recording the voice a bit faster. Tryout engine: branch `tryout/ep1-s002`.
    **Board format (Tim, 2026-11-03):** per scene, the voice + script rows first; picks, the full draft, plot/rules,
    outline, library and archive are collapsed. Any scene whose `scene.md` has a `**Voice:**` link and a `## Script`
-   table (Time | Animation | Line) gets this view. Engine tryout code
+   table (Time | Animation | Line | Clip) gets this view. **Per-row review (Tim, 2026-11-03: "split videos by each
+   row … difficult to know which second is at which row"):** a `**Preview:**` link makes the latest cut the sticky main
+   player (row label + time burned in, tapping a row seeks it); the Clip column holds one clip per row
+   (`renders/rows/`). Re-cut both with the scratchpad `rows_cut.py` pattern after each row change. Engine tryout code
    is on the local branch `tryout/ep1-s002` (worktree `.worktrees/ep1-s002-tryout`).
 
 Housekeeping: the fal key works again (it rendered the r6 Flux pass on 2026-10-13). It's still
