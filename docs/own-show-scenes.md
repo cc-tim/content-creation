@@ -193,3 +193,10 @@ when the rig changes, so the entry records what was decided, not just where the 
   cutaway on the plain ground, robot A pops in, swells, a puff hides the swap, the doge lands and flexes on "grows"
   (default staging). Engine `bots.js` + `minimal.bots` (branch `tryout/ep1-s003-row3`, merged). Bank `toy3d-row3/`.
 - **Review cut v5:** `renders/003_rows1-3_v5.mp4` (row label + time burned in) and one clip per row in `renders/rows/`.
+- **Rows 2–3 OK'd (Tim, 2026-11-03), defaults stand:** sleepy eyes A, robot A, doge draft v1.
+- **Row 4 v1 (2026-11-03):** 4a reuses row 2's walk-out, then a split screen (right half slides in, thin divider; left =
+  the empty desk with Claude working + GuoGuo, `toy3d-row4/left`). Right: 4b the picked sofa pose (`toy3d-row4/sofa`), 4c the
+  train (sheet `options/train_v1.png`: A strap loops + 2 passengers / B + 3 / C a pole; a bar overhead can't be reached, so
+  straps), 4d the toilet (sheet `options/toilet_v1.png`: A chunky white front-on / B side + door frame / C pastel toy; built
+  for row 6 too). Drafts use A. Engine `train.js`, `toilet.js` (branches merged into `tryout/ep1-s002`). Cut:
+  `toy3d-row4/row4_video.mp4`; preview `renders/003_rows1-4_v6.mp4` + clips per row.
