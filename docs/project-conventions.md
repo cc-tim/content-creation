@@ -17,6 +17,8 @@ proceeds **without re-asking**. Each line: `<situation> ⇒ <standing decision>`
 ## Not pre-authorized (still ask)
 - Committing to `master` anything outside the minor/routine list above ⇒ ask first (see CLAUDE.md Multi-Agent Git Hygiene). This includes code that hasn't passed its required review, and ambiguous diffs owned by another session.
 - Creative picks for Tim's own show (characters, style, scene elements) ⇒ options → Tim picks (`docs/own-show.md`).
+  **Defaults (Tim, 2026-11-03):** each option sheet ships with a draft that uses one option (the default, usually A). If Tim
+  approves the row without picking, the default stands: record it as "default", not "picked", and archive the sheet.
 - Greenlighting a new sprint, epic or scope change ⇒ Tim decides.
 - Updating `docs/workflows.html` ⇒ ask before updating, even after implementing the underlying change.
 - Destructive / outward-facing / irreversible actions (deleting data, force-push, publishing externally, spending money) are never pre-authorized here.
