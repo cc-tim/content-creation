@@ -254,7 +254,8 @@ rounds 2/3 **too vivid**; wants **thick outline, doodle, rough tie-down — hand
    footage. Scene 2's slide is A (numbers).
    **2026-11-03 later:** "Looks good, proceed" = a text bubble (exception above); the little robot is Claude's design
    (possible recurring bank character); the buff doge follows the Swole Doge meme. Row 1 sheet v1 (work in progress +
-   day → night) is out; Tim is re-recording the voice a bit faster. Tryout engine: branch `tryout/ep1-s002`.
+   day → night): Tim picked C (Claude + ChatGPT logos) and L3 (window time-lapse, no Tim in the 24/7 part); row 1 v2
+   preview is up. Tim is re-recording the voice a bit faster. Tryout engine: branch `tryout/ep1-s002`.
    **Board format (Tim, 2026-11-03):** per scene, the voice + script rows first; picks, the full draft, plot/rules,
    outline, library and archive are collapsed. Any scene whose `scene.md` has a `**Voice:**` link and a `## Script`
    table (Time | Animation | Line) gets this view. Engine tryout code

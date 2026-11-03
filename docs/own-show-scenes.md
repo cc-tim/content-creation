@@ -171,3 +171,9 @@ when the rig changes, so the entry records what was decided, not just where the 
   progress rings; day → night L1 light only (blue room, the laptop lights your face) / L2 + a floating sun → moon / L3 +
   the faint window fills with sky. `options/row1_wip_daynight_v1.png`, bank copies in `toy3d-row1/<variant>/`; engine
   keys `minimal.working.more|progress`, `minimal.sky` (tryout branch).
+- **Row 1 picks (Tim, 2026-11-03):** "better with C, but asterisk similar to Claude icon … make the third one showing ChatGPT icon
+  with its style progress bar". 24/7: "prefer L3 using the window, but also the lighting from window to indicate the time
+  flying in hours. And remove the person for this part, showing ai agent keep working on desktop by itself". Built as
+  row 1 v2: 1a (0:00–0:10.4, you typing; two Claude sparks + a ChatGPT knot, rings filling) and 1b (0:10.4–0:15.5, empty
+  desk; a day cycle through the window with a light patch sliding across the floor). `renders/003_row1_v2.mp4` (voice v1),
+  bank copies `toy3d-row1/v2-*`; engine keys `working.logo|spin_rate|more[].logo|ring_*`, `progress.rate`, `minimal.cycle`.
