@@ -14,7 +14,7 @@ when the rig changes, so the entry records what was decided, not just where the 
 |---|---|---|---|---|
 | 001 | Locked in → the lioness → dishes → the idea fades | tryout · animatic v2 (wordless, bulb) — **meets Tim's expectation** (quality bar) | not assigned | `output/own-show/scenes/001-lioness-dishes/` · engine scene `assets/toon/scenes/001-lioness-dishes.yaml` |
 | 002 | Before: the school run (lioness bursts in → you leave → the bulb fades) | tryout · v4 (3D toy, Tim's face A + flat mouth) · **OK'd by Tim 2026-10-29**; daughter = koala round 3 B, not in this scene (no placement pick yet, not blocking) | not assigned (was EP1 scene 1 until 2026-11-02, replaced by 003) | `output/own-show/scenes/002-before-school-run/` (open `index.html`; wording in `scene.md`) |
-| 003 | Steer from anywhere (Claude works at the desk while you're on the sofa / toilet / train; then you just talk to it) | voice cut in (2026-11-03) · script timed in `scene.md` · picking elements | EP1 scene 1 (cold open) | `output/own-show/scenes/003-steer-from-anywhere/` (wording in `scene.md`) |
+| 003 | Steer from anywhere (Claude works at the desk while you're on the sofa / toilet / train; then you just talk to it) | whole scene drafted (v8, 2026-11-03) · rows 1–4 OK'd / notes applied · rows 5–6 in review | EP1 scene 1 (cold open) | `output/own-show/scenes/003-steer-from-anywhere/` (wording in `scene.md`) |
 
 ## 001 · Locked in → the lioness → dishes → the idea fades
 
@@ -205,4 +205,11 @@ when the rig changes, so the entry records what was decided, not just where the 
   phone … like I am reading the phone; 4d should start reading phone once sit down"; "toilet go A (front view)". v2: 4a =
   row 2 clip 4.9–8.8 s (0:31.5–0:35.4), 4c `train_45` camera + bench (`bench_guo`) + outline passengers + `read_phone`
   (`toy3d-row4c/A2`), 4d `toilet_read` with the `read` phone hold (`toy3d-row4d/A2`). Preview `renders/003_rows1-4_v7.mp4`.
-- **Rows 5–6:** being built (snack sheet; straining-face sheet; the "Looks good, proceed" text bubble).
+- **Row 5 v1 (2026-11-03):** full frame, the sofa closer (`row5` camera); crisps bag (snack sheet `options/snack_v1.png`: A crisps /
+  B cookies / C popcorn; `params.snack` in tim.js); scroll + eat, then talks to the phone (`phone_talk` hold; talk faces
+  `tim_talk_open/mid`, flapped on Whisper word timings). The chibi arm can't reach his mouth, so bites stop under the chin.
+- **Row 6 v1 (2026-11-03):** full frame, toilet A; straining face (sheet `options/poop_face_v1.png`: A squeezed / B stare / C eyes
+  shut; `tim_strain_a/b/c`) → snap to `tim_pleased` at 1:04.0, the "Looks good, proceed" bubble (`saybubble.js`, text in
+  `minimal.say.text`, per-locale later) + mouth flaps (`tim_talk6_*`), bubble gone by 1:08.45.
+- **Whole scene preview v8:** `renders/003_scene1_v8.mp4` (0:00–1:09, row label + time) + a clip per row in `renders/rows/`.
+  All tryout branches merged into `tryout/ep1-s002`.
