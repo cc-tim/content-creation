@@ -183,3 +183,8 @@ when the rig changes, so the entry records what was decided, not just where the 
   still, pop-in at 2.0 / 6.0 / 8.2 s (`working.pop`, `pop_dur`), 1b camera `wide_pull` (min_desk as an orbit, pulled back
   over 1.3 s), window light = soft additive patch + shaft (`cycle.shaft`), calmer room tints. `renders/003_row1_v3.mp4`.
 - **Row 2 (Tim, 2026-11-03):** "no need to sitting back, just reuse the row 1 opening" — row 2 opens on the 1a shot.
+- **Row 1 OK'd (Tim, 2026-11-03):** "1a and 1b now looks good, just the second bubble could appear little bit earlier" →
+  pop 2 at 4.7 s. **Row 2 v1:** focused face → sleepy A (head loll) at 0:19 → hands off, push back → cut to standing → walks
+  out of frame on "…desktop". Sleepy-eyes sheet v1: A heavy lids / B nodding off / C the yawn (`options/sleepy_eyes_v1.png`,
+  bank `toy3d-row2/`, faces in `faces.js`, branch `tryout/ep1-s003-row2` merged into `tryout/ep1-s002`). Preview
+  `renders/003_rows1-2_v4.mp4`. Row 3 (robot → buff doge) in progress.
